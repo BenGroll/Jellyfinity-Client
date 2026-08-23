@@ -1,2 +1,2 @@
 # Jellyfinity
-The Open Source Jellyfin Client turns your Nerdy Homeserver Setup into a premium feeling Streaming experience
+The Open Source Jellyfin Client that makes your Media Server feel not-self hosted
