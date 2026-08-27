@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        FLUTTER_VERSION: "3.44.7"
+        ANDROID_CMDLINE_TOOLS_VERSION: "15859902"
+
+    volumes:
+      - ..:/workspace:cached
+      - jellyfinity-home:/home/vscode
+
+    working_dir: /workspace
+
+    command: sleep infinity
+
+    environment:
+      ANDROID_SDK_ROOT: /opt/android-sdk
+      ANDROID_HOME: /opt/android-sdk
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+      PUB_CACHE: /home/vscode/.pub-cache
+
+volumes:
+  jellyfinity-home:
+    name: jellyfinity-home
