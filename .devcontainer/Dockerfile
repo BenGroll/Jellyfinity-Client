@@ -63,6 +63,8 @@ RUN yes | sdkmanager --licenses >/dev/null \
       "platform-tools" \
       "platforms;android-36" \
       "build-tools;36.0.0" \
+      "ndk;28.2.13676358" \
+      "cmake;3.22.1" \
     && chown -R vscode:vscode "${ANDROID_SDK_ROOT}"
 
 # Agent CLIs.

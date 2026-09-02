@@ -14,12 +14,16 @@ services:
     working_dir: /workspace
 
     command: sleep infinity
+    
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     environment:
       ANDROID_SDK_ROOT: /opt/android-sdk
       ANDROID_HOME: /opt/android-sdk
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
       PUB_CACHE: /home/vscode/.pub-cache
+      ADB_SERVER_SOCKET: tcp:host.docker.internal:5037
 
 volumes:
   jellyfinity-home:
