@@ -136,6 +136,8 @@ class ErrorStateView extends StatelessWidget {
       icon: switch (failure) {
         RecoverableFailure() => Icons.wifi_off_rounded,
         UnavailableFailure() => Icons.cloud_off_rounded,
+        UnauthorizedFailure() => Icons.lock_outline_rounded,
+        UnsupportedServerFailure() => Icons.report_gmailerrorred_rounded,
         UnexpectedFailure() => Icons.error_outline,
       },
     );
@@ -149,6 +151,8 @@ class ErrorStateView extends StatelessWidget {
   static String _titleFor(Failure failure) => switch (failure) {
     RecoverableFailure() => 'Connection problem',
     UnavailableFailure() => 'Currently unavailable',
+    UnauthorizedFailure() => 'Sign-in needed',
+    UnsupportedServerFailure() => 'Server not supported',
     UnexpectedFailure() => 'Something went wrong',
   };
 
