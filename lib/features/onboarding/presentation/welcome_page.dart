@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../app/session/session_cubit.dart';
+import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 
-/// Unauthenticated entry point.
-///
-/// The real "add a server, sign in" flow is the authentication milestone
-/// (v0.0.5). For now this screen just presents the product and offers a
-/// single development action that flips [SessionCubit] to authenticated, so
-/// the authenticated navigation tree is reachable and the router's auth
-/// gate has both sides to exercise.
+/// Unauthenticated entry point: presents the product and starts the
+/// connect-a-server flow.
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
 
@@ -48,19 +43,10 @@ class WelcomePage extends StatelessWidget {
               ),
               SizedBox(height: t.spacing.xl),
               AppButton(
-                label: 'Continue',
+                label: 'Connect a server',
                 icon: Icons.arrow_forward_rounded,
                 expand: true,
-                onPressed: () =>
-                    context.read<SessionCubit>().signInForDevelopment(),
-              ),
-              SizedBox(height: t.spacing.sm),
-              Text(
-                'Server setup and sign-in arrive in a later milestone.',
-                textAlign: TextAlign.center,
-                style: t.typography.caption.copyWith(
-                  color: t.colors.textDisabled,
-                ),
+                onPressed: () => context.pushNamed(RouteNames.connect),
               ),
             ],
           ),
