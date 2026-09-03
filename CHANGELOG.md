@@ -66,3 +66,28 @@ All notable changes to Jellyfinity are documented here.
   instead of a development shortcut.
 - Added `flutter_secure_storage`, `path_provider`, and `uuid`
   dependencies.
+- Added the local-data foundation (ADR-0010): a SQLite database via
+  `drift` under `lib/infrastructure/persistence/database/`, with a
+  forward-only migration policy (`schemaVersion` 1, committed schema
+  snapshot in `drift_schemas/`, `PRAGMA foreign_keys` on). Schema v1:
+  `saved_servers`, `saved_accounts`, and a typed `key_value_entries`.
+- Replaced v0.0.5's interim JSON store: `DriftServerRegistry` and
+  `DriftAccountStore` now back the unchanged `ServerRegistry` /
+  `AccountStore` contracts, and a one-time `LegacyJsonImporter` moves any
+  existing `servers.json` / `accounts.json` into the database at startup
+  (renaming the files to `*.migrated`). `JsonStore`, `FileJsonStore`,
+  `FileServerRegistry`, `FileAccountStore` and `PersistenceModule` are
+  removed.
+- The device id Jellyfinity reports to a server is now generated once and
+  persisted (`DeviceIdentityStore`), closing the deferral in ADR-0008 and
+  ADR-0009 — a server sees one stable device instead of one per launch.
+- Added a typed `KeyValueStore` for small non-sensitive state (preferences,
+  the device id, the active-account pointer). Secrets stay in secure
+  storage.
+- Documented cache semantics and the local/remote repository-source
+  convention in ADR-0010; the artwork disk cache is specified but its
+  implementation waits for v0.0.8, when artwork is first rendered.
+- Added a representative-scale database test (`@Tags(['scale'])`): 130k
+  rows, batched insert, indexed lookup, offset pagination.
+- Added `drift` and `drift_flutter` dependencies (`drift_dev` for
+  codegen); `drift` / `drift_dev` pinned to 2.34.0.

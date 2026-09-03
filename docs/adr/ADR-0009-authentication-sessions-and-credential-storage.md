@@ -190,6 +190,11 @@ corrupt-file degradation.
   `uuid`), each behind a contract or confined to one file.
 - The interim JSON store is deliberate debt with a clear repayment point
   (v0.0.6) and a contract boundary that makes the swap local.
+  > **Repaid by ADR-0010 (v0.0.6).** `JsonStore` / `FileJsonStore` and the
+  > `File*` store implementations are deleted; `DriftServerRegistry` /
+  > `DriftAccountStore` implement the same contracts over SQLite, and a
+  > one-time `LegacyJsonImporter` moves any existing `servers.json` /
+  > `accounts.json` into the database. Nothing above the contracts changed.
 - `bootstrap` now calls `WidgetsFlutterBinding.ensureInitialized()` (it
   reaches platform storage during restore) — no test drives `bootstrap`,
   so this is not observable in the suite.
