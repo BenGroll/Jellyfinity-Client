@@ -93,6 +93,15 @@ v0.0.4 is purely an infrastructure toolkit.
   (always `null`) is the v0.0.4 implementation; v0.0.5 swaps in one backed
   by secure storage and the active session without transport code changing.
 
+  > **Filled by ADR-0009 (v0.0.5).** `SessionAuthTokenProvider` (in
+  > `lib/app/session/`) is now the DI-registered `AuthTokenProvider`,
+  > reading the active session's token. `DioJellyfinAuthenticator` was
+  > added under `auth/` for `AuthenticateByName` login, and
+  > `JellyfinHttpClient` gained a `postJson` surface. The transport code
+  > itself did not change. The stable-device-id follow-up below is still
+  > deferred (now to v0.0.6): real sessions do not need it because
+  > Jellyfin tokens stay valid regardless of the device-id header.
+
 - **Version policy** (`server/`). `ServerVersion` parses Jellyfin's dotted
   version (3 or 4 parts, ignoring any suffix). `MinimumServerVersionPolicy`
   holds the single floor value (`10.11.6`); raising or, per `OUTLOOK.md`

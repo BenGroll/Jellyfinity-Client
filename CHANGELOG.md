@@ -42,3 +42,27 @@ All notable changes to Jellyfinity are documented here.
   `Failure` hierarchy (note added to ADR-0004).
 - Added `dio`, `json_annotation`, and `json_serializable` (dev)
   dependencies.
+- Added authentication, servers, and sessions (ADR-0009). `lib/domain/`
+  gains its first content — the session concepts kept distinct
+  (`JellyfinServer`, `JellyfinAccount`, `AuthSession`) and their
+  contracts (`ServerRegistry`, `AccountStore`, `CredentialStore`,
+  `JellyfinAuthenticator`). A real user journey now works end to end:
+  enter a server address → validate it → sign in with a Jellyfin
+  username/password (`AuthenticateByName`) → the session is restored on
+  the next launch (no network call, so a currently-offline server does
+  not block startup) → switch profile, sign out, or remove a saved
+  profile/server from the new Accounts screen. Polished connecting and
+  error states throughout; no raw exception text in the UI.
+- Access tokens are stored in platform secure storage
+  (`flutter_secure_storage`: iOS Keychain, Android Keystore-backed
+  `EncryptedSharedPreferences`). The non-secret saved-servers/profiles
+  registry uses a small JSON-file store behind the domain contracts as
+  an explicit interim until the v0.0.6 database.
+- `SessionAuthTokenProvider` replaces `NoAuthTokenProvider` as the
+  transport layer's token source; `JellyfinHttpClient` gained a
+  `postJson` surface.
+- The router's onboarding flow (`/connect`, `/connect/sign-in`) and the
+  `/accounts` screen; the welcome screen now starts the connect flow
+  instead of a development shortcut.
+- Added `flutter_secure_storage`, `path_provider`, and `uuid`
+  dependencies.
