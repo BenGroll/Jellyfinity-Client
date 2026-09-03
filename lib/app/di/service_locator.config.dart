@@ -12,6 +12,8 @@
 
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/router/app_router.dart' as _i29;
+import 'package:jellyfinity/app/session/session_cubit.dart' as _i737;
 import 'package:jellyfinity/core/logging/console_logger.dart' as _i52;
 import 'package:jellyfinity/core/logging/logger.dart' as _i20;
 
@@ -22,6 +24,10 @@ extension GetItInjectableX on _i174.GetIt {
     _i526.EnvironmentFilter? environmentFilter,
   }) {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
+    gh.lazySingleton<_i737.SessionCubit>(() => _i737.SessionCubit());
+    gh.lazySingleton<_i29.AppRouter>(
+      () => _i29.AppRouter(gh<_i737.SessionCubit>()),
+    );
     gh.lazySingleton<_i20.Logger>(() => _i52.ConsoleLogger());
     return this;
   }
