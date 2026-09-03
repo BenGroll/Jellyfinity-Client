@@ -1,18 +1,23 @@
 import 'package:injectable/injectable.dart';
 
+import '../persistence/device_identity_store.dart';
 import 'identity/jellyfin_client_identity.dart';
 
 /// DI wiring for values in the Jellyfin transport layer that are built
 /// from construction logic rather than plain constructor injection.
 ///
-/// [JellyfinClientIdentity] is registered here (not with an annotation on
-/// the class) because building it needs a device id, and the source of
-/// that id changes across milestones: an ephemeral per-launch id now, a
-/// persisted stable id once the persistence layer (v0.0.6) exists. Keeping
-/// it in a module means only this method changes then.
+/// [JellyfinClientIdentity] needs a stable device id. From v0.0.6 that id
+/// is persisted (ADR-0010), so the identity is resolved asynchronously
+/// from [DeviceIdentityStore] and `@preResolve`d — `configureDependencies()`
+/// reads (or, on first ever launch, generates and writes) the id before
+/// the graph is handed out, so every request reports the same device.
 @module
 abstract class JellyfinTransportModule {
+  @preResolve
   @lazySingleton
-  JellyfinClientIdentity clientIdentity() =>
-      JellyfinClientIdentity.forThisApp(deviceId: generateEphemeralDeviceId());
+  Future<JellyfinClientIdentity> clientIdentity(
+    DeviceIdentityStore deviceIdentity,
+  ) async => JellyfinClientIdentity.forThisApp(
+    deviceId: await deviceIdentity.deviceId(),
+  );
 }

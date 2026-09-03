@@ -1,5 +1,3 @@
-import 'dart:math';
-
 /// The version string Jellyfinity reports to Jellyfin servers as its
 /// client version.
 ///
@@ -32,10 +30,10 @@ class JellyfinClientIdentity {
   /// Builds the identity for this application, with [kJellyfinityClientName]
   /// and [kJellyfinityClientVersion] filled in.
   ///
-  /// [deviceId] should be stable for the lifetime of an install. Until the
-  /// persistence layer (v0.0.6) exists, callers pass an ephemeral id via
-  /// [ephemeralDeviceId]; a server will then see a new device per launch,
-  /// which is acceptable while there is no login.
+  /// [deviceId] must be stable for the lifetime of an install — from
+  /// v0.0.6 it comes from `DeviceIdentityStore`, which persists a generated
+  /// id in the local database (ADR-0010), so a server sees one stable
+  /// Jellyfinity device rather than one per launch.
   factory JellyfinClientIdentity.forThisApp({
     required String deviceId,
     String deviceName = 'Jellyfinity',
@@ -85,12 +83,4 @@ class JellyfinClientIdentity {
 
   static String _escape(String value) =>
       value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
-}
-
-/// Generates a random 32-character hex id, used as an ephemeral device id
-/// until v0.0.6 persists a stable one.
-String generateEphemeralDeviceId() {
-  final random = Random();
-  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }

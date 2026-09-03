@@ -4,8 +4,8 @@
 /// This is the only place a token is persisted. The v0.0.5 implementation
 /// is backed by `flutter_secure_storage` (iOS Keychain / Android Keystore
 /// via EncryptedSharedPreferences) — see ADR-0009. Tokens must never be
-/// written anywhere else: not the [AccountStore]'s JSON, not preferences,
-/// not logs (`Logger`'s privacy rule).
+/// written anywhere else: not the [AccountStore]'s tables, not the
+/// key/value store, not logs (`Logger`'s privacy rule).
 abstract class CredentialStore {
   /// The token for the account with local id [accountId], or `null` if
   /// none is stored (never logged in, or the secure entry is gone).

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/config/app_config.dart';
 import '../core/logging/logger.dart';
+import '../infrastructure/persistence/legacy_json_importer.dart';
 import 'di/service_locator.dart';
 import 'session/session_cubit.dart';
 
@@ -23,6 +24,11 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   await configureDependencies();
 
   final logger = getIt<Logger>();
+
+  // One-time migration of v0.0.5's interim JSON store into the database.
+  // Awaited (it is a no-op after the first run, or on a fresh install) so
+  // that session restore below reads the imported servers and profiles.
+  await getIt<LegacyJsonImporter>().run();
 
   // Kick off session restore without awaiting it: the app launches at
   // SessionStatus.unknown (the splash screen) and the SessionCubit moves
