@@ -91,3 +91,39 @@ All notable changes to Jellyfinity are documented here.
   rows, batched insert, indexed lookup, offset pagination.
 - Added `drift` and `drift_flutter` dependencies (`drift_dev` for
   codegen); `drift` / `drift_dev` pinned to 2.34.0.
+- Added Jellyfinity's media vocabulary (ADR-0011) in
+  `lib/domain/media/`: `Artist`, `Album`, `Track`, `Playlist`, `Movie`,
+  `Series`, `Season` and `Episode` over a shared `MediaItem`, plus
+  `MediaImage`, `MediaAvailability`, `PlaybackProgress`, `ArtistRef` and
+  the `Page`/`PageRequest` pair every collection is read through. Media
+  is identified by `MediaId` — Jellyfinity's local server id together
+  with the Jellyfin item id — so no bare, server-specific id is ever
+  passed around.
+- Added narrow media repository contracts —
+  `MusicLibraryRepository`, `PlaylistRepository`,
+  `MediaMetadataRepository`, `PlaybackProgressRepository` and
+  `ArtworkResolver` — with Jellyfin-backed implementations under
+  `lib/infrastructure/jellyfin/media/`. Every read is a windowed,
+  server-sorted query; nothing offers "give me everything", and nothing
+  filters a library in Dart.
+- Added `BaseItemDto` and `BaseItemMapper`: one polymorphic DTO matching
+  Jellyfin's item response, and the codebase's only translator from it
+  to domain entities. It maps ticks to `Duration`, `UserData` to
+  playback progress, and image tags to artwork (a song points at its
+  album's cover, an episode at its show's poster, so an image is cached
+  once rather than once per row). An item of the wrong type, or without
+  an id or a name, becomes an `unavailable` entry on its page instead of
+  a dropped row or a failed screen.
+- Added `JellyfinMediaApi`: the single place that knows Jellyfin's query
+  vocabulary, owner of the session-scoped HTTP client (rebuilt when the
+  active profile moves to another server), and the guard that refuses to
+  ask one server for another server's item.
+- Added the `JellyfinSessionContext` seam (implemented by
+  `SessionJellyfinContext` over `AuthSessionManager`), so the media
+  layer can read the active server and user without infrastructure
+  depending on the composition root — the same arrangement as
+  `AuthTokenProvider`.
+- Artwork resolves to a sized URL rather than being fetched; the bounded
+  artwork cache still lands in v0.0.8, behind the same contract.
+- `JellyfinHttpClient` gained `send()` for endpoints whose answer is
+  their status code — marking an item played or unplayed.
