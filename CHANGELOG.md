@@ -26,3 +26,19 @@ All notable changes to Jellyfinity are documented here.
   (with failure-aware retry), `UnavailableContent`, and `AppButton`.
 - Replaced the placeholder development shell with the real welcome and
   Home screens built on the design system.
+- Added the Jellyfin transport layer (ADR-0008) under
+  `lib/infrastructure/jellyfin/`: a `dio`-based `JellyfinHttpClient` whose
+  request surface returns `Result` and never leaks a `DioException`;
+  centralized `JellyfinClientIdentity` building the Jellyfin
+  `Authorization` header, with an `AuthTokenProvider` seam for v0.0.5;
+  `dio` interceptors for the identity/auth header, debug request
+  correlation, and bounded GET-only retry; `JellyfinServerUrl`
+  normalization; `ServerVersion` plus a one-line `MinimumServerVersionPolicy`
+  (floor: Jellyfin 10.11.6); a `json_serializable` `PublicSystemInfoDto`;
+  `TransportErrorMapper` normalizing transport failures to the ADR-0004
+  model; and `JellyfinServerProbe.validate()` to check a server is
+  reachable, really Jellyfin, and supported.
+- Added `UnauthorizedFailure` and `UnsupportedServerFailure` to the core
+  `Failure` hierarchy (note added to ADR-0004).
+- Added `dio`, `json_annotation`, and `json_serializable` (dev)
+  dependencies.
