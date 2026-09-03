@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/session/session_cubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/design/design.dart';
@@ -79,7 +81,13 @@ void main() {
 
     await tester.pumpWidget(
       _host(
-        LoginPage(server: fakeServerInfo(), cubit: LoginCubit(scope.cubit)),
+        BlocProvider<SessionCubit>.value(
+          value: scope.cubit,
+          child: LoginPage(
+            server: fakeServerInfo(),
+            cubit: LoginCubit(scope.cubit),
+          ),
+        ),
       ),
     );
 

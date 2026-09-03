@@ -64,6 +64,20 @@ void main() {
     expect(find.byType(HomePage), findsOneWidget);
   });
 
+  testWidgets('completing sign-in from the connect flow lands in the shell', (
+    tester,
+  ) async {
+    final (router, scope) = await pump(tester);
+
+    router.config.go(RoutePaths.signIn, extra: fakeServerInfo());
+    await tester.pumpAndSettle();
+
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HomePage), findsOneWidget);
+  });
+
   testWidgets('the router follows session changes with no manual navigation', (
     tester,
   ) async {

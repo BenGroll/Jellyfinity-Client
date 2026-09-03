@@ -116,13 +116,16 @@ class AppRouter {
       case SessionStatus.unauthenticated:
         return inOnboarding ? null : RoutePaths.welcome;
       case SessionStatus.authenticated:
-        // Signed in: the splash and the product intro have nothing left
-        // to do; everything else (shell, account switcher, and the
-        // add-another-account flow) is allowed.
-        if (location == RoutePaths.splash || location == RoutePaths.welcome) {
-          return RoutePaths.home;
-        }
-        return null;
+        // Signed in: the splash, the product intro, and a completed
+        // sign-in have nothing left to do, so they fall through to the
+        // shell. /connect stays reachable so "add another account" works
+        // from the Accounts screen; everything else is allowed.
+        const settled = {
+          RoutePaths.splash,
+          RoutePaths.welcome,
+          RoutePaths.signIn,
+        };
+        return settled.contains(location) ? RoutePaths.home : null;
     }
   }
 

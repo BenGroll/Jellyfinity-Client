@@ -3,6 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/router/route_paths.dart';
+import '../../../../app/session/session_cubit.dart';
+import '../../../../app/session/session_state.dart';
+import '../../../../app/session/session_status.dart';
 import '../../../../design/design.dart';
 import '../../../../infrastructure/jellyfin/server/jellyfin_server_info.dart';
 import '../widgets/auth_text_field.dart';
@@ -23,7 +27,14 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider<LoginCubit>(
       create: (_) => (cubit ?? getIt<LoginCubit>())..forServer(server),
-      child: _LoginView(server: server),
+      // Once signed in (first login or "add another account"), leave the
+      // onboarding stack for the shell. The router's redirect also gates
+      // this, but a pushed route needs an explicit move.
+      child: BlocListener<SessionCubit, SessionState>(
+        listenWhen: (_, s) => s.status == SessionStatus.authenticated,
+        listener: (context, _) => context.go(RoutePaths.home),
+        child: _LoginView(server: server),
+      ),
     );
   }
 }
