@@ -8,8 +8,8 @@ import '../../support/pump_app.dart';
 
 void main() {
   testWidgets('the shell wraps the authenticated section', (tester) async {
-    final session = await pumpApp(tester);
-    session.signInForDevelopment();
+    final scope = await pumpApp(tester);
+    await scope.signIn();
     await tester.pumpAndSettle();
 
     expect(find.byType(AppShell), findsOneWidget);
@@ -23,8 +23,8 @@ void main() {
     // appears once a second section is actually added.
     expect(shellDestinations, hasLength(1));
 
-    final session = await pumpApp(tester);
-    session.signInForDevelopment();
+    final scope = await pumpApp(tester);
+    await scope.signIn();
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsNothing);

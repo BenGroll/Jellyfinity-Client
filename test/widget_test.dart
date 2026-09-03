@@ -3,6 +3,7 @@ import 'package:jellyfinity/features/home/presentation/home_page.dart';
 import 'package:jellyfinity/features/onboarding/presentation/welcome_page.dart';
 
 import 'support/pump_app.dart';
+import 'support/session_fakes.dart';
 
 void main() {
   testWidgets('an unauthenticated launch lands on the welcome screen', (
@@ -14,22 +15,23 @@ void main() {
     expect(find.byType(HomePage), findsNothing);
   });
 
-  testWidgets('continuing from welcome enters the app shell', (tester) async {
-    await pumpApp(tester);
-
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+  testWidgets('a restored session lands straight in the app shell', (
+    tester,
+  ) async {
+    final scope = TestSessionScope();
+    await scope.signIn();
+    await pumpApp(tester, scope: scope);
 
     expect(find.byType(HomePage), findsOneWidget);
     expect(find.byType(WelcomePage), findsNothing);
   });
 
-  testWidgets('signing out from home returns to welcome', (tester) async {
-    final session = await pumpApp(tester);
-    session.signInForDevelopment();
+  testWidgets('signing out returns to welcome', (tester) async {
+    final scope = await pumpApp(tester);
+    await scope.signIn();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Sign out'));
+    await scope.cubit.signOut();
     await tester.pumpAndSettle();
 
     expect(find.byType(WelcomePage), findsOneWidget);

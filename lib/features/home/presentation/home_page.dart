@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../app/session/session_cubit.dart';
+import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 
-/// The Home section — the first and, for v0.0.3, only shell destination.
+/// The Home section — the first and, for now, only shell destination.
 ///
 /// There is no library to show yet (media arrives from v0.0.7 on), so this
 /// is a deliberately small real screen rather than a stubbed-out future
@@ -21,9 +21,9 @@ class HomePage extends StatelessWidget {
       title: 'Home',
       actions: [
         IconButton(
-          onPressed: () => context.read<SessionCubit>().signOut(),
-          icon: const Icon(Icons.logout_rounded),
-          tooltip: 'Sign out',
+          onPressed: () => context.pushNamed(RouteNames.accounts),
+          icon: const Icon(Icons.account_circle_outlined),
+          tooltip: 'Accounts',
         ),
       ],
       body: Center(
