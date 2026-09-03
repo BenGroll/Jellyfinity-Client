@@ -18,8 +18,11 @@ import 'package:jellyfinity/app/session/auth_session_manager.dart' as _i887;
 import 'package:jellyfinity/app/session/session_auth_token_provider.dart'
     as _i318;
 import 'package:jellyfinity/app/session/session_cubit.dart' as _i737;
+import 'package:jellyfinity/app/session/session_jellyfin_context.dart' as _i418;
 import 'package:jellyfinity/core/logging/console_logger.dart' as _i52;
 import 'package:jellyfinity/core/logging/logger.dart' as _i20;
+import 'package:jellyfinity/domain/media/artwork_resolver.dart' as _i1005;
+import 'package:jellyfinity/domain/media/media.dart' as _i747;
 import 'package:jellyfinity/domain/session/account_store.dart' as _i413;
 import 'package:jellyfinity/domain/session/credential_store.dart' as _i858;
 import 'package:jellyfinity/domain/session/jellyfin_authenticator.dart'
@@ -38,8 +41,22 @@ import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider
     as _i430;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart'
     as _i685;
+import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_session_context.dart'
+    as _i185;
 import 'package:jellyfinity/infrastructure/jellyfin/jellyfin_transport_module.dart'
     as _i739;
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_artwork_resolver.dart'
+    as _i1012;
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_api.dart'
+    as _i963;
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_metadata_repository.dart'
+    as _i717;
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_music_library_repository.dart'
+    as _i875;
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_playback_progress_repository.dart'
+    as _i504;
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_playlist_repository.dart'
+    as _i254;
 import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart'
     as _i478;
 import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart'
@@ -148,8 +165,36 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i737.SessionCubit>(),
       ),
     );
+    gh.lazySingleton<_i185.JellyfinSessionContext>(
+      () => _i418.SessionJellyfinContext(gh<_i887.AuthSessionManager>()),
+    );
+    gh.lazySingleton<_i963.JellyfinMediaApi>(
+      () => _i963.JellyfinMediaApi(
+        gh<_i185.JellyfinSessionContext>(),
+        gh<_i685.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
+        gh<_i20.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i1005.ArtworkResolver>(
+      () => _i1012.JellyfinArtworkResolver(gh<_i185.JellyfinSessionContext>()),
+    );
     gh.factory<_i952.ServerSetupCubit>(
       () => _i952.ServerSetupCubit(gh<_i478.JellyfinServerProbe>()),
+    );
+    gh.lazySingleton<_i747.MediaMetadataRepository>(
+      () => _i717.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
+    );
+    gh.lazySingleton<_i747.PlaybackProgressRepository>(
+      () => _i504.JellyfinPlaybackProgressRepository(
+        gh<_i963.JellyfinMediaApi>(),
+      ),
+    );
+    gh.lazySingleton<_i747.PlaylistRepository>(
+      () => _i254.JellyfinPlaylistRepository(gh<_i963.JellyfinMediaApi>()),
+    );
+    gh.lazySingleton<_i747.MusicLibraryRepository>(
+      () => _i875.JellyfinMusicLibraryRepository(gh<_i963.JellyfinMediaApi>()),
     );
     return this;
   }
