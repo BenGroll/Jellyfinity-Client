@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const JellyfinityApp());
+import 'app/bootstrap.dart';
+
+Future<void> main() async {
+  await bootstrap(builder: () => const JellyfinityApp());
 }
 
 class JellyfinityApp extends StatelessWidget {

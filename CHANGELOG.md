@@ -8,3 +8,8 @@ All notable changes to Jellyfinity are documented here.
 - Added the reproducible development container.
 - Added Windows-hosted Android emulator support through ADB.
 - Added the initial Jellyfinity development shell.
+- Added the application architecture core: feature-first Clean
+  Architecture direction (ADR-0001), `flutter_bloc` state management
+  (ADR-0002), `get_it`/`injectable` dependency composition (ADR-0003), a
+  shared `Result`/`Failure`/`Partial` model (ADR-0004), and privacy-safe
+  logging/configuration conventions (ADR-0005), each with focused tests.
