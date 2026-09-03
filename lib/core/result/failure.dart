@@ -39,6 +39,31 @@ final class UnavailableFailure extends Failure {
   const UnavailableFailure(super.message, {super.cause, super.stackTrace});
 }
 
+/// A request reached the server but was rejected because the caller is not
+/// authenticated (or its session expired), or is authenticated but not
+/// permitted to perform the request.
+///
+/// Introduced by the transport layer (ADR-0008); ADR-0004 originally
+/// deferred an auth failure category to v0.0.5, but normalizing 401/403
+/// is squarely a v0.0.4 transport concern and v0.0.5 builds on this type.
+final class UnauthorizedFailure extends Failure {
+  const UnauthorizedFailure(super.message, {super.cause, super.stackTrace});
+}
+
+/// The server was reached and identified, but does not meet Jellyfinity's
+/// requirements — it is not a Jellyfin server, or its version is older
+/// than the minimum supported one (see `MinimumServerVersionPolicy`).
+///
+/// Not recoverable by retrying: the user has to point at a different or
+/// upgraded server.
+final class UnsupportedServerFailure extends Failure {
+  const UnsupportedServerFailure(
+    super.message, {
+    super.cause,
+    super.stackTrace,
+  });
+}
+
 /// Something failed in a way that was not anticipated, such as an
 /// unhandled exception surfacing from infrastructure code.
 ///

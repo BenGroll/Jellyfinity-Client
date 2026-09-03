@@ -51,6 +51,14 @@ Jellyfinity uses a hand-written `Result`/`Failure`/`Partial` model in
   - `UnexpectedFailure` — an unanticipated failure, typically wrapping an
     uncaught exception from infrastructure code.
 
+  > **Extended by ADR-0008 (v0.0.4).** The transport layer added two more
+  > subtypes to this sealed hierarchy — `UnauthorizedFailure` (HTTP
+  > 401/403) and `UnsupportedServerFailure` (reached, but not a supported
+  > Jellyfin server) — because the v0.0.4 roadmap error list distinguishes
+  > them and v0.0.5's re-login logic keys off the auth one. This
+  > supersedes the "an auth-specific failure in v0.0.5" remark in the
+  > Consequences below. The base set is still kept deliberately small.
+
   Every `Failure` carries a presentable `message`, plus an optional
   `cause`/`stackTrace` for diagnostics. `message` must never contain
   credentials, tokens, or other sensitive data (same rule as logging;
