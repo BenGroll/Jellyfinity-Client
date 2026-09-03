@@ -88,6 +88,12 @@ v0.0.4 is purely an infrastructure toolkit.
   per-launch id now; a persisted stable id after v0.0.6 — only the module
   method changes).
 
+  > **Filled by ADR-0010 (v0.0.6).** `clientIdentity` is now an
+  > `@preResolve` provider that awaits `DeviceIdentityStore`, which keeps a
+  > generated UUID in the local database. A server now sees one stable
+  > Jellyfinity device instead of one per launch. Only the module method
+  > changed, as anticipated.
+
 - **Authentication-aware, pre-login.** `AuthTokenProvider` is the seam to
   v0.0.5: the transport only asks "is there a token?". `NoAuthTokenProvider`
   (always `null`) is the v0.0.4 implementation; v0.0.5 swaps in one backed
@@ -98,9 +104,10 @@ v0.0.4 is purely an infrastructure toolkit.
   > reading the active session's token. `DioJellyfinAuthenticator` was
   > added under `auth/` for `AuthenticateByName` login, and
   > `JellyfinHttpClient` gained a `postJson` surface. The transport code
-  > itself did not change. The stable-device-id follow-up below is still
-  > deferred (now to v0.0.6): real sessions do not need it because
-  > Jellyfin tokens stay valid regardless of the device-id header.
+  > itself did not change. The stable-device-id follow-up above is
+  > deferred to v0.0.6 (now done — see ADR-0010): real sessions do not
+  > need it because Jellyfin tokens stay valid regardless of the
+  > device-id header.
 
 - **Version policy** (`server/`). `ServerVersion` parses Jellyfin's dotted
   version (3 or 4 parts, ignoring any suffix). `MinimumServerVersionPolicy`

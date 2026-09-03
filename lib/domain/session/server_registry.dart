@@ -2,11 +2,10 @@ import 'jellyfin_server.dart';
 
 /// Stores the set of Jellyfin servers the user has saved.
 ///
-/// Non-secret data only — a server is an address and a name. The v0.0.5
-/// implementation is a JSON file (see the infrastructure layer and
-/// ADR-0009); v0.0.6's persistence milestone replaces it with the real
-/// local database behind this same contract, so nothing above this
-/// interface changes.
+/// Non-secret data only — a server is an address and a name. Backed by the
+/// local database (`DriftServerRegistry`, ADR-0010); v0.0.5 shipped an
+/// interim JSON-file implementation behind this same contract, replaced in
+/// v0.0.6 with nothing above this interface changing.
 ///
 /// Kept narrow on purpose (ADR-0001: "avoid a single giant repository
 /// interface"): just what the auth/account feature needs.

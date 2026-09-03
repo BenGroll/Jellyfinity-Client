@@ -282,7 +282,7 @@ Before making significant changes, contributors should familiarize themselves wi
 * `PHILOSOPHY.md` — product, UX, privacy, architecture, and engineering principles
 * `OUTLOOK.md` — ideas intentionally deferred beyond the current roadmap
 
-The current development milestone is **v0.0.5 — Authentication, Servers & Sessions**.
+The current development milestone is **v0.0.6 — Persistence, Cache & Local Data Foundation**.
 
 ## Repository Structure
 

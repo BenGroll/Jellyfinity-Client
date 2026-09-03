@@ -42,13 +42,20 @@ import 'package:jellyfinity/infrastructure/jellyfin/jellyfin_transport_module.da
     as _i739;
 import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart'
     as _i478;
-import 'package:jellyfinity/infrastructure/persistence/file_account_store.dart'
-    as _i136;
-import 'package:jellyfinity/infrastructure/persistence/file_server_registry.dart'
-    as _i160;
-import 'package:jellyfinity/infrastructure/persistence/json_store.dart' as _i43;
-import 'package:jellyfinity/infrastructure/persistence/persistence_module.dart'
-    as _i1069;
+import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart'
+    as _i59;
+import 'package:jellyfinity/infrastructure/persistence/database_module.dart'
+    as _i612;
+import 'package:jellyfinity/infrastructure/persistence/device_identity_store.dart'
+    as _i584;
+import 'package:jellyfinity/infrastructure/persistence/drift_account_store.dart'
+    as _i973;
+import 'package:jellyfinity/infrastructure/persistence/drift_server_registry.dart'
+    as _i131;
+import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart'
+    as _i617;
+import 'package:jellyfinity/infrastructure/persistence/legacy_json_importer.dart'
+    as _i396;
 import 'package:jellyfinity/infrastructure/secure/secure_credential_store.dart'
     as _i508;
 import 'package:jellyfinity/infrastructure/secure/secure_storage_module.dart'
@@ -56,17 +63,15 @@ import 'package:jellyfinity/infrastructure/secure/secure_storage_module.dart'
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
-  _i174.GetIt init({
+  Future<_i174.GetIt> init({
     String? environment,
     _i526.EnvironmentFilter? environmentFilter,
-  }) {
+  }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
-    final jellyfinTransportModule = _$JellyfinTransportModule();
+    final databaseModule = _$DatabaseModule();
     final secureStorageModule = _$SecureStorageModule();
-    final persistenceModule = _$PersistenceModule();
-    gh.lazySingleton<_i685.JellyfinClientIdentity>(
-      () => jellyfinTransportModule.clientIdentity(),
-    );
+    final jellyfinTransportModule = _$JellyfinTransportModule();
+    gh.lazySingleton<_i59.AppDatabase>(() => databaseModule.appDatabase());
     gh.lazySingleton<_i558.FlutterSecureStorage>(
       () => secureStorageModule.secureStorage(),
     );
@@ -74,20 +79,39 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i858.CredentialStore>(
       () => _i508.SecureCredentialStore(gh<_i558.FlutterSecureStorage>()),
     );
+    gh.lazySingleton<_i607.ServerRegistry>(
+      () => _i131.DriftServerRegistry(gh<_i59.AppDatabase>()),
+    );
+    gh.lazySingleton<_i617.KeyValueStore>(
+      () => _i617.DriftKeyValueStore(gh<_i59.AppDatabase>()),
+    );
+    gh.lazySingleton<_i396.LegacyJsonImporter>(
+      () => _i396.LegacyJsonImporter(
+        gh<_i59.AppDatabase>(),
+        gh<_i617.KeyValueStore>(),
+        gh<_i20.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i584.DeviceIdentityStore>(
+      () => _i584.PersistentDeviceIdentityStore(gh<_i617.KeyValueStore>()),
+    );
+    await gh.lazySingletonAsync<_i685.JellyfinClientIdentity>(
+      () => jellyfinTransportModule.clientIdentity(
+        gh<_i584.DeviceIdentityStore>(),
+      ),
+      preResolve: true,
+    );
+    gh.lazySingleton<_i413.AccountStore>(
+      () => _i973.DriftAccountStore(
+        gh<_i59.AppDatabase>(),
+        gh<_i617.KeyValueStore>(),
+      ),
+    );
     gh.lazySingleton<_i403.JellyfinAuthenticator>(
       () => _i870.DioJellyfinAuthenticator(
         gh<_i685.JellyfinClientIdentity>(),
         gh<_i20.Logger>(),
       ),
-    );
-    gh.lazySingleton<_i43.JsonStore>(
-      () => persistenceModule.jsonStore(gh<_i20.Logger>()),
-    );
-    gh.lazySingleton<_i413.AccountStore>(
-      () => _i136.FileAccountStore(gh<_i43.JsonStore>()),
-    );
-    gh.lazySingleton<_i607.ServerRegistry>(
-      () => _i160.FileServerRegistry(gh<_i43.JsonStore>()),
     );
     gh.lazySingleton<_i887.AuthSessionManager>(
       () => _i887.AuthSessionManager(
@@ -131,8 +155,8 @@ extension GetItInjectableX on _i174.GetIt {
   }
 }
 
-class _$JellyfinTransportModule extends _i739.JellyfinTransportModule {}
+class _$DatabaseModule extends _i612.DatabaseModule {}
 
 class _$SecureStorageModule extends _i250.SecureStorageModule {}
 
-class _$PersistenceModule extends _i1069.PersistenceModule {}
+class _$JellyfinTransportModule extends _i739.JellyfinTransportModule {}

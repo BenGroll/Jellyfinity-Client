@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart';
+import 'package:jellyfinity/infrastructure/persistence/device_identity_store.dart';
+import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 import 'package:jellyfinity/app/session/auth_session_manager.dart';
 import 'package:jellyfinity/app/session/session_auth_token_provider.dart';
 import 'package:jellyfinity/app/session/session_cubit.dart';
@@ -12,9 +15,16 @@ import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_ide
 import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart';
 import 'package:jellyfinity/app/di/service_locator.dart';
 
+import '../../support/fake_path_provider.dart';
+
 void main() {
   group('configureDependencies', () {
+    setUp(useFakePathProvider);
+
     tearDown(() async {
+      if (getIt.isRegistered<AppDatabase>()) {
+        await getIt<AppDatabase>().close();
+      }
       await getIt.reset();
     });
 
@@ -51,6 +61,17 @@ void main() {
       expect(getIt<JellyfinAuthenticator>(), isA<JellyfinAuthenticator>());
       expect(getIt<AuthSessionManager>(), isA<AuthSessionManager>());
       expect(getIt<SessionCubit>(), isA<SessionCubit>());
+    });
+
+    test('wires the local database and its stores (ADR-0010)', () async {
+      await configureDependencies();
+
+      expect(getIt<AppDatabase>(), isA<AppDatabase>());
+      expect(getIt<KeyValueStore>(), isA<KeyValueStore>());
+      expect(getIt<DeviceIdentityStore>(), isA<DeviceIdentityStore>());
+      // The persisted device id flows into the client identity.
+      final deviceId = await getIt<DeviceIdentityStore>().deviceId();
+      expect(getIt<JellyfinClientIdentity>().deviceId, deviceId);
     });
   });
 }

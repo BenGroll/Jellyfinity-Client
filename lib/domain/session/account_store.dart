@@ -3,8 +3,9 @@ import 'jellyfin_account.dart';
 /// Stores the saved profiles (server + user pairings) and which one is
 /// active.
 ///
-/// Non-secret data only; tokens are the [CredentialStore]'s job. Same
-/// interim-JSON-now, database-in-v0.0.6 story as [ServerRegistry].
+/// Non-secret data only; tokens are the [CredentialStore]'s job. Backed by
+/// the local database (`DriftAccountStore`, ADR-0010), same as
+/// [ServerRegistry].
 ///
 /// The active-account pointer lives here rather than in its own store
 /// because it is always read and written together with the account list,

@@ -1,0 +1,5 @@
+# Test tags. Run everything by default; `flutter test --exclude-tags scale`
+# skips the representative-scale database checks when a fast loop is wanted.
+tags:
+  scale:
+    description: Representative large-library scale checks (ADR-0010).

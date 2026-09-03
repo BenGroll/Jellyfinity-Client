@@ -57,13 +57,4 @@ void main() {
       expect(identity.deviceId, 'device-1');
     });
   });
-
-  group('generateEphemeralDeviceId', () {
-    test('is 32 hex characters and differs between calls', () {
-      final a = generateEphemeralDeviceId();
-      final b = generateEphemeralDeviceId();
-      expect(a, matches(RegExp(r'^[0-9a-f]{32}$')));
-      expect(a, isNot(b));
-    });
-  });
 }
