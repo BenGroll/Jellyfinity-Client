@@ -67,6 +67,41 @@ class JellyfinHttpClient {
       return Result.err(_errorMapper.map(error, stackTrace));
     }
 
+    return _decode(response, parse);
+  }
+
+  /// POSTs [body] as JSON to [path] and decodes the JSON object response
+  /// with [parse].
+  ///
+  /// Same contract as [getJson]: every transport failure, a non-object
+  /// body, or a throwing [parse] comes back as `Err` — no exception
+  /// escapes. Note the retry interceptor deliberately never retries a
+  /// POST.
+  Future<Result<T>> postJson<T>(
+    String path, {
+    required T Function(Map<String, dynamic> json) parse,
+    Object? body,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    final Response<dynamic> response;
+    try {
+      response = await _dio.post<dynamic>(
+        path,
+        data: body,
+        queryParameters: queryParameters,
+        cancelToken: cancelToken,
+      );
+    } catch (error, stackTrace) {
+      return Result.err(_errorMapper.map(error, stackTrace));
+    }
+    return _decode(response, parse);
+  }
+
+  Result<T> _decode<T>(
+    Response<dynamic> response,
+    T Function(Map<String, dynamic> json) parse,
+  ) {
     final body = response.data;
     if (body is! Map<String, dynamic>) {
       return const Result.err(
