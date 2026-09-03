@@ -10,11 +10,12 @@ services:
     volumes:
       - ..:/workspace:cached
       - jellyfinity-home:/home/vscode
+      - ~/.ssh/agent.sock:/ssh-agent
 
     working_dir: /workspace
 
     command: sleep infinity
-    
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -24,6 +25,7 @@ services:
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
       PUB_CACHE: /home/vscode/.pub-cache
       ADB_SERVER_SOCKET: tcp:host.docker.internal:5037
+      SSH_AUTH_SOCK: /ssh-agent
 
 volumes:
   jellyfinity-home:

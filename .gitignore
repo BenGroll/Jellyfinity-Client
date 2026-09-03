@@ -26,3 +26,8 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# IDE-local files
+.idea/
+*.iml
+.vscode/launch.json

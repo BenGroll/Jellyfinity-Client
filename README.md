@@ -10,7 +10,7 @@ Jellyfinity is a free and open-source Flutter client for Jellyfin, built primari
 
 Jellyfinity uses a repository-owned **VS Code Dev Container** to provide a reproducible development environment.
 
-The container includes the Flutter SDK, Dart, Android build toolchain, JDK, Node.js, Claude Code, and Codex CLI. You do not need to install these individually on your development machine.
+The container includes the Flutter SDK, Dart, Android build toolchain, JDK, Node.js, Claude Code, and Codex CLI. You do not need to install these individually on your development machine. Jellyfinity uses `io.nachbar.jellyfinity` as its Android application ID and iOS bundle identifier.
 
 ### Prerequisites
 
@@ -150,6 +150,16 @@ flutter doctor -v
 
 The Android toolchain should be available without installing an Android SDK inside the container manually.
 
+Run the baseline checks and application from the Dev Container:
+
+```bash
+flutter analyze
+flutter test
+flutter run -d emulator-5554
+```
+
+The generated app should display the Jellyfinity development shell.
+
 The repository's `.devcontainer` configuration is the source of truth for the exact development-tool versions.
 
 ### Persistent Development State
@@ -233,6 +243,16 @@ adb devices
 flutter devices
 ```
 
+The Dev Container configures this bridge automatically. Verify its environment value with:
+
+```bash
+echo "$ADB_SERVER_SOCKET"
+adb devices
+flutter devices
+```
+
+The expected value is `tcp:host.docker.internal:5037`.
+
 ## iOS Development
 
 Jellyfinity targets iOS, but Apple's final iOS compilation and signing toolchain requires macOS and Xcode.
@@ -266,22 +286,23 @@ The current development milestone is **v0.0.1 — Repository & Project Foundatio
 
 ## Repository Structure
 
-At this stage, the repository contains the project documentation and reproducible development environment:
+At this stage, the repository contains the project documentation, reproducible development environment, and Flutter application:
 
 ```text
 Jellyfinity/
 ├── .devcontainer/
+├── android/
 ├── CONTEXT.md
+├── ios/
+├── lib/
 ├── OUTLOOK.md
 ├── PHILOSOPHY.md
+├── pubspec.yaml
 ├── README.md
-└── ROADMAP.md
+├── ROADMAP.md
+└── test/
 ```
-
-The Flutter application itself will be added as part of the project foundation.
 
 ## License
 
-Jellyfinity is intended to be free and open source.
-
-License details will be documented as the project foundation is completed.
+Jellyfinity is released under the MIT License. See `LICENSE`.
