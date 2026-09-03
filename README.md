@@ -4,7 +4,7 @@
 
 Jellyfinity is a free and open-source Flutter client for Jellyfin, built primarily for Android and iOS.
 
-> Jellyfinity is currently in early development. The development environment and project foundation are being established before application development begins.
+> Jellyfinity is currently in early development. The architectural foundations — bootstrap, state management, navigation, and the design system — are in place; the Jellyfin transport, authentication, and media features come next.
 
 ## Development Setup
 
@@ -282,7 +282,7 @@ Before making significant changes, contributors should familiarize themselves wi
 * `PHILOSOPHY.md` — product, UX, privacy, architecture, and engineering principles
 * `OUTLOOK.md` — ideas intentionally deferred beyond the current roadmap
 
-The current development milestone is **v0.0.1 — Repository & Project Foundation**.
+The current development milestone is **v0.0.3 — Navigation & Design System**.
 
 ## Repository Structure
 
