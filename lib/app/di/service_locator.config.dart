@@ -13,12 +13,15 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart' as _i84;
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart' as _i126;
 import 'package:jellyfinity/app/router/AppRouter.dart' as _i587;
 import 'package:jellyfinity/app/session/AuthSessionManager.dart' as _i56;
 import 'package:jellyfinity/app/session/SessionAuthTokenProvider.dart' as _i51;
 import 'package:jellyfinity/app/session/SessionCubit.dart' as _i809;
 import 'package:jellyfinity/app/session/SessionJellyfinContext.dart' as _i139;
+import 'package:jellyfinity/app/settings/SettingsCubit.dart' as _i230;
+import 'package:jellyfinity/app/settings/ShellNavigationMode.dart' as _i883;
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
@@ -110,6 +113,7 @@ extension GetItInjectableX on _i174.GetIt {
     final databaseModule = _$DatabaseModule();
     final secureStorageModule = _$SecureStorageModule();
     final jellyfinTransportModule = _$JellyfinTransportModule();
+    gh.factory<_i84.MediaScopeCubit>(() => _i84.MediaScopeCubit());
     gh.lazySingleton<_i242.AppDatabase>(() => databaseModule.appDatabase());
     gh.lazySingleton<_i558.FlutterSecureStorage>(
       () => secureStorageModule.secureStorage(),
@@ -159,6 +163,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i24.DriftQueueRepository(
         gh<_i242.AppDatabase>(),
         gh<_i617.KeyValueStore>(),
+      ),
+    );
+    gh.factory<_i230.SettingsCubit>(
+      () => _i230.SettingsCubit(
+        gh<_i617.KeyValueStore>(),
+        gh<_i883.ShellNavigationMode>(),
       ),
     );
     gh.lazySingleton<_i56.AuthSessionManager>(
