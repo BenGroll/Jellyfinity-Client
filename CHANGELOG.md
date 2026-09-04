@@ -133,3 +133,11 @@ All notable changes to Jellyfinity are documented here.
   `lower_case_with_underscores`. Convention recorded in
   `CONTRIBUTING.md`; `flutter_lints`' `file_names` rule is disabled for
   it in `analysis_options.yaml`.
+- Fixed the Android release build having no network access: the
+  `INTERNET` permission, which Flutter only writes into the debug and
+  profile manifests, is now declared in the main manifest. A release APK
+  could not reach any server; a debug build on the same URL could.
+- Added an Android network security config that permits cleartext
+  traffic, so a release build can connect to the plain `http://` LAN
+  servers the connect screen already accepts. HTTPS is still preferred
+  wherever the server offers it.
