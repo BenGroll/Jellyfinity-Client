@@ -1,11 +1,11 @@
 {
-    "name": "jellyfinity",
-    "short_name": "jellyfinity",
+    "name": "Jellyfinity",
+    "short_name": "Jellyfinity",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#000080",
+    "theme_color": "#000080",
+    "description": "A polished, open-source Jellyfin client for music, movies, and TV.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
