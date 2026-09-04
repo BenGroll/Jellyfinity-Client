@@ -172,20 +172,23 @@ paused (no surprise auto-play), and reports progress.
 
 `MiniPlayer` (in `AppShell`, above the bottom navigation bar, shown only
 with a non-empty queue), `NowPlayingPage`, `QueuePage`
-(`ReorderableListView`, no new dependency). Both are root routes
-(`/now-playing`, `/now-playing/queue`), reachable from any shell tab.
-Track taps across the music screens, previously dead per ADR-0012, now
-start playback with the already-loaded list as the queue; album/playlist
-headers gain a `Play` button; `TrackRow` gains an optional Play
-Next/Add to Queue action.
+(`ReorderableListView` for reorder/remove/jump-to, a Clear action — no
+new dependency). Both are root routes (`/now-playing`,
+`/now-playing/queue`), reachable from any shell tab. Track taps across
+the music screens, previously dead per ADR-0012, now start playback with
+the already-loaded list as the queue; album/playlist headers gain a
+`Play` button; `TrackRow` gains an optional Play Next/Add to Queue
+overflow action.
 
 ### Platform
 
-Android: `MainActivity` becomes a `FlutterFragmentActivity`
-(`audio_service` requirement); manifest gains
-`FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_MEDIA_PLAYBACK`/
-`POST_NOTIFICATIONS`/`WAKE_LOCK`. iOS: `Info.plist` gains
-`UIBackgroundModes = [audio]`.
+Android: `MainActivity` extends `audio_service`'s own
+`AudioServiceActivity` (itself a thin `FlutterActivity` subclass that
+hands `audio_service` the Flutter engine it manages); manifest gains
+`WAKE_LOCK`/`FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_MEDIA_PLAYBACK`
+plus the `AudioService` service and `MediaButtonReceiver` entries
+`audio_service` needs (neither is auto-merged by the plugin). iOS:
+`Info.plist` gains `UIBackgroundModes = [audio]`.
 
 ## Tests
 
