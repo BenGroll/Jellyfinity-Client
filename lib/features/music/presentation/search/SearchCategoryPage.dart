@@ -8,7 +8,7 @@ import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
-import '../library/MusicPage.dart';
+import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
@@ -94,7 +94,7 @@ class _ArtistResults extends StatelessWidget {
           itemBuilder: (context, artist, _) => ArtistRow(
             artist: artist,
             onTap: () => context.pushNamed(
-              RouteNames.musicArtist,
+              RouteNames.libraryArtist,
               pathParameters: {'id': artist.id.key},
             ),
           ),
@@ -125,7 +125,7 @@ class _AlbumResults extends StatelessWidget {
           itemBuilder: (context, album, _) => AlbumTile(
             album: album,
             onTap: () => context.pushNamed(
-              RouteNames.musicAlbum,
+              RouteNames.libraryAlbum,
               pathParameters: {'id': album.id.key},
             ),
           ),
@@ -196,7 +196,7 @@ class _PlaylistResults extends StatelessWidget {
           itemBuilder: (context, playlist, _) => PlaylistRow(
             playlist: playlist,
             onTap: () => context.pushNamed(
-              RouteNames.musicPlaylist,
+              RouteNames.libraryPlaylist,
               pathParameters: {'id': playlist.id.key},
             ),
           ),

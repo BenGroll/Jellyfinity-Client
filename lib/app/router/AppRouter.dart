@@ -9,13 +9,13 @@ import '../../features/home/presentation/HomePage.dart';
 import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
 import '../../features/music/presentation/detail/PlaylistDetailPage.dart';
-import '../../features/music/presentation/library/MusicPage.dart';
-import '../../features/music/presentation/search/MusicSearchPage.dart';
+import '../../features/music/presentation/library/LibraryPage.dart';
 import '../../features/music/presentation/search/music_search_cubit.dart';
 import '../../features/music/presentation/search/SearchCategoryPage.dart';
 import '../../features/onboarding/presentation/WelcomePage.dart';
 import '../../features/playback/presentation/NowPlayingPage.dart';
 import '../../features/playback/presentation/QueuePage.dart';
+import '../../features/settings/presentation/SettingsPage.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/shell/presentation/NotFoundPage.dart';
 import '../../features/shell/presentation/ShellDestination.dart';
@@ -97,6 +97,11 @@ class AppRouter {
           builder: (context, state) => const AccountsPage(),
         ),
         GoRoute(
+          path: RoutePaths.settings,
+          name: RouteNames.settings,
+          builder: (context, state) => const SettingsPage(),
+        ),
+        GoRoute(
           path: RoutePaths.nowPlaying,
           name: RouteNames.nowPlaying,
           builder: (context, state) => const NowPlayingPage(),
@@ -158,61 +163,58 @@ class AppRouter {
 
   static String _routeNameFor(String path) => switch (path) {
     RoutePaths.home => RouteNames.home,
-    RoutePaths.music => RouteNames.music,
+    RoutePaths.library => RouteNames.library,
     _ => path,
   };
 
   static Widget _pageFor(String path) => switch (path) {
     RoutePaths.home => const HomePage(),
-    RoutePaths.music => const MusicPage(),
+    RoutePaths.library => const LibraryPage(),
     _ => NotFoundPage(location: path),
   };
 
   static List<RouteBase> _subRoutesFor(String path) => switch (path) {
-    RoutePaths.music => _musicRoutes,
+    RoutePaths.library => _libraryRoutes,
     _ => const [],
   };
 
-  /// Everything reachable from the Music section.
+  /// Everything reachable from the Library section. Search itself is
+  /// inline in the shared header (ADR-0014), not a route — only its
+  /// "show all in one category" drill-down is.
   ///
   /// Each detail route takes a `MediaId.key` — server and item together.
   /// A key that cannot be parsed is a stale or hand-written link, and
   /// lands on the not-found page instead of throwing.
-  static final List<RouteBase> _musicRoutes = [
+  static final List<RouteBase> _libraryRoutes = [
     GoRoute(
-      path: RoutePaths.musicSearch,
-      name: RouteNames.musicSearch,
-      builder: (context, state) => const MusicSearchPage(),
-    ),
-    GoRoute(
-      path: RoutePaths.musicSearchCategory,
-      name: RouteNames.musicSearchCategory,
+      path: RoutePaths.librarySearchCategory,
+      name: RouteNames.librarySearchCategory,
       builder: (context, state) {
         final category = SearchCategory.tryParse(
           state.pathParameters['category'] ?? '',
         );
         final query = state.uri.queryParameters['q'] ?? '';
         if (category == null || query.isEmpty) {
-          return const MusicSearchPage();
+          return const LibraryPage();
         }
         return SearchCategoryPage(category: category, query: query);
       },
     ),
     GoRoute(
-      path: RoutePaths.musicArtist,
-      name: RouteNames.musicArtist,
+      path: RoutePaths.libraryArtist,
+      name: RouteNames.libraryArtist,
       builder: (context, state) =>
           _withMediaId(state, (id) => ArtistDetailPage(artistId: id)),
     ),
     GoRoute(
-      path: RoutePaths.musicAlbum,
-      name: RouteNames.musicAlbum,
+      path: RoutePaths.libraryAlbum,
+      name: RouteNames.libraryAlbum,
       builder: (context, state) =>
           _withMediaId(state, (id) => AlbumDetailPage(albumId: id)),
     ),
     GoRoute(
-      path: RoutePaths.musicPlaylist,
-      name: RouteNames.musicPlaylist,
+      path: RoutePaths.libraryPlaylist,
+      name: RouteNames.libraryPlaylist,
       builder: (context, state) =>
           _withMediaId(state, (id) => PlaylistDetailPage(playlistId: id)),
     ),
