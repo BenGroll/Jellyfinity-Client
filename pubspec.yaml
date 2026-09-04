@@ -53,6 +53,13 @@ dependencies:
   # Declared explicitly because ArtworkCache configures it directly; it
   # arrives with cached_network_image either way.
   flutter_cache_manager: ^3.4.1
+  # Playback (ADR-0013): just_audio is the decode/gapless engine,
+  # audio_service turns it into background execution + lock-screen/
+  # notification media controls. JustAudioPlaybackEngine is the only
+  # class that imports either — see PlaybackEngine for the swappable
+  # seam.
+  just_audio: ^0.10.6
+  audio_service: ^0.18.19
 
 dev_dependencies:
   flutter_test:
