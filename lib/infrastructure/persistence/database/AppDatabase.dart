@@ -32,13 +32,14 @@ part 'AppDatabase.g.dart';
     CachedMediaItems,
     CachedCollections,
     CachedCollectionEntries,
+    QueueEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,6 +57,11 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(cachedMediaItems);
         await m.createTable(cachedCollections);
         await m.createTable(cachedCollectionEntries);
+      }
+      // v3 (v0.0.9): the playback queue. Also purely additive — an
+      // install upgrading from v1 or v2 starts with an empty queue.
+      if (from < 3) {
+        await m.createTable(queueEntries);
       }
     },
     beforeOpen: (details) async {

@@ -22,6 +22,7 @@ import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
+import 'package:jellyfinity/domain/playback/QueueRepository.dart' as _i642;
 import 'package:jellyfinity/domain/session/AccountStore.dart' as _i756;
 import 'package:jellyfinity/domain/session/CredentialStore.dart' as _i866;
 import 'package:jellyfinity/domain/session/JellyfinAuthenticator.dart' as _i534;
@@ -85,6 +86,8 @@ import 'package:jellyfinity/infrastructure/persistence/LegacyJsonImporter.dart'
     as _i408;
 import 'package:jellyfinity/infrastructure/persistence/media/media_cache_store.dart'
     as _i1018;
+import 'package:jellyfinity/infrastructure/persistence/playback/DriftQueueRepository.dart'
+    as _i24;
 import 'package:jellyfinity/infrastructure/secure/SecureCredentialStore.dart'
     as _i834;
 import 'package:jellyfinity/infrastructure/secure/SecureStorageModule.dart'
@@ -143,6 +146,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i833.DioJellyfinAuthenticator(
         gh<_i787.JellyfinClientIdentity>(),
         gh<_i612.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i642.QueueRepository>(
+      () => _i24.DriftQueueRepository(
+        gh<_i242.AppDatabase>(),
+        gh<_i617.KeyValueStore>(),
       ),
     );
     gh.lazySingleton<_i56.AuthSessionManager>(

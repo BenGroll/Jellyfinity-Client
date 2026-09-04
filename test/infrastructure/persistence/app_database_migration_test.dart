@@ -48,4 +48,17 @@ void main() {
 
     await db.close();
   });
+
+  test('upgrades a v2 database to the v3 playback queue schema', () async {
+    final schema = await verifier.schemaAt(2);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 3);
+
+    // Purely additive: the queue table exists and starts empty, same as
+    // the v1 -> v2 cache tables did.
+    expect(await db.select(db.queueEntries).get(), isEmpty);
+
+    await db.close();
+  });
 }

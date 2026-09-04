@@ -13,8 +13,8 @@ void main() {
     setUp(() => db = newTestDatabase());
     tearDown(() => db.close());
 
-    test('is at schema version 2', () {
-      expect(db.schemaVersion, 2);
+    test('is at schema version 3', () {
+      expect(db.schemaVersion, 3);
     });
 
     test('creates every declared table', () async {
@@ -36,6 +36,7 @@ void main() {
           'cached_media_items',
           'cached_collections',
           'cached_collection_entries',
+          'queue_entries',
         ]),
       );
     });
@@ -80,6 +81,6 @@ void main() {
       second.keyValueEntries,
     )..where((t) => t.key.equals('k'))).getSingle();
     expect(row.value, 'v');
-    expect(second.schemaVersion, 2);
+    expect(second.schemaVersion, 3);
   });
 }
