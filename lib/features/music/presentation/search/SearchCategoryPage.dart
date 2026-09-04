@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
@@ -152,13 +153,13 @@ class _SongResults extends StatelessWidget {
           onRetry: cubit.reload,
           onRetryLoadMore: cubit.retryLoadMore,
           unavailableBuilder: (context, item) => UnavailableRow(item: item),
-          itemBuilder: (context, track, _) => TrackRow(
+          itemBuilder: (context, track, index) => TrackRow(
             track: track,
-            onTap: track.albumId == null
+            onTap: track.availability == MediaAvailability.remoteUnavailable
                 ? null
-                : () => context.pushNamed(
-                    RouteNames.musicAlbum,
-                    pathParameters: {'id': track.albumId!.key},
+                : () => context.read<PlaybackCubit>().playNow(
+                    state.items,
+                    startIndex: index,
                   ),
           ),
         );

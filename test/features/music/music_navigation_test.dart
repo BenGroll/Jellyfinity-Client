@@ -87,6 +87,65 @@ void main() {
     expect(find.byType(ArtistDetailPage), findsOneWidget);
   });
 
+  testWidgets('tapping a track starts playing it', (tester) async {
+    final music = FakeMusicLibraryRepository()
+      ..artistList = [testArtist('a1', name: 'Miles Davis')]
+      ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+      ..trackList = [testTrack('t1', name: 'So What', albumId: 'al1')];
+
+    final scope = TestSessionScope();
+    addTearDown(scope.cubit.close);
+    registerAuthCubits(scope);
+    registerMusicCubits(music: music);
+
+    final router = AppRouter(scope.cubit);
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    await tester.pumpWidget(
+      JellyfinityApp(
+        router: router.config,
+        session: scope.cubit,
+        playback: playback,
+      ),
+    );
+    await scope.cubit.restore();
+    await tester.pumpAndSettle();
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Music'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Miles Davis'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kind of Blue'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('So What'),
+      findsOneWidget,
+      reason: 'only in the track list — the mini-player is not up yet',
+    );
+
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('So What'),
+      findsNWidgets(2),
+      reason: 'the track list row, plus the mini-player showing it',
+    );
+    expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+
+    // Playing starts a position-save timer; pause before the test ends
+    // so no timer outlives the widget tree.
+    await playback.togglePlayPause();
+  });
+
   testWidgets('a music detail keeps the bottom navigation', (tester) async {
     final music = FakeMusicLibraryRepository()
       ..artistList = [testArtist('a1', name: 'Miles Davis')];

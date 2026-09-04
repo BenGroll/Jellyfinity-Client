@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
@@ -74,7 +75,7 @@ class _AlbumDetailView extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
-                      child: _AlbumHeader(state: header),
+                      child: _AlbumHeader(state: header, tracks: state.items),
                     ),
                   ),
                 ],
@@ -100,6 +101,13 @@ class _AlbumDetailView extends StatelessWidget {
                   showArtwork: false,
                   position: track.trackNumber ?? index + 1,
                   markUnavailable: !state.isCached,
+                  onTap:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => context.read<PlaybackCubit>().playNow(
+                          state.items,
+                          startIndex: index,
+                        ),
                 ),
               );
             },
@@ -112,9 +120,14 @@ class _AlbumDetailView extends StatelessWidget {
 
 /// Cover, title, credits and the line of facts an album card shows.
 class _AlbumHeader extends StatelessWidget {
-  const _AlbumHeader({required this.state});
+  const _AlbumHeader({required this.state, required this.tracks});
 
   final MediaDetailState<Album> state;
+
+  /// The tracks loaded so far — enough to back the Play button without a
+  /// second fetch. Bounded to what `PagedCollectionCubit` has already
+  /// windowed in, same as every other screen here.
+  final List<Track> tracks;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +180,15 @@ class _AlbumHeader extends StatelessWidget {
             style: t.typography.caption.copyWith(color: t.colors.textSecondary),
           ),
         ],
+        SizedBox(height: t.spacing.md),
+        if (tracks.isNotEmpty)
+          AppButton(
+            label: 'Play',
+            icon: Icons.play_arrow_rounded,
+            variant: AppButtonVariant.secondary,
+            onPressed: () =>
+                context.read<PlaybackCubit>().playNow(tracks, startIndex: 0),
+          ),
         SizedBox(height: t.spacing.md),
       ],
     );

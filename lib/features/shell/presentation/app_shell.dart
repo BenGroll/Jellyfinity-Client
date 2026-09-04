@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/design.dart';
+import '../../playback/presentation/MiniPlayer.dart';
 import 'ShellDestination.dart';
 
 /// The persistent frame around every authenticated screen: a body that
@@ -32,12 +33,17 @@ class AppShell extends StatelessWidget {
     return AppScaffold(
       padded: false,
       body: navigationShell,
-      bottomBar: showBar
-          ? _ShellNavigationBar(
+      bottomBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayer(),
+          if (showBar)
+            _ShellNavigationBar(
               onSelected: _goToBranch,
               currentIndex: navigationShell.currentIndex,
-            )
-          : null,
+            ),
+        ],
+      ),
     );
   }
 }
