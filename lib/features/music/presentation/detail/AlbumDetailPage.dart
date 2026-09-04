@@ -108,6 +108,14 @@ class _AlbumDetailView extends StatelessWidget {
                           state.items,
                           startIndex: index,
                         ),
+                  onPlayNext:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => context.read<PlaybackCubit>().playNext(track),
+                  onAddToQueue:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => context.read<PlaybackCubit>().addToQueue(track),
                 ),
               );
             },

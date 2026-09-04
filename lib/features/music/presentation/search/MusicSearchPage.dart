@@ -219,6 +219,14 @@ class _SearchResults extends StatelessWidget {
                         state.songs.items,
                         startIndex: state.songs.items.indexOf(track),
                       ),
+                onPlayNext:
+                    track.availability == MediaAvailability.remoteUnavailable
+                    ? null
+                    : () => context.read<PlaybackCubit>().playNext(track),
+                onAddToQueue:
+                    track.availability == MediaAvailability.remoteUnavailable
+                    ? null
+                    : () => context.read<PlaybackCubit>().addToQueue(track),
               ),
             ),
             _Section<Playlist>(

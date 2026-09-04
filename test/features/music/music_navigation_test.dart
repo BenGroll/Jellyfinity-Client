@@ -146,6 +146,67 @@ void main() {
     await playback.togglePlayPause();
   });
 
+  testWidgets('Add to Queue from a track row', (tester) async {
+    final music = FakeMusicLibraryRepository()
+      ..artistList = [testArtist('a1', name: 'Miles Davis')]
+      ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+      ..trackList = [
+        testTrack('t1', name: 'So What', albumId: 'al1'),
+        testTrack('t2', name: 'Freddie Freeloader', albumId: 'al1'),
+      ];
+
+    final scope = TestSessionScope();
+    addTearDown(scope.cubit.close);
+    registerAuthCubits(scope);
+    registerMusicCubits(music: music);
+
+    final router = AppRouter(scope.cubit);
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    await tester.pumpWidget(
+      JellyfinityApp(
+        router: router.config,
+        session: scope.cubit,
+        playback: playback,
+      ),
+    );
+    await scope.cubit.restore();
+    await tester.pumpAndSettle();
+    await scope.signIn();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Music'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Miles Davis'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kind of Blue'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+    // Tapping a track queues the whole loaded album from that point, so
+    // both tracks are already in the queue.
+    expect(playback.state.queue.entries, hasLength(2));
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Play Next'), findsOneWidget);
+    await tester.tap(find.text('Add to Queue'));
+    await tester.pumpAndSettle();
+
+    expect(
+      playback.state.queue.entries,
+      hasLength(3),
+      reason: 'Add to Queue appends even a track already in the queue',
+    );
+
+    await playback.togglePlayPause();
+  });
+
   testWidgets('a music detail keeps the bottom navigation', (tester) async {
     final music = FakeMusicLibraryRepository()
       ..artistList = [testArtist('a1', name: 'Miles Davis')];

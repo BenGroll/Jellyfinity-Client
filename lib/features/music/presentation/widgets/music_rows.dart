@@ -104,6 +104,8 @@ class TrackRow extends StatelessWidget {
     this.showArtwork = true,
     this.position,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.onPlayNext,
+    this.onAddToQueue,
   });
 
   final Track track;
@@ -117,10 +119,20 @@ class TrackRow extends StatelessWidget {
   /// ordered list the user recognises (an album, a playlist).
   final int? position;
 
+  /// Queues [track] right after whatever is currently playing. `null`
+  /// hides the overflow menu entirely — a screen with no playback
+  /// context (there is none today, but the seam costs nothing) simply
+  /// does not pass either callback.
+  final VoidCallback? onPlayNext;
+
+  /// Appends [track] to the end of the queue.
+  final VoidCallback? onAddToQueue;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final duration = track.duration;
+    final showMenu = onPlayNext != null || onAddToQueue != null;
 
     return _MusicRow(
       onTap: onTap,
@@ -148,14 +160,80 @@ class TrackRow extends StatelessWidget {
         formatArtists(track.artists),
         if (showArtwork) track.albumName,
       ]),
-      trailing: duration == null
+      trailing: (duration == null && !showMenu)
           ? null
-          : Text(
-              formatDuration(duration),
-              style: t.typography.caption.copyWith(
-                color: t.colors.textSecondary,
-              ),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (duration != null)
+                  Text(
+                    formatDuration(duration),
+                    style: t.typography.caption.copyWith(
+                      color: t.colors.textSecondary,
+                    ),
+                  ),
+                if (showMenu)
+                  _TrackOverflowButton(
+                    onPlayNext: onPlayNext,
+                    onAddToQueue: onAddToQueue,
+                  ),
+              ],
             ),
+    );
+  }
+}
+
+/// The "..." menu a [TrackRow] shows when it has somewhere to send Play
+/// Next / Add to Queue — a small bottom sheet rather than a `PopupMenu`,
+/// so it reads the same as a system share sheet instead of a desktop-style
+/// dropdown.
+class _TrackOverflowButton extends StatelessWidget {
+  const _TrackOverflowButton({this.onPlayNext, this.onAddToQueue});
+
+  final VoidCallback? onPlayNext;
+  final VoidCallback? onAddToQueue;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return IconButton(
+      icon: const Icon(Icons.more_vert_rounded),
+      iconSize: 20,
+      color: t.colors.textSecondary,
+      onPressed: () => _openMenu(context),
+    );
+  }
+
+  void _openMenu(BuildContext context) {
+    final playNext = onPlayNext;
+    final addToQueue = onAddToQueue;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (playNext != null)
+              ListTile(
+                leading: const Icon(Icons.playlist_play_rounded),
+                title: const Text('Play Next'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  playNext();
+                },
+              ),
+            if (addToQueue != null)
+              ListTile(
+                leading: const Icon(Icons.queue_music_rounded),
+                title: const Text('Add to Queue'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  addToQueue();
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
