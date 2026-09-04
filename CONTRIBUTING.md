@@ -8,13 +8,32 @@ Work within the current roadmap milestone. Do not add speculative features or ab
 
 ## Branches
 
-Use focused branches:
+Name a branch `vX.X.X-description-with-hyphens`, tying it to the roadmap
+version it serves, e.g. `v0.0.7-media-domain` or
+`v0.0.6-persistence-and-cache-foundation`. Always branch from an
+up-to-date `main`:
 
-- `feature/...`
-- `fix/...`
-- `refactor/...`
-- `docs/...`
-- `chore/...`
+```bash
+git switch main && git pull
+git switch -c v0.0.8-music-library
+```
+
+Never stack branches — branch from `main`, not from another unmerged
+branch.
+
+## Commit messages
+
+```text
+vX.X.X - (feature/bug/fix/chore) - actual message
+```
+
+Every commit ties to the roadmap version it belongs to, unless the
+maintainer says otherwise for a given commit. The type is one of
+`feature`, `bug`, `fix`, or `chore`. The message itself should read
+naturally and vary between commits — avoid an obviously templated,
+uniform, machine-generated cadence.
+
+Example: `v0.0.7 - feature - add BaseItemMapper for Jellyfin item DTOs`
 
 ## File naming
 
