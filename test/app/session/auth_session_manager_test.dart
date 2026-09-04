@@ -158,6 +158,9 @@ void main() {
     expect(await scope.accounts.all(), isEmpty);
     expect(scope.credentials.tokens, isEmpty);
     expect(scope.manager.current, isNull);
+    // Cached metadata for that library names a server that is gone; it
+    // could never be shown or refreshed again.
+    expect(scope.mediaCache.clearedServers, [session.server.id]);
   });
 
   test('a failed authentication changes nothing', () async {

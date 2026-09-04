@@ -3,3 +3,5 @@
 tags:
   scale:
     description: Representative large-library scale checks (ADR-0010).
+  migration:
+    description: Schema migration steps verified against drift_schemas/.

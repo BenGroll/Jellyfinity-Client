@@ -174,4 +174,53 @@ void main() {
 
     expect(result.isErr, isTrue);
   });
+
+  test('searches each category server-side, not in Dart', () async {
+    final adapter = FakeDioAdapter(
+      (_) async => jsonResponseBody(itemsResponse(const [])),
+    );
+    final repository = _repository(adapter);
+
+    await repository.artists(searchTerm: 'miles');
+    await repository.albums(searchTerm: 'miles');
+    await repository.tracks(searchTerm: 'miles');
+
+    expect(adapter.requests.map((r) => r.queryParameters['searchTerm']), [
+      'miles',
+      'miles',
+      'miles',
+    ]);
+    // Still a window, still one category per query — a music search must
+    // not turn into "fetch the library and filter it".
+    expect(
+      adapter.requests.map((r) => r.queryParameters['limit']),
+      everyElement(PageRequest.defaultLimit),
+    );
+    expect(adapter.requests.last.queryParameters['includeItemTypes'], 'Audio');
+  });
+
+  test('treats a blank search term as no search at all', () async {
+    final adapter = FakeDioAdapter(
+      (_) async => jsonResponseBody(itemsResponse(const [])),
+    );
+
+    await _repository(adapter).albums(searchTerm: '   ');
+
+    expect(
+      adapter.requests.single.queryParameters.containsKey('searchTerm'),
+      isFalse,
+    );
+  });
+
+  test('keeps a search inside one artist when asked', () async {
+    final adapter = FakeDioAdapter(
+      (_) async => jsonResponseBody(itemsResponse(const [])),
+    );
+
+    await _repository(adapter).tracks(artistId: _artistId, searchTerm: 'blue');
+
+    final query = adapter.requests.single.queryParameters;
+    expect(query['artistIds'], 'artist-1');
+    expect(query['searchTerm'], 'blue');
+  });
 }

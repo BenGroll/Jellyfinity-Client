@@ -46,6 +46,13 @@ dependencies:
   uuid: ^4.5.1
   drift: 2.34.0
   drift_flutter: ^0.3.1
+  # Artwork: a bounded disk + memory LRU behind an image widget
+  # (ADR-0010's artwork cache, implemented at the point of use in
+  # v0.0.8). Brings flutter_cache_manager transitively.
+  cached_network_image: ^4.0.0
+  # Declared explicitly because ArtworkCache configures it directly; it
+  # arrives with cached_network_image either way.
+  flutter_cache_manager: ^3.4.1
 
 dev_dependencies:
   flutter_test:
