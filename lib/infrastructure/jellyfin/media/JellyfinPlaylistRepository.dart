@@ -15,6 +15,7 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
   @override
   Future<Result<Page<Playlist>>> playlists({
     PageRequest page = const PageRequest.first(),
+    String? searchTerm,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -24,6 +25,7 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
 
     final response = await _api.queryItems(
       includeItemTypes: const [BaseItemMapper.playlistType],
+      searchTerm: searchTerm,
       sortBy: const ['SortName'],
       // ChildCount is how a playlist row says "38 songs".
       fields: JellyfinMediaApi.detailFields,

@@ -82,6 +82,14 @@ class JellyfinMediaApi {
   /// signed out. The other half of every [MediaId] the mapper produces.
   String? get serverId => _context.serverId;
 
+  /// A search term the server can use, or `null` when the caller did not
+  /// really ask for one. Normalized here so every query surface agrees
+  /// that a blank term means "no search" rather than "match nothing".
+  static String? normalizeSearchTerm(String? term) {
+    final trimmed = term?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+  }
+
   static String playlistItemsPath(String playlistId) =>
       '/Playlists/$playlistId/Items';
 
@@ -145,6 +153,10 @@ class JellyfinMediaApi {
   ///
   /// [path] defaults to [itemsPath] but also serves the artist and
   /// playlist endpoints, which take the same query parameters.
+  ///
+  /// [searchTerm] is Jellyfin's own name matching, applied by the server
+  /// on top of every other filter. Matching a 130k-track library is the
+  /// server's job; nothing here narrows anything in Dart.
   Future<Result<ItemsResponseDto>> queryItems({
     String path = itemsPath,
     List<String> includeItemTypes = const [],
@@ -152,6 +164,7 @@ class JellyfinMediaApi {
     String? parentId,
     String? artistId,
     String? albumArtistId,
+    String? searchTerm,
     List<String> fields = defaultFields,
     List<String> sortBy = const [],
     bool recursive = true,
@@ -174,6 +187,7 @@ class JellyfinMediaApi {
       'parentId': ?parentId,
       'artistIds': ?artistId,
       'albumArtistIds': ?albumArtistId,
+      'searchTerm': ?normalizeSearchTerm(searchTerm),
       if (sortBy.isNotEmpty) ...{
         'sortBy': sortBy.join(','),
         'sortOrder': 'Ascending',

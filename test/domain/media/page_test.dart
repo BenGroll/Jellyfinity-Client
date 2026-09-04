@@ -89,4 +89,21 @@ void main() {
       expect(page.hasMore, isFalse);
     });
   });
+
+  group('PageSource', () {
+    test('a page is current unless it says otherwise', () {
+      expect(Page.of(const ['a']).source, PageSource.server);
+      expect(Page.of(const ['a']).isCached, isFalse);
+      expect(const Page<String>.empty().isCached, isFalse);
+    });
+
+    test('a page served from the local copy says so', () {
+      final page = Page.of(const ['a'], source: PageSource.cache);
+
+      expect(page.isCached, isTrue);
+      // Same items, different freshness: the UI has to be able to tell
+      // these apart, so they must not compare equal.
+      expect(page, isNot(Page.of(const ['a'])));
+    });
+  });
 }

@@ -68,4 +68,16 @@ void main() {
     // The playlist still accounts for all three entries.
     expect(page.consumed, 3);
   });
+
+  test('narrows playlists by a search term server-side', () async {
+    final adapter = FakeDioAdapter(
+      (_) async => jsonResponseBody(itemsResponse(const [])),
+    );
+
+    await _repository(adapter).playlists(searchTerm: 'road trip');
+
+    final query = adapter.requests.single.queryParameters;
+    expect(query['searchTerm'], 'road trip');
+    expect(query['includeItemTypes'], 'Playlist');
+  });
 }
