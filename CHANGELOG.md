@@ -189,3 +189,25 @@ All notable changes to Jellyfinity are documented here.
   gained `UIBackgroundModes = [audio]`. Gapless playback and background/
   lock-screen behavior are verified on-device rather than by an
   automated test — nothing in this stack runs outside a real device.
+- Added swappable navigation modes (ADR-0014): a persistent header
+  (search field always visible, never a subscreen; a row of media-type
+  "pills" beneath it) versus a unified mode with no pill row, chosen in
+  a new Settings screen and persisted via `KeyValueStore`. Only Music is
+  a real pill today — no fake placeholders for the unimplemented Movies/
+  TV/Audiobooks/Ebooks types, and no "Combine" UI, since there is
+  nothing to combine yet.
+- Added the app sidebar (`AppSidebar`, a standard `Drawer` on `AppShell`
+  — default edge-swipe plus a menu button, no custom gesture code):
+  Accounts (the existing screen, unchanged) and the new Settings screen.
+- Search moved inline: `MusicSearchPage` (a pushed page) is retired in
+  favor of `InlineMusicSearch`, swapped in for the header in place so
+  the bottom nav and mini-player stay visible underneath it. Reuses
+  `MusicSearchCubit` and the categorized-results widgets unchanged.
+- The Music tab is renamed Library, scoped to whichever media-type pill
+  is active (today, always Music); every `/music` route and name is
+  renamed to `/library` to match (`MusicPage.dart` → `LibraryPage.dart`).
+- `test/support/pump_app.dart` now sets a realistic phone viewport
+  (390×844) for every full-app test — the default 800×600 test surface
+  left too little room once the persistent header, mini-player and
+  bottom nav were all present, which could silently mis-hit-test a tap
+  on content lower in the screen.
