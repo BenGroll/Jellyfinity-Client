@@ -29,8 +29,10 @@ import '../../domain/playback/playback_status.dart';
 ///
 /// Registered outside the generated DI graph, the same way `AppConfig`
 /// is: building a `BaseAudioHandler` requires the async
-/// `AudioService.init()` call, so `bootstrap()` constructs this and
-/// registers the result with `getIt` directly.
+/// `AudioService.init()` call, which is also guarded to run at most once
+/// per process — incompatible with an `@preResolve` DI module step,
+/// since `configureDependencies()` runs fresh in every test. `bootstrap()`
+/// constructs this and registers the result with `getIt` directly.
 class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     with audio_service.SeekHandler
     implements PlaybackEngine {

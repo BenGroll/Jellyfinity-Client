@@ -13,6 +13,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/playback/PlaybackCubit.dart' as _i126;
 import 'package:jellyfinity/app/router/AppRouter.dart' as _i587;
 import 'package:jellyfinity/app/session/AuthSessionManager.dart' as _i56;
 import 'package:jellyfinity/app/session/SessionAuthTokenProvider.dart' as _i51;
@@ -22,6 +23,10 @@ import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
+import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
+    as _i474;
+import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
+import 'package:jellyfinity/domain/playback/PlaybackEngine.dart' as _i717;
 import 'package:jellyfinity/domain/playback/QueueRepository.dart' as _i642;
 import 'package:jellyfinity/domain/session/AccountStore.dart' as _i756;
 import 'package:jellyfinity/domain/session/CredentialStore.dart' as _i866;
@@ -54,6 +59,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_api.dar
     as _i963;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinArtworkResolver.dart'
     as _i1022;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinAudioSourceResolver.dart'
+    as _i860;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMediaMetadataRepository.dart'
     as _i830;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMusicLibraryRepository.dart'
@@ -180,6 +187,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i809.SessionCubit>(
       () => _i809.SessionCubit(gh<_i56.AuthSessionManager>()),
     );
+    gh.lazySingleton<_i922.AudioSourceResolver>(
+      () => _i860.JellyfinAudioSourceResolver(
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i430.AuthTokenProvider>(),
+      ),
+    );
     gh.lazySingleton<_i285.ArtworkResolver>(
       () => _i1022.JellyfinArtworkResolver(gh<_i346.JellyfinSessionContext>()),
     );
@@ -226,6 +239,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i747.PlaybackProgressRepository>(
       () =>
           _i36.JellyfinPlaybackProgressRepository(gh<_i963.JellyfinMediaApi>()),
+    );
+    gh.lazySingleton<_i126.PlaybackCubit>(
+      () => _i126.PlaybackCubit(
+        gh<_i717.PlaybackEngine>(),
+        gh<_i642.QueueRepository>(),
+        gh<_i922.AudioSourceResolver>(),
+        gh<_i474.PlaybackProgressRepository>(),
+      ),
     );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
       () => _i912.CachedMediaMetadataRepository(

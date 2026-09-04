@@ -196,10 +196,17 @@ class PlaybackQueue extends Equatable {
   /// The index to play once [currentIndex] finishes, honoring
   /// [repeatMode], or `null` when playback should stop.
   int? nextIndexOnCompletion() {
+    if (repeatMode.repeatsCurrentEntry) return currentIndex;
+    return manualNextIndex();
+  }
+
+  /// The index a manual "skip forward" moves to — always the next entry
+  /// in play order (wrapping under [RepeatMode.all]), even under
+  /// [RepeatMode.one]: repeating the current track only applies when it
+  /// finishes on its own, never to an explicit skip past it.
+  int? manualNextIndex() {
     final index = currentIndex;
     if (entries.isEmpty || index == null) return null;
-    if (repeatMode.repeatsCurrentEntry) return index;
-
     final order = playOrder;
     final position = order.indexOf(index);
     if (position < 0) return null;

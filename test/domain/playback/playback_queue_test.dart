@@ -135,13 +135,22 @@ void main() {
       expect(queue.nextIndexOnCompletion(), 0);
     });
 
-    test('repeat one replays the same entry', () {
+    test('repeat one replays the same entry on natural completion', () {
       final queue = _queueOf([
         'a',
         'b',
       ], startIndex: 0).withRepeatMode(RepeatMode.one);
 
       expect(queue.nextIndexOnCompletion(), 0);
+    });
+
+    test('repeat one does not block a manual skip past the track', () {
+      final queue = _queueOf([
+        'a',
+        'b',
+      ], startIndex: 0).withRepeatMode(RepeatMode.one);
+
+      expect(queue.manualNextIndex(), 1);
     });
 
     test('an empty queue has nothing to complete into', () {

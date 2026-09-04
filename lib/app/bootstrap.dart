@@ -11,6 +11,7 @@ import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'di/service_locator.dart';
+import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
 
 /// Boots the application: wires configuration, dependency injection, and
@@ -32,11 +33,13 @@ Future<void> bootstrap({required Widget Function() builder}) async {
 
   await configureDependencies();
 
-  // JustAudioPlaybackEngine is BaseAudioHandler itself, and building one
-  // requires the async AudioService.init() call — it cannot be a plain
-  // @LazySingleton constructor dependency, so (like AppConfig above) it
-  // is constructed here and registered with getIt directly rather than
-  // through an injectable annotation.
+  // JustAudioPlaybackEngine is BaseAudioHandler itself, and AudioService
+  // .init() can only ever be called once per process — that makes it a
+  // poor fit for an @preResolve DI module (configureDependencies() runs
+  // fresh in every test), unlike JellyfinClientIdentity's device-id
+  // lookup, which is safely repeatable. So, like AppConfig above, it is
+  // constructed here and registered with getIt directly, kept out of the
+  // generated graph and everything that exercises it in tests.
   final playbackEngine = await AudioService.init(
     builder: () => JustAudioPlaybackEngine(getIt<ArtworkResolver>()),
     config: const AudioServiceConfig(
@@ -59,6 +62,11 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // does no network call, so a currently-offline server does not block
   // startup.
   unawaited(getIt<SessionCubit>().restore());
+
+  // Primes the engine with the saved queue, paused, so leaving the app
+  // mid-album and reopening it later shows where playback left off
+  // without a surprise auto-play at launch.
+  unawaited(getIt<PlaybackCubit>().restore());
 
   FlutterError.onError = (details) {
     logger.error(

@@ -74,13 +74,17 @@ these platforms. A `media_kit`-backed engine later would be a second
 `media_kit`'s own documented integration shape too, so the swap stays a
 real one-class change, not aspirational.
 
-Registration cannot be a plain `@LazySingleton`: building a
-`BaseAudioHandler` requires the async `AudioService.init()` call.
-`bootstrap()` builds it and registers the result directly with `getIt`,
-the same way `AppConfig` is registered outside the generated DI graph
-(`service_locator.dart`'s own docstring describes this as the pattern for
-anything constructed from runtime state rather than plain constructor
-dependencies).
+Registration cannot be a plain `@LazySingleton`, and — unlike
+`JellyfinClientIdentity`'s `@preResolve`d device-id lookup — it also
+cannot be a `@preResolve` DI module step: building a `BaseAudioHandler`
+requires the async `AudioService.init()` call, and that call is guarded
+to run at most once per process, which conflicts with
+`configureDependencies()` running fresh in every test (`service_locator_
+test.dart` rebuilds the whole graph per test; the second `AudioService
+.init()` call hits its own assertion). So, the same way `AppConfig` is,
+it is built in `bootstrap()` and registered with `getIt` directly,
+outside the generated graph and everything that exercises it under
+`flutter test`.
 
 ### Where the queue is persisted
 
