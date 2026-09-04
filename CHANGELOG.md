@@ -211,3 +211,11 @@ All notable changes to Jellyfinity are documented here.
   left too little room once the persistent header, mini-player and
   bottom nav were all present, which could silently mis-hit-test a tap
   on content lower in the screen.
+- Replaced the placeholder Flutter launcher icon with the real
+  Jellyfinity app icon. Android ships density-specific legacy and round
+  bitmaps plus an adaptive icon (navy `#000080` background, monochrome
+  foreground) for API 26+, and the manifest now declares a `roundIcon`
+  and the display label `Jellyfinity`. iOS gets the full `AppIcon`
+  asset catalogue, with every image flattened to opaque RGB so the
+  1024px marketing icon carries no alpha channel. The web `manifest.json`
+  and `index.html` lose their "A new Flutter project" boilerplate.
