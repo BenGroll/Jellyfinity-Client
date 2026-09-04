@@ -10,9 +10,13 @@ import '../identity/JellyfinSessionContext.dart';
 
 /// [AudioSourceResolver] over the active session's Jellyfin server.
 ///
-/// Builds the direct-play stream address for [id] — `static=true`
-/// ([StreamQuality.original], the only quality v0.0.9 implements) tells
-/// Jellyfin to serve the original file rather than transcoding it.
+/// Builds the stream address for [id] at the requested [StreamQuality]
+/// (ADR-0015): `static=true` for [StreamQuality.original] tells Jellyfin
+/// to serve the original file untouched; every other tier asks for a
+/// transcode via `audioCodec`/`audioBitRate` instead and lets the server
+/// decide whether that needs a real transcode or just a remux — the same
+/// "existing streaming parameters" approach `ROADMAP.md` calls for,
+/// rather than a full `PlaybackInfo`/`DeviceProfile` negotiation.
 ///
 /// The session token travels as an `api_key` query parameter rather than
 /// an `Authorization` header. This is deliberate and the one place in
@@ -49,17 +53,25 @@ class JellyfinAudioSourceResolver implements AudioSourceResolver {
       );
     }
 
-    final uri = Uri.tryParse('$baseUrl/Audio/${id.itemId}/stream');
+    final path = quality.isTranscoded
+        ? '/Audio/${id.itemId}/stream.${StreamQuality.transcodeCodec}'
+        : '/Audio/${id.itemId}/stream';
+    final uri = Uri.tryParse('$baseUrl$path');
     if (uri == null) {
       return const Result.err(
         UnexpectedFailure('Could not build a stream address.'),
       );
     }
 
-    return Result.ok(
-      uri.replace(
-        queryParameters: <String, String>{'static': 'true', 'api_key': token},
-      ),
-    );
+    final queryParameters = <String, String>{
+      'api_key': token,
+      if (quality.isTranscoded) ...{
+        'audioCodec': StreamQuality.transcodeCodec,
+        'audioBitRate': '${quality.targetBitrateBps}',
+      } else
+        'static': 'true',
+    };
+
+    return Result.ok(uri.replace(queryParameters: queryParameters));
   }
 }

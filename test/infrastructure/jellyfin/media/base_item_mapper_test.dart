@@ -350,4 +350,101 @@ void main() {
       expect(page.hasMore, isFalse);
     });
   });
+
+  group('toTrackSourceInfo (ADR-0015)', () {
+    test('reads the first media source and its audio stream', () {
+      final track = _dto({
+        'Id': 't1',
+        'Name': 'A Song',
+        'Type': 'Audio',
+        'MediaSources': [
+          {
+            'Container': 'flac',
+            'Bitrate': 1000000,
+            'MediaStreams': [
+              {
+                'Type': 'Audio',
+                'Codec': 'flac',
+                'BitRate': 995000,
+                'SampleRate': 44100,
+                'BitDepth': 16,
+                'Channels': 2,
+              },
+            ],
+          },
+        ],
+      });
+
+      final info = _mapper.toTrackSourceInfo(track)!;
+
+      expect(info.container, 'flac');
+      expect(info.codec, 'flac');
+      expect(info.bitrateBps, 995000);
+      expect(info.sampleRateHz, 44100);
+      expect(info.bitDepth, 16);
+      expect(info.channels, 2);
+    });
+
+    test('falls back to the source-level bitrate with no audio bitrate', () {
+      final track = _dto({
+        'Id': 't1',
+        'Name': 'A Song',
+        'Type': 'Audio',
+        'MediaSources': [
+          {
+            'Container': 'mp3',
+            'Bitrate': 320000,
+            'MediaStreams': [
+              {'Type': 'Audio', 'Codec': 'mp3'},
+            ],
+          },
+        ],
+      });
+
+      final info = _mapper.toTrackSourceInfo(track)!;
+
+      expect(info.bitrateBps, 320000);
+    });
+
+    test('ignores a non-audio stream and finds the audio one', () {
+      final track = _dto({
+        'Id': 't1',
+        'Name': 'A Song',
+        'Type': 'Audio',
+        'MediaSources': [
+          {
+            'Container': 'mkv',
+            'MediaStreams': [
+              {'Type': 'Video', 'Codec': 'h264'},
+              {'Type': 'Audio', 'Codec': 'aac', 'BitRate': 192000},
+            ],
+          },
+        ],
+      });
+
+      final info = _mapper.toTrackSourceInfo(track)!;
+
+      expect(info.codec, 'aac');
+      expect(info.bitrateBps, 192000);
+    });
+
+    test('is null with no media sources at all', () {
+      final track = _dto({'Id': 't1', 'Name': 'A Song', 'Type': 'Audio'});
+
+      expect(_mapper.toTrackSourceInfo(track), isNull);
+    });
+
+    test('will not map an item of the wrong type', () {
+      final album = _dto({
+        'Id': 'a1',
+        'Name': 'An Album',
+        'Type': 'MusicAlbum',
+        'MediaSources': [
+          {'Container': 'flac'},
+        ],
+      });
+
+      expect(_mapper.toTrackSourceInfo(album), isNull);
+    });
+  });
 }

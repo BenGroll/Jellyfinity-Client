@@ -45,7 +45,29 @@ BaseItemDto _$BaseItemDtoFromJson(Map<String, dynamic> json) => BaseItemDto(
   userData: json['UserData'] == null
       ? null
       : UserItemDataDto.fromJson(json['UserData'] as Map<String, dynamic>),
+  mediaSources: (json['MediaSources'] as List<dynamic>?)
+      ?.map((e) => MediaSourceInfoDto.fromJson(e as Map<String, dynamic>))
+      .toList(),
 );
+
+MediaSourceInfoDto _$MediaSourceInfoDtoFromJson(Map<String, dynamic> json) =>
+    MediaSourceInfoDto(
+      container: json['Container'] as String?,
+      bitrate: (json['Bitrate'] as num?)?.toInt(),
+      mediaStreams: (json['MediaStreams'] as List<dynamic>?)
+          ?.map((e) => MediaStreamDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+MediaStreamDto _$MediaStreamDtoFromJson(Map<String, dynamic> json) =>
+    MediaStreamDto(
+      type: json['Type'] as String?,
+      codec: json['Codec'] as String?,
+      bitRate: (json['BitRate'] as num?)?.toInt(),
+      sampleRate: (json['SampleRate'] as num?)?.toInt(),
+      bitDepth: (json['BitDepth'] as num?)?.toInt(),
+      channels: (json['Channels'] as num?)?.toInt(),
+    );
 
 NameIdPairDto _$NameIdPairDtoFromJson(Map<String, dynamic> json) =>
     NameIdPairDto(id: json['Id'] as String?, name: json['Name'] as String?);

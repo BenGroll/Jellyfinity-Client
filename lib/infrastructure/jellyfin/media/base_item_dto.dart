@@ -43,6 +43,7 @@ class BaseItemDto {
     this.backdropImageTags,
     this.primaryImageAspectRatio,
     this.userData,
+    this.mediaSources,
   });
 
   factory BaseItemDto.fromJson(Map<String, dynamic> json) =>
@@ -106,6 +107,56 @@ class BaseItemDto {
   final double? primaryImageAspectRatio;
 
   final UserItemDataDto? userData;
+
+  /// The item's underlying file(s) — container, bitrate, audio/video
+  /// streams. Only requested via `MediaSources` in `fields` (ADR-0015's
+  /// `TrackSourceInfoResolver`), never in a list query's default fields.
+  final List<MediaSourceInfoDto>? mediaSources;
+}
+
+/// One file behind an item — Jellyfin supports multiple versions per
+/// item, but Jellyfinity only ever reads the first.
+@JsonSerializable(createToJson: false, fieldRename: FieldRename.pascal)
+class MediaSourceInfoDto {
+  const MediaSourceInfoDto({this.container, this.bitrate, this.mediaStreams});
+
+  factory MediaSourceInfoDto.fromJson(Map<String, dynamic> json) =>
+      _$MediaSourceInfoDtoFromJson(json);
+
+  /// The file's container, e.g. `flac`, `mp3`.
+  final String? container;
+
+  /// The source's overall bitrate, used as a fallback when its audio
+  /// stream doesn't carry its own.
+  final int? bitrate;
+
+  final List<MediaStreamDto>? mediaStreams;
+}
+
+/// One stream within a [MediaSourceInfoDto] — Jellyfinity only reads the
+/// audio ones ([MediaStreamDto.type] `"Audio"`).
+@JsonSerializable(createToJson: false, fieldRename: FieldRename.pascal)
+class MediaStreamDto {
+  const MediaStreamDto({
+    this.type,
+    this.codec,
+    this.bitRate,
+    this.sampleRate,
+    this.bitDepth,
+    this.channels,
+  });
+
+  factory MediaStreamDto.fromJson(Map<String, dynamic> json) =>
+      _$MediaStreamDtoFromJson(json);
+
+  /// `Audio`, `Video`, `Subtitle`, ...
+  final String? type;
+
+  final String? codec;
+  final int? bitRate;
+  final int? sampleRate;
+  final int? bitDepth;
+  final int? channels;
 }
 
 /// A named reference to another item — an artist credit, mostly.

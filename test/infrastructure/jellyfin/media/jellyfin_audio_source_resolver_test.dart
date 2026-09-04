@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
+import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinAudioSourceResolver.dart';
 
@@ -84,5 +85,53 @@ void main() {
     final result = await resolver.resolve(_trackId);
 
     expect(result.failureOrNull, isA<UnauthorizedFailure>());
+  });
+
+  group('transcoded tiers (ADR-0015)', () {
+    for (final (quality, bitrate) in [
+      (StreamQuality.high, StreamQuality.highBitrateBps),
+      (StreamQuality.medium, StreamQuality.mediumBitrateBps),
+      (StreamQuality.dataSaver, StreamQuality.dataSaverBitrateBps),
+    ]) {
+      test(
+        '${quality.name} requests an aac transcode at $bitrate bps',
+        () async {
+          final resolver = JellyfinAudioSourceResolver(
+            FakeSessionContext(),
+            const _FixedTokenProvider('secret-token'),
+          );
+
+          final result = await resolver.resolve(_trackId, quality: quality);
+
+          final url = (result as Ok<Uri>).value;
+          expect(url.path, '/Audio/track-1/stream.aac');
+          expect(url.queryParameters['audioCodec'], 'aac');
+          expect(url.queryParameters['audioBitRate'], '$bitrate');
+          expect(url.queryParameters['api_key'], 'secret-token');
+          expect(
+            url.queryParameters.containsKey('static'),
+            isFalse,
+            reason: 'static=true would force direct-play, defeating the tier',
+          );
+        },
+      );
+    }
+
+    test(
+      'a transcoded tier still refuses to stream while signed out',
+      () async {
+        final resolver = JellyfinAudioSourceResolver(
+          FakeSessionContext.signedOut(),
+          const _FixedTokenProvider('secret-token'),
+        );
+
+        final result = await resolver.resolve(
+          _trackId,
+          quality: StreamQuality.high,
+        );
+
+        expect(result.failureOrNull, isA<UnauthorizedFailure>());
+      },
+    );
   });
 }
