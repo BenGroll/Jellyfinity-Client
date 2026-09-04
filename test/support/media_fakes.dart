@@ -180,3 +180,27 @@ class _Entry {
   final String itemId;
   final String? reason;
 }
+
+/// An [ArtworkResolver] a widget test can steer.
+///
+/// [available] false stands for the two real cases where an image has no
+/// address: signed out, and an image belonging to a saved server that is
+/// not the active one.
+class FakeArtworkResolver implements ArtworkResolver {
+  FakeArtworkResolver({this.available = true});
+
+  final bool available;
+
+  /// Every ([image], width) pair the widget asked to resolve.
+  final List<({MediaImage image, int? maxWidth})> requests = [];
+
+  @override
+  Uri? imageUrl(MediaImage image, {int? maxWidth, int? maxHeight}) {
+    requests.add((image: image, maxWidth: maxWidth));
+    if (!available) return null;
+    return Uri.parse(
+      'https://media.example.com/Items/${image.itemId.itemId}/Images/Primary'
+      '?tag=${image.tag}&maxWidth=$maxWidth',
+    );
+  }
+}
