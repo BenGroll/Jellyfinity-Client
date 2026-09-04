@@ -7,7 +7,7 @@ import 'paged_collection_cubit.dart';
 /// The library's album artists.
 @injectable
 class ArtistsCubit extends PagedCollectionCubit<Artist> {
-  ArtistsCubit(this._music, {super.pageSize});
+  ArtistsCubit(this._music, {@ignoreParam super.pageSize});
 
   final MusicLibraryRepository _music;
 
@@ -28,7 +28,7 @@ class ArtistsCubit extends PagedCollectionCubit<Artist> {
 /// Albums, either the whole library's or one artist's.
 @injectable
 class AlbumsCubit extends PagedCollectionCubit<Album> {
-  AlbumsCubit(this._music, {super.pageSize});
+  AlbumsCubit(this._music, {@ignoreParam super.pageSize});
 
   final MusicLibraryRepository _music;
 
@@ -55,7 +55,7 @@ class AlbumsCubit extends PagedCollectionCubit<Album> {
 /// on.
 @injectable
 class SongsCubit extends PagedCollectionCubit<Track> {
-  SongsCubit(this._music, {super.pageSize});
+  SongsCubit(this._music, {@ignoreParam super.pageSize});
 
   final MusicLibraryRepository _music;
 
@@ -90,7 +90,7 @@ class SongsCubit extends PagedCollectionCubit<Track> {
 /// The user's playlists.
 @injectable
 class PlaylistsCubit extends PagedCollectionCubit<Playlist> {
-  PlaylistsCubit(this._playlists, {super.pageSize});
+  PlaylistsCubit(this._playlists, {@ignoreParam super.pageSize});
 
   final PlaylistRepository _playlists;
 
@@ -109,7 +109,7 @@ class PlaylistsCubit extends PagedCollectionCubit<Playlist> {
 /// One playlist's entries, in the order the user arranged them.
 @injectable
 class PlaylistTracksCubit extends PagedCollectionCubit<Track> {
-  PlaylistTracksCubit(this._playlists, {super.pageSize});
+  PlaylistTracksCubit(this._playlists, {@ignoreParam super.pageSize});
 
   final PlaylistRepository _playlists;
 

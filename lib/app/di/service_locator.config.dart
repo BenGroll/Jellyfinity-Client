@@ -37,6 +37,8 @@ import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubi
     as _i213;
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart'
     as _i618;
+import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
+    as _i169;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
     as _i833;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
@@ -222,6 +224,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1018.MediaCacheStore>(),
       ),
     );
+    gh.factory<_i618.PlaylistsCubit>(
+      () => _i618.PlaylistsCubit(gh<_i747.PlaylistRepository>()),
+    );
+    gh.factory<_i618.PlaylistTracksCubit>(
+      () => _i618.PlaylistTracksCubit(gh<_i747.PlaylistRepository>()),
+    );
     gh.lazySingleton<_i747.MusicLibraryRepository>(
       () => _i664.CachedMusicLibraryRepository(
         gh<_i814.JellyfinMusicLibraryRepository>(),
@@ -229,34 +237,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
-    gh.factory<_i618.ArtistsCubit>(
-      () => _i618.ArtistsCubit(
+    gh.factory<_i169.MusicSearchCubit>(
+      () => _i169.MusicSearchCubit(
         gh<_i747.MusicLibraryRepository>(),
-        pageSize: gh<int>(),
-      ),
-    );
-    gh.factory<_i618.AlbumsCubit>(
-      () => _i618.AlbumsCubit(
-        gh<_i747.MusicLibraryRepository>(),
-        pageSize: gh<int>(),
-      ),
-    );
-    gh.factory<_i618.SongsCubit>(
-      () => _i618.SongsCubit(
-        gh<_i747.MusicLibraryRepository>(),
-        pageSize: gh<int>(),
-      ),
-    );
-    gh.factory<_i618.PlaylistsCubit>(
-      () => _i618.PlaylistsCubit(
         gh<_i747.PlaylistRepository>(),
-        pageSize: gh<int>(),
-      ),
-    );
-    gh.factory<_i618.PlaylistTracksCubit>(
-      () => _i618.PlaylistTracksCubit(
-        gh<_i747.PlaylistRepository>(),
-        pageSize: gh<int>(),
       ),
     );
     gh.factory<_i213.PlaylistDetailCubit>(
@@ -267,6 +251,15 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i213.AlbumDetailCubit>(
       () => _i213.AlbumDetailCubit(gh<_i747.MusicLibraryRepository>()),
+    );
+    gh.factory<_i618.ArtistsCubit>(
+      () => _i618.ArtistsCubit(gh<_i747.MusicLibraryRepository>()),
+    );
+    gh.factory<_i618.AlbumsCubit>(
+      () => _i618.AlbumsCubit(gh<_i747.MusicLibraryRepository>()),
+    );
+    gh.factory<_i618.SongsCubit>(
+      () => _i618.SongsCubit(gh<_i747.MusicLibraryRepository>()),
     );
     return this;
   }
