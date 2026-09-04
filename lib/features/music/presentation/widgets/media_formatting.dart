@@ -38,3 +38,7 @@ String? formatArtists(List<ArtistRef> artists) {
 /// Joins the parts of a subtitle that actually exist: `1959 · 5 songs`.
 String joinDetails(List<String?> parts) =>
     parts.where((part) => part != null && part.isNotEmpty).join(' · ');
+
+/// A bitrate as a listener reads it: `320 kbps`. Jellyfin always reports
+/// bits per second; Jellyfinity only ever displays kbps.
+String formatBitrate(int bitrateBps) => '${(bitrateBps / 1000).round()} kbps';

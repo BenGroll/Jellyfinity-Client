@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/result/result.dart';
+import '../../domain/media/MediaId.dart';
 import '../../domain/media/PlaybackProgressRepository.dart';
 import '../../domain/media/Track.dart';
 import '../../domain/playback/AudioSourceResolver.dart';
@@ -15,6 +16,8 @@ import '../../domain/playback/playback_status.dart';
 import '../../domain/playback/QueueEntry.dart';
 import '../../domain/playback/QueueRepository.dart';
 import '../../domain/playback/repeat_mode.dart';
+import '../../domain/playback/stream_quality.dart';
+import '../settings/SettingsCubit.dart';
 import 'PlaybackUiState.dart';
 
 /// The single source of truth for playback — Jellyfinity's own queue plus
@@ -39,6 +42,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     this._queueRepository,
     this._sourceResolver,
     this._progressRepository,
+    this._settings,
   ) : super(const PlaybackUiState()) {
     _statusSub = _engine.statusStream.listen(_onStatus);
     _positionSub = _engine.positionStream.listen(_onPosition);
@@ -51,6 +55,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   final QueueRepository _queueRepository;
   final AudioSourceResolver _sourceResolver;
   final PlaybackProgressRepository _progressRepository;
+  final SettingsCubit _settings;
 
   late final StreamSubscription<PlaybackStatus> _statusSub;
   late final StreamSubscription<Duration> _positionSub;
@@ -80,6 +85,15 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// every stream is unreachable) — capped at the queue length, since
   /// that is enough attempts to have tried every entry once.
   int _consecutiveFailures = 0;
+
+  /// Entries that already got one retry at [StreamQuality.original] after
+  /// a failure at the settings-selected quality (ADR-0015) — resolved at
+  /// original from here on, so a second failure falls through to the
+  /// ordinary mark-unavailable-and-advance handling below rather than
+  /// retrying forever. Cleared on [playNow]; harmless to leave stale
+  /// entries in it otherwise, since it only ever makes a retry get
+  /// skipped once for a track that already needed one.
+  final Set<MediaId> _retriedAtOriginal = {};
 
   // ---- Cold start ----
 
@@ -120,6 +134,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         .withShuffle(state.queue.shuffleEnabled)
         .withRepeatMode(state.queue.repeatMode);
 
+    _retriedAtOriginal.clear();
     emit(
       PlaybackUiState(
         queue: queue,
@@ -278,7 +293,13 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
     for (final entriesIndex in order) {
       final entry = updated.entries[entriesIndex];
-      final resolved = await _sourceResolver.resolve(entry.id);
+      final quality = _retriedAtOriginal.contains(entry.id)
+          ? StreamQuality.original
+          : _settings.state.streamQuality;
+      final resolved = await _sourceResolver.resolve(
+        entry.id,
+        quality: quality,
+      );
       if (resolved case Ok<Uri>(:final value)) {
         sources.add(
           PlaybackSource(
@@ -418,6 +439,20 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       (entry) => entry.id == failure.id,
     );
     if (entriesIndex < 0) return;
+
+    // The entry that just failed to play was streamed at a transcoded
+    // quality — retry once at the original file before treating it as
+    // genuinely unavailable (ADR-0015), since just_audio's error surface
+    // can't reliably tell a transient transcode/network failure from a
+    // dead track. Only for the entry actually loading/playing right now:
+    // a preloaded-ahead entry failing keeps today's silent-mark handling
+    // below, unchanged.
+    if (entriesIndex == state.queue.currentIndex &&
+        _settings.state.streamQuality != StreamQuality.original &&
+        _retriedAtOriginal.add(failure.id)) {
+      unawaited(_loadIntoEngine(state.queue, play: true));
+      return;
+    }
 
     final queue = state.queue.withEntryMarkedUnavailable(entriesIndex);
     emit(

@@ -1,16 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/di/service_locator.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../app/settings/SettingsCubit.dart';
 import '../../../design/design.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/QueueEntry.dart';
 import '../../../domain/playback/repeat_mode.dart';
+import '../../../domain/playback/stream_quality.dart';
+import '../../../domain/playback/TrackSourceInfo.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/media_formatting.dart';
+import 'track_source_info_cubit.dart';
 
 /// The full player: artwork, transport, seek, shuffle/repeat, and a way
 /// into the queue. Reached by tapping [MiniPlayer]; a root route so it
@@ -49,56 +56,152 @@ class NowPlayingPage extends StatelessWidget {
   }
 }
 
-class _NowPlayingContent extends StatelessWidget {
+class _NowPlayingContent extends StatefulWidget {
   const _NowPlayingContent({required this.entry, required this.state});
 
   final QueueEntry entry;
   final PlaybackUiState state;
 
   @override
+  State<_NowPlayingContent> createState() => _NowPlayingContentState();
+}
+
+class _NowPlayingContentState extends State<_NowPlayingContent> {
+  late final TrackSourceInfoCubit _sourceInfo;
+
+  @override
+  void initState() {
+    super.initState();
+    _sourceInfo = getIt<TrackSourceInfoCubit>()..open(widget.entry.id);
+  }
+
+  @override
+  void didUpdateWidget(covariant _NowPlayingContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.entry.id != oldWidget.entry.id) {
+      _sourceInfo.open(widget.entry.id);
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_sourceInfo.close());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final cubit = context.read<PlaybackCubit>();
+    final entry = widget.entry;
+    final state = widget.state;
 
-    return Column(
-      children: [
-        SizedBox(height: t.spacing.lg),
-        Expanded(
-          child: Center(
-            child: MediaArtwork(
-              image: entry.image,
-              kind: MediaKind.track,
-              size: 280,
+    return BlocProvider<TrackSourceInfoCubit>.value(
+      value: _sourceInfo,
+      child: Column(
+        children: [
+          SizedBox(height: t.spacing.lg),
+          Expanded(
+            child: Center(
+              child: MediaArtwork(
+                image: entry.image,
+                kind: MediaKind.track,
+                size: 280,
+              ),
             ),
           ),
-        ),
-        SizedBox(height: t.spacing.xl),
-        Text(
-          entry.title,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: t.typography.titleLarge.copyWith(color: t.colors.textPrimary),
-        ),
-        if (entry.artist != null) ...[
-          SizedBox(height: t.spacing.xxs),
+          SizedBox(height: t.spacing.xl),
           Text(
-            entry.artist!,
+            entry.title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: t.typography.titleLarge.copyWith(
+              color: t.colors.textPrimary,
+            ),
+          ),
+          if (entry.artist != null) ...[
+            SizedBox(height: t.spacing.xxs),
+            Text(
+              entry.artist!,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.typography.bodyMedium.copyWith(
+                color: t.colors.textSecondary,
+              ),
+            ),
+          ],
+          const _SourceQualityHint(),
+          SizedBox(height: t.spacing.lg),
+          _SeekBar(state: state),
+          SizedBox(height: t.spacing.sm),
+          _TransportRow(state: state, cubit: cubit),
+          SizedBox(height: t.spacing.xl),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small caption under the artist line: the source file's own format/
+/// bitrate, and — when the active [StreamQuality] would actually need to
+/// transcode it — what it is being transcoded to (ADR-0015).
+class _SourceQualityHint extends StatelessWidget {
+  const _SourceQualityHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final quality = context.watch<SettingsCubit>().state.streamQuality;
+
+    return BlocBuilder<TrackSourceInfoCubit, TrackSourceInfoState>(
+      builder: (context, state) {
+        final info = state.info;
+        if (info == null) return const SizedBox.shrink();
+
+        final sourceHint = joinDetails([
+          (info.codec ?? info.container)?.toUpperCase(),
+          info.bitrateBps == null ? null : formatBitrate(info.bitrateBps!),
+        ]);
+        final transcodeHint = _isTranscoding(quality, info)
+            ? 'Transcoding to ${StreamQuality.transcodeCodec.toUpperCase()} '
+                  '· ${formatBitrate(quality.targetBitrateBps!)}'
+            : null;
+        final label = joinDetails([
+          sourceHint.isEmpty ? null : sourceHint,
+          transcodeHint,
+        ]);
+        if (label.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: EdgeInsets.only(top: t.spacing.xxs),
+          child: Text(
+            label,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: t.typography.bodyMedium.copyWith(
-              color: t.colors.textSecondary,
-            ),
+            style: t.typography.caption.copyWith(color: t.colors.textSecondary),
           ),
-        ],
-        SizedBox(height: t.spacing.lg),
-        _SeekBar(state: state),
-        SizedBox(height: t.spacing.sm),
-        _TransportRow(state: state, cubit: cubit),
-        SizedBox(height: t.spacing.xl),
-      ],
+        );
+      },
     );
+  }
+
+  /// A client-side estimate of whether Jellyfin would actually transcode
+  /// [info] to satisfy [quality], rather than a real answer from the
+  /// server (that would need a `PlaybackInfo` negotiation round trip,
+  /// out of scope per the roadmap's "use the existing streaming
+  /// parameters" instruction — ADR-0015). A source already in the
+  /// requested codec and at or under the target bitrate is assumed to
+  /// stream/remux rather than transcode; this can be wrong at the
+  /// margins.
+  bool _isTranscoding(StreamQuality quality, TrackSourceInfo info) {
+    final target = quality.targetBitrateBps;
+    if (target == null) return false;
+    final sameCodec = info.codec?.toLowerCase() == StreamQuality.transcodeCodec;
+    final withinBitrate = info.bitrateBps != null && info.bitrateBps! <= target;
+    return !(sameCodec && withinBitrate);
   }
 }
 

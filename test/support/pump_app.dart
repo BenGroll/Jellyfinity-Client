@@ -8,6 +8,7 @@ import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
 import 'playback_fakes.dart';
 import 'session_fakes.dart';
@@ -20,7 +21,9 @@ import 'settings_fakes.dart';
 /// session (`scope.signIn()`, `scope.cubit.signOut()`, ...). Pass
 /// [playback]/[settings]/[mediaScope] when a test needs to drive or assert
 /// on one of them directly; otherwise fake-backed cubits are built so the
-/// shell (mini-player, header, sidebar) has something to read.
+/// shell (mini-player, header, sidebar) has something to read. Pass
+/// [trackSourceInfoResolver] to control what Now Playing's source-quality
+/// hint (ADR-0015) shows; otherwise it stays hidden.
 ///
 /// [restore] defaults to `true` (the ordinary post-sign-in-restore state
 /// every other test wants); pass `false` for a test that specifically
@@ -38,6 +41,7 @@ Future<TestSessionScope> pumpApp(
   PlaybackCubit? playback,
   SettingsCubit? settings,
   MediaScopeCubit? mediaScope,
+  TrackSourceInfoResolver? trackSourceInfoResolver,
   bool restore = true,
 }) async {
   // The default flutter_test surface (800x600, wider than tall) has too
@@ -62,6 +66,12 @@ Future<TestSessionScope> pumpApp(
   addTearDown(settingsCubit.close);
   final mediaScopeCubit = mediaScope ?? fakeMediaScopeCubit();
   addTearDown(mediaScopeCubit.close);
+  // NowPlayingPage is a root route the router builds with no constructor
+  // args, reading TrackSourceInfoCubit straight from getIt — reachable
+  // from every pumpApp test via the mini-player, so this is registered
+  // unconditionally rather than only by tests that specifically care
+  // about it (mirrors registerMusicCubits for the music detail cubits).
+  registerTrackSourceInfoCubit(resolver: trackSourceInfoResolver);
   await tester.pumpWidget(
     JellyfinityApp(
       router: effectiveRouter.config,

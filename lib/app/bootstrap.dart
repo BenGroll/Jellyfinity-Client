@@ -7,6 +7,7 @@ import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
 import '../domain/media/ArtworkResolver.dart';
 import '../domain/playback/PlaybackEngine.dart';
+import '../domain/playback/stream_quality.dart';
 import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
@@ -48,6 +49,13 @@ Future<void> bootstrap({required Widget Function() builder}) async {
     getIt<KeyValueStore>(),
   );
   getIt.registerSingleton<ShellNavigationMode>(initialNavigationMode);
+
+  // Same enum-can't-be-an-@preResolve-module-method constraint as
+  // ShellNavigationMode above.
+  final initialStreamQuality = await SettingsCubit.loadInitialStreamQuality(
+    getIt<KeyValueStore>(),
+  );
+  getIt.registerSingleton<StreamQuality>(initialStreamQuality);
 
   // JustAudioPlaybackEngine is BaseAudioHandler itself, and AudioService
   // .init() can only ever be called once per process — that makes it a
