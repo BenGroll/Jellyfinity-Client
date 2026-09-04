@@ -31,6 +31,13 @@ class QueuePage extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.clear_all_rounded),
+              tooltip: 'Clear queue',
+              onPressed: entries.isEmpty ? null : cubit.clear,
+            ),
+          ],
           body: entries.isEmpty
               ? const EmptyStateView(
                   title: 'The queue is empty',

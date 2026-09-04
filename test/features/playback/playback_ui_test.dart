@@ -139,6 +139,30 @@ void main() {
     await playback.togglePlayPause();
   });
 
+  testWidgets('clearing the queue empties it', (tester) async {
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Freddie Freeloader'),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.clear_all_rounded));
+    await tester.pumpAndSettle();
+
+    expect(playback.state.queue.isEmpty, isTrue);
+    expect(find.text('The queue is empty'), findsOneWidget);
+  });
+
   testWidgets('an empty queue screen shows the empty state', (tester) async {
     final playback = fakePlaybackCubit();
     addTearDown(playback.close);

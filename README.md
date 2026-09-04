@@ -282,12 +282,13 @@ Before making significant changes, contributors should familiarize themselves wi
 * `PHILOSOPHY.md` — product, UX, privacy, architecture, and engineering principles
 * `OUTLOOK.md` — ideas intentionally deferred beyond the current roadmap
 
-The current development milestone is **v0.0.8 — Music Library Experience**.
+The current development milestone is **v0.0.9 — Audio Playback & Persistent Queue**.
 
-Jellyfinity can now connect to a server, sign in, and browse a large
-music library: artists, albums, songs and playlists, with music-scoped
-search, artwork, and metadata that stays browsable when the server is
-unreachable. Audio playback and the persistent queue arrive in v0.0.9.
+Jellyfinity can now connect to a server, sign in, browse a large music
+library, search it, and actually play something: background playback,
+lock-screen/notification controls, a persistent queue with shuffle and
+repeat, and Play Next / Add to Queue from any track. `v0.1.0` — the
+first coherent usable music client — is next.
 
 ## Repository Structure
 
