@@ -1069,6 +1069,1813 @@ class KeyValueEntriesCompanion extends UpdateCompanion<KeyValueRow> {
   }
 }
 
+class $CachedMediaItemsTable extends CachedMediaItems
+    with TableInfo<$CachedMediaItemsTable, CachedMediaItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedMediaItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _availabilityMeta = const VerificationMeta(
+    'availability',
+  );
+  @override
+  late final GeneratedColumn<String> availability = GeneratedColumn<String>(
+    'availability',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _imageItemIdMeta = const VerificationMeta(
+    'imageItemId',
+  );
+  @override
+  late final GeneratedColumn<String> imageItemId = GeneratedColumn<String>(
+    'image_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageKindMeta = const VerificationMeta(
+    'imageKind',
+  );
+  @override
+  late final GeneratedColumn<String> imageKind = GeneratedColumn<String>(
+    'image_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageTagMeta = const VerificationMeta(
+    'imageTag',
+  );
+  @override
+  late final GeneratedColumn<String> imageTag = GeneratedColumn<String>(
+    'image_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageAspectRatioMeta = const VerificationMeta(
+    'imageAspectRatio',
+  );
+  @override
+  late final GeneratedColumn<double> imageAspectRatio = GeneratedColumn<double>(
+    'image_aspect_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _artistsJsonMeta = const VerificationMeta(
+    'artistsJson',
+  );
+  @override
+  late final GeneratedColumn<String> artistsJson = GeneratedColumn<String>(
+    'artists_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumItemIdMeta = const VerificationMeta(
+    'albumItemId',
+  );
+  @override
+  late final GeneratedColumn<String> albumItemId = GeneratedColumn<String>(
+    'album_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumNameMeta = const VerificationMeta(
+    'albumName',
+  );
+  @override
+  late final GeneratedColumn<String> albumName = GeneratedColumn<String>(
+    'album_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _trackNumberMeta = const VerificationMeta(
+    'trackNumber',
+  );
+  @override
+  late final GeneratedColumn<int> trackNumber = GeneratedColumn<int>(
+    'track_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _discNumberMeta = const VerificationMeta(
+    'discNumber',
+  );
+  @override
+  late final GeneratedColumn<int> discNumber = GeneratedColumn<int>(
+    'disc_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMicrosMeta = const VerificationMeta(
+    'durationMicros',
+  );
+  @override
+  late final GeneratedColumn<int> durationMicros = GeneratedColumn<int>(
+    'duration_micros',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productionYearMeta = const VerificationMeta(
+    'productionYear',
+  );
+  @override
+  late final GeneratedColumn<int> productionYear = GeneratedColumn<int>(
+    'production_year',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _childCountMeta = const VerificationMeta(
+    'childCount',
+  );
+  @override
+  late final GeneratedColumn<int> childCount = GeneratedColumn<int>(
+    'child_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    itemId,
+    kind,
+    name,
+    availability,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    artistsJson,
+    albumItemId,
+    albumName,
+    trackNumber,
+    discNumber,
+    durationMicros,
+    productionYear,
+    childCount,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_media_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedMediaItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('availability')) {
+      context.handle(
+        _availabilityMeta,
+        availability.isAcceptableOrUnknown(
+          data['availability']!,
+          _availabilityMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_availabilityMeta);
+    }
+    if (data.containsKey('image_item_id')) {
+      context.handle(
+        _imageItemIdMeta,
+        imageItemId.isAcceptableOrUnknown(
+          data['image_item_id']!,
+          _imageItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_kind')) {
+      context.handle(
+        _imageKindMeta,
+        imageKind.isAcceptableOrUnknown(data['image_kind']!, _imageKindMeta),
+      );
+    }
+    if (data.containsKey('image_tag')) {
+      context.handle(
+        _imageTagMeta,
+        imageTag.isAcceptableOrUnknown(data['image_tag']!, _imageTagMeta),
+      );
+    }
+    if (data.containsKey('image_aspect_ratio')) {
+      context.handle(
+        _imageAspectRatioMeta,
+        imageAspectRatio.isAcceptableOrUnknown(
+          data['image_aspect_ratio']!,
+          _imageAspectRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('artists_json')) {
+      context.handle(
+        _artistsJsonMeta,
+        artistsJson.isAcceptableOrUnknown(
+          data['artists_json']!,
+          _artistsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('album_item_id')) {
+      context.handle(
+        _albumItemIdMeta,
+        albumItemId.isAcceptableOrUnknown(
+          data['album_item_id']!,
+          _albumItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('album_name')) {
+      context.handle(
+        _albumNameMeta,
+        albumName.isAcceptableOrUnknown(data['album_name']!, _albumNameMeta),
+      );
+    }
+    if (data.containsKey('track_number')) {
+      context.handle(
+        _trackNumberMeta,
+        trackNumber.isAcceptableOrUnknown(
+          data['track_number']!,
+          _trackNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('disc_number')) {
+      context.handle(
+        _discNumberMeta,
+        discNumber.isAcceptableOrUnknown(data['disc_number']!, _discNumberMeta),
+      );
+    }
+    if (data.containsKey('duration_micros')) {
+      context.handle(
+        _durationMicrosMeta,
+        durationMicros.isAcceptableOrUnknown(
+          data['duration_micros']!,
+          _durationMicrosMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_year')) {
+      context.handle(
+        _productionYearMeta,
+        productionYear.isAcceptableOrUnknown(
+          data['production_year']!,
+          _productionYearMeta,
+        ),
+      );
+    }
+    if (data.containsKey('child_count')) {
+      context.handle(
+        _childCountMeta,
+        childCount.isAcceptableOrUnknown(data['child_count']!, _childCountMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, itemId};
+  @override
+  CachedMediaItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedMediaItemRow(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      availability: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}availability'],
+      )!,
+      imageItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_item_id'],
+      ),
+      imageKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_kind'],
+      ),
+      imageTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_tag'],
+      ),
+      imageAspectRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}image_aspect_ratio'],
+      ),
+      artistsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artists_json'],
+      ),
+      albumItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_item_id'],
+      ),
+      albumName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_name'],
+      ),
+      trackNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}track_number'],
+      ),
+      discNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}disc_number'],
+      ),
+      durationMicros: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_micros'],
+      ),
+      productionYear: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}production_year'],
+      ),
+      childCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}child_count'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedMediaItemsTable createAlias(String alias) {
+    return $CachedMediaItemsTable(attachedDatabase, alias);
+  }
+}
+
+class CachedMediaItemRow extends DataClass
+    implements Insertable<CachedMediaItemRow> {
+  /// Jellyfinity's local id for the server the item came from.
+  final String serverId;
+
+  /// The item's id on that server.
+  final String itemId;
+
+  /// `MediaKind.name` — how a row is turned back into the right entity.
+  final String kind;
+  final String name;
+
+  /// `MediaAvailability.name` as the server reported it when the row was
+  /// written. Preserves marks the server made (a missing episode); the
+  /// "you are offline" downgrade is applied at read time, not stored.
+  final String availability;
+
+  /// The artwork pointer, flattened. `image_item_id` is the item that
+  /// *owns* the image, which for a song is its album.
+  final String? imageItemId;
+  final String? imageKind;
+  final String? imageTag;
+  final double? imageAspectRatio;
+
+  /// Artist credits as a JSON array of `{name, id?}` objects.
+  ///
+  /// Credits are a display list read only with the item that owns them,
+  /// never queried across items, so a join table would buy nothing and
+  /// cost a query per row on a 130k-row table.
+  final String? artistsJson;
+
+  /// The album a track belongs to, kept as id *and* name so a cached
+  /// track row renders without a second lookup.
+  final String? albumItemId;
+  final String? albumName;
+  final int? trackNumber;
+  final int? discNumber;
+
+  /// Running time in microseconds.
+  final int? durationMicros;
+  final int? productionYear;
+
+  /// An album's track count or a playlist's item count, as reported.
+  final int? childCount;
+
+  /// When this row was last written (milliseconds since epoch).
+  final int updatedAt;
+  const CachedMediaItemRow({
+    required this.serverId,
+    required this.itemId,
+    required this.kind,
+    required this.name,
+    required this.availability,
+    this.imageItemId,
+    this.imageKind,
+    this.imageTag,
+    this.imageAspectRatio,
+    this.artistsJson,
+    this.albumItemId,
+    this.albumName,
+    this.trackNumber,
+    this.discNumber,
+    this.durationMicros,
+    this.productionYear,
+    this.childCount,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['item_id'] = Variable<String>(itemId);
+    map['kind'] = Variable<String>(kind);
+    map['name'] = Variable<String>(name);
+    map['availability'] = Variable<String>(availability);
+    if (!nullToAbsent || imageItemId != null) {
+      map['image_item_id'] = Variable<String>(imageItemId);
+    }
+    if (!nullToAbsent || imageKind != null) {
+      map['image_kind'] = Variable<String>(imageKind);
+    }
+    if (!nullToAbsent || imageTag != null) {
+      map['image_tag'] = Variable<String>(imageTag);
+    }
+    if (!nullToAbsent || imageAspectRatio != null) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio);
+    }
+    if (!nullToAbsent || artistsJson != null) {
+      map['artists_json'] = Variable<String>(artistsJson);
+    }
+    if (!nullToAbsent || albumItemId != null) {
+      map['album_item_id'] = Variable<String>(albumItemId);
+    }
+    if (!nullToAbsent || albumName != null) {
+      map['album_name'] = Variable<String>(albumName);
+    }
+    if (!nullToAbsent || trackNumber != null) {
+      map['track_number'] = Variable<int>(trackNumber);
+    }
+    if (!nullToAbsent || discNumber != null) {
+      map['disc_number'] = Variable<int>(discNumber);
+    }
+    if (!nullToAbsent || durationMicros != null) {
+      map['duration_micros'] = Variable<int>(durationMicros);
+    }
+    if (!nullToAbsent || productionYear != null) {
+      map['production_year'] = Variable<int>(productionYear);
+    }
+    if (!nullToAbsent || childCount != null) {
+      map['child_count'] = Variable<int>(childCount);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CachedMediaItemsCompanion toCompanion(bool nullToAbsent) {
+    return CachedMediaItemsCompanion(
+      serverId: Value(serverId),
+      itemId: Value(itemId),
+      kind: Value(kind),
+      name: Value(name),
+      availability: Value(availability),
+      imageItemId: imageItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageItemId),
+      imageKind: imageKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageKind),
+      imageTag: imageTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageTag),
+      imageAspectRatio: imageAspectRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAspectRatio),
+      artistsJson: artistsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artistsJson),
+      albumItemId: albumItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumItemId),
+      albumName: albumName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumName),
+      trackNumber: trackNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackNumber),
+      discNumber: discNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discNumber),
+      durationMicros: durationMicros == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMicros),
+      productionYear: productionYear == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionYear),
+      childCount: childCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(childCount),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CachedMediaItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedMediaItemRow(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      name: serializer.fromJson<String>(json['name']),
+      availability: serializer.fromJson<String>(json['availability']),
+      imageItemId: serializer.fromJson<String?>(json['imageItemId']),
+      imageKind: serializer.fromJson<String?>(json['imageKind']),
+      imageTag: serializer.fromJson<String?>(json['imageTag']),
+      imageAspectRatio: serializer.fromJson<double?>(json['imageAspectRatio']),
+      artistsJson: serializer.fromJson<String?>(json['artistsJson']),
+      albumItemId: serializer.fromJson<String?>(json['albumItemId']),
+      albumName: serializer.fromJson<String?>(json['albumName']),
+      trackNumber: serializer.fromJson<int?>(json['trackNumber']),
+      discNumber: serializer.fromJson<int?>(json['discNumber']),
+      durationMicros: serializer.fromJson<int?>(json['durationMicros']),
+      productionYear: serializer.fromJson<int?>(json['productionYear']),
+      childCount: serializer.fromJson<int?>(json['childCount']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'itemId': serializer.toJson<String>(itemId),
+      'kind': serializer.toJson<String>(kind),
+      'name': serializer.toJson<String>(name),
+      'availability': serializer.toJson<String>(availability),
+      'imageItemId': serializer.toJson<String?>(imageItemId),
+      'imageKind': serializer.toJson<String?>(imageKind),
+      'imageTag': serializer.toJson<String?>(imageTag),
+      'imageAspectRatio': serializer.toJson<double?>(imageAspectRatio),
+      'artistsJson': serializer.toJson<String?>(artistsJson),
+      'albumItemId': serializer.toJson<String?>(albumItemId),
+      'albumName': serializer.toJson<String?>(albumName),
+      'trackNumber': serializer.toJson<int?>(trackNumber),
+      'discNumber': serializer.toJson<int?>(discNumber),
+      'durationMicros': serializer.toJson<int?>(durationMicros),
+      'productionYear': serializer.toJson<int?>(productionYear),
+      'childCount': serializer.toJson<int?>(childCount),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CachedMediaItemRow copyWith({
+    String? serverId,
+    String? itemId,
+    String? kind,
+    String? name,
+    String? availability,
+    Value<String?> imageItemId = const Value.absent(),
+    Value<String?> imageKind = const Value.absent(),
+    Value<String?> imageTag = const Value.absent(),
+    Value<double?> imageAspectRatio = const Value.absent(),
+    Value<String?> artistsJson = const Value.absent(),
+    Value<String?> albumItemId = const Value.absent(),
+    Value<String?> albumName = const Value.absent(),
+    Value<int?> trackNumber = const Value.absent(),
+    Value<int?> discNumber = const Value.absent(),
+    Value<int?> durationMicros = const Value.absent(),
+    Value<int?> productionYear = const Value.absent(),
+    Value<int?> childCount = const Value.absent(),
+    int? updatedAt,
+  }) => CachedMediaItemRow(
+    serverId: serverId ?? this.serverId,
+    itemId: itemId ?? this.itemId,
+    kind: kind ?? this.kind,
+    name: name ?? this.name,
+    availability: availability ?? this.availability,
+    imageItemId: imageItemId.present ? imageItemId.value : this.imageItemId,
+    imageKind: imageKind.present ? imageKind.value : this.imageKind,
+    imageTag: imageTag.present ? imageTag.value : this.imageTag,
+    imageAspectRatio: imageAspectRatio.present
+        ? imageAspectRatio.value
+        : this.imageAspectRatio,
+    artistsJson: artistsJson.present ? artistsJson.value : this.artistsJson,
+    albumItemId: albumItemId.present ? albumItemId.value : this.albumItemId,
+    albumName: albumName.present ? albumName.value : this.albumName,
+    trackNumber: trackNumber.present ? trackNumber.value : this.trackNumber,
+    discNumber: discNumber.present ? discNumber.value : this.discNumber,
+    durationMicros: durationMicros.present
+        ? durationMicros.value
+        : this.durationMicros,
+    productionYear: productionYear.present
+        ? productionYear.value
+        : this.productionYear,
+    childCount: childCount.present ? childCount.value : this.childCount,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CachedMediaItemRow copyWithCompanion(CachedMediaItemsCompanion data) {
+    return CachedMediaItemRow(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      name: data.name.present ? data.name.value : this.name,
+      availability: data.availability.present
+          ? data.availability.value
+          : this.availability,
+      imageItemId: data.imageItemId.present
+          ? data.imageItemId.value
+          : this.imageItemId,
+      imageKind: data.imageKind.present ? data.imageKind.value : this.imageKind,
+      imageTag: data.imageTag.present ? data.imageTag.value : this.imageTag,
+      imageAspectRatio: data.imageAspectRatio.present
+          ? data.imageAspectRatio.value
+          : this.imageAspectRatio,
+      artistsJson: data.artistsJson.present
+          ? data.artistsJson.value
+          : this.artistsJson,
+      albumItemId: data.albumItemId.present
+          ? data.albumItemId.value
+          : this.albumItemId,
+      albumName: data.albumName.present ? data.albumName.value : this.albumName,
+      trackNumber: data.trackNumber.present
+          ? data.trackNumber.value
+          : this.trackNumber,
+      discNumber: data.discNumber.present
+          ? data.discNumber.value
+          : this.discNumber,
+      durationMicros: data.durationMicros.present
+          ? data.durationMicros.value
+          : this.durationMicros,
+      productionYear: data.productionYear.present
+          ? data.productionYear.value
+          : this.productionYear,
+      childCount: data.childCount.present
+          ? data.childCount.value
+          : this.childCount,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedMediaItemRow(')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('kind: $kind, ')
+          ..write('name: $name, ')
+          ..write('availability: $availability, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('artistsJson: $artistsJson, ')
+          ..write('albumItemId: $albumItemId, ')
+          ..write('albumName: $albumName, ')
+          ..write('trackNumber: $trackNumber, ')
+          ..write('discNumber: $discNumber, ')
+          ..write('durationMicros: $durationMicros, ')
+          ..write('productionYear: $productionYear, ')
+          ..write('childCount: $childCount, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    serverId,
+    itemId,
+    kind,
+    name,
+    availability,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    artistsJson,
+    albumItemId,
+    albumName,
+    trackNumber,
+    discNumber,
+    durationMicros,
+    productionYear,
+    childCount,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedMediaItemRow &&
+          other.serverId == this.serverId &&
+          other.itemId == this.itemId &&
+          other.kind == this.kind &&
+          other.name == this.name &&
+          other.availability == this.availability &&
+          other.imageItemId == this.imageItemId &&
+          other.imageKind == this.imageKind &&
+          other.imageTag == this.imageTag &&
+          other.imageAspectRatio == this.imageAspectRatio &&
+          other.artistsJson == this.artistsJson &&
+          other.albumItemId == this.albumItemId &&
+          other.albumName == this.albumName &&
+          other.trackNumber == this.trackNumber &&
+          other.discNumber == this.discNumber &&
+          other.durationMicros == this.durationMicros &&
+          other.productionYear == this.productionYear &&
+          other.childCount == this.childCount &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CachedMediaItemsCompanion extends UpdateCompanion<CachedMediaItemRow> {
+  final Value<String> serverId;
+  final Value<String> itemId;
+  final Value<String> kind;
+  final Value<String> name;
+  final Value<String> availability;
+  final Value<String?> imageItemId;
+  final Value<String?> imageKind;
+  final Value<String?> imageTag;
+  final Value<double?> imageAspectRatio;
+  final Value<String?> artistsJson;
+  final Value<String?> albumItemId;
+  final Value<String?> albumName;
+  final Value<int?> trackNumber;
+  final Value<int?> discNumber;
+  final Value<int?> durationMicros;
+  final Value<int?> productionYear;
+  final Value<int?> childCount;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CachedMediaItemsCompanion({
+    this.serverId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.name = const Value.absent(),
+    this.availability = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.artistsJson = const Value.absent(),
+    this.albumItemId = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.trackNumber = const Value.absent(),
+    this.discNumber = const Value.absent(),
+    this.durationMicros = const Value.absent(),
+    this.productionYear = const Value.absent(),
+    this.childCount = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedMediaItemsCompanion.insert({
+    required String serverId,
+    required String itemId,
+    required String kind,
+    required String name,
+    required String availability,
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.artistsJson = const Value.absent(),
+    this.albumItemId = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.trackNumber = const Value.absent(),
+    this.discNumber = const Value.absent(),
+    this.durationMicros = const Value.absent(),
+    this.productionYear = const Value.absent(),
+    this.childCount = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       itemId = Value(itemId),
+       kind = Value(kind),
+       name = Value(name),
+       availability = Value(availability),
+       updatedAt = Value(updatedAt);
+  static Insertable<CachedMediaItemRow> custom({
+    Expression<String>? serverId,
+    Expression<String>? itemId,
+    Expression<String>? kind,
+    Expression<String>? name,
+    Expression<String>? availability,
+    Expression<String>? imageItemId,
+    Expression<String>? imageKind,
+    Expression<String>? imageTag,
+    Expression<double>? imageAspectRatio,
+    Expression<String>? artistsJson,
+    Expression<String>? albumItemId,
+    Expression<String>? albumName,
+    Expression<int>? trackNumber,
+    Expression<int>? discNumber,
+    Expression<int>? durationMicros,
+    Expression<int>? productionYear,
+    Expression<int>? childCount,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (itemId != null) 'item_id': itemId,
+      if (kind != null) 'kind': kind,
+      if (name != null) 'name': name,
+      if (availability != null) 'availability': availability,
+      if (imageItemId != null) 'image_item_id': imageItemId,
+      if (imageKind != null) 'image_kind': imageKind,
+      if (imageTag != null) 'image_tag': imageTag,
+      if (imageAspectRatio != null) 'image_aspect_ratio': imageAspectRatio,
+      if (artistsJson != null) 'artists_json': artistsJson,
+      if (albumItemId != null) 'album_item_id': albumItemId,
+      if (albumName != null) 'album_name': albumName,
+      if (trackNumber != null) 'track_number': trackNumber,
+      if (discNumber != null) 'disc_number': discNumber,
+      if (durationMicros != null) 'duration_micros': durationMicros,
+      if (productionYear != null) 'production_year': productionYear,
+      if (childCount != null) 'child_count': childCount,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedMediaItemsCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? itemId,
+    Value<String>? kind,
+    Value<String>? name,
+    Value<String>? availability,
+    Value<String?>? imageItemId,
+    Value<String?>? imageKind,
+    Value<String?>? imageTag,
+    Value<double?>? imageAspectRatio,
+    Value<String?>? artistsJson,
+    Value<String?>? albumItemId,
+    Value<String?>? albumName,
+    Value<int?>? trackNumber,
+    Value<int?>? discNumber,
+    Value<int?>? durationMicros,
+    Value<int?>? productionYear,
+    Value<int?>? childCount,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedMediaItemsCompanion(
+      serverId: serverId ?? this.serverId,
+      itemId: itemId ?? this.itemId,
+      kind: kind ?? this.kind,
+      name: name ?? this.name,
+      availability: availability ?? this.availability,
+      imageItemId: imageItemId ?? this.imageItemId,
+      imageKind: imageKind ?? this.imageKind,
+      imageTag: imageTag ?? this.imageTag,
+      imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
+      artistsJson: artistsJson ?? this.artistsJson,
+      albumItemId: albumItemId ?? this.albumItemId,
+      albumName: albumName ?? this.albumName,
+      trackNumber: trackNumber ?? this.trackNumber,
+      discNumber: discNumber ?? this.discNumber,
+      durationMicros: durationMicros ?? this.durationMicros,
+      productionYear: productionYear ?? this.productionYear,
+      childCount: childCount ?? this.childCount,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (availability.present) {
+      map['availability'] = Variable<String>(availability.value);
+    }
+    if (imageItemId.present) {
+      map['image_item_id'] = Variable<String>(imageItemId.value);
+    }
+    if (imageKind.present) {
+      map['image_kind'] = Variable<String>(imageKind.value);
+    }
+    if (imageTag.present) {
+      map['image_tag'] = Variable<String>(imageTag.value);
+    }
+    if (imageAspectRatio.present) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio.value);
+    }
+    if (artistsJson.present) {
+      map['artists_json'] = Variable<String>(artistsJson.value);
+    }
+    if (albumItemId.present) {
+      map['album_item_id'] = Variable<String>(albumItemId.value);
+    }
+    if (albumName.present) {
+      map['album_name'] = Variable<String>(albumName.value);
+    }
+    if (trackNumber.present) {
+      map['track_number'] = Variable<int>(trackNumber.value);
+    }
+    if (discNumber.present) {
+      map['disc_number'] = Variable<int>(discNumber.value);
+    }
+    if (durationMicros.present) {
+      map['duration_micros'] = Variable<int>(durationMicros.value);
+    }
+    if (productionYear.present) {
+      map['production_year'] = Variable<int>(productionYear.value);
+    }
+    if (childCount.present) {
+      map['child_count'] = Variable<int>(childCount.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedMediaItemsCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('kind: $kind, ')
+          ..write('name: $name, ')
+          ..write('availability: $availability, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('artistsJson: $artistsJson, ')
+          ..write('albumItemId: $albumItemId, ')
+          ..write('albumName: $albumName, ')
+          ..write('trackNumber: $trackNumber, ')
+          ..write('discNumber: $discNumber, ')
+          ..write('durationMicros: $durationMicros, ')
+          ..write('productionYear: $productionYear, ')
+          ..write('childCount: $childCount, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CachedCollectionsTable extends CachedCollections
+    with TableInfo<$CachedCollectionsTable, CachedCollectionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedCollectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _collectionKeyMeta = const VerificationMeta(
+    'collectionKey',
+  );
+  @override
+  late final GeneratedColumn<String> collectionKey = GeneratedColumn<String>(
+    'collection_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _totalCountMeta = const VerificationMeta(
+    'totalCount',
+  );
+  @override
+  late final GeneratedColumn<int> totalCount = GeneratedColumn<int>(
+    'total_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    collectionKey,
+    totalCount,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_collections';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedCollectionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('collection_key')) {
+      context.handle(
+        _collectionKeyMeta,
+        collectionKey.isAcceptableOrUnknown(
+          data['collection_key']!,
+          _collectionKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionKeyMeta);
+    }
+    if (data.containsKey('total_count')) {
+      context.handle(
+        _totalCountMeta,
+        totalCount.isAcceptableOrUnknown(data['total_count']!, _totalCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_totalCountMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, collectionKey};
+  @override
+  CachedCollectionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedCollectionRow(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      collectionKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection_key'],
+      )!,
+      totalCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_count'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedCollectionsTable createAlias(String alias) {
+    return $CachedCollectionsTable(attachedDatabase, alias);
+  }
+}
+
+class CachedCollectionRow extends DataClass
+    implements Insertable<CachedCollectionRow> {
+  final String serverId;
+
+  /// The query in one string, e.g. `albums` or `tracks:album=<item id>`.
+  final String collectionKey;
+  final int totalCount;
+  final int updatedAt;
+  const CachedCollectionRow({
+    required this.serverId,
+    required this.collectionKey,
+    required this.totalCount,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['collection_key'] = Variable<String>(collectionKey);
+    map['total_count'] = Variable<int>(totalCount);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CachedCollectionsCompanion toCompanion(bool nullToAbsent) {
+    return CachedCollectionsCompanion(
+      serverId: Value(serverId),
+      collectionKey: Value(collectionKey),
+      totalCount: Value(totalCount),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CachedCollectionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedCollectionRow(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      collectionKey: serializer.fromJson<String>(json['collectionKey']),
+      totalCount: serializer.fromJson<int>(json['totalCount']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'collectionKey': serializer.toJson<String>(collectionKey),
+      'totalCount': serializer.toJson<int>(totalCount),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CachedCollectionRow copyWith({
+    String? serverId,
+    String? collectionKey,
+    int? totalCount,
+    int? updatedAt,
+  }) => CachedCollectionRow(
+    serverId: serverId ?? this.serverId,
+    collectionKey: collectionKey ?? this.collectionKey,
+    totalCount: totalCount ?? this.totalCount,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CachedCollectionRow copyWithCompanion(CachedCollectionsCompanion data) {
+    return CachedCollectionRow(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      collectionKey: data.collectionKey.present
+          ? data.collectionKey.value
+          : this.collectionKey,
+      totalCount: data.totalCount.present
+          ? data.totalCount.value
+          : this.totalCount,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedCollectionRow(')
+          ..write('serverId: $serverId, ')
+          ..write('collectionKey: $collectionKey, ')
+          ..write('totalCount: $totalCount, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(serverId, collectionKey, totalCount, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedCollectionRow &&
+          other.serverId == this.serverId &&
+          other.collectionKey == this.collectionKey &&
+          other.totalCount == this.totalCount &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CachedCollectionsCompanion extends UpdateCompanion<CachedCollectionRow> {
+  final Value<String> serverId;
+  final Value<String> collectionKey;
+  final Value<int> totalCount;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CachedCollectionsCompanion({
+    this.serverId = const Value.absent(),
+    this.collectionKey = const Value.absent(),
+    this.totalCount = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedCollectionsCompanion.insert({
+    required String serverId,
+    required String collectionKey,
+    required int totalCount,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       collectionKey = Value(collectionKey),
+       totalCount = Value(totalCount),
+       updatedAt = Value(updatedAt);
+  static Insertable<CachedCollectionRow> custom({
+    Expression<String>? serverId,
+    Expression<String>? collectionKey,
+    Expression<int>? totalCount,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (collectionKey != null) 'collection_key': collectionKey,
+      if (totalCount != null) 'total_count': totalCount,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedCollectionsCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? collectionKey,
+    Value<int>? totalCount,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedCollectionsCompanion(
+      serverId: serverId ?? this.serverId,
+      collectionKey: collectionKey ?? this.collectionKey,
+      totalCount: totalCount ?? this.totalCount,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (collectionKey.present) {
+      map['collection_key'] = Variable<String>(collectionKey.value);
+    }
+    if (totalCount.present) {
+      map['total_count'] = Variable<int>(totalCount.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedCollectionsCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('collectionKey: $collectionKey, ')
+          ..write('totalCount: $totalCount, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CachedCollectionEntriesTable extends CachedCollectionEntries
+    with TableInfo<$CachedCollectionEntriesTable, CachedCollectionEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedCollectionEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _collectionKeyMeta = const VerificationMeta(
+    'collectionKey',
+  );
+  @override
+  late final GeneratedColumn<String> collectionKey = GeneratedColumn<String>(
+    'collection_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unavailableReasonMeta = const VerificationMeta(
+    'unavailableReason',
+  );
+  @override
+  late final GeneratedColumn<String> unavailableReason =
+      GeneratedColumn<String>(
+        'unavailable_reason',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    collectionKey,
+    position,
+    itemId,
+    unavailableReason,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_collection_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedCollectionEntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('collection_key')) {
+      context.handle(
+        _collectionKeyMeta,
+        collectionKey.isAcceptableOrUnknown(
+          data['collection_key']!,
+          _collectionKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionKeyMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('unavailable_reason')) {
+      context.handle(
+        _unavailableReasonMeta,
+        unavailableReason.isAcceptableOrUnknown(
+          data['unavailable_reason']!,
+          _unavailableReasonMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, collectionKey, position};
+  @override
+  CachedCollectionEntryRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedCollectionEntryRow(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      collectionKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection_key'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      unavailableReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unavailable_reason'],
+      ),
+    );
+  }
+
+  @override
+  $CachedCollectionEntriesTable createAlias(String alias) {
+    return $CachedCollectionEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedCollectionEntryRow extends DataClass
+    implements Insertable<CachedCollectionEntryRow> {
+  final String serverId;
+  final String collectionKey;
+
+  /// The entry's index within the whole collection, not within a window.
+  final int position;
+
+  /// The `CachedMediaItems` row this position points at.
+  final String itemId;
+
+  /// Set when this position could not be turned into an item.
+  final String? unavailableReason;
+  const CachedCollectionEntryRow({
+    required this.serverId,
+    required this.collectionKey,
+    required this.position,
+    required this.itemId,
+    this.unavailableReason,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['collection_key'] = Variable<String>(collectionKey);
+    map['position'] = Variable<int>(position);
+    map['item_id'] = Variable<String>(itemId);
+    if (!nullToAbsent || unavailableReason != null) {
+      map['unavailable_reason'] = Variable<String>(unavailableReason);
+    }
+    return map;
+  }
+
+  CachedCollectionEntriesCompanion toCompanion(bool nullToAbsent) {
+    return CachedCollectionEntriesCompanion(
+      serverId: Value(serverId),
+      collectionKey: Value(collectionKey),
+      position: Value(position),
+      itemId: Value(itemId),
+      unavailableReason: unavailableReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unavailableReason),
+    );
+  }
+
+  factory CachedCollectionEntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedCollectionEntryRow(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      collectionKey: serializer.fromJson<String>(json['collectionKey']),
+      position: serializer.fromJson<int>(json['position']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      unavailableReason: serializer.fromJson<String?>(
+        json['unavailableReason'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'collectionKey': serializer.toJson<String>(collectionKey),
+      'position': serializer.toJson<int>(position),
+      'itemId': serializer.toJson<String>(itemId),
+      'unavailableReason': serializer.toJson<String?>(unavailableReason),
+    };
+  }
+
+  CachedCollectionEntryRow copyWith({
+    String? serverId,
+    String? collectionKey,
+    int? position,
+    String? itemId,
+    Value<String?> unavailableReason = const Value.absent(),
+  }) => CachedCollectionEntryRow(
+    serverId: serverId ?? this.serverId,
+    collectionKey: collectionKey ?? this.collectionKey,
+    position: position ?? this.position,
+    itemId: itemId ?? this.itemId,
+    unavailableReason: unavailableReason.present
+        ? unavailableReason.value
+        : this.unavailableReason,
+  );
+  CachedCollectionEntryRow copyWithCompanion(
+    CachedCollectionEntriesCompanion data,
+  ) {
+    return CachedCollectionEntryRow(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      collectionKey: data.collectionKey.present
+          ? data.collectionKey.value
+          : this.collectionKey,
+      position: data.position.present ? data.position.value : this.position,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      unavailableReason: data.unavailableReason.present
+          ? data.unavailableReason.value
+          : this.unavailableReason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedCollectionEntryRow(')
+          ..write('serverId: $serverId, ')
+          ..write('collectionKey: $collectionKey, ')
+          ..write('position: $position, ')
+          ..write('itemId: $itemId, ')
+          ..write('unavailableReason: $unavailableReason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(serverId, collectionKey, position, itemId, unavailableReason);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedCollectionEntryRow &&
+          other.serverId == this.serverId &&
+          other.collectionKey == this.collectionKey &&
+          other.position == this.position &&
+          other.itemId == this.itemId &&
+          other.unavailableReason == this.unavailableReason);
+}
+
+class CachedCollectionEntriesCompanion
+    extends UpdateCompanion<CachedCollectionEntryRow> {
+  final Value<String> serverId;
+  final Value<String> collectionKey;
+  final Value<int> position;
+  final Value<String> itemId;
+  final Value<String?> unavailableReason;
+  final Value<int> rowid;
+  const CachedCollectionEntriesCompanion({
+    this.serverId = const Value.absent(),
+    this.collectionKey = const Value.absent(),
+    this.position = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.unavailableReason = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedCollectionEntriesCompanion.insert({
+    required String serverId,
+    required String collectionKey,
+    required int position,
+    required String itemId,
+    this.unavailableReason = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       collectionKey = Value(collectionKey),
+       position = Value(position),
+       itemId = Value(itemId);
+  static Insertable<CachedCollectionEntryRow> custom({
+    Expression<String>? serverId,
+    Expression<String>? collectionKey,
+    Expression<int>? position,
+    Expression<String>? itemId,
+    Expression<String>? unavailableReason,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (collectionKey != null) 'collection_key': collectionKey,
+      if (position != null) 'position': position,
+      if (itemId != null) 'item_id': itemId,
+      if (unavailableReason != null) 'unavailable_reason': unavailableReason,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedCollectionEntriesCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? collectionKey,
+    Value<int>? position,
+    Value<String>? itemId,
+    Value<String?>? unavailableReason,
+    Value<int>? rowid,
+  }) {
+    return CachedCollectionEntriesCompanion(
+      serverId: serverId ?? this.serverId,
+      collectionKey: collectionKey ?? this.collectionKey,
+      position: position ?? this.position,
+      itemId: itemId ?? this.itemId,
+      unavailableReason: unavailableReason ?? this.unavailableReason,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (collectionKey.present) {
+      map['collection_key'] = Variable<String>(collectionKey.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (unavailableReason.present) {
+      map['unavailable_reason'] = Variable<String>(unavailableReason.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedCollectionEntriesCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('collectionKey: $collectionKey, ')
+          ..write('position: $position, ')
+          ..write('itemId: $itemId, ')
+          ..write('unavailableReason: $unavailableReason, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1077,6 +2884,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $KeyValueEntriesTable keyValueEntries = $KeyValueEntriesTable(
     this,
   );
+  late final $CachedMediaItemsTable cachedMediaItems = $CachedMediaItemsTable(
+    this,
+  );
+  late final $CachedCollectionsTable cachedCollections =
+      $CachedCollectionsTable(this);
+  late final $CachedCollectionEntriesTable cachedCollectionEntries =
+      $CachedCollectionEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1085,6 +2899,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     savedServers,
     savedAccounts,
     keyValueEntries,
+    cachedMediaItems,
+    cachedCollections,
+    cachedCollectionEntries,
   ];
 }
 
@@ -1673,6 +3490,904 @@ typedef $$KeyValueEntriesTableProcessedTableManager =
       KeyValueRow,
       PrefetchHooks Function()
     >;
+typedef $$CachedMediaItemsTableCreateCompanionBuilder =
+    CachedMediaItemsCompanion Function({
+      required String serverId,
+      required String itemId,
+      required String kind,
+      required String name,
+      required String availability,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<String?> artistsJson,
+      Value<String?> albumItemId,
+      Value<String?> albumName,
+      Value<int?> trackNumber,
+      Value<int?> discNumber,
+      Value<int?> durationMicros,
+      Value<int?> productionYear,
+      Value<int?> childCount,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedMediaItemsTableUpdateCompanionBuilder =
+    CachedMediaItemsCompanion Function({
+      Value<String> serverId,
+      Value<String> itemId,
+      Value<String> kind,
+      Value<String> name,
+      Value<String> availability,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<String?> artistsJson,
+      Value<String?> albumItemId,
+      Value<String?> albumName,
+      Value<int?> trackNumber,
+      Value<int?> discNumber,
+      Value<int?> durationMicros,
+      Value<int?> productionYear,
+      Value<int?> childCount,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedMediaItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedMediaItemsTable> {
+  $$CachedMediaItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get trackNumber => $composableBuilder(
+    column: $table.trackNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get discNumber => $composableBuilder(
+    column: $table.discNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get productionYear => $composableBuilder(
+    column: $table.productionYear,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get childCount => $composableBuilder(
+    column: $table.childCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedMediaItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedMediaItemsTable> {
+  $$CachedMediaItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get trackNumber => $composableBuilder(
+    column: $table.trackNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get discNumber => $composableBuilder(
+    column: $table.discNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get productionYear => $composableBuilder(
+    column: $table.productionYear,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get childCount => $composableBuilder(
+    column: $table.childCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedMediaItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedMediaItemsTable> {
+  $$CachedMediaItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageKind =>
+      $composableBuilder(column: $table.imageKind, builder: (column) => column);
+
+  GeneratedColumn<String> get imageTag =>
+      $composableBuilder(column: $table.imageTag, builder: (column) => column);
+
+  GeneratedColumn<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumName =>
+      $composableBuilder(column: $table.albumName, builder: (column) => column);
+
+  GeneratedColumn<int> get trackNumber => $composableBuilder(
+    column: $table.trackNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get discNumber => $composableBuilder(
+    column: $table.discNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get productionYear => $composableBuilder(
+    column: $table.productionYear,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get childCount => $composableBuilder(
+    column: $table.childCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CachedMediaItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedMediaItemsTable,
+          CachedMediaItemRow,
+          $$CachedMediaItemsTableFilterComposer,
+          $$CachedMediaItemsTableOrderingComposer,
+          $$CachedMediaItemsTableAnnotationComposer,
+          $$CachedMediaItemsTableCreateCompanionBuilder,
+          $$CachedMediaItemsTableUpdateCompanionBuilder,
+          (
+            CachedMediaItemRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CachedMediaItemsTable,
+              CachedMediaItemRow
+            >,
+          ),
+          CachedMediaItemRow,
+          PrefetchHooks Function()
+        > {
+  $$CachedMediaItemsTableTableManager(
+    _$AppDatabase db,
+    $CachedMediaItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedMediaItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedMediaItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedMediaItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<String?> artistsJson = const Value.absent(),
+                Value<String?> albumItemId = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int?> trackNumber = const Value.absent(),
+                Value<int?> discNumber = const Value.absent(),
+                Value<int?> durationMicros = const Value.absent(),
+                Value<int?> productionYear = const Value.absent(),
+                Value<int?> childCount = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedMediaItemsCompanion(
+                serverId: serverId,
+                itemId: itemId,
+                kind: kind,
+                name: name,
+                availability: availability,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                artistsJson: artistsJson,
+                albumItemId: albumItemId,
+                albumName: albumName,
+                trackNumber: trackNumber,
+                discNumber: discNumber,
+                durationMicros: durationMicros,
+                productionYear: productionYear,
+                childCount: childCount,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String itemId,
+                required String kind,
+                required String name,
+                required String availability,
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<String?> artistsJson = const Value.absent(),
+                Value<String?> albumItemId = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int?> trackNumber = const Value.absent(),
+                Value<int?> discNumber = const Value.absent(),
+                Value<int?> durationMicros = const Value.absent(),
+                Value<int?> productionYear = const Value.absent(),
+                Value<int?> childCount = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CachedMediaItemsCompanion.insert(
+                serverId: serverId,
+                itemId: itemId,
+                kind: kind,
+                name: name,
+                availability: availability,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                artistsJson: artistsJson,
+                albumItemId: albumItemId,
+                albumName: albumName,
+                trackNumber: trackNumber,
+                discNumber: discNumber,
+                durationMicros: durationMicros,
+                productionYear: productionYear,
+                childCount: childCount,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedMediaItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedMediaItemsTable,
+      CachedMediaItemRow,
+      $$CachedMediaItemsTableFilterComposer,
+      $$CachedMediaItemsTableOrderingComposer,
+      $$CachedMediaItemsTableAnnotationComposer,
+      $$CachedMediaItemsTableCreateCompanionBuilder,
+      $$CachedMediaItemsTableUpdateCompanionBuilder,
+      (
+        CachedMediaItemRow,
+        BaseReferences<
+          _$AppDatabase,
+          $CachedMediaItemsTable,
+          CachedMediaItemRow
+        >,
+      ),
+      CachedMediaItemRow,
+      PrefetchHooks Function()
+    >;
+typedef $$CachedCollectionsTableCreateCompanionBuilder =
+    CachedCollectionsCompanion Function({
+      required String serverId,
+      required String collectionKey,
+      required int totalCount,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedCollectionsTableUpdateCompanionBuilder =
+    CachedCollectionsCompanion Function({
+      Value<String> serverId,
+      Value<String> collectionKey,
+      Value<int> totalCount,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedCollectionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedCollectionsTable> {
+  $$CachedCollectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get collectionKey => $composableBuilder(
+    column: $table.collectionKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalCount => $composableBuilder(
+    column: $table.totalCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedCollectionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedCollectionsTable> {
+  $$CachedCollectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get collectionKey => $composableBuilder(
+    column: $table.collectionKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalCount => $composableBuilder(
+    column: $table.totalCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedCollectionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedCollectionsTable> {
+  $$CachedCollectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get collectionKey => $composableBuilder(
+    column: $table.collectionKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalCount => $composableBuilder(
+    column: $table.totalCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CachedCollectionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedCollectionsTable,
+          CachedCollectionRow,
+          $$CachedCollectionsTableFilterComposer,
+          $$CachedCollectionsTableOrderingComposer,
+          $$CachedCollectionsTableAnnotationComposer,
+          $$CachedCollectionsTableCreateCompanionBuilder,
+          $$CachedCollectionsTableUpdateCompanionBuilder,
+          (
+            CachedCollectionRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CachedCollectionsTable,
+              CachedCollectionRow
+            >,
+          ),
+          CachedCollectionRow,
+          PrefetchHooks Function()
+        > {
+  $$CachedCollectionsTableTableManager(
+    _$AppDatabase db,
+    $CachedCollectionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedCollectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedCollectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedCollectionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> collectionKey = const Value.absent(),
+                Value<int> totalCount = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedCollectionsCompanion(
+                serverId: serverId,
+                collectionKey: collectionKey,
+                totalCount: totalCount,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String collectionKey,
+                required int totalCount,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CachedCollectionsCompanion.insert(
+                serverId: serverId,
+                collectionKey: collectionKey,
+                totalCount: totalCount,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedCollectionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedCollectionsTable,
+      CachedCollectionRow,
+      $$CachedCollectionsTableFilterComposer,
+      $$CachedCollectionsTableOrderingComposer,
+      $$CachedCollectionsTableAnnotationComposer,
+      $$CachedCollectionsTableCreateCompanionBuilder,
+      $$CachedCollectionsTableUpdateCompanionBuilder,
+      (
+        CachedCollectionRow,
+        BaseReferences<
+          _$AppDatabase,
+          $CachedCollectionsTable,
+          CachedCollectionRow
+        >,
+      ),
+      CachedCollectionRow,
+      PrefetchHooks Function()
+    >;
+typedef $$CachedCollectionEntriesTableCreateCompanionBuilder =
+    CachedCollectionEntriesCompanion Function({
+      required String serverId,
+      required String collectionKey,
+      required int position,
+      required String itemId,
+      Value<String?> unavailableReason,
+      Value<int> rowid,
+    });
+typedef $$CachedCollectionEntriesTableUpdateCompanionBuilder =
+    CachedCollectionEntriesCompanion Function({
+      Value<String> serverId,
+      Value<String> collectionKey,
+      Value<int> position,
+      Value<String> itemId,
+      Value<String?> unavailableReason,
+      Value<int> rowid,
+    });
+
+class $$CachedCollectionEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedCollectionEntriesTable> {
+  $$CachedCollectionEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get collectionKey => $composableBuilder(
+    column: $table.collectionKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unavailableReason => $composableBuilder(
+    column: $table.unavailableReason,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedCollectionEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedCollectionEntriesTable> {
+  $$CachedCollectionEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get collectionKey => $composableBuilder(
+    column: $table.collectionKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unavailableReason => $composableBuilder(
+    column: $table.unavailableReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedCollectionEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedCollectionEntriesTable> {
+  $$CachedCollectionEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get collectionKey => $composableBuilder(
+    column: $table.collectionKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get unavailableReason => $composableBuilder(
+    column: $table.unavailableReason,
+    builder: (column) => column,
+  );
+}
+
+class $$CachedCollectionEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedCollectionEntriesTable,
+          CachedCollectionEntryRow,
+          $$CachedCollectionEntriesTableFilterComposer,
+          $$CachedCollectionEntriesTableOrderingComposer,
+          $$CachedCollectionEntriesTableAnnotationComposer,
+          $$CachedCollectionEntriesTableCreateCompanionBuilder,
+          $$CachedCollectionEntriesTableUpdateCompanionBuilder,
+          (
+            CachedCollectionEntryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CachedCollectionEntriesTable,
+              CachedCollectionEntryRow
+            >,
+          ),
+          CachedCollectionEntryRow,
+          PrefetchHooks Function()
+        > {
+  $$CachedCollectionEntriesTableTableManager(
+    _$AppDatabase db,
+    $CachedCollectionEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedCollectionEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CachedCollectionEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CachedCollectionEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> collectionKey = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String?> unavailableReason = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedCollectionEntriesCompanion(
+                serverId: serverId,
+                collectionKey: collectionKey,
+                position: position,
+                itemId: itemId,
+                unavailableReason: unavailableReason,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String collectionKey,
+                required int position,
+                required String itemId,
+                Value<String?> unavailableReason = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedCollectionEntriesCompanion.insert(
+                serverId: serverId,
+                collectionKey: collectionKey,
+                position: position,
+                itemId: itemId,
+                unavailableReason: unavailableReason,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedCollectionEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedCollectionEntriesTable,
+      CachedCollectionEntryRow,
+      $$CachedCollectionEntriesTableFilterComposer,
+      $$CachedCollectionEntriesTableOrderingComposer,
+      $$CachedCollectionEntriesTableAnnotationComposer,
+      $$CachedCollectionEntriesTableCreateCompanionBuilder,
+      $$CachedCollectionEntriesTableUpdateCompanionBuilder,
+      (
+        CachedCollectionEntryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $CachedCollectionEntriesTable,
+          CachedCollectionEntryRow
+        >,
+      ),
+      CachedCollectionEntryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1683,4 +4398,13 @@ class $AppDatabaseManager {
       $$SavedAccountsTableTableManager(_db, _db.savedAccounts);
   $$KeyValueEntriesTableTableManager get keyValueEntries =>
       $$KeyValueEntriesTableTableManager(_db, _db.keyValueEntries);
+  $$CachedMediaItemsTableTableManager get cachedMediaItems =>
+      $$CachedMediaItemsTableTableManager(_db, _db.cachedMediaItems);
+  $$CachedCollectionsTableTableManager get cachedCollections =>
+      $$CachedCollectionsTableTableManager(_db, _db.cachedCollections);
+  $$CachedCollectionEntriesTableTableManager get cachedCollectionEntries =>
+      $$CachedCollectionEntriesTableTableManager(
+        _db,
+        _db.cachedCollectionEntries,
+      );
 }

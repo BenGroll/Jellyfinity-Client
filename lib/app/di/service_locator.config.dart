@@ -71,6 +71,8 @@ import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart'
     as _i617;
 import 'package:jellyfinity/infrastructure/persistence/LegacyJsonImporter.dart'
     as _i408;
+import 'package:jellyfinity/infrastructure/persistence/media/media_cache_store.dart'
+    as _i1018;
 import 'package:jellyfinity/infrastructure/secure/SecureCredentialStore.dart'
     as _i834;
 import 'package:jellyfinity/infrastructure/secure/SecureStorageModule.dart'
@@ -96,6 +98,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i848.ServerRegistry>(
       () => _i776.DriftServerRegistry(gh<_i242.AppDatabase>()),
+    );
+    gh.lazySingleton<_i1018.MediaCacheStore>(
+      () => _i1018.DriftMediaCacheStore(gh<_i242.AppDatabase>()),
     );
     gh.lazySingleton<_i617.KeyValueStore>(
       () => _i617.DriftKeyValueStore(gh<_i242.AppDatabase>()),
@@ -134,6 +139,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i901.AccountStore>(),
         gh<_i901.CredentialStore>(),
         gh<_i901.JellyfinAuthenticator>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i612.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i430.AuthTokenProvider>(
+      () => _i51.SessionAuthTokenProvider(gh<_i56.AuthSessionManager>()),
+    );
+    gh.lazySingleton<_i906.JellyfinServerProbe>(
+      () => _i906.JellyfinServerProbe(
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
         gh<_i612.Logger>(),
       ),
     );
@@ -142,9 +158,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i809.SessionCubit>(
       () => _i809.SessionCubit(gh<_i56.AuthSessionManager>()),
-    );
-    gh.lazySingleton<_i430.AuthTokenProvider>(
-      () => _i51.SessionAuthTokenProvider(gh<_i56.AuthSessionManager>()),
     );
     gh.lazySingleton<_i285.ArtworkResolver>(
       () => _i1022.JellyfinArtworkResolver(gh<_i346.JellyfinSessionContext>()),
@@ -163,12 +176,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i587.AppRouter>(
       () => _i587.AppRouter(gh<_i809.SessionCubit>()),
     );
-    gh.lazySingleton<_i906.JellyfinServerProbe>(
-      () => _i906.JellyfinServerProbe(
-        gh<_i787.JellyfinClientIdentity>(),
-        gh<_i430.AuthTokenProvider>(),
-        gh<_i612.Logger>(),
-      ),
+    gh.factory<_i952.ServerSetupCubit>(
+      () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
     );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
       () => _i830.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
@@ -189,9 +198,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i747.MusicLibraryRepository>(
       () => _i814.JellyfinMusicLibraryRepository(gh<_i963.JellyfinMediaApi>()),
-    );
-    gh.factory<_i952.ServerSetupCubit>(
-      () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
     );
     return this;
   }
