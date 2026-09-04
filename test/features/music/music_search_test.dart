@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/features/music/presentation/search/InlineMusicSearch.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
-import 'package:jellyfinity/features/music/presentation/search/MusicSearchPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
@@ -146,7 +146,10 @@ void main() {
     }
 
     testWidgets('invites a search before anything is typed', (tester) async {
-      await pumpThemed(tester, MusicSearchPage(cubit: _pageCubit(_library())));
+      await pumpThemed(
+        tester,
+        InlineMusicSearch(cubit: _pageCubit(_library())),
+      );
       await settle(tester);
 
       expect(find.text('Search your music'), findsOneWidget);
@@ -154,7 +157,10 @@ void main() {
     });
 
     testWidgets('groups results under their category headings', (tester) async {
-      await pumpThemed(tester, MusicSearchPage(cubit: _pageCubit(_library())));
+      await pumpThemed(
+        tester,
+        InlineMusicSearch(cubit: _pageCubit(_library())),
+      );
       await settle(tester);
 
       await tester.enterText(find.byType(TextField), 'miles');
@@ -170,7 +176,10 @@ void main() {
     });
 
     testWidgets('says so when nothing matches', (tester) async {
-      await pumpThemed(tester, MusicSearchPage(cubit: _pageCubit(_library())));
+      await pumpThemed(
+        tester,
+        InlineMusicSearch(cubit: _pageCubit(_library())),
+      );
       await settle(tester);
 
       await tester.enterText(find.byType(TextField), 'zzzz');

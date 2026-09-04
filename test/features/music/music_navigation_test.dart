@@ -1,52 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
+import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
-import 'package:jellyfinity/features/music/presentation/library/MusicPage.dart';
+import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
+import 'package:jellyfinity/features/music/presentation/search/InlineMusicSearch.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
-import 'package:jellyfinity/features/music/presentation/search/MusicSearchPage.dart';
 import 'package:jellyfinity/features/music/presentation/search/SearchCategoryPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
-import 'package:jellyfinity/app/JellyfinityApp.dart';
-import 'package:jellyfinity/app/router/AppRouter.dart';
-
 import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
+import '../../support/pump_app.dart';
 import '../../support/session_fakes.dart';
 
-/// Signs in and opens the Music section through the real router, so the
+/// Signs in and opens the Library section through the real router, so the
 /// routes under test are the ones the app ships.
-Future<AppRouter> _openMusic(
+Future<AppRouter> _openLibrary(
   WidgetTester tester,
   FakeMusicLibraryRepository music, {
   FakeMediaMetadataRepository? metadata,
+  PlaybackCubit? playback,
 }) async {
-  final scope = TestSessionScope();
-  addTearDown(scope.cubit.close);
-  registerAuthCubits(scope);
   registerMusicCubits(music: music, metadata: metadata);
-
+  final scope = TestSessionScope();
   final router = AppRouter(scope.cubit);
-  final playback = fakePlaybackCubit();
-  addTearDown(playback.close);
-  await tester.pumpWidget(
-    JellyfinityApp(
-      router: router.config,
-      session: scope.cubit,
-      playback: playback,
-    ),
+  final s = await pumpApp(
+    tester,
+    scope: scope,
+    router: router,
+    playback: playback,
   );
-  await scope.cubit.restore();
-  await tester.pumpAndSettle();
-  await scope.signIn();
+  await s.signIn();
   await tester.pumpAndSettle();
 
   await tester.tap(
     find.descendant(
       of: find.byType(NavigationBar),
-      matching: find.text('Music'),
+      matching: find.text('Library'),
     ),
   );
   await tester.pumpAndSettle();
@@ -59,10 +52,10 @@ void main() {
   });
   tearDown(() => MediaArtwork.imageBuilderOverride = null);
 
-  testWidgets('the Music tab opens the music library', (tester) async {
-    await _openMusic(tester, FakeMusicLibraryRepository());
+  testWidgets('the Library tab opens the music library', (tester) async {
+    await _openLibrary(tester, FakeMusicLibraryRepository());
 
-    expect(find.byType(MusicPage), findsOneWidget);
+    expect(find.byType(LibraryPage), findsOneWidget);
   });
 
   testWidgets('artist to album, and back again', (tester) async {
@@ -71,7 +64,7 @@ void main() {
       ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
       ..trackList = [testTrack('t1', name: 'So What', albumId: 'al1')];
 
-    await _openMusic(tester, music);
+    await _openLibrary(tester, music);
 
     await tester.tap(find.text('Miles Davis'));
     await tester.pumpAndSettle();
@@ -93,33 +86,8 @@ void main() {
       ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
       ..trackList = [testTrack('t1', name: 'So What', albumId: 'al1')];
 
-    final scope = TestSessionScope();
-    addTearDown(scope.cubit.close);
-    registerAuthCubits(scope);
-    registerMusicCubits(music: music);
-
-    final router = AppRouter(scope.cubit);
     final playback = fakePlaybackCubit();
-    addTearDown(playback.close);
-    await tester.pumpWidget(
-      JellyfinityApp(
-        router: router.config,
-        session: scope.cubit,
-        playback: playback,
-      ),
-    );
-    await scope.cubit.restore();
-    await tester.pumpAndSettle();
-    await scope.signIn();
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text('Music'),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _openLibrary(tester, music, playback: playback);
     await tester.tap(find.text('Miles Davis'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kind of Blue'));
@@ -155,32 +123,8 @@ void main() {
         testTrack('t2', name: 'Freddie Freeloader', albumId: 'al1'),
       ];
 
-    final scope = TestSessionScope();
-    addTearDown(scope.cubit.close);
-    registerAuthCubits(scope);
-    registerMusicCubits(music: music);
-
-    final router = AppRouter(scope.cubit);
     final playback = fakePlaybackCubit();
-    addTearDown(playback.close);
-    await tester.pumpWidget(
-      JellyfinityApp(
-        router: router.config,
-        session: scope.cubit,
-        playback: playback,
-      ),
-    );
-    await scope.cubit.restore();
-    await tester.pumpAndSettle();
-    await scope.signIn();
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text('Music'),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _openLibrary(tester, music, playback: playback);
     await tester.tap(find.text('Miles Davis'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kind of Blue'));
@@ -211,7 +155,7 @@ void main() {
     final music = FakeMusicLibraryRepository()
       ..artistList = [testArtist('a1', name: 'Miles Davis')];
 
-    await _openMusic(tester, music);
+    await _openLibrary(tester, music);
     await tester.tap(find.text('Miles Davis'));
     await tester.pumpAndSettle();
 
@@ -222,39 +166,25 @@ void main() {
   testWidgets('an id that is not a MediaId key goes nowhere', (tester) async {
     // A stale link or a hand-typed URL degrades to not-found instead of
     // throwing on a half-parsed id.
-    final router = await _openMusic(tester, FakeMusicLibraryRepository());
+    final router = await _openLibrary(tester, FakeMusicLibraryRepository());
 
-    router.config.go('/music/album/not-a-key');
+    router.config.go('/library/album/not-a-key');
     await tester.pumpAndSettle();
 
     expect(find.text('Page not found'), findsOneWidget);
   });
 
   testWidgets('Home leads into the music library', (tester) async {
-    final scope = TestSessionScope();
-    addTearDown(scope.cubit.close);
-    registerAuthCubits(scope);
     registerMusicCubits(music: FakeMusicLibraryRepository());
-
-    final router = AppRouter(scope.cubit);
-    final playback = fakePlaybackCubit();
-    addTearDown(playback.close);
-    await tester.pumpWidget(
-      JellyfinityApp(
-        router: router.config,
-        session: scope.cubit,
-        playback: playback,
-      ),
-    );
-    await scope.cubit.restore();
-    await tester.pumpAndSettle();
-    await scope.signIn();
+    final scope = TestSessionScope();
+    final s = await pumpApp(tester, scope: scope);
+    await s.signIn();
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Browse music'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(MusicPage), findsOneWidget);
+    expect(find.byType(LibraryPage), findsOneWidget);
   });
 
   testWidgets('"show all" opens the full results for one category', (
@@ -264,7 +194,7 @@ void main() {
       ..artistList = [
         for (var i = 0; i < 12; i++) testArtist('a$i', name: 'Miles $i'),
       ];
-    await _openMusic(tester, music);
+    await _openLibrary(tester, music);
 
     await tester.tap(find.byIcon(Icons.search_rounded));
     await tester.pumpAndSettle();
@@ -286,12 +216,25 @@ void main() {
     expect(find.text('Miles 0'), findsOneWidget);
   });
 
-  testWidgets('search is reachable from the library', (tester) async {
-    await _openMusic(tester, FakeMusicLibraryRepository());
+  testWidgets('search is reachable at the top of the UI, inline', (
+    tester,
+  ) async {
+    await _openLibrary(tester, FakeMusicLibraryRepository());
+
+    // Before: just the header's search affordance, no results view.
+    expect(find.byType(InlineMusicSearch), findsNothing);
 
     await tester.tap(find.byIcon(Icons.search_rounded));
     await tester.pumpAndSettle();
 
-    expect(find.byType(MusicSearchPage), findsOneWidget);
+    // Inline, not a pushed page: the bottom navigation is still visible.
+    expect(find.byType(InlineMusicSearch), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+
+    // Closing it returns to the library, still on the same tab.
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+    expect(find.byType(InlineMusicSearch), findsNothing);
+    expect(find.byType(LibraryPage), findsOneWidget);
   });
 }
