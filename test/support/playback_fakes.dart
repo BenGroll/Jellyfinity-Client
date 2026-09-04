@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
@@ -8,9 +9,21 @@ import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart';
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart';
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart';
 import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
+import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
 import 'package:jellyfinity/domain/playback/PlaybackSource.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
+import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
+
+/// A [PlaybackCubit] wired entirely to fakes, for tests that only need
+/// one to exist (e.g. because the widget tree requires it) without
+/// driving or asserting on playback itself.
+PlaybackCubit fakePlaybackCubit() => PlaybackCubit(
+  FakePlaybackEngine(),
+  FakeQueueRepository(),
+  FakeAudioSourceResolver(),
+  RecordingPlaybackProgressRepository(),
+);
 
 /// A [PlaybackEngine] a test can both drive (call the transport methods
 /// on) and steer (push stream events as if the real engine produced
@@ -142,6 +155,34 @@ class FakeAudioSourceResolver implements AudioSourceResolver {
     return Result.ok(
       Uri.parse('https://media.example.com/Audio/${id.itemId}/stream'),
     );
+  }
+}
+
+/// An in-memory [QueueRepository] — no database — for widget/navigation
+/// tests that need `PlaybackCubit` wired up but do not care about
+/// persistence specifics (those are covered by
+/// `drift_queue_repository_test`).
+class FakeQueueRepository implements QueueRepository {
+  PlaybackQueue queue = PlaybackQueue.empty;
+  Duration position = Duration.zero;
+
+  @override
+  Future<Result<RestoredQueue>> load() async =>
+      Result.ok((queue: queue, position: position));
+
+  @override
+  Future<Result<void>> replace(PlaybackQueue queue) async {
+    this.queue = queue;
+    return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<void>> savePosition({
+    required int? currentIndex,
+    required Duration position,
+  }) async {
+    this.position = position;
+    return const Result.ok(null);
   }
 }
 

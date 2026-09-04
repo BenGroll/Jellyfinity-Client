@@ -8,6 +8,7 @@ import 'package:jellyfinity/features/onboarding/presentation/WelcomePage.dart';
 import 'package:jellyfinity/features/shell/presentation/NotFoundPage.dart';
 import 'package:jellyfinity/features/shell/presentation/SplashPage.dart';
 
+import '../../support/playback_fakes.dart';
 import '../../support/session_fakes.dart';
 
 void main() {
@@ -19,8 +20,14 @@ void main() {
     addTearDown(scope.cubit.close);
     registerAuthCubits(scope);
     final router = AppRouter(scope.cubit);
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
     await tester.pumpWidget(
-      JellyfinityApp(router: router.config, session: scope.cubit),
+      JellyfinityApp(
+        router: router.config,
+        session: scope.cubit,
+        playback: playback,
+      ),
     );
     if (restore) {
       await scope.cubit.restore();

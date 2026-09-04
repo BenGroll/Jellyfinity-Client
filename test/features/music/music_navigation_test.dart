@@ -13,6 +13,7 @@ import 'package:jellyfinity/app/JellyfinityApp.dart';
 import 'package:jellyfinity/app/router/AppRouter.dart';
 
 import '../../support/music_fakes.dart';
+import '../../support/playback_fakes.dart';
 import '../../support/session_fakes.dart';
 
 /// Signs in and opens the Music section through the real router, so the
@@ -28,8 +29,14 @@ Future<AppRouter> _openMusic(
   registerMusicCubits(music: music, metadata: metadata);
 
   final router = AppRouter(scope.cubit);
+  final playback = fakePlaybackCubit();
+  addTearDown(playback.close);
   await tester.pumpWidget(
-    JellyfinityApp(router: router.config, session: scope.cubit),
+    JellyfinityApp(
+      router: router.config,
+      session: scope.cubit,
+      playback: playback,
+    ),
   );
   await scope.cubit.restore();
   await tester.pumpAndSettle();
@@ -110,8 +117,14 @@ void main() {
     registerMusicCubits(music: FakeMusicLibraryRepository());
 
     final router = AppRouter(scope.cubit);
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
     await tester.pumpWidget(
-      JellyfinityApp(router: router.config, session: scope.cubit),
+      JellyfinityApp(
+        router: router.config,
+        session: scope.cubit,
+        playback: playback,
+      ),
     );
     await scope.cubit.restore();
     await tester.pumpAndSettle();
