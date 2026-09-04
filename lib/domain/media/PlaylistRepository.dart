@@ -11,8 +11,11 @@ import 'Track.dart';
 /// editing playlists (post-v0.1.0, `OUTLOOK.md` §6) belongs here and
 /// nowhere near library browsing.
 abstract class PlaylistRepository {
+  /// The user's playlists, optionally narrowed by [searchTerm] so a
+  /// music search can offer them as their own result category.
   Future<Result<Page<Playlist>>> playlists({
     PageRequest page = const PageRequest.first(),
+    String? searchTerm,
   });
 
   /// A playlist's tracks, in the playlist's own order.

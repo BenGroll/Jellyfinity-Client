@@ -18,7 +18,12 @@ import 'jellyfin_media_api.dart';
 /// The result is domain entities. Nothing above this class knows that
 /// `Audio`, `AlbumArtistIds` or `RunTimeTicks` exist — which is what
 /// v0.0.7 is for.
-@LazySingleton(as: MusicLibraryRepository)
+///
+/// Since v0.0.8 this is the *remote half* of the contract rather than the
+/// whole of it: `CachedMusicLibraryRepository` is what resolves for
+/// `MusicLibraryRepository`, and it wraps this one. That is why this class
+/// is registered as itself.
+@lazySingleton
 class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   JellyfinMusicLibraryRepository(this._api);
 
@@ -27,6 +32,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   @override
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
+    String? searchTerm,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -36,6 +42,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
 
     final response = await _api.queryItems(
       path: JellyfinMediaApi.albumArtistsPath,
+      searchTerm: searchTerm,
       sortBy: const ['SortName'],
       page: page,
       recursive: false,
@@ -55,6 +62,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<Page<Album>>> albums({
     PageRequest page = const PageRequest.first(),
     MediaId? artistId,
+    String? searchTerm,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -72,6 +80,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     final response = await _api.queryItems(
       includeItemTypes: const [BaseItemMapper.albumType],
       albumArtistId: albumArtistId,
+      searchTerm: searchTerm,
       // A discography reads chronologically; a whole library reads
       // alphabetically.
       sortBy: albumArtistId == null
@@ -96,6 +105,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,
     MediaId? artistId,
+    String? searchTerm,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -121,6 +131,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
       includeItemTypes: const [BaseItemMapper.trackType],
       parentId: parentId,
       artistId: trackArtistId,
+      searchTerm: searchTerm,
       sortBy: switch ((parentId, trackArtistId)) {
         // An album plays in disc/track order, not alphabetically.
         (final String _, _) => const ['ParentIndexNumber', 'IndexNumber'],

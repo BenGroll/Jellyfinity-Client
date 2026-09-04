@@ -8,7 +8,10 @@ import 'jellyfin_media_api.dart';
 
 /// [MediaMetadataRepository] backed by the active session's Jellyfin
 /// server.
-@LazySingleton(as: MediaMetadataRepository)
+///
+/// The remote half of the contract; `CachedMediaMetadataRepository` wraps
+/// it and is what resolves for [MediaMetadataRepository].
+@lazySingleton
 class JellyfinMediaMetadataRepository implements MediaMetadataRepository {
   JellyfinMediaMetadataRepository(this._api);
 

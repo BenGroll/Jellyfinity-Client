@@ -282,7 +282,12 @@ Before making significant changes, contributors should familiarize themselves wi
 * `PHILOSOPHY.md` — product, UX, privacy, architecture, and engineering principles
 * `OUTLOOK.md` — ideas intentionally deferred beyond the current roadmap
 
-The current development milestone is **v0.0.7 — Media Domain & Repository Contracts**.
+The current development milestone is **v0.0.8 — Music Library Experience**.
+
+Jellyfinity can now connect to a server, sign in, and browse a large
+music library: artists, albums, songs and playlists, with music-scoped
+search, artwork, and metadata that stays browsable when the server is
+unreachable. Audio playback and the persistent queue arrive in v0.0.9.
 
 ## Repository Structure
 

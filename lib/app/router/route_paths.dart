@@ -22,6 +22,23 @@ abstract final class RoutePaths {
   // Shell sections.
   static const home = '/home';
 
+  /// The music library: artists, albums, songs and playlists.
+  static const music = '/music';
+
+  // Music sub-routes. Each is a child of [music], so opening an album
+  // keeps the bottom navigation and the section's back stack.
+  /// Music-scoped search.
+  static const musicSearch = 'search';
+
+  /// One search category, listed in full: `/music/search/albums?q=blue`.
+  static const musicSearchCategory = 'search/:category';
+
+  /// One artist. The `:id` is a `MediaId.key` — server and item together,
+  /// because an item id alone does not identify anything.
+  static const musicArtist = 'artist/:id';
+  static const musicAlbum = 'album/:id';
+  static const musicPlaylist = 'playlist/:id';
+
   /// Saved servers & profiles: switch active profile, sign out, remove.
   static const accounts = '/accounts';
 
@@ -38,6 +55,12 @@ abstract final class RouteNames {
   static const connect = 'connect';
   static const signIn = 'signIn';
   static const home = 'home';
+  static const music = 'music';
+  static const musicSearch = 'musicSearch';
+  static const musicSearchCategory = 'musicSearchCategory';
+  static const musicArtist = 'musicArtist';
+  static const musicAlbum = 'musicAlbum';
+  static const musicPlaylist = 'musicPlaylist';
   static const accounts = 'accounts';
   static const notFound = 'notFound';
 }

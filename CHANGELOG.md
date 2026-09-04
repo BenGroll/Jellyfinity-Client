@@ -124,7 +124,7 @@ All notable changes to Jellyfinity are documented here.
   depending on the composition root — the same arrangement as
   `AuthTokenProvider`.
 - Artwork resolves to a sized URL rather than being fetched; the bounded
-  artwork cache still lands in v0.0.8, behind the same contract.
+  artwork cache lands in v0.0.8, behind the same contract.
 - `JellyfinHttpClient` gained `send()` for endpoints whose answer is
   their status code — marking an item played or unplayed.
 - Renamed every single-class file to `PascalCase` matching its class
@@ -133,3 +133,57 @@ All notable changes to Jellyfinity are documented here.
   `lower_case_with_underscores`. Convention recorded in
   `CONTRIBUTING.md`; `flutter_lints`' `file_names` rule is disabled for
   it in `analysis_options.yaml`.
+- Added the Music section (ADR-0012) — the first real library UI, and the
+  second shell destination, which is what finally makes the bottom
+  navigation bar appear. Artists, albums, songs and playlists as four
+  independently paged tabs; artist, album and playlist detail screens
+  that load their header and their children separately, so a cover and a
+  title are on screen while a long track list is still arriving. Tapping
+  a song opens its album — there is no player until v0.0.9, and a tap
+  that looks like playback and is not would be exactly the guessing this
+  project is trying to eliminate.
+- Added music-scoped search: one debounced field, four server-side
+  queries kept apart by category (`PHILOSOPHY.md` §8), a preview of each
+  with "show all" leading to the ordinary paged list. One category
+  failing does not fail the search, and a slow answer to an old query
+  never overwrites a newer one.
+- Search is a `searchTerm` on the existing `MusicLibraryRepository` and
+  `PlaylistRepository` collection reads rather than a separate result
+  type, so searching one category is an ordinary window with a term
+  attached.
+- Added `PagedCollectionCubit` and `PagedCollectionView`: one place for
+  the states a large list has to get right — skeletons shaped like the
+  content instead of a spinner, a failed next window that keeps every
+  window before it, a refresh that never blanks the list, unreadable rows
+  that keep their place and their markings, and prefetching that stays a
+  screen ahead of the scroll. Nothing is sorted or filtered in Dart.
+- Added the media metadata cache (schema v2: `cached_media_items`,
+  `cached_collections`, `cached_collection_entries`). Jellyfinity now
+  remembers the music it has browsed, in the order the server gave it,
+  including the entries it could not read — so a library stays browsable
+  when the server stops answering, and a playlist's numbering offline
+  matches what the user saw online. What was browsed is cached, not the
+  library: there is no background mirror of 130k songs.
+- Added the read-through repositories ADR-0010 planned —
+  `CachedMusicLibraryRepository`, `CachedPlaylistRepository` and
+  `CachedMediaMetadataRepository` now resolve for their contracts and
+  wrap the Jellyfin implementations. The fallback is limited to "the
+  server never answered": a 404 is the server answering, and must not
+  resurrect a deleted album. Searches are neither saved nor served from
+  the cache.
+- `Page` gained a `PageSource`, so a screen can say it is showing a saved
+  copy rather than a current one, and cached media reads back as
+  `remoteUnavailable`. A wholly cached list gets one notice above it
+  rather than every row dimmed.
+- Added the bounded artwork cache ADR-0010 deferred to this release: a
+  count-bounded disk LRU plus an explicit ceiling on decoded images in
+  memory. Nothing invalidates by hand — the Jellyfin image tag is already
+  in the URL, so new artwork is a new cache key and the old file ages
+  out. `MediaArtwork` asks the server for the size it will actually draw
+  and reserves its box before loading, so a scrolling grid never
+  reflows.
+- Removing a saved server now also drops its cached library.
+- Added a media-scale test (130k songs cached one window at a time, then
+  a window read from the far end) and a v1 → v2 migration test against
+  the committed schema snapshot.
+- Added `cached_network_image` and `flutter_cache_manager` dependencies.

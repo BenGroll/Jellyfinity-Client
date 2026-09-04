@@ -24,12 +24,21 @@ part 'AppDatabase.g.dart';
 /// Production wiring opens a lazily-resolved on-disk database (see
 /// `DatabaseModule`). Tests construct `AppDatabase(NativeDatabase.memory())`
 /// directly, so the suite never touches a platform channel or a real file.
-@DriftDatabase(tables: [SavedServers, SavedAccounts, KeyValueEntries])
+@DriftDatabase(
+  tables: [
+    SavedServers,
+    SavedAccounts,
+    KeyValueEntries,
+    CachedMediaItems,
+    CachedCollections,
+    CachedCollectionEntries,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,8 +48,15 @@ class AppDatabase extends _$AppDatabase {
       await m.createIndex(_savedServersBaseUrlIndex);
     },
     onUpgrade: (m, from, to) async {
-      // v1 is the initial schema. Future versions add ordered steps here,
-      // e.g. `if (from < 2) { await m.addColumn(...); }`.
+      // v2 (v0.0.8): the media metadata cache. Purely additive — three
+      // new tables, nothing existing touched, so an install upgrading
+      // from v1 keeps its saved servers, profiles and preferences and
+      // simply starts with an empty cache.
+      if (from < 2) {
+        await m.createTable(cachedMediaItems);
+        await m.createTable(cachedCollections);
+        await m.createTable(cachedCollectionEntries);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

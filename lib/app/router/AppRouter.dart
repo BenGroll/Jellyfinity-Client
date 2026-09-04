@@ -6,11 +6,19 @@ import '../../features/auth/presentation/accounts/accounts_page.dart';
 import '../../features/auth/presentation/login/login_page.dart';
 import '../../features/auth/presentation/server_setup/server_setup_page.dart';
 import '../../features/home/presentation/HomePage.dart';
+import '../../features/music/presentation/detail/AlbumDetailPage.dart';
+import '../../features/music/presentation/detail/ArtistDetailPage.dart';
+import '../../features/music/presentation/detail/PlaylistDetailPage.dart';
+import '../../features/music/presentation/library/MusicPage.dart';
+import '../../features/music/presentation/search/MusicSearchPage.dart';
+import '../../features/music/presentation/search/music_search_cubit.dart';
+import '../../features/music/presentation/search/SearchCategoryPage.dart';
 import '../../features/onboarding/presentation/WelcomePage.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/shell/presentation/NotFoundPage.dart';
 import '../../features/shell/presentation/ShellDestination.dart';
 import '../../features/shell/presentation/SplashPage.dart';
+import '../../domain/media/MediaId.dart';
 import '../../infrastructure/jellyfin/server/JellyfinServerInfo.dart';
 import '../session/SessionCubit.dart';
 import '../session/session_status.dart';
@@ -24,7 +32,8 @@ import 'route_paths.dart';
 /// in a feature. It:
 ///
 /// - builds the shell branches from [shellDestinations], so new sections
-///   are one list entry plus one `path → page` case below;
+///   are one list entry plus one `path → page` case below, plus their
+///   sub-routes in [_subRoutesFor];
 /// - re-runs [_redirect] whenever [SessionCubit] emits, via
 ///   [GoRouterRefreshStream];
 /// - gates the onboarding flow vs. the shell on [SessionStatus].
@@ -96,6 +105,10 @@ class AppRouter {
                     path: destination.path,
                     name: _routeNameFor(destination.path),
                     builder: (context, state) => _pageFor(destination.path),
+                    // Sub-routes of a section live inside its branch, so
+                    // opening an album keeps the bottom bar and the
+                    // section's own back stack.
+                    routes: _subRoutesFor(destination.path),
                   ),
                 ],
               ),
@@ -131,11 +144,72 @@ class AppRouter {
 
   static String _routeNameFor(String path) => switch (path) {
     RoutePaths.home => RouteNames.home,
+    RoutePaths.music => RouteNames.music,
     _ => path,
   };
 
   static Widget _pageFor(String path) => switch (path) {
     RoutePaths.home => const HomePage(),
+    RoutePaths.music => const MusicPage(),
     _ => NotFoundPage(location: path),
   };
+
+  static List<RouteBase> _subRoutesFor(String path) => switch (path) {
+    RoutePaths.music => _musicRoutes,
+    _ => const [],
+  };
+
+  /// Everything reachable from the Music section.
+  ///
+  /// Each detail route takes a `MediaId.key` — server and item together.
+  /// A key that cannot be parsed is a stale or hand-written link, and
+  /// lands on the not-found page instead of throwing.
+  static final List<RouteBase> _musicRoutes = [
+    GoRoute(
+      path: RoutePaths.musicSearch,
+      name: RouteNames.musicSearch,
+      builder: (context, state) => const MusicSearchPage(),
+    ),
+    GoRoute(
+      path: RoutePaths.musicSearchCategory,
+      name: RouteNames.musicSearchCategory,
+      builder: (context, state) {
+        final category = SearchCategory.tryParse(
+          state.pathParameters['category'] ?? '',
+        );
+        final query = state.uri.queryParameters['q'] ?? '';
+        if (category == null || query.isEmpty) {
+          return const MusicSearchPage();
+        }
+        return SearchCategoryPage(category: category, query: query);
+      },
+    ),
+    GoRoute(
+      path: RoutePaths.musicArtist,
+      name: RouteNames.musicArtist,
+      builder: (context, state) =>
+          _withMediaId(state, (id) => ArtistDetailPage(artistId: id)),
+    ),
+    GoRoute(
+      path: RoutePaths.musicAlbum,
+      name: RouteNames.musicAlbum,
+      builder: (context, state) =>
+          _withMediaId(state, (id) => AlbumDetailPage(albumId: id)),
+    ),
+    GoRoute(
+      path: RoutePaths.musicPlaylist,
+      name: RouteNames.musicPlaylist,
+      builder: (context, state) =>
+          _withMediaId(state, (id) => PlaylistDetailPage(playlistId: id)),
+    ),
+  ];
+
+  static Widget _withMediaId(
+    GoRouterState state,
+    Widget Function(MediaId id) build,
+  ) {
+    final id = MediaId.tryParse(state.pathParameters['id'] ?? '');
+    if (id == null) return NotFoundPage(location: state.uri.toString());
+    return build(id);
+  }
 }

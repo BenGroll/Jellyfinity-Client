@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 
-/// The Home section — the first and, for now, only shell destination.
+/// The Home section.
 ///
-/// There is no library to show yet (media arrives from v0.0.7 on), so this
-/// is a deliberately small real screen rather than a stubbed-out future
-/// section. It exists to exercise the shell, the page scaffold, and the
-/// shared primitives end to end.
+/// Still deliberately small: a modular, customisable Home is `OUTLOOK.md`
+/// §9's, not this release's. v0.0.8 puts the actual library one tap away
+/// in the Music section, and Home says so rather than pretending to be a
+/// dashboard.
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -45,12 +45,18 @@ class HomePage extends StatelessWidget {
             ),
             SizedBox(height: t.spacing.xs),
             Text(
-              'Music, movies, and shows will appear here as the library '
-              'features land.',
+              'Your music library is in the Music tab. Movies and shows '
+              'follow in a later release.',
               textAlign: TextAlign.center,
               style: t.typography.bodyMedium.copyWith(
                 color: t.colors.textSecondary,
               ),
+            ),
+            SizedBox(height: t.spacing.lg),
+            AppButton(
+              label: 'Browse music',
+              icon: Icons.library_music_rounded,
+              onPressed: () => context.goNamed(RouteNames.music),
             ),
           ],
         ),

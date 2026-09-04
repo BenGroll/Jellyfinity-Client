@@ -1,0 +1,164 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../app/di/service_locator.dart';
+import '../../../../design/design.dart';
+import '../../../../domain/media/media.dart';
+import '../library/music_collection_cubits.dart';
+import '../library/paged_collection_cubit.dart';
+import '../widgets/MediaArtwork.dart';
+import '../widgets/media_formatting.dart';
+import '../widgets/music_rows.dart';
+import '../widgets/music_skeletons.dart';
+import '../widgets/paged_collection_view.dart';
+import 'media_detail_cubit.dart';
+
+/// One playlist, in the order the user arranged it.
+///
+/// Position numbers come from the list, not from the tracks: a playlist
+/// entry that is not a song, or no longer in the library, still occupies
+/// its number here. Renumbering around it would quietly change the
+/// playlist the user made.
+class PlaylistDetailPage extends StatelessWidget {
+  const PlaylistDetailPage({
+    super.key,
+    required this.playlistId,
+    this.detail,
+    this.tracks,
+  });
+
+  final MediaId playlistId;
+  final PlaylistDetailCubit? detail;
+  final PlaylistTracksCubit? tracks;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<PlaylistDetailCubit>(
+          create: (_) =>
+              (detail ?? getIt<PlaylistDetailCubit>())..open(playlistId),
+        ),
+        BlocProvider<PlaylistTracksCubit>(
+          create: (_) =>
+              (tracks ?? getIt<PlaylistTracksCubit>())..forPlaylist(playlistId),
+        ),
+      ],
+      child: const _PlaylistDetailView(),
+    );
+  }
+}
+
+class _PlaylistDetailView extends StatelessWidget {
+  const _PlaylistDetailView();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return BlocBuilder<PlaylistDetailCubit, MediaDetailState<Playlist>>(
+      builder: (context, header) {
+        return AppScaffold(
+          padded: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => context.pop(),
+          ),
+          title: header.item?.name,
+          body: BlocBuilder<PlaylistTracksCubit, PagedCollectionState<Track>>(
+            builder: (context, state) {
+              final cubit = context.read<PlaylistTracksCubit>();
+              return PagedCollectionView<Track>(
+                state: state,
+                headerSlivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+                      child: _PlaylistHeader(state: header),
+                    ),
+                  ),
+                ],
+                skeleton: const MusicListSkeleton(itemCount: 8),
+                emptyTitle: 'This playlist is empty',
+                emptyIcon: Icons.queue_music_outlined,
+                onLoadMore: cubit.loadMore,
+                onRefresh: () async {
+                  await context.read<PlaylistDetailCubit>().retry();
+                  await cubit.refresh();
+                },
+                onRetry: cubit.reload,
+                onRetryLoadMore: cubit.retryLoadMore,
+                unavailableBuilder: (context, item) =>
+                    UnavailableRow(item: item),
+                itemBuilder: (context, track, index) => TrackRow(
+                  track: track,
+                  showArtwork: false,
+                  position: index + 1,
+                  markUnavailable: !state.isCached,
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PlaylistHeader extends StatelessWidget {
+  const _PlaylistHeader({required this.state});
+
+  final MediaDetailState<Playlist> state;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final playlist = state.item;
+
+    if (playlist == null) {
+      final failure = state.failure;
+      if (failure != null) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: t.spacing.lg),
+          child: ErrorStateView.forFailure(
+            failure,
+            title: 'Playlist unavailable',
+            onRetry: context.read<PlaylistDetailCubit>().retry,
+          ),
+        );
+      }
+      return const MediaHeaderSkeleton();
+    }
+
+    final details = joinDetails([
+      formatTrackCount(playlist.itemCount),
+      playlist.duration == null ? null : formatRunningTime(playlist.duration!),
+    ]);
+
+    return Column(
+      children: [
+        SizedBox(height: t.spacing.sm),
+        MediaArtwork(
+          image: playlist.image,
+          kind: MediaKind.playlist,
+          size: 180,
+        ),
+        SizedBox(height: t.spacing.md),
+        Text(
+          playlist.name,
+          textAlign: TextAlign.center,
+          style: t.typography.titleLarge.copyWith(color: t.colors.textPrimary),
+        ),
+        if (details.isNotEmpty) ...[
+          SizedBox(height: t.spacing.xxs),
+          Text(
+            details,
+            style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+          ),
+        ],
+        SizedBox(height: t.spacing.md),
+      ],
+    );
+  }
+}
