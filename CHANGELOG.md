@@ -133,6 +133,62 @@ All notable changes to Jellyfinity are documented here.
   `lower_case_with_underscores`. Convention recorded in
   `CONTRIBUTING.md`; `flutter_lints`' `file_names` rule is disabled for
   it in `analysis_options.yaml`.
+- Fixed the Android release build having no network access: the
+  `INTERNET` permission, which Flutter only writes into the debug and
+  profile manifests, is now declared in the main manifest. A release APK
+  could not reach any server; a debug build on the same URL could.
+- Added an Android network security config that permits cleartext
+  traffic, so a release build can connect to the plain `http://` LAN
+  servers the connect screen already accepts. HTTPS is still preferred
+  wherever the server offers it.
+- Added audio playback (ADR-0013): `just_audio` for decode/gapless
+  playback, `audio_service` for background execution and lock-screen/
+  notification media controls. `JustAudioPlaybackEngine` is both the
+  `PlaybackEngine` implementation and the `audio_service` handler
+  itself, kept deliberately ignorant of queues, shuffle or repeat so a
+  future engine (e.g. `media_kit`) is a one-class swap.
+- Added Jellyfinity's own playback queue in `lib/domain/playback/`:
+  `PlaybackQueue`/`QueueEntry` (pure, engine-free shuffle/repeat/reorder
+  logic), the `PlaybackEngine` contract, `AudioSourceResolver`
+  (mirrors `ArtworkResolver`, resolves a track's authenticated stream
+  URL), and `QueueRepository`. Persisted in schema **v3**'s
+  `QueueEntries` table — a self-contained denormalized snapshot per
+  entry, since a queued track is not guaranteed to have gone through
+  the v0.0.8 cache.
+- `JellyfinAudioSourceResolver` builds the direct-play stream address
+  (`static=true`, no transcoding); the session token travels as an
+  `api_key` query parameter, since a stream URL is fetched by the
+  native platform player directly rather than through
+  `JellyfinHttpClient`'s interceptors.
+- `PlaybackProgressRepository` gained `reportStart`/`reportProgress`/
+  `reportStop` over Jellyfin's `/Sessions/Playing` endpoints, closing
+  the seam its own v0.0.7 doc comment left open — Jellyfin's resume
+  position and played state now agree with what Jellyfinity actually
+  played.
+- Added `PlaybackCubit` (`lib/app/playback/`), the same architectural
+  slot as `SessionCubit`/`AuthSessionManager`: the only thing that
+  talks to both the queue and the engine, resolving sources, computing
+  play order (including shuffled), persisting the queue, and marking a
+  failed track unavailable in place and moving on rather than clearing
+  the queue.
+- Added the mini-player (in the shell, above the bottom nav, shown only
+  with a non-empty queue), the full Now Playing screen (artwork, seek,
+  transport, shuffle/repeat), and the queue screen
+  (`ReorderableListView`, remove, jump to any entry). Both Now
+  Playing and the queue are root routes so they cover the bottom nav
+  from any tab.
+- Every track tap across the music screens — album/playlist detail, the
+  Songs tab, and search — previously dead per ADR-0012 ("no player
+  until v0.0.9"), now starts playback with whatever list was already
+  loaded as the queue. Album/playlist headers gained a Play button;
+  `TrackRow` gained an optional overflow menu for Play Next and Add to
+  Queue.
+- Android: `MainActivity` now extends `AudioServiceActivity`; the
+  manifest gained the foreground-service permissions and the service/
+  media-button-receiver entries `audio_service` needs. iOS: `Info.plist`
+  gained `UIBackgroundModes = [audio]`. Gapless playback and background/
+  lock-screen behavior are verified on-device rather than by an
+  automated test — nothing in this stack runs outside a real device.
 - Replaced the placeholder Flutter launcher icon with the real
   Jellyfinity app icon. Android ships density-specific legacy and round
   bitmaps plus an adaptive icon (navy `#000080` background, monochrome

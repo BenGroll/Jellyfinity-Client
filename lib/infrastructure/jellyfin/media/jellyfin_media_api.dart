@@ -97,6 +97,16 @@ class JellyfinMediaApi {
   /// this user-implicit form; the minimum supported server is 10.11.6.
   static String playedItemPath(String itemId) => '/UserPlayedItems/$itemId';
 
+  /// Reports the start, ongoing progress, and end of a playback session
+  /// (v0.0.9), so Jellyfin's own resume position and played state agree
+  /// with what Jellyfinity actually played. No `PlaySessionId` is sent —
+  /// Jellyfin correlates these to the authenticated connection without
+  /// one, and Jellyfinity does not otherwise need to name its own play
+  /// sessions.
+  static const String playingSessionPath = '/Sessions/Playing';
+  static const String playingProgressPath = '/Sessions/Playing/Progress';
+  static const String playingStoppedPath = '/Sessions/Playing/Stopped';
+
   /// The mapper for the active server.
   ///
   /// A mapper cannot exist without a server to bind ids to, so this is
@@ -245,6 +255,76 @@ class JellyfinMediaApi {
       playedItemPath(itemId),
       method: played ? 'POST' : 'DELETE',
       queryParameters: {'userId': active.userId},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Tells the server [itemId] has started playing, from position zero.
+  Future<Result<void>> reportPlaybackStart(
+    String itemId, {
+    CancelToken? cancelToken,
+  }) {
+    return _sendPlayback(
+      playingSessionPath,
+      itemId: itemId,
+      extra: const {'CanSeek': true, 'IsPaused': false},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Reports the live playback position of [itemId]. Called on a timer
+  /// while a track plays.
+  Future<Result<void>> reportPlaybackProgress(
+    String itemId, {
+    required Duration position,
+    required bool isPaused,
+    CancelToken? cancelToken,
+  }) {
+    return _sendPlayback(
+      playingProgressPath,
+      itemId: itemId,
+      position: position,
+      extra: {'IsPaused': isPaused},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Tells the server playback of [itemId] ended at [position].
+  Future<Result<void>> reportPlaybackStopped(
+    String itemId, {
+    required Duration position,
+    CancelToken? cancelToken,
+  }) {
+    return _sendPlayback(
+      playingStoppedPath,
+      itemId: itemId,
+      position: position,
+      cancelToken: cancelToken,
+    );
+  }
+
+  Future<Result<void>> _sendPlayback(
+    String path, {
+    required String itemId,
+    Duration position = Duration.zero,
+    Map<String, dynamic> extra = const {},
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      path,
+      method: 'POST',
+      body: <String, dynamic>{
+        'ItemId': itemId,
+        // One tick is 100 nanoseconds, i.e. a tenth of a microsecond.
+        'PositionTicks': position.inMicroseconds * 10,
+        ...extra,
+      },
       cancelToken: cancelToken,
     );
   }

@@ -42,6 +42,13 @@ abstract final class RoutePaths {
   /// Saved servers & profiles: switch active profile, sign out, remove.
   static const accounts = '/accounts';
 
+  /// The full player screen. A root route, not nested under a shell
+  /// branch: it is reachable from any tab and covers the bottom nav.
+  static const nowPlaying = '/now-playing';
+
+  /// The queue screen, a child of [nowPlaying].
+  static const nowPlayingQueue = 'queue';
+
   /// Fallback for an unmatched location.
   static const notFound = '/404';
 
@@ -62,5 +69,7 @@ abstract final class RouteNames {
   static const musicAlbum = 'musicAlbum';
   static const musicPlaylist = 'musicPlaylist';
   static const accounts = 'accounts';
+  static const nowPlaying = 'nowPlaying';
+  static const nowPlayingQueue = 'nowPlayingQueue';
   static const notFound = 'notFound';
 }

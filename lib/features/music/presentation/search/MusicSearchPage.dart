@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
@@ -212,12 +213,20 @@ class _SearchResults extends StatelessWidget {
               section: state.songs,
               rowBuilder: (context, track) => TrackRow(
                 track: track,
-                onTap: track.albumId == null
+                onTap: track.availability == MediaAvailability.remoteUnavailable
                     ? null
-                    : () => context.pushNamed(
-                        RouteNames.musicAlbum,
-                        pathParameters: {'id': track.albumId!.key},
+                    : () => context.read<PlaybackCubit>().playNow(
+                        state.songs.items,
+                        startIndex: state.songs.items.indexOf(track),
                       ),
+                onPlayNext:
+                    track.availability == MediaAvailability.remoteUnavailable
+                    ? null
+                    : () => context.read<PlaybackCubit>().playNext(track),
+                onAddToQueue:
+                    track.availability == MediaAvailability.remoteUnavailable
+                    ? null
+                    : () => context.read<PlaybackCubit>().addToQueue(track),
               ),
             ),
             _Section<Playlist>(

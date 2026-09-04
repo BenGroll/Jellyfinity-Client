@@ -194,3 +194,47 @@ class CachedCollectionEntries extends Table {
   @override
   Set<Column<Object>> get primaryKey => {serverId, collectionKey, position};
 }
+
+/// Jellyfinity's own playback queue (ADR-0013), schema v3.
+///
+/// Unlike [CachedCollectionEntries] this does not join against
+/// [CachedMediaItems]: a queued track is not guaranteed to have come
+/// through a cached collection window (music-scoped search results are
+/// never cached, per ADR-0012), so every row carries its own denormalized
+/// display fields. A queue restored after a restart renders with zero
+/// network calls, which is what `Track.dart`'s own v0.0.7 doc comment
+/// asked for.
+///
+/// Scalar queue state — current index, shuffle, repeat mode, last
+/// position — lives in `KeyValueEntries` instead of here; it is exactly
+/// the small structured app state that store already exists for.
+@DataClassName('QueueEntryRow')
+class QueueEntries extends Table {
+  /// The entry's position in the queue's own (non-shuffled) order.
+  IntColumn get position => integer()();
+
+  TextColumn get serverId => text()();
+  TextColumn get itemId => text()();
+
+  TextColumn get title => text()();
+
+  /// The joined artist credit line, already formatted for display.
+  TextColumn get artist => text().nullable()();
+  TextColumn get albumName => text().nullable()();
+  IntColumn get durationMicros => integer().nullable()();
+
+  TextColumn get imageItemId => text().nullable()();
+  TextColumn get imageKind => text().nullable()();
+  TextColumn get imageTag => text().nullable()();
+  RealColumn get imageAspectRatio => real().nullable()();
+
+  /// `MediaAvailability.name`. Carries a `remoteUnavailable` mark
+  /// (`PlaybackEngine.failureStream`) forward across a restart, so a
+  /// track that failed before the app closed is still shown as
+  /// unavailable rather than looking playable again.
+  TextColumn get availability =>
+      text().withDefault(const Constant('remoteOnly'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {position};
+}

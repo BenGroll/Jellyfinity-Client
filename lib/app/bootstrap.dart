@@ -1,12 +1,17 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 
 import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
+import '../domain/media/ArtworkResolver.dart';
+import '../domain/playback/PlaybackEngine.dart';
 import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
+import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'di/service_locator.dart';
+import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
 
 /// Boots the application: wires configuration, dependency injection, and
@@ -28,6 +33,22 @@ Future<void> bootstrap({required Widget Function() builder}) async {
 
   await configureDependencies();
 
+  // JustAudioPlaybackEngine is BaseAudioHandler itself, and AudioService
+  // .init() can only ever be called once per process — that makes it a
+  // poor fit for an @preResolve DI module (configureDependencies() runs
+  // fresh in every test), unlike JellyfinClientIdentity's device-id
+  // lookup, which is safely repeatable. So, like AppConfig above, it is
+  // constructed here and registered with getIt directly, kept out of the
+  // generated graph and everything that exercises it in tests.
+  final playbackEngine = await AudioService.init(
+    builder: () => JustAudioPlaybackEngine(getIt<ArtworkResolver>()),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'io.nachbar.jellyfinity.playback',
+      androidNotificationChannelName: 'Playback',
+    ),
+  );
+  getIt.registerSingleton<PlaybackEngine>(playbackEngine);
+
   final logger = getIt<Logger>();
 
   // One-time migration of v0.0.5's interim JSON store into the database.
@@ -41,6 +62,11 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // does no network call, so a currently-offline server does not block
   // startup.
   unawaited(getIt<SessionCubit>().restore());
+
+  // Primes the engine with the saved queue, paused, so leaving the app
+  // mid-album and reopening it later shows where playback left off
+  // without a surprise auto-play at launch.
+  unawaited(getIt<PlaybackCubit>().restore());
 
   FlutterError.onError = (details) {
     logger.error(

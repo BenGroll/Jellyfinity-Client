@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
@@ -75,7 +76,10 @@ class _PlaylistDetailView extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
-                      child: _PlaylistHeader(state: header),
+                      child: _PlaylistHeader(
+                        state: header,
+                        tracks: state.items,
+                      ),
                     ),
                   ),
                 ],
@@ -96,6 +100,21 @@ class _PlaylistDetailView extends StatelessWidget {
                   showArtwork: false,
                   position: index + 1,
                   markUnavailable: !state.isCached,
+                  onTap:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => context.read<PlaybackCubit>().playNow(
+                          state.items,
+                          startIndex: index,
+                        ),
+                  onPlayNext:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => context.read<PlaybackCubit>().playNext(track),
+                  onAddToQueue:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => context.read<PlaybackCubit>().addToQueue(track),
                 ),
               );
             },
@@ -107,9 +126,13 @@ class _PlaylistDetailView extends StatelessWidget {
 }
 
 class _PlaylistHeader extends StatelessWidget {
-  const _PlaylistHeader({required this.state});
+  const _PlaylistHeader({required this.state, required this.tracks});
 
   final MediaDetailState<Playlist> state;
+
+  /// The tracks loaded so far — enough to back the Play button without a
+  /// second fetch.
+  final List<Track> tracks;
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +180,15 @@ class _PlaylistHeader extends StatelessWidget {
             style: t.typography.caption.copyWith(color: t.colors.textSecondary),
           ),
         ],
+        SizedBox(height: t.spacing.md),
+        if (tracks.isNotEmpty)
+          AppButton(
+            label: 'Play',
+            icon: Icons.play_arrow_rounded,
+            variant: AppButtonVariant.secondary,
+            onPressed: () =>
+                context.read<PlaybackCubit>().playNow(tracks, startIndex: 0),
+          ),
         SizedBox(height: t.spacing.md),
       ],
     );

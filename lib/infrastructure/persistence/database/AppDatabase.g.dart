@@ -2876,6 +2876,732 @@ class CachedCollectionEntriesCompanion
   }
 }
 
+class $QueueEntriesTable extends QueueEntries
+    with TableInfo<$QueueEntriesTable, QueueEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QueueEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _artistMeta = const VerificationMeta('artist');
+  @override
+  late final GeneratedColumn<String> artist = GeneratedColumn<String>(
+    'artist',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumNameMeta = const VerificationMeta(
+    'albumName',
+  );
+  @override
+  late final GeneratedColumn<String> albumName = GeneratedColumn<String>(
+    'album_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMicrosMeta = const VerificationMeta(
+    'durationMicros',
+  );
+  @override
+  late final GeneratedColumn<int> durationMicros = GeneratedColumn<int>(
+    'duration_micros',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageItemIdMeta = const VerificationMeta(
+    'imageItemId',
+  );
+  @override
+  late final GeneratedColumn<String> imageItemId = GeneratedColumn<String>(
+    'image_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageKindMeta = const VerificationMeta(
+    'imageKind',
+  );
+  @override
+  late final GeneratedColumn<String> imageKind = GeneratedColumn<String>(
+    'image_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageTagMeta = const VerificationMeta(
+    'imageTag',
+  );
+  @override
+  late final GeneratedColumn<String> imageTag = GeneratedColumn<String>(
+    'image_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageAspectRatioMeta = const VerificationMeta(
+    'imageAspectRatio',
+  );
+  @override
+  late final GeneratedColumn<double> imageAspectRatio = GeneratedColumn<double>(
+    'image_aspect_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _availabilityMeta = const VerificationMeta(
+    'availability',
+  );
+  @override
+  late final GeneratedColumn<String> availability = GeneratedColumn<String>(
+    'availability',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('remoteOnly'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    position,
+    serverId,
+    itemId,
+    title,
+    artist,
+    albumName,
+    durationMicros,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    availability,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'queue_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QueueEntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('artist')) {
+      context.handle(
+        _artistMeta,
+        artist.isAcceptableOrUnknown(data['artist']!, _artistMeta),
+      );
+    }
+    if (data.containsKey('album_name')) {
+      context.handle(
+        _albumNameMeta,
+        albumName.isAcceptableOrUnknown(data['album_name']!, _albumNameMeta),
+      );
+    }
+    if (data.containsKey('duration_micros')) {
+      context.handle(
+        _durationMicrosMeta,
+        durationMicros.isAcceptableOrUnknown(
+          data['duration_micros']!,
+          _durationMicrosMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_item_id')) {
+      context.handle(
+        _imageItemIdMeta,
+        imageItemId.isAcceptableOrUnknown(
+          data['image_item_id']!,
+          _imageItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_kind')) {
+      context.handle(
+        _imageKindMeta,
+        imageKind.isAcceptableOrUnknown(data['image_kind']!, _imageKindMeta),
+      );
+    }
+    if (data.containsKey('image_tag')) {
+      context.handle(
+        _imageTagMeta,
+        imageTag.isAcceptableOrUnknown(data['image_tag']!, _imageTagMeta),
+      );
+    }
+    if (data.containsKey('image_aspect_ratio')) {
+      context.handle(
+        _imageAspectRatioMeta,
+        imageAspectRatio.isAcceptableOrUnknown(
+          data['image_aspect_ratio']!,
+          _imageAspectRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('availability')) {
+      context.handle(
+        _availabilityMeta,
+        availability.isAcceptableOrUnknown(
+          data['availability']!,
+          _availabilityMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {position};
+  @override
+  QueueEntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QueueEntryRow(
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      artist: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artist'],
+      ),
+      albumName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_name'],
+      ),
+      durationMicros: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_micros'],
+      ),
+      imageItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_item_id'],
+      ),
+      imageKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_kind'],
+      ),
+      imageTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_tag'],
+      ),
+      imageAspectRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}image_aspect_ratio'],
+      ),
+      availability: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}availability'],
+      )!,
+    );
+  }
+
+  @override
+  $QueueEntriesTable createAlias(String alias) {
+    return $QueueEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
+  /// The entry's position in the queue's own (non-shuffled) order.
+  final int position;
+  final String serverId;
+  final String itemId;
+  final String title;
+
+  /// The joined artist credit line, already formatted for display.
+  final String? artist;
+  final String? albumName;
+  final int? durationMicros;
+  final String? imageItemId;
+  final String? imageKind;
+  final String? imageTag;
+  final double? imageAspectRatio;
+
+  /// `MediaAvailability.name`. Carries a `remoteUnavailable` mark
+  /// (`PlaybackEngine.failureStream`) forward across a restart, so a
+  /// track that failed before the app closed is still shown as
+  /// unavailable rather than looking playable again.
+  final String availability;
+  const QueueEntryRow({
+    required this.position,
+    required this.serverId,
+    required this.itemId,
+    required this.title,
+    this.artist,
+    this.albumName,
+    this.durationMicros,
+    this.imageItemId,
+    this.imageKind,
+    this.imageTag,
+    this.imageAspectRatio,
+    required this.availability,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['position'] = Variable<int>(position);
+    map['server_id'] = Variable<String>(serverId);
+    map['item_id'] = Variable<String>(itemId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || artist != null) {
+      map['artist'] = Variable<String>(artist);
+    }
+    if (!nullToAbsent || albumName != null) {
+      map['album_name'] = Variable<String>(albumName);
+    }
+    if (!nullToAbsent || durationMicros != null) {
+      map['duration_micros'] = Variable<int>(durationMicros);
+    }
+    if (!nullToAbsent || imageItemId != null) {
+      map['image_item_id'] = Variable<String>(imageItemId);
+    }
+    if (!nullToAbsent || imageKind != null) {
+      map['image_kind'] = Variable<String>(imageKind);
+    }
+    if (!nullToAbsent || imageTag != null) {
+      map['image_tag'] = Variable<String>(imageTag);
+    }
+    if (!nullToAbsent || imageAspectRatio != null) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio);
+    }
+    map['availability'] = Variable<String>(availability);
+    return map;
+  }
+
+  QueueEntriesCompanion toCompanion(bool nullToAbsent) {
+    return QueueEntriesCompanion(
+      position: Value(position),
+      serverId: Value(serverId),
+      itemId: Value(itemId),
+      title: Value(title),
+      artist: artist == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artist),
+      albumName: albumName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumName),
+      durationMicros: durationMicros == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMicros),
+      imageItemId: imageItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageItemId),
+      imageKind: imageKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageKind),
+      imageTag: imageTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageTag),
+      imageAspectRatio: imageAspectRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAspectRatio),
+      availability: Value(availability),
+    );
+  }
+
+  factory QueueEntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QueueEntryRow(
+      position: serializer.fromJson<int>(json['position']),
+      serverId: serializer.fromJson<String>(json['serverId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      title: serializer.fromJson<String>(json['title']),
+      artist: serializer.fromJson<String?>(json['artist']),
+      albumName: serializer.fromJson<String?>(json['albumName']),
+      durationMicros: serializer.fromJson<int?>(json['durationMicros']),
+      imageItemId: serializer.fromJson<String?>(json['imageItemId']),
+      imageKind: serializer.fromJson<String?>(json['imageKind']),
+      imageTag: serializer.fromJson<String?>(json['imageTag']),
+      imageAspectRatio: serializer.fromJson<double?>(json['imageAspectRatio']),
+      availability: serializer.fromJson<String>(json['availability']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'position': serializer.toJson<int>(position),
+      'serverId': serializer.toJson<String>(serverId),
+      'itemId': serializer.toJson<String>(itemId),
+      'title': serializer.toJson<String>(title),
+      'artist': serializer.toJson<String?>(artist),
+      'albumName': serializer.toJson<String?>(albumName),
+      'durationMicros': serializer.toJson<int?>(durationMicros),
+      'imageItemId': serializer.toJson<String?>(imageItemId),
+      'imageKind': serializer.toJson<String?>(imageKind),
+      'imageTag': serializer.toJson<String?>(imageTag),
+      'imageAspectRatio': serializer.toJson<double?>(imageAspectRatio),
+      'availability': serializer.toJson<String>(availability),
+    };
+  }
+
+  QueueEntryRow copyWith({
+    int? position,
+    String? serverId,
+    String? itemId,
+    String? title,
+    Value<String?> artist = const Value.absent(),
+    Value<String?> albumName = const Value.absent(),
+    Value<int?> durationMicros = const Value.absent(),
+    Value<String?> imageItemId = const Value.absent(),
+    Value<String?> imageKind = const Value.absent(),
+    Value<String?> imageTag = const Value.absent(),
+    Value<double?> imageAspectRatio = const Value.absent(),
+    String? availability,
+  }) => QueueEntryRow(
+    position: position ?? this.position,
+    serverId: serverId ?? this.serverId,
+    itemId: itemId ?? this.itemId,
+    title: title ?? this.title,
+    artist: artist.present ? artist.value : this.artist,
+    albumName: albumName.present ? albumName.value : this.albumName,
+    durationMicros: durationMicros.present
+        ? durationMicros.value
+        : this.durationMicros,
+    imageItemId: imageItemId.present ? imageItemId.value : this.imageItemId,
+    imageKind: imageKind.present ? imageKind.value : this.imageKind,
+    imageTag: imageTag.present ? imageTag.value : this.imageTag,
+    imageAspectRatio: imageAspectRatio.present
+        ? imageAspectRatio.value
+        : this.imageAspectRatio,
+    availability: availability ?? this.availability,
+  );
+  QueueEntryRow copyWithCompanion(QueueEntriesCompanion data) {
+    return QueueEntryRow(
+      position: data.position.present ? data.position.value : this.position,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      title: data.title.present ? data.title.value : this.title,
+      artist: data.artist.present ? data.artist.value : this.artist,
+      albumName: data.albumName.present ? data.albumName.value : this.albumName,
+      durationMicros: data.durationMicros.present
+          ? data.durationMicros.value
+          : this.durationMicros,
+      imageItemId: data.imageItemId.present
+          ? data.imageItemId.value
+          : this.imageItemId,
+      imageKind: data.imageKind.present ? data.imageKind.value : this.imageKind,
+      imageTag: data.imageTag.present ? data.imageTag.value : this.imageTag,
+      imageAspectRatio: data.imageAspectRatio.present
+          ? data.imageAspectRatio.value
+          : this.imageAspectRatio,
+      availability: data.availability.present
+          ? data.availability.value
+          : this.availability,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QueueEntryRow(')
+          ..write('position: $position, ')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('title: $title, ')
+          ..write('artist: $artist, ')
+          ..write('albumName: $albumName, ')
+          ..write('durationMicros: $durationMicros, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('availability: $availability')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    position,
+    serverId,
+    itemId,
+    title,
+    artist,
+    albumName,
+    durationMicros,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    availability,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QueueEntryRow &&
+          other.position == this.position &&
+          other.serverId == this.serverId &&
+          other.itemId == this.itemId &&
+          other.title == this.title &&
+          other.artist == this.artist &&
+          other.albumName == this.albumName &&
+          other.durationMicros == this.durationMicros &&
+          other.imageItemId == this.imageItemId &&
+          other.imageKind == this.imageKind &&
+          other.imageTag == this.imageTag &&
+          other.imageAspectRatio == this.imageAspectRatio &&
+          other.availability == this.availability);
+}
+
+class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
+  final Value<int> position;
+  final Value<String> serverId;
+  final Value<String> itemId;
+  final Value<String> title;
+  final Value<String?> artist;
+  final Value<String?> albumName;
+  final Value<int?> durationMicros;
+  final Value<String?> imageItemId;
+  final Value<String?> imageKind;
+  final Value<String?> imageTag;
+  final Value<double?> imageAspectRatio;
+  final Value<String> availability;
+  const QueueEntriesCompanion({
+    this.position = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.artist = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.durationMicros = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.availability = const Value.absent(),
+  });
+  QueueEntriesCompanion.insert({
+    this.position = const Value.absent(),
+    required String serverId,
+    required String itemId,
+    required String title,
+    this.artist = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.durationMicros = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.availability = const Value.absent(),
+  }) : serverId = Value(serverId),
+       itemId = Value(itemId),
+       title = Value(title);
+  static Insertable<QueueEntryRow> custom({
+    Expression<int>? position,
+    Expression<String>? serverId,
+    Expression<String>? itemId,
+    Expression<String>? title,
+    Expression<String>? artist,
+    Expression<String>? albumName,
+    Expression<int>? durationMicros,
+    Expression<String>? imageItemId,
+    Expression<String>? imageKind,
+    Expression<String>? imageTag,
+    Expression<double>? imageAspectRatio,
+    Expression<String>? availability,
+  }) {
+    return RawValuesInsertable({
+      if (position != null) 'position': position,
+      if (serverId != null) 'server_id': serverId,
+      if (itemId != null) 'item_id': itemId,
+      if (title != null) 'title': title,
+      if (artist != null) 'artist': artist,
+      if (albumName != null) 'album_name': albumName,
+      if (durationMicros != null) 'duration_micros': durationMicros,
+      if (imageItemId != null) 'image_item_id': imageItemId,
+      if (imageKind != null) 'image_kind': imageKind,
+      if (imageTag != null) 'image_tag': imageTag,
+      if (imageAspectRatio != null) 'image_aspect_ratio': imageAspectRatio,
+      if (availability != null) 'availability': availability,
+    });
+  }
+
+  QueueEntriesCompanion copyWith({
+    Value<int>? position,
+    Value<String>? serverId,
+    Value<String>? itemId,
+    Value<String>? title,
+    Value<String?>? artist,
+    Value<String?>? albumName,
+    Value<int?>? durationMicros,
+    Value<String?>? imageItemId,
+    Value<String?>? imageKind,
+    Value<String?>? imageTag,
+    Value<double?>? imageAspectRatio,
+    Value<String>? availability,
+  }) {
+    return QueueEntriesCompanion(
+      position: position ?? this.position,
+      serverId: serverId ?? this.serverId,
+      itemId: itemId ?? this.itemId,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      albumName: albumName ?? this.albumName,
+      durationMicros: durationMicros ?? this.durationMicros,
+      imageItemId: imageItemId ?? this.imageItemId,
+      imageKind: imageKind ?? this.imageKind,
+      imageTag: imageTag ?? this.imageTag,
+      imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
+      availability: availability ?? this.availability,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (artist.present) {
+      map['artist'] = Variable<String>(artist.value);
+    }
+    if (albumName.present) {
+      map['album_name'] = Variable<String>(albumName.value);
+    }
+    if (durationMicros.present) {
+      map['duration_micros'] = Variable<int>(durationMicros.value);
+    }
+    if (imageItemId.present) {
+      map['image_item_id'] = Variable<String>(imageItemId.value);
+    }
+    if (imageKind.present) {
+      map['image_kind'] = Variable<String>(imageKind.value);
+    }
+    if (imageTag.present) {
+      map['image_tag'] = Variable<String>(imageTag.value);
+    }
+    if (imageAspectRatio.present) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio.value);
+    }
+    if (availability.present) {
+      map['availability'] = Variable<String>(availability.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QueueEntriesCompanion(')
+          ..write('position: $position, ')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('title: $title, ')
+          ..write('artist: $artist, ')
+          ..write('albumName: $albumName, ')
+          ..write('durationMicros: $durationMicros, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('availability: $availability')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2891,6 +3617,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $CachedCollectionsTable(this);
   late final $CachedCollectionEntriesTable cachedCollectionEntries =
       $CachedCollectionEntriesTable(this);
+  late final $QueueEntriesTable queueEntries = $QueueEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2902,6 +3629,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     cachedMediaItems,
     cachedCollections,
     cachedCollectionEntries,
+    queueEntries,
   ];
 }
 
@@ -4388,6 +5116,341 @@ typedef $$CachedCollectionEntriesTableProcessedTableManager =
       CachedCollectionEntryRow,
       PrefetchHooks Function()
     >;
+typedef $$QueueEntriesTableCreateCompanionBuilder =
+    QueueEntriesCompanion Function({
+      Value<int> position,
+      required String serverId,
+      required String itemId,
+      required String title,
+      Value<String?> artist,
+      Value<String?> albumName,
+      Value<int?> durationMicros,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<String> availability,
+    });
+typedef $$QueueEntriesTableUpdateCompanionBuilder =
+    QueueEntriesCompanion Function({
+      Value<int> position,
+      Value<String> serverId,
+      Value<String> itemId,
+      Value<String> title,
+      Value<String?> artist,
+      Value<String?> albumName,
+      Value<int?> durationMicros,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<String> availability,
+    });
+
+class $$QueueEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $QueueEntriesTable> {
+  $$QueueEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artist => $composableBuilder(
+    column: $table.artist,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$QueueEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $QueueEntriesTable> {
+  $$QueueEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get artist => $composableBuilder(
+    column: $table.artist,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$QueueEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QueueEntriesTable> {
+  $$QueueEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get artist =>
+      $composableBuilder(column: $table.artist, builder: (column) => column);
+
+  GeneratedColumn<String> get albumName =>
+      $composableBuilder(column: $table.albumName, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageKind =>
+      $composableBuilder(column: $table.imageKind, builder: (column) => column);
+
+  GeneratedColumn<String> get imageTag =>
+      $composableBuilder(column: $table.imageTag, builder: (column) => column);
+
+  GeneratedColumn<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => column,
+  );
+}
+
+class $$QueueEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QueueEntriesTable,
+          QueueEntryRow,
+          $$QueueEntriesTableFilterComposer,
+          $$QueueEntriesTableOrderingComposer,
+          $$QueueEntriesTableAnnotationComposer,
+          $$QueueEntriesTableCreateCompanionBuilder,
+          $$QueueEntriesTableUpdateCompanionBuilder,
+          (
+            QueueEntryRow,
+            BaseReferences<_$AppDatabase, $QueueEntriesTable, QueueEntryRow>,
+          ),
+          QueueEntryRow,
+          PrefetchHooks Function()
+        > {
+  $$QueueEntriesTableTableManager(_$AppDatabase db, $QueueEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QueueEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QueueEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QueueEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> position = const Value.absent(),
+                Value<String> serverId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> artist = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int?> durationMicros = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+              }) => QueueEntriesCompanion(
+                position: position,
+                serverId: serverId,
+                itemId: itemId,
+                title: title,
+                artist: artist,
+                albumName: albumName,
+                durationMicros: durationMicros,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                availability: availability,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> position = const Value.absent(),
+                required String serverId,
+                required String itemId,
+                required String title,
+                Value<String?> artist = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int?> durationMicros = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+              }) => QueueEntriesCompanion.insert(
+                position: position,
+                serverId: serverId,
+                itemId: itemId,
+                title: title,
+                artist: artist,
+                albumName: albumName,
+                durationMicros: durationMicros,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                availability: availability,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$QueueEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QueueEntriesTable,
+      QueueEntryRow,
+      $$QueueEntriesTableFilterComposer,
+      $$QueueEntriesTableOrderingComposer,
+      $$QueueEntriesTableAnnotationComposer,
+      $$QueueEntriesTableCreateCompanionBuilder,
+      $$QueueEntriesTableUpdateCompanionBuilder,
+      (
+        QueueEntryRow,
+        BaseReferences<_$AppDatabase, $QueueEntriesTable, QueueEntryRow>,
+      ),
+      QueueEntryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4407,4 +5470,6 @@ class $AppDatabaseManager {
         _db,
         _db.cachedCollectionEntries,
       );
+  $$QueueEntriesTableTableManager get queueEntries =>
+      $$QueueEntriesTableTableManager(_db, _db.queueEntries);
 }

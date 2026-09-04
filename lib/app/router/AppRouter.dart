@@ -14,6 +14,8 @@ import '../../features/music/presentation/search/MusicSearchPage.dart';
 import '../../features/music/presentation/search/music_search_cubit.dart';
 import '../../features/music/presentation/search/SearchCategoryPage.dart';
 import '../../features/onboarding/presentation/WelcomePage.dart';
+import '../../features/playback/presentation/NowPlayingPage.dart';
+import '../../features/playback/presentation/QueuePage.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/shell/presentation/NotFoundPage.dart';
 import '../../features/shell/presentation/ShellDestination.dart';
@@ -93,6 +95,18 @@ class AppRouter {
           path: RoutePaths.accounts,
           name: RouteNames.accounts,
           builder: (context, state) => const AccountsPage(),
+        ),
+        GoRoute(
+          path: RoutePaths.nowPlaying,
+          name: RouteNames.nowPlaying,
+          builder: (context, state) => const NowPlayingPage(),
+          routes: [
+            GoRoute(
+              path: RoutePaths.nowPlayingQueue,
+              name: RouteNames.nowPlayingQueue,
+              builder: (context, state) => const QueuePage(),
+            ),
+          ],
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) =>

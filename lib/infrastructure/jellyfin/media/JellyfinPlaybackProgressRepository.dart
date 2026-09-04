@@ -10,9 +10,10 @@ import 'jellyfin_media_api.dart';
 /// server.
 ///
 /// Reads the played flag and resume position the server keeps for the
-/// signed-in user, and can set or clear the flag. Reporting a position
-/// during playback needs a play session and arrives with the player in
-/// v0.0.9.
+/// signed-in user, can set or clear the flag, and (since v0.0.9) reports
+/// a live playback session — start, periodic progress, and stop — so
+/// Jellyfin's own resume/played tracking agrees with what Jellyfinity
+/// actually played.
 @LazySingleton(as: PlaybackProgressRepository)
 class JellyfinPlaybackProgressRepository implements PlaybackProgressRepository {
   JellyfinPlaybackProgressRepository(this._api);
@@ -50,5 +51,42 @@ class JellyfinPlaybackProgressRepository implements PlaybackProgressRepository {
     final itemId = _api.localItemId(id);
     if (itemId case Err<String>(:final failure)) return Result.err(failure);
     return _api.setPlayed((itemId as Ok<String>).value, played: played);
+  }
+
+  @override
+  Future<Result<void>> reportStart(MediaId id) =>
+      _report(id, (itemId) => _api.reportPlaybackStart(itemId));
+
+  @override
+  Future<Result<void>> reportProgress(
+    MediaId id, {
+    required Duration position,
+    required bool isPaused,
+  }) {
+    return _report(
+      id,
+      (itemId) => _api.reportPlaybackProgress(
+        itemId,
+        position: position,
+        isPaused: isPaused,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<void>> reportStop(MediaId id, {required Duration position}) {
+    return _report(
+      id,
+      (itemId) => _api.reportPlaybackStopped(itemId, position: position),
+    );
+  }
+
+  Future<Result<void>> _report(
+    MediaId id,
+    Future<Result<void>> Function(String itemId) call,
+  ) async {
+    final itemId = _api.localItemId(id);
+    if (itemId case Err<String>(:final failure)) return Result.err(failure);
+    return call((itemId as Ok<String>).value);
   }
 }

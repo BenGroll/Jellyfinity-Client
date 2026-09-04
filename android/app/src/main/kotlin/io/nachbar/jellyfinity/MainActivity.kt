@@ -1,5 +1,8 @@
 package io.nachbar.jellyfinity
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// audio_service needs the Flutter engine it manages, not the one
+// FlutterActivity would create on its own — AudioServiceActivity (its
+// own FlutterActivity subclass) provides that (ADR-0013).
+class MainActivity : AudioServiceActivity()

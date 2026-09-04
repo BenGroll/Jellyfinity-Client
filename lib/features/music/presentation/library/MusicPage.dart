@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
@@ -264,18 +265,23 @@ class _SongsTabState extends State<SongsTab>
           onRetry: cubit.reload,
           onRetryLoadMore: cubit.retryLoadMore,
           unavailableBuilder: (context, item) => UnavailableRow(item: item),
-          itemBuilder: (context, track, _) => TrackRow(
+          itemBuilder: (context, track, index) => TrackRow(
             track: track,
             markUnavailable: !state.isCached,
-            // Until there is a player (v0.0.9), the useful thing a tap
-            // can do is open the album the song is on. It is not
-            // pretending to be playback.
-            onTap: track.albumId == null
+            onTap: track.availability == MediaAvailability.remoteUnavailable
                 ? null
-                : () => context.pushNamed(
-                    RouteNames.musicAlbum,
-                    pathParameters: {'id': track.albumId!.key},
+                : () => context.read<PlaybackCubit>().playNow(
+                    state.items,
+                    startIndex: index,
                   ),
+            onPlayNext:
+                track.availability == MediaAvailability.remoteUnavailable
+                ? null
+                : () => context.read<PlaybackCubit>().playNext(track),
+            onAddToQueue:
+                track.availability == MediaAvailability.remoteUnavailable
+                ? null
+                : () => context.read<PlaybackCubit>().addToQueue(track),
           ),
         );
       },
