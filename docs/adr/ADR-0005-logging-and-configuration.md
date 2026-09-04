@@ -18,12 +18,12 @@ front rather than each feature inventing its own.
 
 ### Logging
 
-[`lib/core/logging/logger.dart`](../../lib/core/logging/logger.dart)
+[`lib/core/logging/Logger.dart`](../../lib/core/logging/Logger.dart)
 defines an abstract `Logger` (`debug`/`info`/`warning`/`error`), resolved
 through DI (ADR-0003) rather than called as a global. Call sites depend
 on the abstraction, never on a concrete logger.
 
-[`ConsoleLogger`](../../lib/core/logging/console_logger.dart) is the only
+[`ConsoleLogger`](../../lib/core/logging/ConsoleLogger.dart) is the only
 implementation for now: it writes to the console via `debugPrint`, with
 `debug`-level messages suppressed outside `kDebugMode`. This is
 sufficient for local development; a production-appropriate sink (e.g. a
@@ -44,7 +44,7 @@ actual tokens.
 
 ### Configuration
 
-[`lib/core/config/app_config.dart`](../../lib/core/config/app_config.dart)
+[`lib/core/config/AppConfig.dart`](../../lib/core/config/AppConfig.dart)
 defines `AppConfig`, read via `--dart-define` compile-time environment
 variables (`AppConfig.fromEnvironment()`), with development-friendly
 defaults so the app runs correctly with zero flags. No build-flavor

@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
 
 import 'media_availability.dart';
-import 'media_id.dart';
-import 'media_item.dart';
+import 'MediaId.dart';
+import 'MediaItem.dart';
 import 'media_kind.dart';
 
 /// A music artist as a browsable library entry.

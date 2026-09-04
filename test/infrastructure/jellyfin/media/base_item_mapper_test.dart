@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/base_item_dto.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/media/base_item_mapper.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/media/items_response_dto.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/BaseItemMapper.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/ItemsResponseDto.dart';
 
 const _mapper = BaseItemMapper('server-1');
 

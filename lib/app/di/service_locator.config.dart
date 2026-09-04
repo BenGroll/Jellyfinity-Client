@@ -13,21 +13,19 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
-import 'package:jellyfinity/app/router/app_router.dart' as _i29;
-import 'package:jellyfinity/app/session/auth_session_manager.dart' as _i887;
-import 'package:jellyfinity/app/session/session_auth_token_provider.dart'
-    as _i318;
-import 'package:jellyfinity/app/session/session_cubit.dart' as _i737;
-import 'package:jellyfinity/app/session/session_jellyfin_context.dart' as _i418;
-import 'package:jellyfinity/core/logging/console_logger.dart' as _i52;
-import 'package:jellyfinity/core/logging/logger.dart' as _i20;
-import 'package:jellyfinity/domain/media/artwork_resolver.dart' as _i1005;
+import 'package:jellyfinity/app/router/AppRouter.dart' as _i587;
+import 'package:jellyfinity/app/session/AuthSessionManager.dart' as _i56;
+import 'package:jellyfinity/app/session/SessionAuthTokenProvider.dart' as _i51;
+import 'package:jellyfinity/app/session/SessionCubit.dart' as _i809;
+import 'package:jellyfinity/app/session/SessionJellyfinContext.dart' as _i139;
+import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
+import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
+import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
-import 'package:jellyfinity/domain/session/account_store.dart' as _i413;
-import 'package:jellyfinity/domain/session/credential_store.dart' as _i858;
-import 'package:jellyfinity/domain/session/jellyfin_authenticator.dart'
-    as _i403;
-import 'package:jellyfinity/domain/session/server_registry.dart' as _i607;
+import 'package:jellyfinity/domain/session/AccountStore.dart' as _i756;
+import 'package:jellyfinity/domain/session/CredentialStore.dart' as _i866;
+import 'package:jellyfinity/domain/session/JellyfinAuthenticator.dart' as _i534;
+import 'package:jellyfinity/domain/session/ServerRegistry.dart' as _i848;
 import 'package:jellyfinity/domain/session/session.dart' as _i901;
 import 'package:jellyfinity/features/auth/presentation/accounts/accounts_cubit.dart'
     as _i322;
@@ -35,48 +33,48 @@ import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart'
     as _i1045;
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart'
     as _i952;
-import 'package:jellyfinity/infrastructure/jellyfin/auth/dio_jellyfin_authenticator.dart'
-    as _i870;
+import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
+    as _i833;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
     as _i430;
-import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart'
-    as _i685;
-import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_session_context.dart'
-    as _i185;
-import 'package:jellyfinity/infrastructure/jellyfin/jellyfin_transport_module.dart'
-    as _i739;
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_artwork_resolver.dart'
-    as _i1012;
+import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart'
+    as _i787;
+import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinSessionContext.dart'
+    as _i346;
+import 'package:jellyfinity/infrastructure/jellyfin/JellyfinTransportModule.dart'
+    as _i748;
 import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_api.dart'
     as _i963;
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_metadata_repository.dart'
-    as _i717;
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_music_library_repository.dart'
-    as _i875;
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_playback_progress_repository.dart'
-    as _i504;
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_playlist_repository.dart'
-    as _i254;
-import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart'
-    as _i478;
-import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart'
-    as _i59;
-import 'package:jellyfinity/infrastructure/persistence/database_module.dart'
-    as _i612;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinArtworkResolver.dart'
+    as _i1022;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMediaMetadataRepository.dart'
+    as _i830;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMusicLibraryRepository.dart'
+    as _i814;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaybackProgressRepository.dart'
+    as _i36;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistRepository.dart'
+    as _i516;
+import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.dart'
+    as _i906;
+import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart'
+    as _i242;
+import 'package:jellyfinity/infrastructure/persistence/DatabaseModule.dart'
+    as _i923;
 import 'package:jellyfinity/infrastructure/persistence/device_identity_store.dart'
     as _i584;
-import 'package:jellyfinity/infrastructure/persistence/drift_account_store.dart'
-    as _i973;
-import 'package:jellyfinity/infrastructure/persistence/drift_server_registry.dart'
-    as _i131;
+import 'package:jellyfinity/infrastructure/persistence/DriftAccountStore.dart'
+    as _i243;
+import 'package:jellyfinity/infrastructure/persistence/DriftServerRegistry.dart'
+    as _i776;
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart'
     as _i617;
-import 'package:jellyfinity/infrastructure/persistence/legacy_json_importer.dart'
-    as _i396;
-import 'package:jellyfinity/infrastructure/secure/secure_credential_store.dart'
-    as _i508;
-import 'package:jellyfinity/infrastructure/secure/secure_storage_module.dart'
-    as _i250;
+import 'package:jellyfinity/infrastructure/persistence/LegacyJsonImporter.dart'
+    as _i408;
+import 'package:jellyfinity/infrastructure/secure/SecureCredentialStore.dart'
+    as _i834;
+import 'package:jellyfinity/infrastructure/secure/SecureStorageModule.dart'
+    as _i318;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -88,120 +86,119 @@ extension GetItInjectableX on _i174.GetIt {
     final databaseModule = _$DatabaseModule();
     final secureStorageModule = _$SecureStorageModule();
     final jellyfinTransportModule = _$JellyfinTransportModule();
-    gh.lazySingleton<_i59.AppDatabase>(() => databaseModule.appDatabase());
+    gh.lazySingleton<_i242.AppDatabase>(() => databaseModule.appDatabase());
     gh.lazySingleton<_i558.FlutterSecureStorage>(
       () => secureStorageModule.secureStorage(),
     );
-    gh.lazySingleton<_i20.Logger>(() => _i52.ConsoleLogger());
-    gh.lazySingleton<_i858.CredentialStore>(
-      () => _i508.SecureCredentialStore(gh<_i558.FlutterSecureStorage>()),
+    gh.lazySingleton<_i612.Logger>(() => _i1033.ConsoleLogger());
+    gh.lazySingleton<_i866.CredentialStore>(
+      () => _i834.SecureCredentialStore(gh<_i558.FlutterSecureStorage>()),
     );
-    gh.lazySingleton<_i607.ServerRegistry>(
-      () => _i131.DriftServerRegistry(gh<_i59.AppDatabase>()),
+    gh.lazySingleton<_i848.ServerRegistry>(
+      () => _i776.DriftServerRegistry(gh<_i242.AppDatabase>()),
     );
     gh.lazySingleton<_i617.KeyValueStore>(
-      () => _i617.DriftKeyValueStore(gh<_i59.AppDatabase>()),
-    );
-    gh.lazySingleton<_i396.LegacyJsonImporter>(
-      () => _i396.LegacyJsonImporter(
-        gh<_i59.AppDatabase>(),
-        gh<_i617.KeyValueStore>(),
-        gh<_i20.Logger>(),
-      ),
+      () => _i617.DriftKeyValueStore(gh<_i242.AppDatabase>()),
     );
     gh.lazySingleton<_i584.DeviceIdentityStore>(
       () => _i584.PersistentDeviceIdentityStore(gh<_i617.KeyValueStore>()),
     );
-    await gh.lazySingletonAsync<_i685.JellyfinClientIdentity>(
+    gh.lazySingleton<_i408.LegacyJsonImporter>(
+      () => _i408.LegacyJsonImporter(
+        gh<_i242.AppDatabase>(),
+        gh<_i617.KeyValueStore>(),
+        gh<_i612.Logger>(),
+      ),
+    );
+    await gh.lazySingletonAsync<_i787.JellyfinClientIdentity>(
       () => jellyfinTransportModule.clientIdentity(
         gh<_i584.DeviceIdentityStore>(),
       ),
       preResolve: true,
     );
-    gh.lazySingleton<_i413.AccountStore>(
-      () => _i973.DriftAccountStore(
-        gh<_i59.AppDatabase>(),
+    gh.lazySingleton<_i756.AccountStore>(
+      () => _i243.DriftAccountStore(
+        gh<_i242.AppDatabase>(),
         gh<_i617.KeyValueStore>(),
       ),
     );
-    gh.lazySingleton<_i403.JellyfinAuthenticator>(
-      () => _i870.DioJellyfinAuthenticator(
-        gh<_i685.JellyfinClientIdentity>(),
-        gh<_i20.Logger>(),
+    gh.lazySingleton<_i534.JellyfinAuthenticator>(
+      () => _i833.DioJellyfinAuthenticator(
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i612.Logger>(),
       ),
     );
-    gh.lazySingleton<_i887.AuthSessionManager>(
-      () => _i887.AuthSessionManager(
+    gh.lazySingleton<_i56.AuthSessionManager>(
+      () => _i56.AuthSessionManager(
         gh<_i901.ServerRegistry>(),
         gh<_i901.AccountStore>(),
         gh<_i901.CredentialStore>(),
         gh<_i901.JellyfinAuthenticator>(),
-        gh<_i20.Logger>(),
+        gh<_i612.Logger>(),
       ),
+    );
+    gh.lazySingleton<_i346.JellyfinSessionContext>(
+      () => _i139.SessionJellyfinContext(gh<_i56.AuthSessionManager>()),
+    );
+    gh.lazySingleton<_i809.SessionCubit>(
+      () => _i809.SessionCubit(gh<_i56.AuthSessionManager>()),
     );
     gh.lazySingleton<_i430.AuthTokenProvider>(
-      () => _i318.SessionAuthTokenProvider(gh<_i887.AuthSessionManager>()),
+      () => _i51.SessionAuthTokenProvider(gh<_i56.AuthSessionManager>()),
     );
-    gh.lazySingleton<_i737.SessionCubit>(
-      () => _i737.SessionCubit(gh<_i887.AuthSessionManager>()),
-    );
-    gh.lazySingleton<_i478.JellyfinServerProbe>(
-      () => _i478.JellyfinServerProbe(
-        gh<_i685.JellyfinClientIdentity>(),
-        gh<_i430.AuthTokenProvider>(),
-        gh<_i20.Logger>(),
-      ),
-    );
-    gh.factory<_i1045.LoginCubit>(
-      () => _i1045.LoginCubit(gh<_i737.SessionCubit>()),
-    );
-    gh.lazySingleton<_i29.AppRouter>(
-      () => _i29.AppRouter(gh<_i737.SessionCubit>()),
-    );
-    gh.factory<_i322.AccountsCubit>(
-      () => _i322.AccountsCubit(
-        gh<_i607.ServerRegistry>(),
-        gh<_i413.AccountStore>(),
-        gh<_i737.SessionCubit>(),
-      ),
-    );
-    gh.lazySingleton<_i185.JellyfinSessionContext>(
-      () => _i418.SessionJellyfinContext(gh<_i887.AuthSessionManager>()),
+    gh.lazySingleton<_i285.ArtworkResolver>(
+      () => _i1022.JellyfinArtworkResolver(gh<_i346.JellyfinSessionContext>()),
     );
     gh.lazySingleton<_i963.JellyfinMediaApi>(
       () => _i963.JellyfinMediaApi(
-        gh<_i185.JellyfinSessionContext>(),
-        gh<_i685.JellyfinClientIdentity>(),
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i787.JellyfinClientIdentity>(),
         gh<_i430.AuthTokenProvider>(),
-        gh<_i20.Logger>(),
+        gh<_i612.Logger>(),
       ),
     );
-    gh.lazySingleton<_i1005.ArtworkResolver>(
-      () => _i1012.JellyfinArtworkResolver(gh<_i185.JellyfinSessionContext>()),
+    gh.factory<_i1045.LoginCubit>(
+      () => _i1045.LoginCubit(gh<_i809.SessionCubit>()),
     );
-    gh.factory<_i952.ServerSetupCubit>(
-      () => _i952.ServerSetupCubit(gh<_i478.JellyfinServerProbe>()),
+    gh.lazySingleton<_i587.AppRouter>(
+      () => _i587.AppRouter(gh<_i809.SessionCubit>()),
+    );
+    gh.lazySingleton<_i906.JellyfinServerProbe>(
+      () => _i906.JellyfinServerProbe(
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
+        gh<_i612.Logger>(),
+      ),
     );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
-      () => _i717.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
-    );
-    gh.lazySingleton<_i747.PlaybackProgressRepository>(
-      () => _i504.JellyfinPlaybackProgressRepository(
-        gh<_i963.JellyfinMediaApi>(),
-      ),
+      () => _i830.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
     );
     gh.lazySingleton<_i747.PlaylistRepository>(
-      () => _i254.JellyfinPlaylistRepository(gh<_i963.JellyfinMediaApi>()),
+      () => _i516.JellyfinPlaylistRepository(gh<_i963.JellyfinMediaApi>()),
+    );
+    gh.factory<_i322.AccountsCubit>(
+      () => _i322.AccountsCubit(
+        gh<_i848.ServerRegistry>(),
+        gh<_i756.AccountStore>(),
+        gh<_i809.SessionCubit>(),
+      ),
+    );
+    gh.lazySingleton<_i747.PlaybackProgressRepository>(
+      () =>
+          _i36.JellyfinPlaybackProgressRepository(gh<_i963.JellyfinMediaApi>()),
     );
     gh.lazySingleton<_i747.MusicLibraryRepository>(
-      () => _i875.JellyfinMusicLibraryRepository(gh<_i963.JellyfinMediaApi>()),
+      () => _i814.JellyfinMusicLibraryRepository(gh<_i963.JellyfinMediaApi>()),
+    );
+    gh.factory<_i952.ServerSetupCubit>(
+      () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
     );
     return this;
   }
 }
 
-class _$DatabaseModule extends _i612.DatabaseModule {}
+class _$DatabaseModule extends _i923.DatabaseModule {}
 
-class _$SecureStorageModule extends _i250.SecureStorageModule {}
+class _$SecureStorageModule extends _i318.SecureStorageModule {}
 
-class _$JellyfinTransportModule extends _i739.JellyfinTransportModule {}
+class _$JellyfinTransportModule extends _i748.JellyfinTransportModule {}

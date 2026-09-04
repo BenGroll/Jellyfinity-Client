@@ -5,8 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
-import '../widgets/auth_text_field.dart';
-import '../widgets/inline_error.dart';
+import '../widgets/AuthTextField.dart';
+import '../widgets/InlineError.dart';
 import 'server_setup_cubit.dart';
 
 /// Step one of connecting: enter a Jellyfin server address, validate it,

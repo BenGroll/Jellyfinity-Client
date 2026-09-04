@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/app/app.dart';
-import 'package:jellyfinity/app/router/app_router.dart';
+import 'package:jellyfinity/app/JellyfinityApp.dart';
+import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/router/route_paths.dart';
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_page.dart';
-import 'package:jellyfinity/features/home/presentation/home_page.dart';
-import 'package:jellyfinity/features/onboarding/presentation/welcome_page.dart';
-import 'package:jellyfinity/features/shell/presentation/not_found_page.dart';
-import 'package:jellyfinity/features/shell/presentation/splash_page.dart';
+import 'package:jellyfinity/features/home/presentation/HomePage.dart';
+import 'package:jellyfinity/features/onboarding/presentation/WelcomePage.dart';
+import 'package:jellyfinity/features/shell/presentation/NotFoundPage.dart';
+import 'package:jellyfinity/features/shell/presentation/SplashPage.dart';
 
 import '../../support/session_fakes.dart';
 

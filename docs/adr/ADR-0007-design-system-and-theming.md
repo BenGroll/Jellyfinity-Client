@@ -65,12 +65,12 @@ own sealed Bloc states, so a one-size state switcher would fight that.
 - **Tokens** (`lib/design/tokens/`) are immutable value types
   (`Equatable`), each with a static `lerp`. They carry no `BuildContext`
   and no Material dependency beyond `dart:ui`/`painting` types.
-- **`AppTokens`** (`lib/design/theme/app_tokens.dart`) is the
+- **`AppTokens`** (`lib/design/theme/AppTokens.dart`) is the
   `ThemeExtension` bundling all groups.
-  [`AppTheme`](../../lib/design/theme/app_theme.dart) builds the light and
+  [`AppTheme`](../../lib/design/theme/AppTheme.dart) builds the light and
   dark `ThemeData`, each with its `AppTokens` plus a derived
   `ColorScheme`/`TextTheme`. Raw colour literals are allowed **only** in
-  [`palette.dart`](../../lib/design/theme/palette.dart).
+  [`Palette.dart`](../../lib/design/theme/Palette.dart).
 - **Access.** Widgets read
   [`context.tokens`](../../lib/design/theme/theme_context.dart) (or the
   `context.colors` / `context.spacing` / … shorthands). They must not read

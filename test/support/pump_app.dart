@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/app/app.dart';
-import 'package:jellyfinity/app/router/app_router.dart';
-import 'package:jellyfinity/app/session/session_cubit.dart';
+import 'package:jellyfinity/app/JellyfinityApp.dart';
+import 'package:jellyfinity/app/router/AppRouter.dart';
+import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/design/design.dart';
 
 import 'session_fakes.dart';

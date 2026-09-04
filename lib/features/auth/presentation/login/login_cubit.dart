@@ -2,11 +2,11 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../../app/session/session_cubit.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/result.dart';
-import '../../../../domain/session/auth_session.dart';
-import '../../../../infrastructure/jellyfin/server/jellyfin_server_info.dart';
+import '../../../../domain/session/AuthSession.dart';
+import '../../../../infrastructure/jellyfin/server/JellyfinServerInfo.dart';
 
 /// Drives the credential-entry step for one already-validated server.
 ///

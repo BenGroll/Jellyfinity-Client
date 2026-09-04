@@ -2,10 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_api.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_music_library_repository.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMusicLibraryRepository.dart';
 
-import '../../../support/fake_dio_adapter.dart';
-import '../../../support/media_fakes.dart';
+import '../../../support/FakeDioAdapter.dart';
+import '../../../support/FakeSessionContext.dart';
 
 const _artistId = MediaId(serverId: 'server-1', itemId: 'artist-1');
 const _albumId = MediaId(serverId: 'server-1', itemId: 'album-1');

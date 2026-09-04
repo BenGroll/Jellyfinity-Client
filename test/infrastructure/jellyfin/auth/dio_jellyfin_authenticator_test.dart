@@ -1,14 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
-import 'package:jellyfinity/domain/session/jellyfin_server.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/auth/dio_jellyfin_authenticator.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/http/jellyfin_http_client.dart';
+import 'package:jellyfinity/domain/session/JellyfinServer.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/http/JellyfinHttpClient.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart';
 
-import '../../../support/fake_dio_adapter.dart';
-import '../../../support/test_logger.dart';
+import '../../../support/FakeDioAdapter.dart';
+import '../../../support/TestLogger.dart';
 
 const _identity = JellyfinClientIdentity(
   clientName: 'Jellyfinity',

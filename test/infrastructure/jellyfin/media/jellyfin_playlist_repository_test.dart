@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/domain/media/media.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_playlist_repository.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistRepository.dart';
 
-import '../../../support/fake_dio_adapter.dart';
-import '../../../support/media_fakes.dart';
+import '../../../support/FakeDioAdapter.dart';
+import '../../../support/FakeSessionContext.dart';
 
 const _playlistId = MediaId(serverId: 'server-1', itemId: 'pl-1');
 

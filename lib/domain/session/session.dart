@@ -16,11 +16,11 @@
 /// - active profile → [AccountStore.activeAccountId] / [AuthSession]
 library;
 
-export 'account_store.dart';
-export 'auth_session.dart';
-export 'authenticated_user.dart';
-export 'credential_store.dart';
-export 'jellyfin_account.dart';
-export 'jellyfin_authenticator.dart';
-export 'jellyfin_server.dart';
-export 'server_registry.dart';
+export 'AccountStore.dart';
+export 'AuthSession.dart';
+export 'AuthenticatedUser.dart';
+export 'CredentialStore.dart';
+export 'JellyfinAccount.dart';
+export 'JellyfinAuthenticator.dart';
+export 'JellyfinServer.dart';
+export 'ServerRegistry.dart';

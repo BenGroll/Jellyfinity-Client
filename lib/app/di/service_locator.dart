@@ -26,6 +26,6 @@ final GetIt getIt = GetIt.instance;
 /// injectable annotation, so that construction logic stays next to the
 /// value it produces rather than living in a DI module.
 ///
-/// [1]: ../../core/config/app_config.dart
+/// [1]: ../../core/config/AppConfig.dart
 @InjectableInit()
 Future<void> configureDependencies() async => getIt.init();

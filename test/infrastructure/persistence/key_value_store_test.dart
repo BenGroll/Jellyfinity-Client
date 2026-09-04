@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart';
+import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 
 import '../../support/test_database.dart';

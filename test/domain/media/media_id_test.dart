@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/domain/media/media_id.dart';
+import 'package:jellyfinity/domain/media/MediaId.dart';
 
 void main() {
   const id = MediaId(serverId: 'server-1', itemId: 'item-9');

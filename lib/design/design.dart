@@ -6,17 +6,17 @@
 library;
 
 export 'components/app_button.dart';
-export 'components/app_scaffold.dart';
+export 'components/AppScaffold.dart';
 export 'components/app_skeleton.dart';
 export 'components/status_view.dart';
 export 'components/unavailable_content.dart';
-export 'theme/app_theme.dart';
-export 'theme/app_tokens.dart';
-export 'theme/palette.dart';
+export 'theme/AppTheme.dart';
+export 'theme/AppTokens.dart';
+export 'theme/Palette.dart';
 export 'theme/theme_context.dart';
-export 'tokens/app_colors.dart';
-export 'tokens/app_elevation.dart';
-export 'tokens/app_motion.dart';
-export 'tokens/app_radii.dart';
-export 'tokens/app_spacing.dart';
-export 'tokens/app_typography.dart';
+export 'tokens/AppColors.dart';
+export 'tokens/AppElevation.dart';
+export 'tokens/AppMotion.dart';
+export 'tokens/AppRadii.dart';
+export 'tokens/AppSpacing.dart';
+export 'tokens/AppTypography.dart';

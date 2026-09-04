@@ -41,7 +41,7 @@ Jellyfinity uses **`go_router`**.
 
 Structure:
 
-- [`lib/app/router/app_router.dart`](../../lib/app/router/app_router.dart)
+- [`lib/app/router/AppRouter.dart`](../../lib/app/router/AppRouter.dart)
   (`AppRouter`, a `@lazySingleton`) owns the single `GoRouter`. It lives in
   `lib/app` because it is a composition-root object — it wires feature
   pages together and is the one place navigation reads `getIt`. Feature
@@ -51,16 +51,16 @@ Structure:
 - **Auth gate.** `GoRouter.redirect` keys entirely off
   [`SessionStatus`](../../lib/app/session/session_status.dart)
   (`unknown` → splash, `unauthenticated` → welcome, `authenticated` →
-  shell). [`SessionCubit`](../../lib/app/session/session_cubit.dart) holds
+  shell). [`SessionCubit`](../../lib/app/session/SessionCubit.dart) holds
   that status; a
-  [`GoRouterRefreshStream`](../../lib/app/router/go_router_refresh_stream.dart)
+  [`GoRouterRefreshStream`](../../lib/app/router/GoRouterRefreshStream.dart)
   adapter turns its stream into the router's `refreshListenable`, so a
   session change re-runs the redirect with no manual navigation. In
   v0.0.3 `SessionCubit` is a stub with no dependencies, moved only by the
   development welcome screen; v0.0.5 replaces its body with real Jellyfin
   authentication without the router changing.
 - **Shell.** `StatefulShellRoute.indexedStack` builds one branch per entry
-  in [`shellDestinations`](../../lib/features/shell/presentation/shell_destination.dart).
+  in [`shellDestinations`](../../lib/features/shell/presentation/ShellDestination.dart).
   v0.0.3 ships exactly one section (Home); the shell's navigation bar is
   only rendered once a second section exists, honouring the roadmap's "do
   not fully implement empty future sections" rule while keeping the

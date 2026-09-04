@@ -127,3 +127,9 @@ All notable changes to Jellyfinity are documented here.
   artwork cache still lands in v0.0.8, behind the same contract.
 - `JellyfinHttpClient` gained `send()` for endpoints whose answer is
   their status code — marking an item played or unplayed.
+- Renamed every single-class file to `PascalCase` matching its class
+  (e.g. `media_id.dart` → `MediaId.dart`); files with no class or more
+  than one, and every `_test.dart` file, keep
+  `lower_case_with_underscores`. Convention recorded in
+  `CONTRIBUTING.md`; `flutter_lints`' `file_names` rule is disabled for
+  it in `analysis_options.yaml`.

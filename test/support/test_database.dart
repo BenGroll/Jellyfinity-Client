@@ -1,5 +1,5 @@
 import 'package:drift/native.dart';
-import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart';
+import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
 
 /// A fresh in-memory [AppDatabase] for a single test. Runs the real
 /// migration (`onCreate`), so tables, indexes and pragmas match production.

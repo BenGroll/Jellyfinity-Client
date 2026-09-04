@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/design.dart';
-import 'shell_destination.dart';
+import 'ShellDestination.dart';
 
 /// The persistent frame around every authenticated screen: a body that
 /// swaps per section, plus a bottom navigation bar.

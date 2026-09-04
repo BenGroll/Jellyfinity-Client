@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/domain/session/jellyfin_account.dart';
-import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart';
-import 'package:jellyfinity/infrastructure/persistence/drift_account_store.dart';
+import 'package:jellyfinity/domain/session/JellyfinAccount.dart';
+import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
+import 'package:jellyfinity/infrastructure/persistence/DriftAccountStore.dart';
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 
 import '../../support/test_database.dart';

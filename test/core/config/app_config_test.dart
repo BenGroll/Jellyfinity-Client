@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/core/config/app_config.dart';
+import 'package:jellyfinity/core/config/AppConfig.dart';
 
 void main() {
   group('AppConfig', () {

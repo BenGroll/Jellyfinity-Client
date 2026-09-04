@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../core/config/app_config.dart';
-import '../core/logging/logger.dart';
-import '../infrastructure/persistence/legacy_json_importer.dart';
+import '../core/config/AppConfig.dart';
+import '../core/logging/Logger.dart';
+import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import 'di/service_locator.dart';
-import 'session/session_cubit.dart';
+import 'session/SessionCubit.dart';
 
 /// Boots the application: wires configuration, dependency injection, and
 /// global error handling before the widget tree is built.

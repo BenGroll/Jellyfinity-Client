@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/http/transport_error_mapper.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/http/TransportErrorMapper.dart';
 
 DioException _dio(DioExceptionType type, {int? status}) {
   final options = RequestOptions(path: '/System/Info/Public');

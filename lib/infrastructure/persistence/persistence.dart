@@ -12,10 +12,10 @@
 /// features in v0.0.7 and v0.0.8.
 library;
 
-export 'database/app_database.dart';
+export 'database/AppDatabase.dart';
 export 'database/tables.dart';
 export 'device_identity_store.dart';
-export 'drift_account_store.dart';
-export 'drift_server_registry.dart';
+export 'DriftAccountStore.dart';
+export 'DriftServerRegistry.dart';
 export 'key_value_store.dart';
-export 'legacy_json_importer.dart';
+export 'LegacyJsonImporter.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/public_system_info_dto.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/PublicSystemInfoDto.dart';
 
 void main() {
   group('PublicSystemInfoDto.fromJson', () {
