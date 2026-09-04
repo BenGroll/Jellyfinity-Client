@@ -1,5 +1,6 @@
 import '../../../core/result/partial.dart';
 import '../../../domain/media/media.dart';
+import '../../../domain/playback/TrackSourceInfo.dart';
 import 'base_item_dto.dart';
 import 'ItemsResponseDto.dart';
 
@@ -187,6 +188,37 @@ class BaseItemMapper {
       availability: _availability(dto),
       image: _primaryImage(dto, id),
     );
+  }
+
+  /// A track's file details, for the streaming-quality UI (ADR-0015).
+  ///
+  /// Jellyfinity only ever reads the first media source and, within it,
+  /// the first audio stream — the only case that matters for a music
+  /// track. `null` (never a thrown error) when the item has no usable
+  /// source, same discipline as every other `to*` method.
+  TrackSourceInfo? toTrackSourceInfo(BaseItemDto dto) {
+    if (dto.type != trackType) return null;
+    final sources = dto.mediaSources;
+    if (sources == null || sources.isEmpty) return null;
+    final source = sources.first;
+    final audio = _audioStream(source.mediaStreams);
+
+    return TrackSourceInfo(
+      container: _name(source.container),
+      codec: _name(audio?.codec),
+      bitrateBps: audio?.bitRate ?? source.bitrate,
+      sampleRateHz: audio?.sampleRate,
+      bitDepth: audio?.bitDepth,
+      channels: audio?.channels,
+    );
+  }
+
+  MediaStreamDto? _audioStream(List<MediaStreamDto>? streams) {
+    if (streams == null) return null;
+    for (final stream in streams) {
+      if (stream.type == 'Audio') return stream;
+    }
+    return null;
   }
 
   /// The user's position in an item. Absent user data means "never

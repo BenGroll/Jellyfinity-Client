@@ -219,3 +219,12 @@ All notable changes to Jellyfinity are documented here.
   asset catalogue, with every image flattened to opaque RGB so the
   1024px marketing icon carries no alpha channel. The web `manifest.json`
   and `index.html` lose their "A new Flutter project" boilerplate.
+- Added streaming quality and transcoding (ADR-0015, v0.1.1):
+  `StreamQuality` grows from direct-play-only to Lossless plus three AAC
+  transcoded tiers (320/192/128 kbps), selectable from a new "Streaming
+  quality" section in Settings and persisted like navigation mode. A
+  transcode failure on the currently playing track retries once at the
+  original file before being marked unavailable, rather than treating a
+  transient failure as permanent. Now Playing shows the source file's own
+  format/bitrate and, when a transcode is likely, what it is being
+  transcoded to.

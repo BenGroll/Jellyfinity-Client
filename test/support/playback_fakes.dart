@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
+import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
@@ -14,15 +17,21 @@ import 'package:jellyfinity/domain/playback/PlaybackSource.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
+import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
+import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
+import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart';
+
+import 'settings_fakes.dart';
 
 /// A [PlaybackCubit] wired entirely to fakes, for tests that only need
 /// one to exist (e.g. because the widget tree requires it) without
 /// driving or asserting on playback itself.
-PlaybackCubit fakePlaybackCubit() => PlaybackCubit(
+PlaybackCubit fakePlaybackCubit({SettingsCubit? settings}) => PlaybackCubit(
   FakePlaybackEngine(),
   FakeQueueRepository(),
   FakeAudioSourceResolver(),
   RecordingPlaybackProgressRepository(),
+  settings ?? fakeSettingsCubit(),
 );
 
 /// A [PlaybackEngine] a test can both drive (call the transport methods
@@ -144,11 +153,17 @@ class FakeAudioSourceResolver implements AudioSourceResolver {
   /// Item ids that resolve as [UnavailableFailure] instead of a URL.
   final Set<String> unresolvable = {};
 
+  /// The quality most recently requested for each item id — lets a test
+  /// assert `PlaybackCubit` asked for the settings-selected quality (or
+  /// the retry-at-original override) without inspecting the built URL.
+  final Map<String, StreamQuality> requestedQuality = {};
+
   @override
   Future<Result<Uri>> resolve(
     MediaId id, {
     StreamQuality quality = StreamQuality.original,
   }) async {
+    requestedQuality[id.itemId] = quality;
     if (unresolvable.contains(id.itemId)) {
       return const Result.err(UnavailableFailure('Could not resolve.'));
     }
@@ -228,4 +243,30 @@ class RecordingPlaybackProgressRepository
     stopped.add((id: id, position: position));
     return const Result.ok(null);
   }
+}
+
+/// A [TrackSourceInfoResolver] whose answer a test controls — defaults to
+/// "unavailable" so Now Playing's source-quality hint (ADR-0015) simply
+/// stays hidden for tests that don't care about it.
+class FakeTrackSourceInfoResolver implements TrackSourceInfoResolver {
+  Result<TrackSourceInfo> Function(MediaId id) answer = (_) =>
+      const Result.err(UnavailableFailure('No source info.'));
+
+  @override
+  Future<Result<TrackSourceInfo>> resolve(MediaId id) async => answer(id);
+}
+
+/// Registers a fake [TrackSourceInfoCubit] factory into the real `getIt`,
+/// the way `registerMusicCubits` does for the music detail cubits —
+/// `NowPlayingPage` reads this via `getIt` directly (it is a root route
+/// the router constructs with no constructor args), so any test that can
+/// reach Now Playing needs this registered first. [pumpApp] calls it by
+/// default; pass [resolver] to control what the hint shows.
+void registerTrackSourceInfoCubit({TrackSourceInfoResolver? resolver}) {
+  final getIt = GetIt.instance;
+  final effectiveResolver = resolver ?? FakeTrackSourceInfoResolver();
+  getIt.registerFactory<TrackSourceInfoCubit>(
+    () => TrackSourceInfoCubit(effectiveResolver),
+  );
+  addTearDown(getIt.reset);
 }

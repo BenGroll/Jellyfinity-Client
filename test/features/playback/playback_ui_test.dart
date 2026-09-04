@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
+import 'package:jellyfinity/domain/playback/stream_quality.dart';
+import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/playback/presentation/QueuePage.dart';
 
 import '../../support/playback_fakes.dart';
 import '../../support/pump_app.dart';
+import '../../support/settings_fakes.dart';
 
 Track _track(String itemId, {String name = 'Track'}) => Track(
   id: MediaId(serverId: 's1', itemId: itemId),
@@ -181,5 +185,86 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('The queue is empty'), findsOneWidget);
+  });
+
+  group('streaming quality hint (ADR-0015)', () {
+    testWidgets('shows the source file format and bitrate', (tester) async {
+      final settings = fakeSettingsCubit();
+      addTearDown(settings.close);
+      final playback = fakePlaybackCubit(settings: settings);
+      addTearDown(playback.close);
+      final resolver = FakeTrackSourceInfoResolver()
+        ..answer = (_) =>
+            const Result.ok(TrackSourceInfo(codec: 'flac', bitrateBps: 995000));
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        settings: settings,
+        trackSourceInfoResolver: resolver,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('FLAC'), findsOneWidget);
+      expect(find.textContaining('995 kbps'), findsOneWidget);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets(
+      'marks a transcoded stream with its target format and bitrate',
+      (tester) async {
+        final settings = fakeSettingsCubit(quality: StreamQuality.medium);
+        addTearDown(settings.close);
+        final playback = fakePlaybackCubit(settings: settings);
+        addTearDown(playback.close);
+        final resolver = FakeTrackSourceInfoResolver()
+          ..answer = (_) => const Result.ok(
+            TrackSourceInfo(codec: 'flac', bitrateBps: 995000),
+          );
+        final scope = await pumpApp(
+          tester,
+          playback: playback,
+          settings: settings,
+          trackSourceInfoResolver: resolver,
+        );
+        await scope.signIn();
+        await tester.pumpAndSettle();
+
+        await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('So What'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Transcoding to AAC'), findsOneWidget);
+        expect(find.textContaining('192 kbps'), findsOneWidget);
+
+        await playback.togglePlayPause();
+      },
+    );
+
+    testWidgets('shows nothing extra when source details are unavailable', (
+      tester,
+    ) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final scope = await pumpApp(tester, playback: playback);
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('kbps'), findsNothing);
+
+      await playback.togglePlayPause();
+    });
   });
 }

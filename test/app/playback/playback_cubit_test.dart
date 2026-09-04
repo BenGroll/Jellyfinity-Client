@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
+import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/Track.dart';
@@ -7,11 +8,13 @@ import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
+import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 import 'package:jellyfinity/infrastructure/persistence/playback/DriftQueueRepository.dart';
 
 import '../../support/playback_fakes.dart';
+import '../../support/settings_fakes.dart';
 import '../../support/test_database.dart';
 
 Track _track(String itemId, {String name = 'Track', Duration? duration}) {
@@ -36,6 +39,7 @@ void main() {
   late FakePlaybackEngine engine;
   late FakeAudioSourceResolver resolver;
   late RecordingPlaybackProgressRepository progress;
+  late SettingsCubit settings;
   late PlaybackCubit cubit;
 
   setUp(() {
@@ -44,11 +48,19 @@ void main() {
     engine = FakePlaybackEngine();
     resolver = FakeAudioSourceResolver();
     progress = RecordingPlaybackProgressRepository();
-    cubit = PlaybackCubit(engine, queueRepository, resolver, progress);
+    settings = fakeSettingsCubit();
+    cubit = PlaybackCubit(
+      engine,
+      queueRepository,
+      resolver,
+      progress,
+      settings,
+    );
   });
 
   tearDown(() async {
     await cubit.close();
+    await settings.close();
     await engine.disposeForTest();
     await db.close();
   });
@@ -237,6 +249,7 @@ void main() {
         queueRepository,
         resolver,
         progress,
+        settings,
       );
       await started.playNow([_track('a'), _track('b')], startIndex: 1);
       await queueRepository.savePosition(
@@ -252,6 +265,7 @@ void main() {
         queueRepository,
         resolver,
         progress,
+        settings,
       );
       addTearDown(restoredCubit.close);
 
@@ -292,6 +306,90 @@ void main() {
       await cubit.removeAt(1);
 
       expect(cubit.state.queue.entries, hasLength(1));
+    });
+  });
+
+  group('streaming quality (ADR-0015)', () {
+    test('resolves sources at the settings-selected quality', () async {
+      await settings.setStreamQuality(StreamQuality.dataSaver);
+
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      expect(resolver.requestedQuality['a'], StreamQuality.dataSaver);
+    });
+
+    test('a current-track failure at a transcoded quality retries once at '
+        'original instead of marking unavailable', () async {
+      await settings.setStreamQuality(StreamQuality.high);
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+      final setSourcesBefore = _setSourcesCalls(engine);
+
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 0,
+          id: MediaId(serverId: 's1', itemId: 'a'),
+          message: 'transcode failed',
+        ),
+      );
+      await _pump();
+
+      expect(
+        cubit.state.queue.entries.first.availability,
+        isNot(MediaAvailability.remoteUnavailable),
+        reason: 'not marked unavailable on the first failure',
+      );
+      expect(cubit.state.queue.currentIndex, 0, reason: 'still track a');
+      expect(resolver.requestedQuality['a'], StreamQuality.original);
+      expect(_setSourcesCalls(engine), setSourcesBefore + 1);
+    });
+
+    test('a second failure after the retry marks the entry unavailable as '
+        'usual', () async {
+      await settings.setStreamQuality(StreamQuality.high);
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 0,
+          id: MediaId(serverId: 's1', itemId: 'a'),
+          message: 'transcode failed',
+        ),
+      );
+      await _pump();
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 0,
+          id: MediaId(serverId: 's1', itemId: 'a'),
+          message: 'still failing at original',
+        ),
+      );
+      await _pump();
+
+      expect(
+        cubit.state.queue.entries.first.availability,
+        MediaAvailability.remoteUnavailable,
+      );
+      expect(cubit.state.queue.currentIndex, 1);
+    });
+
+    test('a failure while already at original quality marks unavailable '
+        'immediately, unchanged from today', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 0,
+          id: MediaId(serverId: 's1', itemId: 'a'),
+          message: 'could not decode',
+        ),
+      );
+      await _pump();
+
+      expect(
+        cubit.state.queue.entries.first.availability,
+        MediaAvailability.remoteUnavailable,
+      );
+      expect(cubit.state.queue.currentIndex, 1);
     });
   });
 }

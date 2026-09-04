@@ -31,6 +31,9 @@ import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart' as _i717;
 import 'package:jellyfinity/domain/playback/QueueRepository.dart' as _i642;
+import 'package:jellyfinity/domain/playback/stream_quality.dart' as _i731;
+import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart'
+    as _i621;
 import 'package:jellyfinity/domain/session/AccountStore.dart' as _i756;
 import 'package:jellyfinity/domain/session/CredentialStore.dart' as _i866;
 import 'package:jellyfinity/domain/session/JellyfinAuthenticator.dart' as _i534;
@@ -48,6 +51,8 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
     as _i169;
+import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart'
+    as _i766;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
     as _i833;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
@@ -72,6 +77,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaybackProgre
     as _i36;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistRepository.dart'
     as _i516;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinTrackSourceInfoResolver.dart'
+    as _i89;
 import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.dart'
     as _i906;
 import 'package:jellyfinity/infrastructure/media/CachedMediaMetadataRepository.dart'
@@ -147,6 +154,13 @@ extension GetItInjectableX on _i174.GetIt {
       ),
       preResolve: true,
     );
+    gh.factory<_i230.SettingsCubit>(
+      () => _i230.SettingsCubit(
+        gh<_i617.KeyValueStore>(),
+        gh<_i883.ShellNavigationMode>(),
+        gh<_i731.StreamQuality>(),
+      ),
+    );
     gh.lazySingleton<_i756.AccountStore>(
       () => _i243.DriftAccountStore(
         gh<_i242.AppDatabase>(),
@@ -163,12 +177,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i24.DriftQueueRepository(
         gh<_i242.AppDatabase>(),
         gh<_i617.KeyValueStore>(),
-      ),
-    );
-    gh.factory<_i230.SettingsCubit>(
-      () => _i230.SettingsCubit(
-        gh<_i617.KeyValueStore>(),
-        gh<_i883.ShellNavigationMode>(),
       ),
     );
     gh.lazySingleton<_i56.AuthSessionManager>(
@@ -250,12 +258,16 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i36.JellyfinPlaybackProgressRepository(gh<_i963.JellyfinMediaApi>()),
     );
+    gh.lazySingleton<_i621.TrackSourceInfoResolver>(
+      () => _i89.JellyfinTrackSourceInfoResolver(gh<_i963.JellyfinMediaApi>()),
+    );
     gh.lazySingleton<_i126.PlaybackCubit>(
       () => _i126.PlaybackCubit(
         gh<_i717.PlaybackEngine>(),
         gh<_i642.QueueRepository>(),
         gh<_i922.AudioSourceResolver>(),
         gh<_i474.PlaybackProgressRepository>(),
+        gh<_i230.SettingsCubit>(),
       ),
     );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
@@ -269,6 +281,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i618.PlaylistTracksCubit>(
       () => _i618.PlaylistTracksCubit(gh<_i747.PlaylistRepository>()),
+    );
+    gh.factory<_i766.TrackSourceInfoCubit>(
+      () => _i766.TrackSourceInfoCubit(gh<_i621.TrackSourceInfoResolver>()),
     );
     gh.lazySingleton<_i747.MusicLibraryRepository>(
       () => _i664.CachedMusicLibraryRepository(

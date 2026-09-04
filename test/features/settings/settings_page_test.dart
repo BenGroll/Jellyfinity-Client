@@ -33,4 +33,45 @@ void main() {
     // The pill row is gone from the shell now that Unified is active.
     expect(find.widgetWithText(ChoiceChip, 'Music'), findsNothing);
   });
+
+  testWidgets('selecting a streaming quality updates the selected option', (
+    tester,
+  ) async {
+    final scope = TestSessionScope();
+    await pumpApp(tester, scope: scope, settings: fakeSettingsCubit());
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.menu_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    // Starts on Lossless — the default quality (StreamQuality.original).
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ListTile, 'Lossless'),
+        matching: find.byIcon(Icons.radio_button_checked_rounded),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('High'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ListTile, 'High'),
+        matching: find.byIcon(Icons.radio_button_checked_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ListTile, 'Lossless'),
+        matching: find.byIcon(Icons.radio_button_checked_rounded),
+      ),
+      findsNothing,
+    );
+  });
 }

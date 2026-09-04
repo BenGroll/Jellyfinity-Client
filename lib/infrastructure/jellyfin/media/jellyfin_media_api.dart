@@ -74,6 +74,13 @@ class JellyfinMediaApi {
     'ChildCount',
   ];
 
+  /// Fields [TrackSourceInfoResolver] needs — a track's file/codec
+  /// details. Deliberately its own list, not folded into [detailFields]:
+  /// that one is paid for on every row of paged detail views (albums
+  /// included), while `MediaSources` is only ever asked for one track at
+  /// a time, on demand.
+  static const List<String> trackSourceFields = ['MediaSources'];
+
   /// The image kinds Jellyfinity renders; asking for only these keeps
   /// image tags out of the response for the dozen kinds it does not.
   static const List<String> imageTypes = ['Primary', 'Backdrop', 'Logo'];
@@ -224,11 +231,12 @@ class JellyfinMediaApi {
   /// `Ok(null)` means "the server does not have that item".
   Future<Result<BaseItemDto?>> item(
     String itemId, {
+    List<String> fields = detailFields,
     CancelToken? cancelToken,
   }) async {
     final response = await queryItems(
       ids: [itemId],
-      fields: detailFields,
+      fields: fields,
       page: const PageRequest(startIndex: 0, limit: 1),
       cancelToken: cancelToken,
     );
