@@ -1,11 +1,15 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 
 import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
+import '../domain/media/ArtworkResolver.dart';
+import '../domain/playback/PlaybackEngine.dart';
 import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
+import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'di/service_locator.dart';
 import 'session/SessionCubit.dart';
 
@@ -27,6 +31,20 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   ArtworkCache.configureImageCache();
 
   await configureDependencies();
+
+  // JustAudioPlaybackEngine is BaseAudioHandler itself, and building one
+  // requires the async AudioService.init() call — it cannot be a plain
+  // @LazySingleton constructor dependency, so (like AppConfig above) it
+  // is constructed here and registered with getIt directly rather than
+  // through an injectable annotation.
+  final playbackEngine = await AudioService.init(
+    builder: () => JustAudioPlaybackEngine(getIt<ArtworkResolver>()),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'io.nachbar.jellyfinity.playback',
+      androidNotificationChannelName: 'Playback',
+    ),
+  );
+  getIt.registerSingleton<PlaybackEngine>(playbackEngine);
 
   final logger = getIt<Logger>();
 
