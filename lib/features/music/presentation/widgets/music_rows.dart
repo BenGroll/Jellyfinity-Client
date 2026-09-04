@@ -19,7 +19,8 @@ const double musicRowHeight = 64;
 /// one. Those screens pass `markUnavailable: false` and put a
 /// `SavedCopyNotice` above the list instead.
 abstract final class MusicRowStyle {
-  /// Whether an unavailable item should be marked in place.
+  /// Whether an unavailable item should be marked in place. The default
+  /// every row takes; screens showing the saved copy pass `false`.
   static const bool markUnavailable = true;
 }
 
@@ -32,7 +33,7 @@ class ArtistRow extends StatelessWidget {
     super.key,
     required this.artist,
     this.onTap,
-    this.markUnavailable = true,
+    this.markUnavailable = MusicRowStyle.markUnavailable,
   });
 
   final Artist artist;
@@ -64,7 +65,7 @@ class AlbumRow extends StatelessWidget {
     super.key,
     required this.album,
     this.onTap,
-    this.markUnavailable = true,
+    this.markUnavailable = MusicRowStyle.markUnavailable,
   });
 
   final Album album;
@@ -102,7 +103,7 @@ class TrackRow extends StatelessWidget {
     this.onTap,
     this.showArtwork = true,
     this.position,
-    this.markUnavailable = true,
+    this.markUnavailable = MusicRowStyle.markUnavailable,
   });
 
   final Track track;
@@ -165,7 +166,7 @@ class PlaylistRow extends StatelessWidget {
     super.key,
     required this.playlist,
     this.onTap,
-    this.markUnavailable = true,
+    this.markUnavailable = MusicRowStyle.markUnavailable,
   });
 
   final Playlist playlist;
@@ -254,7 +255,7 @@ class AlbumTile extends StatelessWidget {
     super.key,
     required this.album,
     this.onTap,
-    this.markUnavailable = true,
+    this.markUnavailable = MusicRowStyle.markUnavailable,
   });
 
   final Album album;
