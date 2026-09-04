@@ -2,27 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/design.dart';
+import '../../music/presentation/search/InlineMusicSearch.dart';
 import '../../playback/presentation/MiniPlayer.dart';
+import 'AppSidebar.dart';
+import 'HomeLibraryHeader.dart';
 import 'ShellDestination.dart';
 
-/// The persistent frame around every authenticated screen: a body that
-/// swaps per section, plus a bottom navigation bar.
+/// The persistent frame around every authenticated screen: a shared header
+/// (search + media-type pills), a body that swaps per section, a
+/// mini-player, and a bottom navigation bar.
 ///
 /// Backed by go_router's [StatefulNavigationShell], so each section keeps
 /// its own navigation stack and scroll position when the user switches
 /// tabs. The bottom bar is only rendered once there are at least two
 /// sections — with Home alone (v0.0.3) the shell is just the page, but the
 /// structure is already in place.
-class AppShell extends StatelessWidget {
+///
+/// Search is inline (ADR-0014), not a pushed page: activating it swaps the
+/// header out for [InlineMusicSearch] in place, so the bottom nav and
+/// mini-player stay put underneath it — this is presentation state local
+/// to the shell, not a route.
+class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  bool _searching = false;
+
+  void _startSearch() => setState(() => _searching = true);
+  void _stopSearch() => setState(() => _searching = false);
+
   void _goToBranch(int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
       // Tapping the active tab again pops it back to its root.
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 
@@ -32,7 +51,20 @@ class AppShell extends StatelessWidget {
 
     return AppScaffold(
       padded: false,
-      body: navigationShell,
+      drawer: const AppSidebar(),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            if (!_searching) HomeLibraryHeader(onSearchTap: _startSearch),
+            Expanded(
+              child: _searching
+                  ? InlineMusicSearch(onClose: _stopSearch)
+                  : widget.navigationShell,
+            ),
+          ],
+        ),
+      ),
       bottomBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -40,7 +72,7 @@ class AppShell extends StatelessWidget {
           if (showBar)
             _ShellNavigationBar(
               onSelected: _goToBranch,
-              currentIndex: navigationShell.currentIndex,
+              currentIndex: widget.navigationShell.currentIndex,
             ),
         ],
       ),

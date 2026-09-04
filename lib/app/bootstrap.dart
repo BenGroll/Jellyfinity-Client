@@ -8,11 +8,14 @@ import '../core/logging/Logger.dart';
 import '../domain/media/ArtworkResolver.dart';
 import '../domain/playback/PlaybackEngine.dart';
 import '../infrastructure/artwork/ArtworkCache.dart';
+import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'di/service_locator.dart';
 import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
+import 'settings/SettingsCubit.dart';
+import 'settings/ShellNavigationMode.dart';
 
 /// Boots the application: wires configuration, dependency injection, and
 /// global error handling before the widget tree is built.
@@ -32,6 +35,19 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   ArtworkCache.configureImageCache();
 
   await configureDependencies();
+
+  // ShellNavigationMode can't be an @preResolve @module method (as
+  // JellyfinClientIdentity's device-id lookup is): injectable_generator
+  // cannot resolve a module method whose return type is an enum
+  // (`EnumElementImpl is not a subtype of ClassElement`). So, like
+  // PlaybackEngine below (for an unrelated reason), it is read here and
+  // registered with getIt directly — still before `runApp`, so the first
+  // frame already renders in the saved navigation mode rather than
+  // flashing the default and then swapping.
+  final initialNavigationMode = await SettingsCubit.loadInitialNavigationMode(
+    getIt<KeyValueStore>(),
+  );
+  getIt.registerSingleton<ShellNavigationMode>(initialNavigationMode);
 
   // JustAudioPlaybackEngine is BaseAudioHandler itself, and AudioService
   // .init() can only ever be called once per process — that makes it a
