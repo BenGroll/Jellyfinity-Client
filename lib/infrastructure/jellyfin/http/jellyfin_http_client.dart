@@ -16,9 +16,11 @@ import 'transport_error_mapper.dart';
 /// a `DioException` escape (ADR-0004 / ADR-0008).
 ///
 /// It is created per server (the base URL is fixed at construction), so it
-/// is not a DI singleton; `JellyfinServerProbe` builds one for a probe and
-/// v0.0.5 will build a session-scoped one after login. Tests pass their
-/// own [dio] with a fake adapter, so no real network is required.
+/// is not a DI singleton; `JellyfinServerProbe` builds one for a probe,
+/// the authenticator builds a token-less one for sign-in, and
+/// `JellyfinMediaApi` keeps a session-scoped one for the active server.
+/// Tests pass their own [dio] with a fake adapter, so no real network is
+/// required.
 class JellyfinHttpClient {
   JellyfinHttpClient({
     required String baseUrl,
@@ -96,6 +98,32 @@ class JellyfinHttpClient {
       return Result.err(_errorMapper.map(error, stackTrace));
     }
     return _decode(response, parse);
+  }
+
+  /// Sends [method] to [path] and discards any response body.
+  ///
+  /// For endpoints whose result is the status code — marking an item
+  /// played, deleting a flag. Same contract as the JSON methods: a
+  /// transport failure comes back as `Err`, never as an exception.
+  Future<Result<void>> send(
+    String path, {
+    required String method,
+    Object? body,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      await _dio.request<dynamic>(
+        path,
+        data: body,
+        queryParameters: queryParameters,
+        cancelToken: cancelToken,
+        options: Options(method: method),
+      );
+      return const Result.ok(null);
+    } catch (error, stackTrace) {
+      return Result.err(_errorMapper.map(error, stackTrace));
+    }
   }
 
   Result<T> _decode<T>(

@@ -6,12 +6,15 @@ import 'package:jellyfinity/app/session/auth_session_manager.dart';
 import 'package:jellyfinity/app/session/session_auth_token_provider.dart';
 import 'package:jellyfinity/app/session/session_cubit.dart';
 import 'package:jellyfinity/core/logging/logger.dart';
+import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/domain/session/account_store.dart';
 import 'package:jellyfinity/domain/session/credential_store.dart';
 import 'package:jellyfinity/domain/session/jellyfin_authenticator.dart';
 import 'package:jellyfinity/domain/session/server_registry.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_session_context.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_media_api.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart';
 import 'package:jellyfinity/app/di/service_locator.dart';
 
@@ -61,6 +64,25 @@ void main() {
       expect(getIt<JellyfinAuthenticator>(), isA<JellyfinAuthenticator>());
       expect(getIt<AuthSessionManager>(), isA<AuthSessionManager>());
       expect(getIt<SessionCubit>(), isA<SessionCubit>());
+    });
+
+    test('wires the media repositories (ADR-0011)', () async {
+      await configureDependencies();
+
+      // Feature code resolves the contracts; the Jellyfin-backed
+      // implementations behind them stay an infrastructure detail.
+      expect(getIt<MusicLibraryRepository>(), isA<MusicLibraryRepository>());
+      expect(getIt<PlaylistRepository>(), isA<PlaylistRepository>());
+      expect(getIt<MediaMetadataRepository>(), isA<MediaMetadataRepository>());
+      expect(
+        getIt<PlaybackProgressRepository>(),
+        isA<PlaybackProgressRepository>(),
+      );
+      expect(getIt<ArtworkResolver>(), isA<ArtworkResolver>());
+      expect(getIt<JellyfinMediaApi>(), isA<JellyfinMediaApi>());
+      // The media layer reads the active profile through the same kind
+      // of seam the token provider uses.
+      expect(getIt<JellyfinSessionContext>().serverId, isNull);
     });
 
     test('wires the local database and its stores (ADR-0010)', () async {
