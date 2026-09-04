@@ -18,7 +18,12 @@ import 'jellyfin_media_api.dart';
 /// The result is domain entities. Nothing above this class knows that
 /// `Audio`, `AlbumArtistIds` or `RunTimeTicks` exist — which is what
 /// v0.0.7 is for.
-@LazySingleton(as: MusicLibraryRepository)
+///
+/// Since v0.0.8 this is the *remote half* of the contract rather than the
+/// whole of it: `CachedMusicLibraryRepository` is what resolves for
+/// `MusicLibraryRepository`, and it wraps this one. That is why this class
+/// is registered as itself.
+@lazySingleton
 class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   JellyfinMusicLibraryRepository(this._api);
 

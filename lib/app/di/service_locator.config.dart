@@ -57,6 +57,10 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistReposi
     as _i516;
 import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.dart'
     as _i906;
+import 'package:jellyfinity/infrastructure/media/CachedMusicLibraryRepository.dart'
+    as _i664;
+import 'package:jellyfinity/infrastructure/media/CachedPlaylistRepository.dart'
+    as _i246;
 import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart'
     as _i242;
 import 'package:jellyfinity/infrastructure/persistence/DatabaseModule.dart'
@@ -182,7 +186,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i747.MediaMetadataRepository>(
       () => _i830.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
     );
-    gh.lazySingleton<_i747.PlaylistRepository>(
+    gh.lazySingleton<_i814.JellyfinMusicLibraryRepository>(
+      () => _i814.JellyfinMusicLibraryRepository(gh<_i963.JellyfinMediaApi>()),
+    );
+    gh.lazySingleton<_i516.JellyfinPlaylistRepository>(
       () => _i516.JellyfinPlaylistRepository(gh<_i963.JellyfinMediaApi>()),
     );
     gh.factory<_i322.AccountsCubit>(
@@ -192,12 +199,23 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
       ),
     );
+    gh.lazySingleton<_i747.PlaylistRepository>(
+      () => _i246.CachedPlaylistRepository(
+        gh<_i516.JellyfinPlaylistRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i346.JellyfinSessionContext>(),
+      ),
+    );
     gh.lazySingleton<_i747.PlaybackProgressRepository>(
       () =>
           _i36.JellyfinPlaybackProgressRepository(gh<_i963.JellyfinMediaApi>()),
     );
     gh.lazySingleton<_i747.MusicLibraryRepository>(
-      () => _i814.JellyfinMusicLibraryRepository(gh<_i963.JellyfinMediaApi>()),
+      () => _i664.CachedMusicLibraryRepository(
+        gh<_i814.JellyfinMusicLibraryRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i346.JellyfinSessionContext>(),
+      ),
     );
     return this;
   }

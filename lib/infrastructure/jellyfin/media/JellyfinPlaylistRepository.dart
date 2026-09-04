@@ -6,7 +6,11 @@ import 'BaseItemMapper.dart';
 import 'jellyfin_media_api.dart';
 
 /// [PlaylistRepository] backed by the active session's Jellyfin server.
-@LazySingleton(as: PlaylistRepository)
+///
+/// The remote half of the contract: `CachedPlaylistRepository` is what
+/// resolves for [PlaylistRepository] and wraps this one, so this class is
+/// registered as itself.
+@lazySingleton
 class JellyfinPlaylistRepository implements PlaylistRepository {
   JellyfinPlaylistRepository(this._api);
 
