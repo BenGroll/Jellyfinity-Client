@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/library/MusicPage.dart';
+import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/search/MusicSearchPage.dart';
+import 'package:jellyfinity/features/music/presentation/search/SearchCategoryPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
+import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
 import 'package:jellyfinity/app/JellyfinityApp.dart';
 import 'package:jellyfinity/app/router/AppRouter.dart';
@@ -98,6 +101,56 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Page not found'), findsOneWidget);
+  });
+
+  testWidgets('Home leads into the music library', (tester) async {
+    final scope = TestSessionScope();
+    addTearDown(scope.cubit.close);
+    registerAuthCubits(scope);
+    registerMusicCubits(music: FakeMusicLibraryRepository());
+
+    final router = AppRouter(scope.cubit);
+    await tester.pumpWidget(
+      JellyfinityApp(router: router.config, session: scope.cubit),
+    );
+    await scope.cubit.restore();
+    await tester.pumpAndSettle();
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Browse music'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MusicPage), findsOneWidget);
+  });
+
+  testWidgets('"show all" opens the full results for one category', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..artistList = [
+        for (var i = 0; i < 12; i++) testArtist('a$i', name: 'Miles $i'),
+      ];
+    await _openMusic(tester, music);
+
+    await tester.tap(find.byIcon(Icons.search_rounded));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Miles');
+    await tester.pump(MusicSearchCubit.debounce);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    // Five of twelve are previewed; the rest are one tap away.
+    await tester.tap(find.text('Show all 12'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(find.byType(SearchCategoryPage), findsOneWidget);
+    // The full list, not the five-row preview.
+    expect(find.byType(ArtistRow), findsWidgets);
+    expect(find.text('Miles 0'), findsOneWidget);
   });
 
   testWidgets('search is reachable from the library', (tester) async {
