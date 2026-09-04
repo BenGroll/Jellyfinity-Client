@@ -7,7 +7,7 @@ import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
-import '../library/MusicPage.dart';
+import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/music_rows.dart';
@@ -95,7 +95,7 @@ class _ArtistDetailView extends StatelessWidget {
                   album: album,
                   markUnavailable: !state.isCached,
                   onTap: () => context.pushNamed(
-                    RouteNames.musicAlbum,
+                    RouteNames.libraryAlbum,
                     pathParameters: {'id': album.id.key},
                   ),
                 ),

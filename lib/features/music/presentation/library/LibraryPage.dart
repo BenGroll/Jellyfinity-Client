@@ -13,15 +13,18 @@ import '../widgets/paged_collection_view.dart';
 import 'music_collection_cubits.dart';
 import 'paged_collection_cubit.dart';
 
-/// The Music section: the library in the four shapes people look for it
-/// in.
+/// The Library tab, scoped to whichever media-type pill is active
+/// (`MediaScopeCubit`) — today always Music, so this is the library in the
+/// four shapes people look for it in.
 ///
 /// Each tab is an independent paged collection with its own cubit, all
 /// four created once for the page so switching tabs does not re-ask the
 /// server for a list the user was already looking at. Nothing is loaded
-/// until its tab is first opened.
-class MusicPage extends StatelessWidget {
-  const MusicPage({
+/// until its tab is first opened. Its own title bar and search action are
+/// gone as of ADR-0014 — `HomeLibraryHeader` (shared across every shell
+/// tab) provides both now.
+class LibraryPage extends StatelessWidget {
+  const LibraryPage({
     super.key,
     this.artists,
     this.albums,
@@ -51,13 +54,13 @@ class MusicPage extends StatelessWidget {
           create: (_) => playlists ?? getIt<PlaylistsCubit>(),
         ),
       ],
-      child: const _MusicView(),
+      child: const _LibraryView(),
     );
   }
 }
 
-class _MusicView extends StatelessWidget {
-  const _MusicView();
+class _LibraryView extends StatelessWidget {
+  const _LibraryView();
 
   @override
   Widget build(BuildContext context) {
@@ -65,45 +68,29 @@ class _MusicView extends StatelessWidget {
 
     return DefaultTabController(
       length: 4,
-      child: AppScaffold(
-        title: 'Music',
-        padded: false,
-        actions: [
-          IconButton(
-            onPressed: () => context.pushNamed(RouteNames.musicSearch),
-            icon: const Icon(Icons.search_rounded),
-            tooltip: 'Search music',
+      child: Column(
+        children: [
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: t.colors.textPrimary,
+            unselectedLabelColor: t.colors.textSecondary,
+            indicatorColor: t.colors.accent,
+            dividerColor: t.colors.border,
+            labelStyle: t.typography.titleMedium,
+            tabs: const [
+              Tab(text: 'Artists'),
+              Tab(text: 'Albums'),
+              Tab(text: 'Songs'),
+              Tab(text: 'Playlists'),
+            ],
+          ),
+          const Expanded(
+            child: TabBarView(
+              children: [ArtistsTab(), AlbumsTab(), SongsTab(), PlaylistsTab()],
+            ),
           ),
         ],
-        body: Column(
-          children: [
-            TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              labelColor: t.colors.textPrimary,
-              unselectedLabelColor: t.colors.textSecondary,
-              indicatorColor: t.colors.accent,
-              dividerColor: t.colors.border,
-              labelStyle: t.typography.titleMedium,
-              tabs: const [
-                Tab(text: 'Artists'),
-                Tab(text: 'Albums'),
-                Tab(text: 'Songs'),
-                Tab(text: 'Playlists'),
-              ],
-            ),
-            const Expanded(
-              child: TabBarView(
-                children: [
-                  ArtistsTab(),
-                  AlbumsTab(),
-                  SongsTab(),
-                  PlaylistsTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -166,7 +153,7 @@ class _ArtistsTabState extends State<ArtistsTab>
             artist: artist,
             markUnavailable: !state.isCached,
             onTap: () => context.pushNamed(
-              RouteNames.musicArtist,
+              RouteNames.libraryArtist,
               pathParameters: {'id': artist.id.key},
             ),
           ),
@@ -218,7 +205,7 @@ class _AlbumsTabState extends State<AlbumsTab>
             album: album,
             markUnavailable: !state.isCached,
             onTap: () => context.pushNamed(
-              RouteNames.musicAlbum,
+              RouteNames.libraryAlbum,
               pathParameters: {'id': album.id.key},
             ),
           ),
@@ -331,7 +318,7 @@ class _PlaylistsTabState extends State<PlaylistsTab>
             playlist: playlist,
             markUnavailable: !state.isCached,
             onTap: () => context.pushNamed(
-              RouteNames.musicPlaylist,
+              RouteNames.libraryPlaylist,
               pathParameters: {'id': playlist.id.key},
             ),
           ),

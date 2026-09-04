@@ -5,7 +5,7 @@ import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/design/design.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
-import 'package:jellyfinity/features/music/presentation/library/MusicPage.dart';
+import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_skeletons.dart';
@@ -24,7 +24,7 @@ Future<void> _pumpMusic(
   final playlistRepository = playlists ?? FakePlaylistRepository();
   await pumpThemed(
     tester,
-    MusicPage(
+    LibraryPage(
       artists: ArtistsCubit(music, pageSize: pageSize),
       albums: AlbumsCubit(music, pageSize: pageSize),
       songs: SongsCubit(music, pageSize: pageSize),

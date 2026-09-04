@@ -20,6 +20,7 @@ class AppScaffold extends StatelessWidget {
     this.bottomBar,
     this.floatingActionButton,
     this.padded = true,
+    this.drawer,
   });
 
   final Widget body;
@@ -32,6 +33,12 @@ class AppScaffold extends StatelessWidget {
   final Widget? bottomBar;
   final Widget? floatingActionButton;
   final bool padded;
+
+  /// The app sidebar (`AppSidebar`), when this scaffold should offer one.
+  /// Flutter's `Scaffold` already gives a `Drawer` both the default
+  /// left-edge swipe and (when no custom `leading` is set) an automatic
+  /// menu button — no bespoke gesture code needed.
+  final Widget? drawer;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +71,7 @@ class AppScaffold extends StatelessWidget {
             ),
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomBar,
+      drawer: drawer,
       body: SafeArea(
         top: false,
         child: Padding(

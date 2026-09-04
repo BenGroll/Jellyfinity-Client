@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/app/JellyfinityApp.dart';
 import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/router/route_paths.dart';
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_page.dart';
@@ -8,7 +7,7 @@ import 'package:jellyfinity/features/onboarding/presentation/WelcomePage.dart';
 import 'package:jellyfinity/features/shell/presentation/NotFoundPage.dart';
 import 'package:jellyfinity/features/shell/presentation/SplashPage.dart';
 
-import '../../support/playback_fakes.dart';
+import '../../support/pump_app.dart';
 import '../../support/session_fakes.dart';
 
 void main() {
@@ -17,22 +16,8 @@ void main() {
     bool restore = true,
   }) async {
     final scope = TestSessionScope();
-    addTearDown(scope.cubit.close);
-    registerAuthCubits(scope);
     final router = AppRouter(scope.cubit);
-    final playback = fakePlaybackCubit();
-    addTearDown(playback.close);
-    await tester.pumpWidget(
-      JellyfinityApp(
-        router: router.config,
-        session: scope.cubit,
-        playback: playback,
-      ),
-    );
-    if (restore) {
-      await scope.cubit.restore();
-      await tester.pumpAndSettle();
-    }
+    await pumpApp(tester, scope: scope, router: router, restore: restore);
     return (router, scope);
   }
 

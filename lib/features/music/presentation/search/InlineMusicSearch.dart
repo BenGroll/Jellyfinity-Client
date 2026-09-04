@@ -11,61 +11,60 @@ import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import 'music_search_cubit.dart';
 
-/// Music-scoped search: one field, four kept-apart categories.
-///
-/// Each category shows the first few matches and, when there are more,
-/// offers the rest as its own paged list. That is the "explicit category
-/// switching" `OUTLOOK.md` §12 describes, in the smallest form that is
-/// still honest about how many matches there are.
-class MusicSearchPage extends StatelessWidget {
-  const MusicSearchPage({super.key, this.cubit});
+/// Music-scoped search, rendered inline in [HomeLibraryHeader]'s content
+/// area rather than as a pushed page — ADR-0014 moved search out of a
+/// subscreen so it is reachable at the very top of the UI at all times.
+/// The field and the categorized results are unchanged from the page this
+/// replaces; only the surrounding chrome (title, back button, its own
+/// scaffold) is gone, since the shared header already provides that.
+class InlineMusicSearch extends StatelessWidget {
+  const InlineMusicSearch({super.key, this.cubit, this.onClose});
 
   final MusicSearchCubit? cubit;
+
+  /// Clears the field and returns to the normal Home/Library content.
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<MusicSearchCubit>(
       create: (_) => cubit ?? getIt<MusicSearchCubit>(),
-      child: const _MusicSearchView(),
+      child: _InlineSearchView(onClose: onClose),
     );
   }
 }
 
-class _MusicSearchView extends StatelessWidget {
-  const _MusicSearchView();
+class _InlineSearchView extends StatelessWidget {
+  const _InlineSearchView({this.onClose});
+
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return AppScaffold(
-      padded: false,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded),
-        onPressed: () => context.pop(),
-      ),
-      title: 'Search music',
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              t.spacing.md,
-              t.spacing.xs,
-              t.spacing.md,
-              t.spacing.sm,
-            ),
-            child: const _SearchField(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.spacing.md,
+            0,
+            t.spacing.md,
+            t.spacing.sm,
           ),
-          const Expanded(child: _SearchResults()),
-        ],
-      ),
+          child: _SearchField(onClose: onClose),
+        ),
+        Expanded(child: _SearchResults(onNavigate: onClose)),
+      ],
     );
   }
 }
 
 class _SearchField extends StatefulWidget {
-  const _SearchField();
+  const _SearchField({this.onClose});
+
+  final VoidCallback? onClose;
 
   @override
   State<_SearchField> createState() => _SearchFieldState();
@@ -98,18 +97,14 @@ class _SearchFieldState extends State<_SearchField> {
           color: t.colors.textDisabled,
         ),
         prefixIcon: Icon(Icons.search_rounded, color: t.colors.textSecondary),
-        suffixIcon: ValueListenableBuilder<TextEditingValue>(
-          valueListenable: _controller,
-          builder: (context, value, _) => value.text.isEmpty
-              ? const SizedBox.shrink()
-              : IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  tooltip: 'Clear',
-                  onPressed: () {
-                    _controller.clear();
-                    cubit.queryChanged('');
-                  },
-                ),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          tooltip: 'Close search',
+          onPressed: () {
+            _controller.clear();
+            cubit.queryChanged('');
+            widget.onClose?.call();
+          },
         ),
         filled: true,
         fillColor: t.colors.surfaceSunken,
@@ -127,7 +122,18 @@ class _SearchFieldState extends State<_SearchField> {
 }
 
 class _SearchResults extends StatelessWidget {
-  const _SearchResults();
+  const _SearchResults({this.onNavigate});
+
+  /// Called just before any result row (or "Show all") pushes a route.
+  ///
+  /// `InlineMusicSearch` replaces the shell's header/pills entirely while
+  /// active (`AppShell._searching`) rather than being a route itself, so
+  /// a route pushed from underneath it would otherwise be invisible: the
+  /// pushed page lives in the branch `Navigator` that `AppShell` is
+  /// currently not showing. Calling this hands control back to
+  /// `AppShell` first, so the branch (and the page just pushed onto it)
+  /// is what's on screen by the time the push resolves.
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -187,32 +193,43 @@ class _SearchResults extends StatelessWidget {
               category: SearchCategory.artists,
               query: state.query,
               section: state.artists,
+              onNavigate: onNavigate,
               rowBuilder: (context, artist) => ArtistRow(
                 artist: artist,
-                onTap: () => context.pushNamed(
-                  RouteNames.musicArtist,
-                  pathParameters: {'id': artist.id.key},
-                ),
+                onTap: () {
+                  onNavigate?.call();
+                  context.pushNamed(
+                    RouteNames.libraryArtist,
+                    pathParameters: {'id': artist.id.key},
+                  );
+                },
               ),
             ),
             _Section<Album>(
               category: SearchCategory.albums,
               query: state.query,
               section: state.albums,
+              onNavigate: onNavigate,
               rowBuilder: (context, album) => AlbumRow(
                 album: album,
-                onTap: () => context.pushNamed(
-                  RouteNames.musicAlbum,
-                  pathParameters: {'id': album.id.key},
-                ),
+                onTap: () {
+                  onNavigate?.call();
+                  context.pushNamed(
+                    RouteNames.libraryAlbum,
+                    pathParameters: {'id': album.id.key},
+                  );
+                },
               ),
             ),
             _Section<Track>(
               category: SearchCategory.songs,
               query: state.query,
               section: state.songs,
+              onNavigate: onNavigate,
               rowBuilder: (context, track) => TrackRow(
                 track: track,
+                // Playing a track starts the mini-player but does not
+                // navigate away, so search stays open — no onNavigate.
                 onTap: track.availability == MediaAvailability.remoteUnavailable
                     ? null
                     : () => context.read<PlaybackCubit>().playNow(
@@ -233,12 +250,16 @@ class _SearchResults extends StatelessWidget {
               category: SearchCategory.playlists,
               query: state.query,
               section: state.playlists,
+              onNavigate: onNavigate,
               rowBuilder: (context, playlist) => PlaylistRow(
                 playlist: playlist,
-                onTap: () => context.pushNamed(
-                  RouteNames.musicPlaylist,
-                  pathParameters: {'id': playlist.id.key},
-                ),
+                onTap: () {
+                  onNavigate?.call();
+                  context.pushNamed(
+                    RouteNames.libraryPlaylist,
+                    pathParameters: {'id': playlist.id.key},
+                  );
+                },
               ),
             ),
           ],
@@ -257,12 +278,14 @@ class _Section<T extends MediaItem> extends StatelessWidget {
     required this.query,
     required this.section,
     required this.rowBuilder,
+    this.onNavigate,
   });
 
   final SearchCategory category;
   final String query;
   final SearchSection<T> section;
   final Widget Function(BuildContext context, T item) rowBuilder;
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -288,11 +311,14 @@ class _Section<T extends MediaItem> extends StatelessWidget {
             ),
             if (section.hasMore)
               TextButton(
-                onPressed: () => context.pushNamed(
-                  RouteNames.musicSearchCategory,
-                  pathParameters: {'category': category.name},
-                  queryParameters: {'q': query},
-                ),
+                onPressed: () {
+                  onNavigate?.call();
+                  context.pushNamed(
+                    RouteNames.librarySearchCategory,
+                    pathParameters: {'category': category.name},
+                    queryParameters: {'q': query},
+                  );
+                },
                 child: Text('Show all ${section.total}'),
               ),
           ],
