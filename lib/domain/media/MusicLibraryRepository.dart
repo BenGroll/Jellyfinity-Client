@@ -27,17 +27,28 @@ import 'Track.dart';
 /// "everything" variant. Implementations must push filtering and sorting
 /// to the source (`PHILOSOPHY.md` §11) rather than fetching a library
 /// and narrowing it in Dart.
+///
+/// ## Searching
+///
+/// Search is a [searchTerm] on the same collection reads rather than a
+/// separate result type, which is what keeps `PHILOSOPHY.md` §8's
+/// category separation cheap: a music search is one scoped query per
+/// category, each paged like any other window, instead of one noisy list
+/// that has to be sorted back out afterwards. A blank or whitespace-only
+/// term means "no search", not "match nothing".
 abstract class MusicLibraryRepository {
   /// The library's album artists — the artists a music app lists, rather
   /// than every performer credited anywhere.
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
+    String? searchTerm,
   });
 
   /// Albums, optionally only those by [artistId].
   Future<Result<Page<Album>>> albums({
     PageRequest page = const PageRequest.first(),
     MediaId? artistId,
+    String? searchTerm,
   });
 
   /// Tracks, optionally only those on [albumId] or by [artistId].
@@ -48,6 +59,7 @@ abstract class MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,
     MediaId? artistId,
+    String? searchTerm,
   });
 
   /// One artist.

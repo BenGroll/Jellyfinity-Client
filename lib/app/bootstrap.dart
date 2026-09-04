@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
+import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import 'di/service_locator.dart';
 import 'session/SessionCubit.dart';
@@ -20,6 +21,10 @@ Future<void> bootstrap({required Widget Function() builder}) async {
 
   final config = AppConfig.fromEnvironment();
   getIt.registerSingleton<AppConfig>(config);
+
+  // Bound decoded artwork in memory before any of it is loaded
+  // (ADR-0010's artwork cache; the disk half bounds itself).
+  ArtworkCache.configureImageCache();
 
   await configureDependencies();
 

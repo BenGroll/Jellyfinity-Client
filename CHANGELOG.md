@@ -124,7 +124,7 @@ All notable changes to Jellyfinity are documented here.
   depending on the composition root — the same arrangement as
   `AuthTokenProvider`.
 - Artwork resolves to a sized URL rather than being fetched; the bounded
-  artwork cache still lands in v0.0.8, behind the same contract.
+  artwork cache lands in v0.0.8, behind the same contract.
 - `JellyfinHttpClient` gained `send()` for endpoints whose answer is
   their status code — marking an item played or unplayed.
 - Renamed every single-class file to `PascalCase` matching its class

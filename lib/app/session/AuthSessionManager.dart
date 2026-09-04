@@ -7,6 +7,7 @@ import '../../core/result/failure.dart';
 import '../../core/result/result.dart';
 import '../../domain/session/session.dart';
 import '../../infrastructure/jellyfin/server/JellyfinServerInfo.dart';
+import '../../infrastructure/persistence/media/media_cache_store.dart';
 
 /// Mints the local ids Jellyfinity assigns to saved servers and profiles.
 typedef LocalIdGenerator = String Function();
@@ -31,6 +32,7 @@ class AuthSessionManager {
     this._accounts,
     this._credentials,
     this._authenticator,
+    this._mediaCache,
     this._logger,
   );
 
@@ -38,6 +40,7 @@ class AuthSessionManager {
   final AccountStore _accounts;
   final CredentialStore _credentials;
   final JellyfinAuthenticator _authenticator;
+  final MediaCacheStore _mediaCache;
   final Logger _logger;
 
   /// How new local ids are minted. A settable seam (like
@@ -220,6 +223,10 @@ class AuthSessionManager {
 
   /// Removes a saved server, every profile on it, and their tokens. If
   /// the active profile was on that server, signs out.
+  ///
+  /// Also drops the cached metadata for that server's library: every
+  /// `MediaId` in it names a server that no longer exists, so the rows
+  /// could never be shown or refreshed again.
   Future<void> removeServer(String serverId) async {
     for (final account in await _accounts.forServer(serverId)) {
       await _credentials.deleteToken(account.id);
@@ -227,6 +234,7 @@ class AuthSessionManager {
       if (_current?.account.id == account.id) _current = null;
     }
     await _servers.remove(serverId);
+    await _mediaCache.clearServer(serverId);
   }
 
   Future<JellyfinAccount?> _activeAccount() async {

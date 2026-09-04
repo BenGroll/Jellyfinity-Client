@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Jellyfinity connects to whatever Jellyfin server the user points it at,
+  and a large share of self-hosted servers are plain http:// on a LAN with
+  no certificate. Release builds block cleartext by default, so a release
+  APK cannot reach an http:// server the app itself let the user enter.
+
+  Cleartext is therefore permitted. HTTPS is still used whenever the server
+  offers it (JellyfinServerUrl defaults a bare host to https://); this only
+  stops the platform from refusing an explicit http:// address.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

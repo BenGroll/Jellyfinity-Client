@@ -76,3 +76,121 @@ class KeyValueEntries extends Table {
   @override
   Set<Column<Object>> get primaryKey => {key};
 }
+
+/// Media metadata Jellyfinity has already read from a server, kept so a
+/// library the user has browsed stays browsable when the server does not
+/// answer (ADR-0010's "persisted metadata" category, ROADMAP v0.0.8's
+/// cached-browsing requirement).
+///
+/// One polymorphic table with a [kind] discriminator, mirroring how
+/// Jellyfin models items and how `MediaItem` models them: per-type tables
+/// would repeat the same six identity columns eight times and still need
+/// a join to answer "what is this id". Columns a given kind does not have
+/// stay null — a track has no production year, an artist has no duration.
+///
+/// Keyed by the pair `(server_id, item_id)`, because a Jellyfin item id
+/// means nothing without the server that issued it (`MediaId`).
+@DataClassName('CachedMediaItemRow')
+class CachedMediaItems extends Table {
+  /// Jellyfinity's local id for the server the item came from.
+  TextColumn get serverId => text()();
+
+  /// The item's id on that server.
+  TextColumn get itemId => text()();
+
+  /// `MediaKind.name` — how a row is turned back into the right entity.
+  TextColumn get kind => text()();
+
+  TextColumn get name => text()();
+
+  /// `MediaAvailability.name` as the server reported it when the row was
+  /// written. Preserves marks the server made (a missing episode); the
+  /// "you are offline" downgrade is applied at read time, not stored.
+  TextColumn get availability => text()();
+
+  /// The artwork pointer, flattened. `image_item_id` is the item that
+  /// *owns* the image, which for a song is its album.
+  TextColumn get imageItemId => text().nullable()();
+  TextColumn get imageKind => text().nullable()();
+  TextColumn get imageTag => text().nullable()();
+  RealColumn get imageAspectRatio => real().nullable()();
+
+  /// Artist credits as a JSON array of `{name, id?}` objects.
+  ///
+  /// Credits are a display list read only with the item that owns them,
+  /// never queried across items, so a join table would buy nothing and
+  /// cost a query per row on a 130k-row table.
+  TextColumn get artistsJson => text().nullable()();
+
+  /// The album a track belongs to, kept as id *and* name so a cached
+  /// track row renders without a second lookup.
+  TextColumn get albumItemId => text().nullable()();
+  TextColumn get albumName => text().nullable()();
+
+  IntColumn get trackNumber => integer().nullable()();
+  IntColumn get discNumber => integer().nullable()();
+
+  /// Running time in microseconds.
+  IntColumn get durationMicros => integer().nullable()();
+
+  IntColumn get productionYear => integer().nullable()();
+
+  /// An album's track count or a playlist's item count, as reported.
+  IntColumn get childCount => integer().nullable()();
+
+  /// When this row was last written (milliseconds since epoch).
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {serverId, itemId};
+}
+
+/// One collection Jellyfinity has read a window of — "this server's
+/// albums", "that artist's tracks" — identified by [collectionKey], the
+/// stable description of the query that produced it.
+///
+/// Holds what a cached read cannot reconstruct from the entries alone:
+/// how long the collection is on the server, so paging out of the cache
+/// ends where the real collection ends instead of where the cache does.
+@DataClassName('CachedCollectionRow')
+class CachedCollections extends Table {
+  TextColumn get serverId => text()();
+
+  /// The query in one string, e.g. `albums` or `tracks:album=<item id>`.
+  TextColumn get collectionKey => text()();
+
+  IntColumn get totalCount => integer()();
+
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {serverId, collectionKey};
+}
+
+/// The order of a cached collection: which item sits at which index.
+///
+/// Ordering lives here rather than being recomputed from the items,
+/// because the order is the *server's* (sort name, production year, disc
+/// and track number, or a playlist's own arrangement) and Jellyfinity
+/// must not invent its own version of it offline.
+///
+/// A row the server sent but Jellyfinity could not map keeps its place
+/// with an [unavailableReason] instead of an item: dropping it would
+/// shift every following track number by one.
+@DataClassName('CachedCollectionEntryRow')
+class CachedCollectionEntries extends Table {
+  TextColumn get serverId => text()();
+  TextColumn get collectionKey => text()();
+
+  /// The entry's index within the whole collection, not within a window.
+  IntColumn get position => integer()();
+
+  /// The `CachedMediaItems` row this position points at.
+  TextColumn get itemId => text()();
+
+  /// Set when this position could not be turned into an item.
+  TextColumn get unavailableReason => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {serverId, collectionKey, position};
+}

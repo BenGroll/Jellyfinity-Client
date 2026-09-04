@@ -11,6 +11,9 @@ import 'package:jellyfinity/domain/session/AccountStore.dart';
 import 'package:jellyfinity/domain/session/CredentialStore.dart';
 import 'package:jellyfinity/domain/session/JellyfinAuthenticator.dart';
 import 'package:jellyfinity/domain/session/ServerRegistry.dart';
+import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
+import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
+import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinSessionContext.dart';
@@ -65,6 +68,35 @@ void main() {
       expect(getIt<AuthSessionManager>(), isA<AuthSessionManager>());
       expect(getIt<SessionCubit>(), isA<SessionCubit>());
     });
+
+    test('every music cubit resolves from the graph (ADR-0012)', () async {
+      await configureDependencies();
+
+      // Resolution, not registration: a cubit can be registered and
+      // still throw when built — an optional constructor parameter the
+      // generator mistook for a dependency does exactly that, and only
+      // shows up when a screen asks for it.
+      expect(getIt<ArtistsCubit>(), isA<ArtistsCubit>());
+      expect(getIt<AlbumsCubit>(), isA<AlbumsCubit>());
+      expect(getIt<SongsCubit>(), isA<SongsCubit>());
+      expect(getIt<PlaylistsCubit>(), isA<PlaylistsCubit>());
+      expect(getIt<PlaylistTracksCubit>(), isA<PlaylistTracksCubit>());
+      expect(getIt<ArtistDetailCubit>(), isA<ArtistDetailCubit>());
+      expect(getIt<AlbumDetailCubit>(), isA<AlbumDetailCubit>());
+      expect(getIt<PlaylistDetailCubit>(), isA<PlaylistDetailCubit>());
+      expect(getIt<MusicSearchCubit>(), isA<MusicSearchCubit>());
+    });
+
+    test(
+      'a paged cubit keeps its own window size, not an injected one',
+      () async {
+        await configureDependencies();
+
+        // The generator must not try to supply `pageSize`; it is a tuning
+        // knob with a default, not something the graph knows about.
+        expect(getIt<SongsCubit>().pageSize, PageRequest.defaultLimit);
+      },
+    );
 
     test('wires the media repositories (ADR-0011)', () async {
       await configureDependencies();

@@ -37,6 +37,25 @@ class PageRequest extends Equatable {
   String toString() => 'PageRequest($startIndex..${startIndex + limit})';
 }
 
+/// Where a window of media came from.
+///
+/// `PHILOSOPHY.md` §2 lists "cached" and "offline" among the states the UI
+/// must be able to tell apart, so freshness is part of what a read
+/// returns. This is deliberately *not* which implementation answered
+/// (ADR-0010: the UI never learns that) — only whether what it is holding
+/// is current.
+enum PageSource {
+  /// Read from the server during this request.
+  server,
+
+  /// Served from Jellyfinity's local copy because the server could not be
+  /// reached. Still worth showing; must be shown as saved rather than
+  /// current.
+  cache;
+
+  bool get isCached => this == cache;
+}
+
 /// One window of a larger collection, plus what it takes to ask for the
 /// next one.
 ///
@@ -50,18 +69,21 @@ class Page<T> extends Equatable {
     required this.content,
     required this.startIndex,
     required this.totalCount,
+    this.source = PageSource.server,
   });
 
   /// A page holding exactly these items, as the whole collection. Handy
   /// for tests and for local sources that already have everything.
-  factory Page.of(List<T> items) => Page(
-    content: Partial(available: items),
-    startIndex: 0,
-    totalCount: items.length,
-  );
+  factory Page.of(List<T> items, {PageSource source = PageSource.server}) =>
+      Page(
+        content: Partial(available: items),
+        startIndex: 0,
+        totalCount: items.length,
+        source: source,
+      );
 
   /// An empty page — no items, nothing more to load.
-  const Page.empty()
+  const Page.empty({this.source = PageSource.server})
     : content = const Partial(available: []),
       startIndex = 0,
       totalCount = 0;
@@ -75,6 +97,11 @@ class Page<T> extends Equatable {
   /// How many items the collection holds in total, as the source
   /// reported it.
   final int totalCount;
+
+  /// Whether this window is current or saved. See [PageSource].
+  final PageSource source;
+
+  bool get isCached => source.isCached;
 
   List<T> get items => content.available;
 
@@ -102,5 +129,5 @@ class Page<T> extends Equatable {
   }
 
   @override
-  List<Object?> get props => [content, startIndex, totalCount];
+  List<Object?> get props => [content, startIndex, totalCount, source];
 }

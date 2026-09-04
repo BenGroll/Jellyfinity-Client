@@ -14,6 +14,7 @@ import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.d
 import 'package:jellyfinity/infrastructure/jellyfin/server/ServerVersion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'media_fakes.dart';
 import 'TestLogger.dart';
 
 /// In-memory [ServerRegistry] for tests.
@@ -157,11 +158,13 @@ class TestSessionScope {
     this.accounts = accounts ?? InMemoryAccountStore();
     this.credentials = credentials ?? InMemoryCredentialStore();
     authenticator = FakeJellyfinAuthenticator(result: authResult);
+    mediaCache = RecordingMediaCacheStore();
     manager = AuthSessionManager(
       this.servers,
       this.accounts,
       this.credentials,
       authenticator,
+      mediaCache,
       TestLogger(),
     );
     var counter = 0;
@@ -173,6 +176,7 @@ class TestSessionScope {
   late final InMemoryAccountStore accounts;
   late final InMemoryCredentialStore credentials;
   late final FakeJellyfinAuthenticator authenticator;
+  late final RecordingMediaCacheStore mediaCache;
   late final AuthSessionManager manager;
   late final SessionCubit cubit;
 

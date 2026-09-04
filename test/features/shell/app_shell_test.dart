@@ -16,17 +16,24 @@ void main() {
     expect(find.byType(HomePage), findsOneWidget);
   });
 
-  testWidgets('with a single destination no navigation bar is shown', (
+  testWidgets('shows a navigation bar once there is a second section', (
     tester,
   ) async {
-    // Guards the "don't build empty future sections" decision: the bar only
-    // appears once a second section is actually added.
-    expect(shellDestinations, hasLength(1));
+    // v0.0.3 shipped Home alone and deliberately hid the bar; v0.0.8's
+    // Music section is what makes it appear.
+    expect(shellDestinations.map((d) => d.label), ['Home', 'Music']);
 
     final scope = await pumpApp(tester);
     await scope.signIn();
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationBar), findsNothing);
+    final bar = find.byType(NavigationBar);
+    expect(bar, findsOneWidget);
+    for (final destination in shellDestinations) {
+      expect(
+        find.descendant(of: bar, matching: find.text(destination.label)),
+        findsOneWidget,
+      );
+    }
   });
 }

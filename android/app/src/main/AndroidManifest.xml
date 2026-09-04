@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter only adds INTERNET to the debug/profile manifests, so a
+         release build has no network access at all. Jellyfinity is useless
+         without it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Jellyfinity"
         android:name="${applicationName}"
