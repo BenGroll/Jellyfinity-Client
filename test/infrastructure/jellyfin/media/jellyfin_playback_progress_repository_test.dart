@@ -82,4 +82,57 @@ void main() {
     expect(result.failureOrNull, isA<UnavailableFailure>());
     expect(adapter.callCount, isZero);
   });
+
+  test('reports a playback session starting at position zero', () async {
+    final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+
+    final result = await _repository(adapter).reportStart(_movieId);
+
+    expect(result.isOk, isTrue);
+    expect(adapter.requests.single.method, 'POST');
+    expect(adapter.requests.single.path, '/Sessions/Playing');
+    final body = adapter.requests.single.data as Map;
+    expect(body['ItemId'], 'movie-1');
+    expect(body['PositionTicks'], 0);
+  });
+
+  test('reports live progress as ticks', () async {
+    final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+
+    final result = await _repository(adapter).reportProgress(
+      _movieId,
+      position: const Duration(minutes: 5),
+      isPaused: true,
+    );
+
+    expect(result.isOk, isTrue);
+    expect(adapter.requests.single.path, '/Sessions/Playing/Progress');
+    final body = adapter.requests.single.data as Map;
+    expect(body['PositionTicks'], 5 * _minuteInTicks);
+    expect(body['IsPaused'], isTrue);
+  });
+
+  test('reports where playback stopped', () async {
+    final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+
+    final result = await _repository(
+      adapter,
+    ).reportStop(_movieId, position: const Duration(minutes: 2));
+
+    expect(result.isOk, isTrue);
+    expect(adapter.requests.single.path, '/Sessions/Playing/Stopped');
+    final body = adapter.requests.single.data as Map;
+    expect(body['PositionTicks'], 2 * _minuteInTicks);
+  });
+
+  test('will not report progress for another server\'s item', () async {
+    final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+
+    final result = await _repository(
+      adapter,
+    ).reportStart(const MediaId(serverId: 'server-2', itemId: 'movie-1'));
+
+    expect(result.failureOrNull, isA<UnavailableFailure>());
+    expect(adapter.callCount, isZero);
+  });
 }
