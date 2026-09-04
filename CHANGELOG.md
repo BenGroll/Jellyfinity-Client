@@ -189,3 +189,11 @@ All notable changes to Jellyfinity are documented here.
   gained `UIBackgroundModes = [audio]`. Gapless playback and background/
   lock-screen behavior are verified on-device rather than by an
   automated test — nothing in this stack runs outside a real device.
+- Replaced the placeholder Flutter launcher icon with the real
+  Jellyfinity app icon. Android ships density-specific legacy and round
+  bitmaps plus an adaptive icon (navy `#000080` background, monochrome
+  foreground) for API 26+, and the manifest now declares a `roundIcon`
+  and the display label `Jellyfinity`. iOS gets the full `AppIcon`
+  asset catalogue, with every image flattened to opaque RGB so the
+  1024px marketing icon carries no alpha channel. The web `manifest.json`
+  and `index.html` lose their "A new Flutter project" boilerplate.
