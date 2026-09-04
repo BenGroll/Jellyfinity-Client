@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/minimum_server_version_policy.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/server_version.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/MinimumServerVersionPolicy.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/ServerVersion.dart';
 
 void main() {
   group('ServerVersion.tryParse', () {

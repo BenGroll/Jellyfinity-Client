@@ -2,24 +2,24 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/app/session/session_cubit.dart';
+import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/design/design.dart';
-import 'package:jellyfinity/domain/session/authenticated_user.dart';
+import 'package:jellyfinity/domain/session/AuthenticatedUser.dart';
 import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart';
 import 'package:jellyfinity/features/auth/presentation/login/login_page.dart';
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart';
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_page.dart';
-import 'package:jellyfinity/features/auth/presentation/widgets/inline_error.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/http/jellyfin_http_client.dart';
+import 'package:jellyfinity/features/auth/presentation/widgets/InlineError.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/http/JellyfinHttpClient.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.dart';
 
-import '../../support/fake_dio_adapter.dart';
+import '../../support/FakeDioAdapter.dart';
 import '../../support/session_fakes.dart';
-import '../../support/test_logger.dart';
+import '../../support/TestLogger.dart';
 
 const _identity = JellyfinClientIdentity(
   clientName: 'Jellyfinity',

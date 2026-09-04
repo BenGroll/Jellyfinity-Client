@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
-import 'package:jellyfinity/domain/session/authenticated_user.dart';
+import 'package:jellyfinity/domain/session/AuthenticatedUser.dart';
 import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart';
 
 import '../../support/session_fakes.dart';

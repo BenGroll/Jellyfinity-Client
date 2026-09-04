@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_url.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerUrl.dart';
 
 String _baseUrl(String input) {
   final result = JellyfinServerUrl.parse(input);

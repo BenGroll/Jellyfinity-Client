@@ -131,7 +131,7 @@ update, so editing a row does not reorder the list.
    (`if (from < N) { ... }`) — the database is **never** dropped on
    upgrade;
 3. regenerates the snapshot: `dart run drift_dev schema dump
-   lib/infrastructure/persistence/database/app_database.dart drift_schemas/`;
+   lib/infrastructure/persistence/database/AppDatabase.dart drift_schemas/`;
 4. adds a migration test that steps a v(N-1) database up to vN.
 
 The committed `drift_schemas/drift_schema_v1.json` is the reference for

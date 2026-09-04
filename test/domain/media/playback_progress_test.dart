@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/domain/media/playback_progress.dart';
+import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
 
 void main() {
   test('nothing played is not started and not resumable', () {

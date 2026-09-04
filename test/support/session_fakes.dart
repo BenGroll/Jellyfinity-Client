@@ -1,6 +1,6 @@
 import 'package:get_it/get_it.dart';
-import 'package:jellyfinity/app/session/auth_session_manager.dart';
-import 'package:jellyfinity/app/session/session_cubit.dart';
+import 'package:jellyfinity/app/session/AuthSessionManager.dart';
+import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/session/session.dart';
@@ -8,13 +8,13 @@ import 'package:jellyfinity/features/auth/presentation/accounts/accounts_cubit.d
 import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart';
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_info.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/jellyfin_server_probe.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/server/server_version.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerInfo.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/server/ServerVersion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'test_logger.dart';
+import 'TestLogger.dart';
 
 /// In-memory [ServerRegistry] for tests.
 class InMemoryServerRegistry implements ServerRegistry {

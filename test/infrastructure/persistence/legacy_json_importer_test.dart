@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/domain/session/jellyfin_server.dart';
-import 'package:jellyfinity/infrastructure/persistence/database/app_database.dart';
-import 'package:jellyfinity/infrastructure/persistence/drift_account_store.dart';
-import 'package:jellyfinity/infrastructure/persistence/drift_server_registry.dart';
+import 'package:jellyfinity/domain/session/JellyfinServer.dart';
+import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
+import 'package:jellyfinity/infrastructure/persistence/DriftAccountStore.dart';
+import 'package:jellyfinity/infrastructure/persistence/DriftServerRegistry.dart';
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
-import 'package:jellyfinity/infrastructure/persistence/legacy_json_importer.dart';
+import 'package:jellyfinity/infrastructure/persistence/LegacyJsonImporter.dart';
 
 import '../../support/test_database.dart';
-import '../../support/test_logger.dart';
+import '../../support/TestLogger.dart';
 
 void main() {
   late AppDatabase db;

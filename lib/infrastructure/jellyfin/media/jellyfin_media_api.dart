@@ -1,18 +1,18 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../core/logging/logger.dart';
+import '../../../core/logging/Logger.dart';
 import '../../../core/result/failure.dart';
 import '../../../core/result/result.dart';
-import '../../../domain/media/media_id.dart';
+import '../../../domain/media/MediaId.dart';
 import '../../../domain/media/page.dart';
-import '../http/jellyfin_http_client.dart';
+import '../http/JellyfinHttpClient.dart';
 import '../identity/auth_token_provider.dart';
-import '../identity/jellyfin_client_identity.dart';
-import '../identity/jellyfin_session_context.dart';
+import '../identity/JellyfinClientIdentity.dart';
+import '../identity/JellyfinSessionContext.dart';
 import 'base_item_dto.dart';
-import 'base_item_mapper.dart';
-import 'items_response_dto.dart';
+import 'BaseItemMapper.dart';
+import 'ItemsResponseDto.dart';
 
 /// Builds a [JellyfinHttpClient] for a base URL. Injected so tests can
 /// supply a client wired to a fake `dio` adapter (the pattern

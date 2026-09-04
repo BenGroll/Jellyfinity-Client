@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/domain/media/media.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_artwork_resolver.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinArtworkResolver.dart';
 
-import '../../../support/media_fakes.dart';
+import '../../../support/FakeSessionContext.dart';
 
 const _image = MediaImage(
   itemId: MediaId(serverId: 'server-1', itemId: 'album-1'),

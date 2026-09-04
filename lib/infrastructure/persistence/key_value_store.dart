@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
-import 'database/app_database.dart';
+import 'database/AppDatabase.dart';
 
 /// Structured persistent storage for small, non-sensitive application
 /// state: user preferences, the stable device id, the active-account

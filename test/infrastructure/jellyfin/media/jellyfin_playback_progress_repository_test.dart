@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/domain/media/media.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/media/jellyfin_playback_progress_repository.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaybackProgressRepository.dart';
 
-import '../../../support/fake_dio_adapter.dart';
-import '../../../support/media_fakes.dart';
+import '../../../support/FakeDioAdapter.dart';
+import '../../../support/FakeSessionContext.dart';
 
 const _movieId = MediaId(serverId: 'server-1', itemId: 'movie-1');
 const _minuteInTicks = 600000000;

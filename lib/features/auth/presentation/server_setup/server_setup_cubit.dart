@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/result/failure.dart';
-import '../../../../infrastructure/jellyfin/server/jellyfin_server_info.dart';
-import '../../../../infrastructure/jellyfin/server/jellyfin_server_probe.dart';
+import '../../../../infrastructure/jellyfin/server/JellyfinServerInfo.dart';
+import '../../../../infrastructure/jellyfin/server/JellyfinServerProbe.dart';
 
 /// Drives the "enter a server address" step: hand a raw string to
 /// `JellyfinServerProbe`, surface a clear result.

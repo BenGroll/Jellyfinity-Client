@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/features/home/presentation/home_page.dart';
-import 'package:jellyfinity/features/onboarding/presentation/welcome_page.dart';
+import 'package:jellyfinity/features/home/presentation/HomePage.dart';
+import 'package:jellyfinity/features/onboarding/presentation/WelcomePage.dart';
 
 import 'support/pump_app.dart';
 import 'support/session_fakes.dart';

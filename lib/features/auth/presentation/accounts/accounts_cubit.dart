@@ -2,11 +2,11 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../../app/session/session_cubit.dart';
-import '../../../../domain/session/account_store.dart';
-import '../../../../domain/session/jellyfin_account.dart';
-import '../../../../domain/session/jellyfin_server.dart';
-import '../../../../domain/session/server_registry.dart';
+import '../../../../app/session/SessionCubit.dart';
+import '../../../../domain/session/AccountStore.dart';
+import '../../../../domain/session/JellyfinAccount.dart';
+import '../../../../domain/session/JellyfinServer.dart';
+import '../../../../domain/session/ServerRegistry.dart';
 
 /// Backs the saved servers & profiles screen: list what is saved, mark
 /// the active profile, and route switch / sign-out / remove actions

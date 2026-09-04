@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
-import '../../../../domain/session/jellyfin_account.dart';
+import '../../../../domain/session/JellyfinAccount.dart';
 import 'accounts_cubit.dart';
 
 /// Saved servers & profiles: switch the active profile, sign out, or

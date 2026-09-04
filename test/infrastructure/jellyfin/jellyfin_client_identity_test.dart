@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/infrastructure/jellyfin/identity/jellyfin_client_identity.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart';
 
 void main() {
   const identity = JellyfinClientIdentity(

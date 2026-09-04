@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/app/session/session_jellyfin_context.dart';
+import 'package:jellyfinity/app/session/SessionJellyfinContext.dart';
 
 import '../../support/session_fakes.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/features/home/presentation/home_page.dart';
+import 'package:jellyfinity/features/home/presentation/HomePage.dart';
 import 'package:jellyfinity/features/shell/presentation/app_shell.dart';
-import 'package:jellyfinity/features/shell/presentation/shell_destination.dart';
+import 'package:jellyfinity/features/shell/presentation/ShellDestination.dart';
 
 import '../../support/pump_app.dart';
 

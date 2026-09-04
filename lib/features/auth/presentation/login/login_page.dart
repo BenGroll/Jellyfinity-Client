@@ -4,13 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/router/route_paths.dart';
-import '../../../../app/session/session_cubit.dart';
-import '../../../../app/session/session_state.dart';
+import '../../../../app/session/SessionCubit.dart';
+import '../../../../app/session/SessionState.dart';
 import '../../../../app/session/session_status.dart';
 import '../../../../design/design.dart';
-import '../../../../infrastructure/jellyfin/server/jellyfin_server_info.dart';
-import '../widgets/auth_text_field.dart';
-import '../widgets/inline_error.dart';
+import '../../../../infrastructure/jellyfin/server/JellyfinServerInfo.dart';
+import '../widgets/AuthTextField.dart';
+import '../widgets/InlineError.dart';
 import 'login_cubit.dart';
 
 /// Step two of connecting: enter Jellyfin credentials for a server that

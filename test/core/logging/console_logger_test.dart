@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfinity/core/logging/console_logger.dart';
-import 'package:jellyfinity/core/logging/logger.dart';
+import 'package:jellyfinity/core/logging/ConsoleLogger.dart';
+import 'package:jellyfinity/core/logging/Logger.dart';
 
 void main() {
   group('ConsoleLogger', () {

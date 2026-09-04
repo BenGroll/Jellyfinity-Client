@@ -16,6 +16,23 @@ Use focused branches:
 - `docs/...`
 - `chore/...`
 
+## File naming
+
+A file that declares exactly one top-level class is named after that
+class, in `PascalCase` (e.g. `class MediaId` lives in `MediaId.dart`).
+This is Jellyfinity's one deliberate departure from Dart's usual
+`lower_case_with_underscores` file-naming convention; `analysis_options.yaml`
+disables `flutter_lints`' `file_names` rule for it.
+
+Everything else keeps `lower_case_with_underscores`:
+
+- files with no class (barrel/`library;` files, enums, extensions,
+  typedefs, top-level-function files);
+- files with more than one class;
+- every `..._test.dart` file, regardless of what it declares — the
+  `_test.dart` suffix is how `flutter test` discovers tests, so it is
+  never renamed away.
+
 ## Before committing
 
 Run:

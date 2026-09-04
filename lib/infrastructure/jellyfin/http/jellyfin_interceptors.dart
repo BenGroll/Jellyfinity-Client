@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 
-import '../../../core/logging/logger.dart';
+import '../../../core/logging/Logger.dart';
 import '../identity/auth_token_provider.dart';
-import '../identity/jellyfin_client_identity.dart';
+import '../identity/JellyfinClientIdentity.dart';
 
 /// Attaches Jellyfinity's identity (and the session token, once there is
 /// one) to every outgoing request as the single `Authorization` header
