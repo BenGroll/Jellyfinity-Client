@@ -33,6 +33,10 @@ import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart'
     as _i1045;
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart'
     as _i952;
+import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart'
+    as _i213;
+import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart'
+    as _i618;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
     as _i833;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
@@ -57,6 +61,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistReposi
     as _i516;
 import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.dart'
     as _i906;
+import 'package:jellyfinity/infrastructure/media/CachedMediaMetadataRepository.dart'
+    as _i912;
 import 'package:jellyfinity/infrastructure/media/CachedMusicLibraryRepository.dart'
     as _i664;
 import 'package:jellyfinity/infrastructure/media/CachedPlaylistRepository.dart'
@@ -183,7 +189,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i952.ServerSetupCubit>(
       () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
     );
-    gh.lazySingleton<_i747.MediaMetadataRepository>(
+    gh.lazySingleton<_i830.JellyfinMediaMetadataRepository>(
       () => _i830.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
     );
     gh.lazySingleton<_i814.JellyfinMusicLibraryRepository>(
@@ -210,12 +216,57 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i36.JellyfinPlaybackProgressRepository(gh<_i963.JellyfinMediaApi>()),
     );
+    gh.lazySingleton<_i747.MediaMetadataRepository>(
+      () => _i912.CachedMediaMetadataRepository(
+        gh<_i830.JellyfinMediaMetadataRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+      ),
+    );
     gh.lazySingleton<_i747.MusicLibraryRepository>(
       () => _i664.CachedMusicLibraryRepository(
         gh<_i814.JellyfinMusicLibraryRepository>(),
         gh<_i1018.MediaCacheStore>(),
         gh<_i346.JellyfinSessionContext>(),
       ),
+    );
+    gh.factory<_i618.ArtistsCubit>(
+      () => _i618.ArtistsCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        pageSize: gh<int>(),
+      ),
+    );
+    gh.factory<_i618.AlbumsCubit>(
+      () => _i618.AlbumsCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        pageSize: gh<int>(),
+      ),
+    );
+    gh.factory<_i618.SongsCubit>(
+      () => _i618.SongsCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        pageSize: gh<int>(),
+      ),
+    );
+    gh.factory<_i618.PlaylistsCubit>(
+      () => _i618.PlaylistsCubit(
+        gh<_i747.PlaylistRepository>(),
+        pageSize: gh<int>(),
+      ),
+    );
+    gh.factory<_i618.PlaylistTracksCubit>(
+      () => _i618.PlaylistTracksCubit(
+        gh<_i747.PlaylistRepository>(),
+        pageSize: gh<int>(),
+      ),
+    );
+    gh.factory<_i213.PlaylistDetailCubit>(
+      () => _i213.PlaylistDetailCubit(gh<_i747.MediaMetadataRepository>()),
+    );
+    gh.factory<_i213.ArtistDetailCubit>(
+      () => _i213.ArtistDetailCubit(gh<_i747.MusicLibraryRepository>()),
+    );
+    gh.factory<_i213.AlbumDetailCubit>(
+      () => _i213.AlbumDetailCubit(gh<_i747.MusicLibraryRepository>()),
     );
     return this;
   }
