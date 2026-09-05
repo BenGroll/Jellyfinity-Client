@@ -14,25 +14,36 @@ import 'PlaylistPickerSheet.dart';
 /// to back the button without a second fetch" contract the old Play
 /// button already relied on.
 class MediaPlaybackActionsRow extends StatelessWidget {
-  const MediaPlaybackActionsRow({super.key, required this.tracks});
+  const MediaPlaybackActionsRow({super.key, required this.tracks, this.favorite});
 
   final List<Track> tracks;
+
+  /// Album's heart button (v0.1.6), shown beside the overflow button
+  /// rather than in the app bar. `null` for Playlist, which has none.
+  final Widget? favorite;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final hasTracks = tracks.isNotEmpty;
 
+    // Shuffle and (favorite +) overflow sit in equal-width `Expanded`
+    // slots on either side of Play, so Play stays centered no matter
+    // which side carries an extra icon.
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        IconButton(
-          icon: const Icon(Icons.shuffle_rounded),
-          tooltip: 'Shuffle',
-          color: t.colors.textPrimary,
-          onPressed: hasTracks
-              ? () => context.read<PlaybackCubit>().playShuffled(tracks)
-              : null,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.shuffle_rounded),
+              tooltip: 'Shuffle',
+              color: t.colors.textPrimary,
+              onPressed: hasTracks
+                  ? () => context.read<PlaybackCubit>().playShuffled(tracks)
+                  : null,
+            ),
+          ),
         ),
         SizedBox(width: t.spacing.lg),
         IconButton(
@@ -46,11 +57,22 @@ class MediaPlaybackActionsRow extends StatelessWidget {
               : null,
         ),
         SizedBox(width: t.spacing.lg),
-        IconButton(
-          icon: const Icon(Icons.more_vert_rounded),
-          tooltip: 'More',
-          color: t.colors.textPrimary,
-          onPressed: hasTracks ? () => _openMenu(context) : null,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (favorite != null) ...[favorite!, SizedBox(width: t.spacing.xs)],
+                IconButton(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  tooltip: 'More',
+                  color: t.colors.textPrimary,
+                  onPressed: hasTracks ? () => _openMenu(context) : null,
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );

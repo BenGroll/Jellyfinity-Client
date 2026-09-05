@@ -235,7 +235,9 @@ void main() {
     await tester.tap(find.text('So What'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
     await tester.pumpAndSettle();
 
     expect(find.byType(QueuePage), findsOneWidget);
@@ -269,7 +271,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('So What'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.clear_rounded));
@@ -306,7 +310,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('So What'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.clear_rounded));
@@ -330,7 +336,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('So What'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.close_rounded));
@@ -448,7 +456,9 @@ void main() {
       await tester.tap(find.text('So What'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lyrics'));
       await tester.pumpAndSettle();
 
       expect(find.byType(LyricsPage), findsOneWidget);
@@ -472,7 +482,9 @@ void main() {
       await tester.tap(find.text('So What'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lyrics'));
       await tester.pumpAndSettle();
 
       expect(find.text('No lyrics available'), findsOneWidget);
@@ -511,7 +523,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('So What'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lyrics'));
       await tester.pumpAndSettle();
 
       expect(find.text('Try again'), findsOneWidget);
@@ -551,7 +565,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('So What'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lyrics'));
       await tester.pumpAndSettle();
 
       Color colorOf(String text) =>

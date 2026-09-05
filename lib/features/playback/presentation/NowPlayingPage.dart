@@ -109,23 +109,10 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
           onPressed: () => context.pop(),
         ),
+        // Lyrics and Queue are folded into the overflow sheet below
+        // (v0.1.6) rather than each keeping their own app bar icon; the
+        // heart moves down next to the title instead of living up here.
         actions: [
-          BlocBuilder<NowPlayingDetailsCubit, NowPlayingDetailsState>(
-            builder: (context, details) {
-              final track = details.track;
-              if (track == null) return const SizedBox.shrink();
-              return FavoriteButton(
-                isFavorite: track.isFavorite,
-                onChanged: (favorite) async {
-                  final result = await getIt<FavoritesRepository>().setFavorite(
-                    track.id,
-                    favorite: favorite,
-                  );
-                  return result.isOk;
-                },
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.more_vert_rounded),
             tooltip: 'More',
@@ -133,18 +120,11 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
               context,
               onPlayNext: () => cubit.playNextEntry(entry),
               onAddToQueue: () => cubit.addEntryToQueue(entry),
+              onLyrics: () => context.pushNamed(RouteNames.nowPlayingLyrics),
+              onOpenQueue: state.hasQueue
+                  ? () => context.pushNamed(RouteNames.nowPlayingQueue)
+                  : null,
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.lyrics_outlined),
-            tooltip: 'Lyrics',
-            onPressed: () => context.pushNamed(RouteNames.nowPlayingLyrics),
-          ),
-          IconButton(
-            icon: const Icon(Icons.queue_music_rounded),
-            onPressed: state.hasQueue
-                ? () => context.pushNamed(RouteNames.nowPlayingQueue)
-                : null,
           ),
         ],
         body: Stack(
@@ -166,14 +146,39 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                     ),
                   ),
                   SizedBox(height: t.spacing.xl),
-                  Text(
-                    entry.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.typography.titleLarge.copyWith(
-                      color: t.colors.textPrimary,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          entry.title,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.typography.headlineLarge.copyWith(
+                            color: t.colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      BlocBuilder<NowPlayingDetailsCubit, NowPlayingDetailsState>(
+                        builder: (context, details) {
+                          final track = details.track;
+                          if (track == null) return const SizedBox.shrink();
+                          return Padding(
+                            padding: EdgeInsets.only(left: t.spacing.xs),
+                            child: FavoriteButton(
+                              isFavorite: track.isFavorite,
+                              onChanged: (favorite) async {
+                                final result = await getIt<FavoritesRepository>()
+                                    .setFavorite(track.id, favorite: favorite);
+                                return result.isOk;
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   _ArtistAlbumLinks(entry: entry),
                   const _SourceQualityRow(),
@@ -214,11 +219,14 @@ class _BlurredBackground extends StatelessWidget {
     return ColoredBox(
       color: t.colors.background,
       child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+        // Strong enough that the foreground text stays readable over any
+        // artwork (v0.1.6 feedback: the original 50-sigma blur still left
+        // enough detail to compete with the title/transport controls).
+        imageFilter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
         child: Transform.scale(
           // Blurring pulls the image's own edge color inward; scaling up
           // keeps that edge outside the visible bounds.
-          scale: 1.4,
+          scale: 1.6,
           child: CachedNetworkImage(
             imageUrl: url.toString(),
             cacheManager: ArtworkCache.instance,
@@ -263,9 +271,9 @@ class _ArtistAlbumLinks extends StatelessWidget {
               if (artistText != null)
                 _LinkOrText(
                   text: artistText,
-                  style: t.typography.bodyMedium.copyWith(
-                    color: t.colors.textSecondary,
-                  ),
+                  style: t.typography.bodyLarge,
+                  color: t.colors.textSecondary,
+                  linkColor: t.colors.accent,
                   onTap: artist != null && artist.isNavigable
                       ? () => _openLibraryRoute(
                           context,
@@ -277,9 +285,9 @@ class _ArtistAlbumLinks extends StatelessWidget {
               if (entry.albumName != null)
                 _LinkOrText(
                   text: entry.albumName!,
-                  style: t.typography.caption.copyWith(
-                    color: t.colors.textSecondary,
-                  ),
+                  style: t.typography.bodyMedium,
+                  color: t.colors.textSecondary,
+                  linkColor: t.colors.accent,
                   onTap: album != null
                       ? () => _openLibraryRoute(
                           context,
@@ -315,10 +323,21 @@ void _openLibraryRoute(BuildContext context, String routeName, String id) {
 }
 
 class _LinkOrText extends StatelessWidget {
-  const _LinkOrText({required this.text, required this.style, this.onTap});
+  const _LinkOrText({
+    required this.text,
+    required this.style,
+    required this.color,
+    required this.linkColor,
+    this.onTap,
+  });
 
   final String text;
   final TextStyle style;
+  final Color color;
+
+  /// Signals "tappable" through color alone — no underline, which reads
+  /// as noisy once a name is already accent-colored (v0.1.6).
+  final Color linkColor;
   final VoidCallback? onTap;
 
   @override
@@ -328,9 +347,7 @@ class _LinkOrText extends StatelessWidget {
       textAlign: TextAlign.center,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: onTap == null
-          ? style
-          : style.copyWith(decoration: TextDecoration.underline),
+      style: style.copyWith(color: onTap == null ? color : linkColor),
     );
     if (onTap == null) return content;
     return InkWell(onTap: onTap, child: content);

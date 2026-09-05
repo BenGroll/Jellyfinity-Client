@@ -93,16 +93,16 @@ class _MediaPillRow extends StatelessWidget {
     final t = context.tokens;
     final scope = context.watch<MediaScopeCubit>().state;
 
-    return SizedBox(
-      height: 34,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.fromLTRB(
-          t.spacing.md,
-          0,
-          t.spacing.md,
-          t.spacing.sm,
-        ),
+    // A fixed-height SizedBox around this row would clip the chip whenever
+    // its natural size (checkmark + label, both driven by the same caption
+    // text style) needs more room than a guessed pixel value — e.g. under a
+    // larger system text-scale setting. Sizing from content instead means
+    // the pill and everything inside it can only ever grow or shrink
+    // together.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.fromLTRB(t.spacing.md, 0, t.spacing.md, t.spacing.sm),
+      child: Row(
         children: [
           for (final c in scope.contexts)
             Padding(
@@ -111,13 +111,24 @@ class _MediaPillRow extends StatelessWidget {
                 label: Text(c.label),
                 selected: c.id == scope.activeId,
                 onSelected: (_) => context.read<MediaScopeCubit>().select(c.id),
+                showCheckmark: false,
+                avatar: c.id == scope.activeId
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: t.typography.caption.fontSize,
+                        color: t.colors.onAccent,
+                      )
+                    : null,
                 labelStyle: t.typography.caption.copyWith(
                   color: c.id == scope.activeId
                       ? t.colors.onAccent
                       : t.colors.textPrimary,
                 ),
                 labelPadding: EdgeInsets.symmetric(horizontal: t.spacing.xs),
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.spacing.xs,
+                  vertical: t.spacing.xxs,
+                ),
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 backgroundColor: t.colors.surfaceElevated,

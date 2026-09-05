@@ -158,6 +158,19 @@ String _qualityDescription(StreamQuality quality) => switch (quality) {
         'best for constrained connections.',
 };
 
+/// A rough, one-hour-of-continuous-playback estimate shown next to each
+/// tier in the dropdown, so "smallest downloads" has a concrete number
+/// attached. Original/lossless varies by source file — FLAC commonly runs
+/// 800 kbps-1.5 Mbps — so it is quoted as a round "~1 GB/hour" rather than
+/// a false-precision figure; the transcoded tiers are computed directly
+/// from their fixed bitrate above.
+String _qualityDataUsage(StreamQuality quality) => switch (quality) {
+  StreamQuality.original => '~1 GB/hour',
+  StreamQuality.high => '~140 MB/hour',
+  StreamQuality.medium => '~85 MB/hour',
+  StreamQuality.dataSaver => '~55 MB/hour',
+};
+
 /// The streaming-quality picker: a dropdown rather than one row per tier,
 /// with the selected tier's description shown beneath it once picked
 /// (v0.1.6) — the same information the old radio list carried, in less
@@ -199,7 +212,17 @@ class _StreamQualityDropdown extends StatelessWidget {
                   for (final quality in StreamQuality.values)
                     DropdownMenuItem(
                       value: quality,
-                      child: Text(_qualityTitle(quality)),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(_qualityTitle(quality))),
+                          Text(
+                            _qualityDataUsage(quality),
+                            style: t.typography.caption.copyWith(
+                              color: t.colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
                 onChanged: (quality) {

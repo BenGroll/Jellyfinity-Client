@@ -297,3 +297,21 @@ All notable changes to Jellyfinity are documented here.
     who created a playlist was investigated and dropped, since neither
     Jellyfin's item response nor its dedicated Playlists endpoint exposes
     an owner.
+- Follow-up fixes to the v0.1.6 interface refresh, from a first testing pass:
+  - Home's media-type pills size their label and selected checkmark from
+    content rather than a fixed pixel height, so neither gets clipped.
+  - The streaming-quality dropdown shows a rough data-usage-per-hour
+    estimate for each tier alongside its name.
+  - The Album and Now Playing pages: clickable artist/album names drop
+    their underline (the accent color already reads as a link); the
+    track title, artist, and album text are larger; Now Playing's heart
+    moves next to the title and its Lyrics/Queue actions fold into the
+    overflow menu, leaving one icon in the app bar; the Album page's
+    heart moves down next to Shuffle/Play/overflow instead of the app
+    bar, with Play staying centered; Now Playing's background blur is
+    stronger.
+  - Fixed a bug where toggling shuffle (or any other queue edit) could
+    make the currently playing track briefly jump to full volume before
+    settling back — `JustAudioPlaybackEngine` was re-levelling volume off
+    of `just_audio`'s transient, mid-reorder index reports, which could
+    momentarily disagree with the not-yet-updated source list.

@@ -219,6 +219,8 @@ void showTrackActionsSheet(
   BuildContext context, {
   VoidCallback? onPlayNext,
   VoidCallback? onAddToQueue,
+  VoidCallback? onLyrics,
+  VoidCallback? onOpenQueue,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -242,6 +244,28 @@ void showTrackActionsSheet(
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 onAddToQueue();
+              },
+            ),
+          // Lyrics and Queue are screens Now Playing links to, rather than
+          // queue-mutating actions like the two above — folded into the
+          // same sheet (v0.1.6) so its top app bar keeps only the heart
+          // and this one overflow button.
+          if (onLyrics != null)
+            ListTile(
+              leading: const Icon(Icons.lyrics_outlined),
+              title: const Text('Lyrics'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onLyrics();
+              },
+            ),
+          if (onOpenQueue != null)
+            ListTile(
+              leading: const Icon(Icons.queue_music_rounded),
+              title: const Text('Queue'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onOpenQueue();
               },
             ),
         ],

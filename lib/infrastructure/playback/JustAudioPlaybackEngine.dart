@@ -100,6 +100,22 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   Timer? _rampTimer;
   bool _crossfading = false;
 
+  /// True while [updateSources] is moving/inserting/removing sources on
+  /// the *active* deck to match a new play order (e.g. a shuffle toggle).
+  ///
+  /// `just_audio`'s `currentIndexStream` reports intermediate, transient
+  /// indices as each individual move/insert/remove lands — each of which
+  /// used to re-level the active deck's volume via [_onCurrentIndexChanged]
+  /// against [_sources], which is not updated until the whole batch
+  /// finishes. That mismatch could momentarily resolve to a different (or
+  /// out-of-range, gain-less) source and jump the volume up before
+  /// settling back once the batch's own final [_applyCurrentVolume] call
+  /// ran — audible as a brief, spurious spike on every reorder. Suppressing
+  /// both the volume and now-playing-metadata side effects until the batch
+  /// completes avoids that; [_currentIndexController] still forwards every
+  /// event, since `PlaybackCubit` already ignores them mid-batch itself.
+  bool _isRestructuring = false;
+
   /// The index the standby deck has been (or is being) loaded with.
   int? _preparedIndex;
   Future<void>? _preparation;
@@ -180,29 +196,37 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     final workingKeys = [...oldKeys];
     final workingSources = [..._sources];
 
-    for (var index = workingKeys.length - 1; index >= 0; index--) {
-      if (!desiredKeys.contains(workingKeys[index])) {
-        await _player.removeAudioSourceAt(index);
-        workingKeys.removeAt(index);
-        workingSources.removeAt(index);
+    _isRestructuring = true;
+    try {
+      for (var index = workingKeys.length - 1; index >= 0; index--) {
+        if (!desiredKeys.contains(workingKeys[index])) {
+          await _player.removeAudioSourceAt(index);
+          workingKeys.removeAt(index);
+          workingSources.removeAt(index);
+        }
       }
-    }
 
-    for (var index = 0; index < desiredKeys.length; index++) {
-      final key = desiredKeys[index];
-      if (index < workingKeys.length && workingKeys[index] == key) continue;
-      final existing = workingKeys.indexOf(key, index);
-      if (existing >= 0) {
-        await _player.moveAudioSource(existing, index);
-        final movedKey = workingKeys.removeAt(existing);
-        final movedSource = workingSources.removeAt(existing);
-        workingKeys.insert(index, movedKey);
-        workingSources.insert(index, movedSource);
-      } else {
-        await _player.insertAudioSource(index, _toAudioSource(sources[index]));
-        workingKeys.insert(index, key);
-        workingSources.insert(index, sources[index]);
+      for (var index = 0; index < desiredKeys.length; index++) {
+        final key = desiredKeys[index];
+        if (index < workingKeys.length && workingKeys[index] == key) continue;
+        final existing = workingKeys.indexOf(key, index);
+        if (existing >= 0) {
+          await _player.moveAudioSource(existing, index);
+          final movedKey = workingKeys.removeAt(existing);
+          final movedSource = workingSources.removeAt(existing);
+          workingKeys.insert(index, movedKey);
+          workingSources.insert(index, movedSource);
+        } else {
+          await _player.insertAudioSource(
+            index,
+            _toAudioSource(sources[index]),
+          );
+          workingKeys.insert(index, key);
+          workingSources.insert(index, sources[index]);
+        }
       }
+    } finally {
+      _isRestructuring = false;
     }
 
     _sources = List.unmodifiable(sources);
@@ -578,6 +602,11 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
 
   void _onCurrentIndexChanged(int? index) {
     _currentIndexController.add(index);
+    // Mid-restructure this index is transient and may not line up with
+    // `_sources` yet (see `_isRestructuring`'s doc comment) — the
+    // restructuring batch applies the correct metadata/volume itself once
+    // `_sources` is updated, exactly once.
+    if (_isRestructuring) return;
     if (index != null && index >= 0 && index < _sources.length) {
       mediaItem.add(_toMediaItem(_sources[index]));
     }

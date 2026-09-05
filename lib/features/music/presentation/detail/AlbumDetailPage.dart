@@ -70,18 +70,6 @@ class _AlbumDetailView extends StatelessWidget {
             onPressed: () => context.pop(),
           ),
           title: album?.name,
-          actions: album == null
-              ? const []
-              : [
-                  FavoriteButton(
-                    isFavorite: album.isFavorite,
-                    onChanged: (favorite) async {
-                      final result = await getIt<FavoritesRepository>()
-                          .setFavorite(album.id, favorite: favorite);
-                      return result.isOk;
-                    },
-                  ),
-                ],
           body: BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
             builder: (context, state) {
               final cubit = context.read<SongsCubit>();
@@ -187,7 +175,9 @@ class _AlbumHeader extends StatelessWidget {
         Text(
           album.name,
           textAlign: TextAlign.center,
-          style: t.typography.titleLarge.copyWith(color: t.colors.textPrimary),
+          style: t.typography.headlineLarge.copyWith(
+            color: t.colors.textPrimary,
+          ),
         ),
         if (album.artists.isNotEmpty) ...[
           SizedBox(height: t.spacing.xxs),
@@ -201,7 +191,19 @@ class _AlbumHeader extends StatelessWidget {
           ),
         ],
         SizedBox(height: t.spacing.md),
-        MediaPlaybackActionsRow(tracks: tracks),
+        MediaPlaybackActionsRow(
+          tracks: tracks,
+          favorite: FavoriteButton(
+            isFavorite: album.isFavorite,
+            onChanged: (favorite) async {
+              final result = await getIt<FavoritesRepository>().setFavorite(
+                album.id,
+                favorite: favorite,
+              );
+              return result.isOk;
+            },
+          ),
+        ),
         SizedBox(height: t.spacing.md),
       ],
     );
@@ -224,12 +226,17 @@ class _AlbumArtistCredit extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final style = t.typography.bodyMedium.copyWith(color: t.colors.accent);
+    // Accent color alone signals "clickable" here — no underline, which
+    // read as noisy once the artist name was made tappable (v0.1.6).
+    final plainStyle = t.typography.bodyLarge.copyWith(
+      color: t.colors.textSecondary,
+    );
+    final linkStyle = t.typography.bodyLarge.copyWith(color: t.colors.accent);
 
     final pieces = <Widget>[];
     for (var i = 0; i < artists.length; i++) {
       final artist = artists[i];
-      if (i > 0) pieces.add(Text(', ', style: style));
+      if (i > 0) pieces.add(Text(', ', style: plainStyle));
       pieces.add(
         artist.isNavigable
             ? InkWell(
@@ -237,12 +244,9 @@ class _AlbumArtistCredit extends StatelessWidget {
                   RouteNames.libraryArtist,
                   pathParameters: {'id': artist.id!.key},
                 ),
-                child: Text(
-                  artist.name,
-                  style: style.copyWith(decoration: TextDecoration.underline),
-                ),
+                child: Text(artist.name, style: linkStyle),
               )
-            : Text(artist.name, style: style),
+            : Text(artist.name, style: plainStyle),
       );
     }
 
