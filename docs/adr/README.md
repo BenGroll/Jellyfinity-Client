@@ -26,6 +26,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0020](ADR-0020-downloaded-tracks-and-albums.md) | Downloaded tracks and albums |
 | [0021](ADR-0021-downloadable-playlists.md) | Downloadable playlists |
 | [0022](ADR-0022-artist-downloads-quality-and-management.md) | Artist downloads, quality, and management |
+| [0023](ADR-0023-offline-library-and-recovery.md) | Offline library and recovery |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

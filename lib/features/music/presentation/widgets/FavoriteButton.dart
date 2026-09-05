@@ -14,6 +14,8 @@ class FavoriteButton extends StatefulWidget {
     super.key,
     required this.isFavorite,
     required this.onChanged,
+    this.unselectedColor,
+    this.iconSize,
   });
 
   final bool isFavorite;
@@ -21,6 +23,9 @@ class FavoriteButton extends StatefulWidget {
   /// Attempts to set the favorite flag to the given value on the server.
   /// Returns whether it succeeded.
   final Future<bool> Function(bool favorite) onChanged;
+
+  final Color? unselectedColor;
+  final double? iconSize;
 
   @override
   State<FavoriteButton> createState() => _FavoriteButtonState();
@@ -61,8 +66,11 @@ class _FavoriteButtonState extends State<FavoriteButton> {
       icon: Icon(
         _favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
       ),
+      iconSize: widget.iconSize,
       tooltip: _favorite ? 'Remove from favorites' : 'Add to favorites',
-      color: _favorite ? t.colors.accent : t.colors.textSecondary,
+      color: _favorite
+          ? t.colors.accent
+          : widget.unselectedColor ?? t.colors.textSecondary,
       onPressed: _toggle,
     );
   }

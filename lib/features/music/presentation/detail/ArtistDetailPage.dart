@@ -53,7 +53,48 @@ class ArtistDetailPage extends StatelessWidget {
           create: (_) => (stats ?? getIt<ArtistStatsCubit>())..open(artistId),
         ),
       ],
-      child: const _ArtistDetailView(),
+      child: _ArtistPresenceReconciler(
+        artistId: artistId,
+        child: const _ArtistDetailView(),
+      ),
+    );
+  }
+}
+
+/// Marks a downloaded artist's server-deleted tracks "only on this
+/// device" the first time the page is opened online (v0.2.3) — the
+/// artist counterpart to `ReconcileDownloadedCollection`, keyed off the
+/// albums list because the artist screen loads no flat track list.
+class _ArtistPresenceReconciler extends StatefulWidget {
+  const _ArtistPresenceReconciler({required this.artistId, required this.child});
+
+  final MediaId artistId;
+  final Widget child;
+
+  @override
+  State<_ArtistPresenceReconciler> createState() =>
+      _ArtistPresenceReconcilerState();
+}
+
+class _ArtistPresenceReconcilerState extends State<_ArtistPresenceReconciler> {
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AlbumsCubit, PagedCollectionState<Album>>(
+      listenWhen: (_, _) => !_done,
+      listener: (context, state) {
+        if (_done || !state.isReady || state.isCached) return;
+        final downloads = context.read<DownloadsCubit>();
+        if (downloads.state
+            .statusFor(DownloadOwner.artist(widget.artistId))
+            .isEmpty) {
+          return;
+        }
+        _done = true;
+        downloads.reconcileArtist(widget.artistId);
+      },
+      child: widget.child,
     );
   }
 }

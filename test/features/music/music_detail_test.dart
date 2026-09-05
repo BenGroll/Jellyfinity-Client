@@ -25,7 +25,7 @@ Future<void> _pumpAlbum(
     AlbumDetailPage(
       albumId: mediaId('al1'),
       detail: AlbumDetailCubit(music),
-      tracks: SongsCubit(music),
+      tracks: SongsCubit(music, FakeDownloadsLibrarySource()),
     ),
   );
 }

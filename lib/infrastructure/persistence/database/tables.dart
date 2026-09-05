@@ -250,15 +250,32 @@ class QueueEntries extends Table {
 /// a cached collection window). So every row carries its own denormalized
 /// display fields, and a download survives the cache being cleared.
 ///
-/// Keyed by `(server_id, item_id)` like every other media table: the
-/// same song on two servers is two downloads.
+/// Keyed by `(account_key, server_id, item_id)` (v0.2.3): the same song
+/// on two servers is two downloads, and the same song kept by two
+/// profiles on one server is two downloads too — a profile only ever
+/// sees, plays and manages its own (`ROADMAP.md` v0.2.3, "never expose
+/// one account's local media to another account").
 @DataClassName('TrackDownloadRow')
 class TrackDownloads extends Table {
+  /// The profile this download belongs to (v0.2.3): the server's local id
+  /// and the Jellyfin user id joined with a slash. Empty on a row written
+  /// before v0.2.3 — `DownloadsCubit`
+  /// claims those for the first profile to open the app after the upgrade,
+  /// which is the whole of the pre-v0.2.3 behaviour (one bucket, no
+  /// isolation) carried forward.
+  TextColumn get accountKey => text().withDefault(const Constant(''))();
+
   TextColumn get serverId => text()();
   TextColumn get itemId => text()();
 
   /// `DownloadState.name`.
   TextColumn get state => text()();
+
+  /// Set once the server has been reached and no longer lists this track
+  /// (v0.2.3). The file is kept and shown as "Only on this device" rather
+  /// than deleted or reported as a server error; never set from a merely
+  /// unreachable server.
+  BoolColumn get serverGone => boolean().withDefault(const Constant(false))();
 
   /// `DownloadFailureReason.name`, set only for a failed row.
   TextColumn get failureReason => text().nullable()();
@@ -298,7 +315,7 @@ class TrackDownloads extends Table {
   IntColumn get requestedAt => integer()();
 
   @override
-  Set<Column<Object>> get primaryKey => {serverId, itemId};
+  Set<Column<Object>> get primaryKey => {accountKey, serverId, itemId};
 }
 
 /// Why each downloaded file is being kept: one row per reason.
@@ -315,12 +332,19 @@ class TrackDownloads extends Table {
 /// here and half in a cascade the code cannot see.
 @DataClassName('DownloadOwnerRow')
 class DownloadOwners extends Table {
+  /// The profile whose download this reason belongs to (v0.2.3), matching
+  /// the [TrackDownloads] row it counts against. Reference counting is
+  /// per-profile: removing one profile's album never drops a claim
+  /// another profile's download holds.
+  TextColumn get accountKey => text().withDefault(const Constant(''))();
+
   TextColumn get serverId => text()();
 
   /// The downloaded track's item id.
   TextColumn get itemId => text()();
 
-  /// `DownloadOwnerKind.name` — `track`, `album` or (v0.2.1) `playlist`.
+  /// `DownloadOwnerKind.name` — `track`, `album`, (v0.2.1) `playlist` or
+  /// (v0.2.2) `artist`.
   TextColumn get ownerKind => text()();
 
   /// The owning item's id on the same server (the track's own id for a
@@ -330,6 +354,7 @@ class DownloadOwners extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {
+    accountKey,
     serverId,
     itemId,
     ownerKind,
@@ -360,6 +385,10 @@ class DownloadOwners extends Table {
 /// in one place.
 @DataClassName('PlaylistDownloadMemberRow')
 class PlaylistDownloadMembers extends Table {
+  /// The profile whose playlist download this snapshot belongs to
+  /// (v0.2.3), matching the [TrackDownloads] rows it orders.
+  TextColumn get accountKey => text().withDefault(const Constant(''))();
+
   TextColumn get serverId => text()();
 
   /// The downloaded playlist's own item id.
@@ -374,5 +403,59 @@ class PlaylistDownloadMembers extends Table {
   TextColumn get trackItemId => text()();
 
   @override
-  Set<Column<Object>> get primaryKey => {serverId, playlistItemId, position};
+  Set<Column<Object>> get primaryKey => {
+    accountKey,
+    serverId,
+    playlistItemId,
+    position,
+  };
+}
+
+/// The identity of a downloaded album, artist or playlist (v0.2.3),
+/// schema v6.
+///
+/// v0.2.0–v0.2.2 stored only per-track records: a downloaded collection's
+/// name and artwork were reconstructed from its tracks. That left a
+/// playlist — whose name is on none of its tracks — showing a generic
+/// label, and made a collection impossible to list or search offline
+/// before its tracks had been browsed. This table is that missing
+/// identity: one row per downloaded owner, carrying what a row or tile
+/// needs to render it with the server switched off.
+///
+/// Scoped by [accountKey] like [TrackDownloads]. `updatedAt` lets a later
+/// online open refresh a renamed collection or new artwork.
+@DataClassName('DownloadedCollectionRow')
+class DownloadedCollections extends Table {
+  TextColumn get accountKey => text().withDefault(const Constant(''))();
+
+  TextColumn get serverId => text()();
+
+  /// `DownloadOwnerKind.name` — `album`, `artist` or `playlist`. Never
+  /// `track`: a standalone track is its own [TrackDownloads] record.
+  TextColumn get ownerKind => text()();
+  TextColumn get ownerItemId => text()();
+
+  TextColumn get name => text()();
+
+  /// The lowercased name, so an offline listing orders and a search
+  /// matches without a `lower()` over every row of a scan.
+  TextColumn get sortName => text().withDefault(const Constant(''))();
+
+  /// Artwork pointer, flattened the same way [CachedMediaItems] flattens
+  /// it. Rendered offline from the artwork disk cache where it was seen
+  /// online; missing art falls back to the placeholder.
+  TextColumn get imageItemId => text().nullable()();
+  TextColumn get imageKind => text().nullable()();
+  TextColumn get imageTag => text().nullable()();
+  RealColumn get imageAspectRatio => real().nullable()();
+
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+    accountKey,
+    serverId,
+    ownerKind,
+    ownerItemId,
+  };
 }

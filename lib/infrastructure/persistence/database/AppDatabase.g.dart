@@ -3608,6 +3608,18 @@ class $TrackDownloadsTable extends TrackDownloads
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $TrackDownloadsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _serverIdMeta = const VerificationMeta(
     'serverId',
   );
@@ -3636,6 +3648,21 @@ class $TrackDownloadsTable extends TrackDownloads
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverGoneMeta = const VerificationMeta(
+    'serverGone',
+  );
+  @override
+  late final GeneratedColumn<bool> serverGone = GeneratedColumn<bool>(
+    'server_gone',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("server_gone" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _failureReasonMeta = const VerificationMeta(
     'failureReason',
@@ -3815,9 +3842,11 @@ class $TrackDownloadsTable extends TrackDownloads
   );
   @override
   List<GeneratedColumn> get $columns => [
+    accountKey,
     serverId,
     itemId,
     state,
+    serverGone,
     failureReason,
     receivedBytes,
     totalBytes,
@@ -3847,6 +3876,12 @@ class $TrackDownloadsTable extends TrackDownloads
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    }
     if (data.containsKey('server_id')) {
       context.handle(
         _serverIdMeta,
@@ -3870,6 +3905,12 @@ class $TrackDownloadsTable extends TrackDownloads
       );
     } else if (isInserting) {
       context.missing(_stateMeta);
+    }
+    if (data.containsKey('server_gone')) {
+      context.handle(
+        _serverGoneMeta,
+        serverGone.isAcceptableOrUnknown(data['server_gone']!, _serverGoneMeta),
+      );
     }
     if (data.containsKey('failure_reason')) {
       context.handle(
@@ -4005,11 +4046,15 @@ class $TrackDownloadsTable extends TrackDownloads
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {serverId, itemId};
+  Set<GeneratedColumn> get $primaryKey => {accountKey, serverId, itemId};
   @override
   TrackDownloadRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return TrackDownloadRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
       serverId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}server_id'],
@@ -4021,6 +4066,10 @@ class $TrackDownloadsTable extends TrackDownloads
       state: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}state'],
+      )!,
+      serverGone: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}server_gone'],
       )!,
       failureReason: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -4097,11 +4146,24 @@ class $TrackDownloadsTable extends TrackDownloads
 
 class TrackDownloadRow extends DataClass
     implements Insertable<TrackDownloadRow> {
+  /// The profile this download belongs to (v0.2.3): the server's local id
+  /// and the Jellyfin user id joined with a slash. Empty on a row written
+  /// before v0.2.3 — `DownloadsCubit`
+  /// claims those for the first profile to open the app after the upgrade,
+  /// which is the whole of the pre-v0.2.3 behaviour (one bucket, no
+  /// isolation) carried forward.
+  final String accountKey;
   final String serverId;
   final String itemId;
 
   /// `DownloadState.name`.
   final String state;
+
+  /// Set once the server has been reached and no longer lists this track
+  /// (v0.2.3). The file is kept and shown as "Only on this device" rather
+  /// than deleted or reported as a server error; never set from a merely
+  /// unreachable server.
+  final bool serverGone;
 
   /// `DownloadFailureReason.name`, set only for a failed row.
   final String? failureReason;
@@ -4135,9 +4197,11 @@ class TrackDownloadRow extends DataClass
   /// it. A monotonic insertion marker, like [SavedServers.addedAt].
   final int requestedAt;
   const TrackDownloadRow({
+    required this.accountKey,
     required this.serverId,
     required this.itemId,
     required this.state,
+    required this.serverGone,
     this.failureReason,
     required this.receivedBytes,
     this.totalBytes,
@@ -4158,9 +4222,11 @@ class TrackDownloadRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
     map['server_id'] = Variable<String>(serverId);
     map['item_id'] = Variable<String>(itemId);
     map['state'] = Variable<String>(state);
+    map['server_gone'] = Variable<bool>(serverGone);
     if (!nullToAbsent || failureReason != null) {
       map['failure_reason'] = Variable<String>(failureReason);
     }
@@ -4208,9 +4274,11 @@ class TrackDownloadRow extends DataClass
 
   TrackDownloadsCompanion toCompanion(bool nullToAbsent) {
     return TrackDownloadsCompanion(
+      accountKey: Value(accountKey),
       serverId: Value(serverId),
       itemId: Value(itemId),
       state: Value(state),
+      serverGone: Value(serverGone),
       failureReason: failureReason == null && nullToAbsent
           ? const Value.absent()
           : Value(failureReason),
@@ -4262,9 +4330,11 @@ class TrackDownloadRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return TrackDownloadRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
       serverId: serializer.fromJson<String>(json['serverId']),
       itemId: serializer.fromJson<String>(json['itemId']),
       state: serializer.fromJson<String>(json['state']),
+      serverGone: serializer.fromJson<bool>(json['serverGone']),
       failureReason: serializer.fromJson<String?>(json['failureReason']),
       receivedBytes: serializer.fromJson<int>(json['receivedBytes']),
       totalBytes: serializer.fromJson<int?>(json['totalBytes']),
@@ -4289,9 +4359,11 @@ class TrackDownloadRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
       'serverId': serializer.toJson<String>(serverId),
       'itemId': serializer.toJson<String>(itemId),
       'state': serializer.toJson<String>(state),
+      'serverGone': serializer.toJson<bool>(serverGone),
       'failureReason': serializer.toJson<String?>(failureReason),
       'receivedBytes': serializer.toJson<int>(receivedBytes),
       'totalBytes': serializer.toJson<int?>(totalBytes),
@@ -4312,9 +4384,11 @@ class TrackDownloadRow extends DataClass
   }
 
   TrackDownloadRow copyWith({
+    String? accountKey,
     String? serverId,
     String? itemId,
     String? state,
+    bool? serverGone,
     Value<String?> failureReason = const Value.absent(),
     int? receivedBytes,
     Value<int?> totalBytes = const Value.absent(),
@@ -4332,9 +4406,11 @@ class TrackDownloadRow extends DataClass
     Value<double?> imageAspectRatio = const Value.absent(),
     int? requestedAt,
   }) => TrackDownloadRow(
+    accountKey: accountKey ?? this.accountKey,
     serverId: serverId ?? this.serverId,
     itemId: itemId ?? this.itemId,
     state: state ?? this.state,
+    serverGone: serverGone ?? this.serverGone,
     failureReason: failureReason.present
         ? failureReason.value
         : this.failureReason,
@@ -4362,9 +4438,15 @@ class TrackDownloadRow extends DataClass
   );
   TrackDownloadRow copyWithCompanion(TrackDownloadsCompanion data) {
     return TrackDownloadRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
       serverId: data.serverId.present ? data.serverId.value : this.serverId,
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
       state: data.state.present ? data.state.value : this.state,
+      serverGone: data.serverGone.present
+          ? data.serverGone.value
+          : this.serverGone,
       failureReason: data.failureReason.present
           ? data.failureReason.value
           : this.failureReason,
@@ -4411,9 +4493,11 @@ class TrackDownloadRow extends DataClass
   @override
   String toString() {
     return (StringBuffer('TrackDownloadRow(')
+          ..write('accountKey: $accountKey, ')
           ..write('serverId: $serverId, ')
           ..write('itemId: $itemId, ')
           ..write('state: $state, ')
+          ..write('serverGone: $serverGone, ')
           ..write('failureReason: $failureReason, ')
           ..write('receivedBytes: $receivedBytes, ')
           ..write('totalBytes: $totalBytes, ')
@@ -4435,10 +4519,12 @@ class TrackDownloadRow extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
+    accountKey,
     serverId,
     itemId,
     state,
+    serverGone,
     failureReason,
     receivedBytes,
     totalBytes,
@@ -4455,14 +4541,16 @@ class TrackDownloadRow extends DataClass
     imageTag,
     imageAspectRatio,
     requestedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TrackDownloadRow &&
+          other.accountKey == this.accountKey &&
           other.serverId == this.serverId &&
           other.itemId == this.itemId &&
           other.state == this.state &&
+          other.serverGone == this.serverGone &&
           other.failureReason == this.failureReason &&
           other.receivedBytes == this.receivedBytes &&
           other.totalBytes == this.totalBytes &&
@@ -4482,9 +4570,11 @@ class TrackDownloadRow extends DataClass
 }
 
 class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
+  final Value<String> accountKey;
   final Value<String> serverId;
   final Value<String> itemId;
   final Value<String> state;
+  final Value<bool> serverGone;
   final Value<String?> failureReason;
   final Value<int> receivedBytes;
   final Value<int?> totalBytes;
@@ -4503,9 +4593,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
   final Value<int> requestedAt;
   final Value<int> rowid;
   const TrackDownloadsCompanion({
+    this.accountKey = const Value.absent(),
     this.serverId = const Value.absent(),
     this.itemId = const Value.absent(),
     this.state = const Value.absent(),
+    this.serverGone = const Value.absent(),
     this.failureReason = const Value.absent(),
     this.receivedBytes = const Value.absent(),
     this.totalBytes = const Value.absent(),
@@ -4525,9 +4617,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     this.rowid = const Value.absent(),
   });
   TrackDownloadsCompanion.insert({
+    this.accountKey = const Value.absent(),
     required String serverId,
     required String itemId,
     required String state,
+    this.serverGone = const Value.absent(),
     this.failureReason = const Value.absent(),
     this.receivedBytes = const Value.absent(),
     this.totalBytes = const Value.absent(),
@@ -4551,9 +4645,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
        title = Value(title),
        requestedAt = Value(requestedAt);
   static Insertable<TrackDownloadRow> custom({
+    Expression<String>? accountKey,
     Expression<String>? serverId,
     Expression<String>? itemId,
     Expression<String>? state,
+    Expression<bool>? serverGone,
     Expression<String>? failureReason,
     Expression<int>? receivedBytes,
     Expression<int>? totalBytes,
@@ -4573,9 +4669,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
       if (serverId != null) 'server_id': serverId,
       if (itemId != null) 'item_id': itemId,
       if (state != null) 'state': state,
+      if (serverGone != null) 'server_gone': serverGone,
       if (failureReason != null) 'failure_reason': failureReason,
       if (receivedBytes != null) 'received_bytes': receivedBytes,
       if (totalBytes != null) 'total_bytes': totalBytes,
@@ -4597,9 +4695,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
   }
 
   TrackDownloadsCompanion copyWith({
+    Value<String>? accountKey,
     Value<String>? serverId,
     Value<String>? itemId,
     Value<String>? state,
+    Value<bool>? serverGone,
     Value<String?>? failureReason,
     Value<int>? receivedBytes,
     Value<int?>? totalBytes,
@@ -4619,9 +4719,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     Value<int>? rowid,
   }) {
     return TrackDownloadsCompanion(
+      accountKey: accountKey ?? this.accountKey,
       serverId: serverId ?? this.serverId,
       itemId: itemId ?? this.itemId,
       state: state ?? this.state,
+      serverGone: serverGone ?? this.serverGone,
       failureReason: failureReason ?? this.failureReason,
       receivedBytes: receivedBytes ?? this.receivedBytes,
       totalBytes: totalBytes ?? this.totalBytes,
@@ -4645,6 +4747,9 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
     if (serverId.present) {
       map['server_id'] = Variable<String>(serverId.value);
     }
@@ -4653,6 +4758,9 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     }
     if (state.present) {
       map['state'] = Variable<String>(state.value);
+    }
+    if (serverGone.present) {
+      map['server_gone'] = Variable<bool>(serverGone.value);
     }
     if (failureReason.present) {
       map['failure_reason'] = Variable<String>(failureReason.value);
@@ -4711,9 +4819,11 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
   @override
   String toString() {
     return (StringBuffer('TrackDownloadsCompanion(')
+          ..write('accountKey: $accountKey, ')
           ..write('serverId: $serverId, ')
           ..write('itemId: $itemId, ')
           ..write('state: $state, ')
+          ..write('serverGone: $serverGone, ')
           ..write('failureReason: $failureReason, ')
           ..write('receivedBytes: $receivedBytes, ')
           ..write('totalBytes: $totalBytes, ')
@@ -4742,6 +4852,18 @@ class $DownloadOwnersTable extends DownloadOwners
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $DownloadOwnersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _serverIdMeta = const VerificationMeta(
     'serverId',
   );
@@ -4786,6 +4908,7 @@ class $DownloadOwnersTable extends DownloadOwners
   );
   @override
   List<GeneratedColumn> get $columns => [
+    accountKey,
     serverId,
     itemId,
     ownerKind,
@@ -4803,6 +4926,12 @@ class $DownloadOwnersTable extends DownloadOwners
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    }
     if (data.containsKey('server_id')) {
       context.handle(
         _serverIdMeta,
@@ -4843,6 +4972,7 @@ class $DownloadOwnersTable extends DownloadOwners
 
   @override
   Set<GeneratedColumn> get $primaryKey => {
+    accountKey,
     serverId,
     itemId,
     ownerKind,
@@ -4852,6 +4982,10 @@ class $DownloadOwnersTable extends DownloadOwners
   DownloadOwnerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return DownloadOwnerRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
       serverId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}server_id'],
@@ -4879,12 +5013,18 @@ class $DownloadOwnersTable extends DownloadOwners
 
 class DownloadOwnerRow extends DataClass
     implements Insertable<DownloadOwnerRow> {
+  /// The profile whose download this reason belongs to (v0.2.3), matching
+  /// the [TrackDownloads] row it counts against. Reference counting is
+  /// per-profile: removing one profile's album never drops a claim
+  /// another profile's download holds.
+  final String accountKey;
   final String serverId;
 
   /// The downloaded track's item id.
   final String itemId;
 
-  /// `DownloadOwnerKind.name` — `track`, `album` or (v0.2.1) `playlist`.
+  /// `DownloadOwnerKind.name` — `track`, `album`, (v0.2.1) `playlist` or
+  /// (v0.2.2) `artist`.
   final String ownerKind;
 
   /// The owning item's id on the same server (the track's own id for a
@@ -4892,6 +5032,7 @@ class DownloadOwnerRow extends DataClass
   /// a `playlist` owner).
   final String ownerItemId;
   const DownloadOwnerRow({
+    required this.accountKey,
     required this.serverId,
     required this.itemId,
     required this.ownerKind,
@@ -4900,6 +5041,7 @@ class DownloadOwnerRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
     map['server_id'] = Variable<String>(serverId);
     map['item_id'] = Variable<String>(itemId);
     map['owner_kind'] = Variable<String>(ownerKind);
@@ -4909,6 +5051,7 @@ class DownloadOwnerRow extends DataClass
 
   DownloadOwnersCompanion toCompanion(bool nullToAbsent) {
     return DownloadOwnersCompanion(
+      accountKey: Value(accountKey),
       serverId: Value(serverId),
       itemId: Value(itemId),
       ownerKind: Value(ownerKind),
@@ -4922,6 +5065,7 @@ class DownloadOwnerRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return DownloadOwnerRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
       serverId: serializer.fromJson<String>(json['serverId']),
       itemId: serializer.fromJson<String>(json['itemId']),
       ownerKind: serializer.fromJson<String>(json['ownerKind']),
@@ -4932,6 +5076,7 @@ class DownloadOwnerRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
       'serverId': serializer.toJson<String>(serverId),
       'itemId': serializer.toJson<String>(itemId),
       'ownerKind': serializer.toJson<String>(ownerKind),
@@ -4940,11 +5085,13 @@ class DownloadOwnerRow extends DataClass
   }
 
   DownloadOwnerRow copyWith({
+    String? accountKey,
     String? serverId,
     String? itemId,
     String? ownerKind,
     String? ownerItemId,
   }) => DownloadOwnerRow(
+    accountKey: accountKey ?? this.accountKey,
     serverId: serverId ?? this.serverId,
     itemId: itemId ?? this.itemId,
     ownerKind: ownerKind ?? this.ownerKind,
@@ -4952,6 +5099,9 @@ class DownloadOwnerRow extends DataClass
   );
   DownloadOwnerRow copyWithCompanion(DownloadOwnersCompanion data) {
     return DownloadOwnerRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
       serverId: data.serverId.present ? data.serverId.value : this.serverId,
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
       ownerKind: data.ownerKind.present ? data.ownerKind.value : this.ownerKind,
@@ -4964,6 +5114,7 @@ class DownloadOwnerRow extends DataClass
   @override
   String toString() {
     return (StringBuffer('DownloadOwnerRow(')
+          ..write('accountKey: $accountKey, ')
           ..write('serverId: $serverId, ')
           ..write('itemId: $itemId, ')
           ..write('ownerKind: $ownerKind, ')
@@ -4973,11 +5124,13 @@ class DownloadOwnerRow extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(serverId, itemId, ownerKind, ownerItemId);
+  int get hashCode =>
+      Object.hash(accountKey, serverId, itemId, ownerKind, ownerItemId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DownloadOwnerRow &&
+          other.accountKey == this.accountKey &&
           other.serverId == this.serverId &&
           other.itemId == this.itemId &&
           other.ownerKind == this.ownerKind &&
@@ -4985,12 +5138,14 @@ class DownloadOwnerRow extends DataClass
 }
 
 class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
+  final Value<String> accountKey;
   final Value<String> serverId;
   final Value<String> itemId;
   final Value<String> ownerKind;
   final Value<String> ownerItemId;
   final Value<int> rowid;
   const DownloadOwnersCompanion({
+    this.accountKey = const Value.absent(),
     this.serverId = const Value.absent(),
     this.itemId = const Value.absent(),
     this.ownerKind = const Value.absent(),
@@ -4998,6 +5153,7 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
     this.rowid = const Value.absent(),
   });
   DownloadOwnersCompanion.insert({
+    this.accountKey = const Value.absent(),
     required String serverId,
     required String itemId,
     required String ownerKind,
@@ -5008,6 +5164,7 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
        ownerKind = Value(ownerKind),
        ownerItemId = Value(ownerItemId);
   static Insertable<DownloadOwnerRow> custom({
+    Expression<String>? accountKey,
     Expression<String>? serverId,
     Expression<String>? itemId,
     Expression<String>? ownerKind,
@@ -5015,6 +5172,7 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
       if (serverId != null) 'server_id': serverId,
       if (itemId != null) 'item_id': itemId,
       if (ownerKind != null) 'owner_kind': ownerKind,
@@ -5024,6 +5182,7 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
   }
 
   DownloadOwnersCompanion copyWith({
+    Value<String>? accountKey,
     Value<String>? serverId,
     Value<String>? itemId,
     Value<String>? ownerKind,
@@ -5031,6 +5190,7 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
     Value<int>? rowid,
   }) {
     return DownloadOwnersCompanion(
+      accountKey: accountKey ?? this.accountKey,
       serverId: serverId ?? this.serverId,
       itemId: itemId ?? this.itemId,
       ownerKind: ownerKind ?? this.ownerKind,
@@ -5042,6 +5202,9 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
     if (serverId.present) {
       map['server_id'] = Variable<String>(serverId.value);
     }
@@ -5063,6 +5226,7 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
   @override
   String toString() {
     return (StringBuffer('DownloadOwnersCompanion(')
+          ..write('accountKey: $accountKey, ')
           ..write('serverId: $serverId, ')
           ..write('itemId: $itemId, ')
           ..write('ownerKind: $ownerKind, ')
@@ -5079,6 +5243,18 @@ class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $PlaylistDownloadMembersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _serverIdMeta = const VerificationMeta(
     'serverId',
   );
@@ -5125,6 +5301,7 @@ class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
   );
   @override
   List<GeneratedColumn> get $columns => [
+    accountKey,
     serverId,
     playlistItemId,
     position,
@@ -5142,6 +5319,12 @@ class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    }
     if (data.containsKey('server_id')) {
       context.handle(
         _serverIdMeta,
@@ -5184,7 +5367,12 @@ class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {serverId, playlistItemId, position};
+  Set<GeneratedColumn> get $primaryKey => {
+    accountKey,
+    serverId,
+    playlistItemId,
+    position,
+  };
   @override
   PlaylistDownloadMemberRow map(
     Map<String, dynamic> data, {
@@ -5192,6 +5380,10 @@ class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
   }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return PlaylistDownloadMemberRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
       serverId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}server_id'],
@@ -5219,6 +5411,9 @@ class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
 
 class PlaylistDownloadMemberRow extends DataClass
     implements Insertable<PlaylistDownloadMemberRow> {
+  /// The profile whose playlist download this snapshot belongs to
+  /// (v0.2.3), matching the [TrackDownloads] rows it orders.
+  final String accountKey;
   final String serverId;
 
   /// The downloaded playlist's own item id.
@@ -5232,6 +5427,7 @@ class PlaylistDownloadMemberRow extends DataClass
   /// server.
   final String trackItemId;
   const PlaylistDownloadMemberRow({
+    required this.accountKey,
     required this.serverId,
     required this.playlistItemId,
     required this.position,
@@ -5240,6 +5436,7 @@ class PlaylistDownloadMemberRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
     map['server_id'] = Variable<String>(serverId);
     map['playlist_item_id'] = Variable<String>(playlistItemId);
     map['position'] = Variable<int>(position);
@@ -5249,6 +5446,7 @@ class PlaylistDownloadMemberRow extends DataClass
 
   PlaylistDownloadMembersCompanion toCompanion(bool nullToAbsent) {
     return PlaylistDownloadMembersCompanion(
+      accountKey: Value(accountKey),
       serverId: Value(serverId),
       playlistItemId: Value(playlistItemId),
       position: Value(position),
@@ -5262,6 +5460,7 @@ class PlaylistDownloadMemberRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PlaylistDownloadMemberRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
       serverId: serializer.fromJson<String>(json['serverId']),
       playlistItemId: serializer.fromJson<String>(json['playlistItemId']),
       position: serializer.fromJson<int>(json['position']),
@@ -5272,6 +5471,7 @@ class PlaylistDownloadMemberRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
       'serverId': serializer.toJson<String>(serverId),
       'playlistItemId': serializer.toJson<String>(playlistItemId),
       'position': serializer.toJson<int>(position),
@@ -5280,11 +5480,13 @@ class PlaylistDownloadMemberRow extends DataClass
   }
 
   PlaylistDownloadMemberRow copyWith({
+    String? accountKey,
     String? serverId,
     String? playlistItemId,
     int? position,
     String? trackItemId,
   }) => PlaylistDownloadMemberRow(
+    accountKey: accountKey ?? this.accountKey,
     serverId: serverId ?? this.serverId,
     playlistItemId: playlistItemId ?? this.playlistItemId,
     position: position ?? this.position,
@@ -5294,6 +5496,9 @@ class PlaylistDownloadMemberRow extends DataClass
     PlaylistDownloadMembersCompanion data,
   ) {
     return PlaylistDownloadMemberRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
       serverId: data.serverId.present ? data.serverId.value : this.serverId,
       playlistItemId: data.playlistItemId.present
           ? data.playlistItemId.value
@@ -5308,6 +5513,7 @@ class PlaylistDownloadMemberRow extends DataClass
   @override
   String toString() {
     return (StringBuffer('PlaylistDownloadMemberRow(')
+          ..write('accountKey: $accountKey, ')
           ..write('serverId: $serverId, ')
           ..write('playlistItemId: $playlistItemId, ')
           ..write('position: $position, ')
@@ -5318,11 +5524,12 @@ class PlaylistDownloadMemberRow extends DataClass
 
   @override
   int get hashCode =>
-      Object.hash(serverId, playlistItemId, position, trackItemId);
+      Object.hash(accountKey, serverId, playlistItemId, position, trackItemId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PlaylistDownloadMemberRow &&
+          other.accountKey == this.accountKey &&
           other.serverId == this.serverId &&
           other.playlistItemId == this.playlistItemId &&
           other.position == this.position &&
@@ -5331,12 +5538,14 @@ class PlaylistDownloadMemberRow extends DataClass
 
 class PlaylistDownloadMembersCompanion
     extends UpdateCompanion<PlaylistDownloadMemberRow> {
+  final Value<String> accountKey;
   final Value<String> serverId;
   final Value<String> playlistItemId;
   final Value<int> position;
   final Value<String> trackItemId;
   final Value<int> rowid;
   const PlaylistDownloadMembersCompanion({
+    this.accountKey = const Value.absent(),
     this.serverId = const Value.absent(),
     this.playlistItemId = const Value.absent(),
     this.position = const Value.absent(),
@@ -5344,6 +5553,7 @@ class PlaylistDownloadMembersCompanion
     this.rowid = const Value.absent(),
   });
   PlaylistDownloadMembersCompanion.insert({
+    this.accountKey = const Value.absent(),
     required String serverId,
     required String playlistItemId,
     required int position,
@@ -5354,6 +5564,7 @@ class PlaylistDownloadMembersCompanion
        position = Value(position),
        trackItemId = Value(trackItemId);
   static Insertable<PlaylistDownloadMemberRow> custom({
+    Expression<String>? accountKey,
     Expression<String>? serverId,
     Expression<String>? playlistItemId,
     Expression<int>? position,
@@ -5361,6 +5572,7 @@ class PlaylistDownloadMembersCompanion
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
       if (serverId != null) 'server_id': serverId,
       if (playlistItemId != null) 'playlist_item_id': playlistItemId,
       if (position != null) 'position': position,
@@ -5370,6 +5582,7 @@ class PlaylistDownloadMembersCompanion
   }
 
   PlaylistDownloadMembersCompanion copyWith({
+    Value<String>? accountKey,
     Value<String>? serverId,
     Value<String>? playlistItemId,
     Value<int>? position,
@@ -5377,6 +5590,7 @@ class PlaylistDownloadMembersCompanion
     Value<int>? rowid,
   }) {
     return PlaylistDownloadMembersCompanion(
+      accountKey: accountKey ?? this.accountKey,
       serverId: serverId ?? this.serverId,
       playlistItemId: playlistItemId ?? this.playlistItemId,
       position: position ?? this.position,
@@ -5388,6 +5602,9 @@ class PlaylistDownloadMembersCompanion
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
     if (serverId.present) {
       map['server_id'] = Variable<String>(serverId.value);
     }
@@ -5409,10 +5626,711 @@ class PlaylistDownloadMembersCompanion
   @override
   String toString() {
     return (StringBuffer('PlaylistDownloadMembersCompanion(')
+          ..write('accountKey: $accountKey, ')
           ..write('serverId: $serverId, ')
           ..write('playlistItemId: $playlistItemId, ')
           ..write('position: $position, ')
           ..write('trackItemId: $trackItemId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DownloadedCollectionsTable extends DownloadedCollections
+    with TableInfo<$DownloadedCollectionsTable, DownloadedCollectionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadedCollectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerKindMeta = const VerificationMeta(
+    'ownerKind',
+  );
+  @override
+  late final GeneratedColumn<String> ownerKind = GeneratedColumn<String>(
+    'owner_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerItemIdMeta = const VerificationMeta(
+    'ownerItemId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerItemId = GeneratedColumn<String>(
+    'owner_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortNameMeta = const VerificationMeta(
+    'sortName',
+  );
+  @override
+  late final GeneratedColumn<String> sortName = GeneratedColumn<String>(
+    'sort_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _imageItemIdMeta = const VerificationMeta(
+    'imageItemId',
+  );
+  @override
+  late final GeneratedColumn<String> imageItemId = GeneratedColumn<String>(
+    'image_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageKindMeta = const VerificationMeta(
+    'imageKind',
+  );
+  @override
+  late final GeneratedColumn<String> imageKind = GeneratedColumn<String>(
+    'image_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageTagMeta = const VerificationMeta(
+    'imageTag',
+  );
+  @override
+  late final GeneratedColumn<String> imageTag = GeneratedColumn<String>(
+    'image_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageAspectRatioMeta = const VerificationMeta(
+    'imageAspectRatio',
+  );
+  @override
+  late final GeneratedColumn<double> imageAspectRatio = GeneratedColumn<double>(
+    'image_aspect_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    accountKey,
+    serverId,
+    ownerKind,
+    ownerItemId,
+    name,
+    sortName,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'downloaded_collections';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DownloadedCollectionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('owner_kind')) {
+      context.handle(
+        _ownerKindMeta,
+        ownerKind.isAcceptableOrUnknown(data['owner_kind']!, _ownerKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerKindMeta);
+    }
+    if (data.containsKey('owner_item_id')) {
+      context.handle(
+        _ownerItemIdMeta,
+        ownerItemId.isAcceptableOrUnknown(
+          data['owner_item_id']!,
+          _ownerItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerItemIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_name')) {
+      context.handle(
+        _sortNameMeta,
+        sortName.isAcceptableOrUnknown(data['sort_name']!, _sortNameMeta),
+      );
+    }
+    if (data.containsKey('image_item_id')) {
+      context.handle(
+        _imageItemIdMeta,
+        imageItemId.isAcceptableOrUnknown(
+          data['image_item_id']!,
+          _imageItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_kind')) {
+      context.handle(
+        _imageKindMeta,
+        imageKind.isAcceptableOrUnknown(data['image_kind']!, _imageKindMeta),
+      );
+    }
+    if (data.containsKey('image_tag')) {
+      context.handle(
+        _imageTagMeta,
+        imageTag.isAcceptableOrUnknown(data['image_tag']!, _imageTagMeta),
+      );
+    }
+    if (data.containsKey('image_aspect_ratio')) {
+      context.handle(
+        _imageAspectRatioMeta,
+        imageAspectRatio.isAcceptableOrUnknown(
+          data['image_aspect_ratio']!,
+          _imageAspectRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    accountKey,
+    serverId,
+    ownerKind,
+    ownerItemId,
+  };
+  @override
+  DownloadedCollectionRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DownloadedCollectionRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      ownerKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_kind'],
+      )!,
+      ownerItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_item_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      sortName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sort_name'],
+      )!,
+      imageItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_item_id'],
+      ),
+      imageKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_kind'],
+      ),
+      imageTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_tag'],
+      ),
+      imageAspectRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}image_aspect_ratio'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DownloadedCollectionsTable createAlias(String alias) {
+    return $DownloadedCollectionsTable(attachedDatabase, alias);
+  }
+}
+
+class DownloadedCollectionRow extends DataClass
+    implements Insertable<DownloadedCollectionRow> {
+  final String accountKey;
+  final String serverId;
+
+  /// `DownloadOwnerKind.name` — `album`, `artist` or `playlist`. Never
+  /// `track`: a standalone track is its own [TrackDownloads] record.
+  final String ownerKind;
+  final String ownerItemId;
+  final String name;
+
+  /// The lowercased name, so an offline listing orders and a search
+  /// matches without a `lower()` over every row of a scan.
+  final String sortName;
+
+  /// Artwork pointer, flattened the same way [CachedMediaItems] flattens
+  /// it. Rendered offline from the artwork disk cache where it was seen
+  /// online; missing art falls back to the placeholder.
+  final String? imageItemId;
+  final String? imageKind;
+  final String? imageTag;
+  final double? imageAspectRatio;
+  final int updatedAt;
+  const DownloadedCollectionRow({
+    required this.accountKey,
+    required this.serverId,
+    required this.ownerKind,
+    required this.ownerItemId,
+    required this.name,
+    required this.sortName,
+    this.imageItemId,
+    this.imageKind,
+    this.imageTag,
+    this.imageAspectRatio,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
+    map['server_id'] = Variable<String>(serverId);
+    map['owner_kind'] = Variable<String>(ownerKind);
+    map['owner_item_id'] = Variable<String>(ownerItemId);
+    map['name'] = Variable<String>(name);
+    map['sort_name'] = Variable<String>(sortName);
+    if (!nullToAbsent || imageItemId != null) {
+      map['image_item_id'] = Variable<String>(imageItemId);
+    }
+    if (!nullToAbsent || imageKind != null) {
+      map['image_kind'] = Variable<String>(imageKind);
+    }
+    if (!nullToAbsent || imageTag != null) {
+      map['image_tag'] = Variable<String>(imageTag);
+    }
+    if (!nullToAbsent || imageAspectRatio != null) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  DownloadedCollectionsCompanion toCompanion(bool nullToAbsent) {
+    return DownloadedCollectionsCompanion(
+      accountKey: Value(accountKey),
+      serverId: Value(serverId),
+      ownerKind: Value(ownerKind),
+      ownerItemId: Value(ownerItemId),
+      name: Value(name),
+      sortName: Value(sortName),
+      imageItemId: imageItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageItemId),
+      imageKind: imageKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageKind),
+      imageTag: imageTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageTag),
+      imageAspectRatio: imageAspectRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAspectRatio),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DownloadedCollectionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DownloadedCollectionRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
+      serverId: serializer.fromJson<String>(json['serverId']),
+      ownerKind: serializer.fromJson<String>(json['ownerKind']),
+      ownerItemId: serializer.fromJson<String>(json['ownerItemId']),
+      name: serializer.fromJson<String>(json['name']),
+      sortName: serializer.fromJson<String>(json['sortName']),
+      imageItemId: serializer.fromJson<String?>(json['imageItemId']),
+      imageKind: serializer.fromJson<String?>(json['imageKind']),
+      imageTag: serializer.fromJson<String?>(json['imageTag']),
+      imageAspectRatio: serializer.fromJson<double?>(json['imageAspectRatio']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
+      'serverId': serializer.toJson<String>(serverId),
+      'ownerKind': serializer.toJson<String>(ownerKind),
+      'ownerItemId': serializer.toJson<String>(ownerItemId),
+      'name': serializer.toJson<String>(name),
+      'sortName': serializer.toJson<String>(sortName),
+      'imageItemId': serializer.toJson<String?>(imageItemId),
+      'imageKind': serializer.toJson<String?>(imageKind),
+      'imageTag': serializer.toJson<String?>(imageTag),
+      'imageAspectRatio': serializer.toJson<double?>(imageAspectRatio),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  DownloadedCollectionRow copyWith({
+    String? accountKey,
+    String? serverId,
+    String? ownerKind,
+    String? ownerItemId,
+    String? name,
+    String? sortName,
+    Value<String?> imageItemId = const Value.absent(),
+    Value<String?> imageKind = const Value.absent(),
+    Value<String?> imageTag = const Value.absent(),
+    Value<double?> imageAspectRatio = const Value.absent(),
+    int? updatedAt,
+  }) => DownloadedCollectionRow(
+    accountKey: accountKey ?? this.accountKey,
+    serverId: serverId ?? this.serverId,
+    ownerKind: ownerKind ?? this.ownerKind,
+    ownerItemId: ownerItemId ?? this.ownerItemId,
+    name: name ?? this.name,
+    sortName: sortName ?? this.sortName,
+    imageItemId: imageItemId.present ? imageItemId.value : this.imageItemId,
+    imageKind: imageKind.present ? imageKind.value : this.imageKind,
+    imageTag: imageTag.present ? imageTag.value : this.imageTag,
+    imageAspectRatio: imageAspectRatio.present
+        ? imageAspectRatio.value
+        : this.imageAspectRatio,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DownloadedCollectionRow copyWithCompanion(
+    DownloadedCollectionsCompanion data,
+  ) {
+    return DownloadedCollectionRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      ownerKind: data.ownerKind.present ? data.ownerKind.value : this.ownerKind,
+      ownerItemId: data.ownerItemId.present
+          ? data.ownerItemId.value
+          : this.ownerItemId,
+      name: data.name.present ? data.name.value : this.name,
+      sortName: data.sortName.present ? data.sortName.value : this.sortName,
+      imageItemId: data.imageItemId.present
+          ? data.imageItemId.value
+          : this.imageItemId,
+      imageKind: data.imageKind.present ? data.imageKind.value : this.imageKind,
+      imageTag: data.imageTag.present ? data.imageTag.value : this.imageTag,
+      imageAspectRatio: data.imageAspectRatio.present
+          ? data.imageAspectRatio.value
+          : this.imageAspectRatio,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadedCollectionRow(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('ownerKind: $ownerKind, ')
+          ..write('ownerItemId: $ownerItemId, ')
+          ..write('name: $name, ')
+          ..write('sortName: $sortName, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    accountKey,
+    serverId,
+    ownerKind,
+    ownerItemId,
+    name,
+    sortName,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DownloadedCollectionRow &&
+          other.accountKey == this.accountKey &&
+          other.serverId == this.serverId &&
+          other.ownerKind == this.ownerKind &&
+          other.ownerItemId == this.ownerItemId &&
+          other.name == this.name &&
+          other.sortName == this.sortName &&
+          other.imageItemId == this.imageItemId &&
+          other.imageKind == this.imageKind &&
+          other.imageTag == this.imageTag &&
+          other.imageAspectRatio == this.imageAspectRatio &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DownloadedCollectionsCompanion
+    extends UpdateCompanion<DownloadedCollectionRow> {
+  final Value<String> accountKey;
+  final Value<String> serverId;
+  final Value<String> ownerKind;
+  final Value<String> ownerItemId;
+  final Value<String> name;
+  final Value<String> sortName;
+  final Value<String?> imageItemId;
+  final Value<String?> imageKind;
+  final Value<String?> imageTag;
+  final Value<double?> imageAspectRatio;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const DownloadedCollectionsCompanion({
+    this.accountKey = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.ownerKind = const Value.absent(),
+    this.ownerItemId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sortName = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DownloadedCollectionsCompanion.insert({
+    this.accountKey = const Value.absent(),
+    required String serverId,
+    required String ownerKind,
+    required String ownerItemId,
+    required String name,
+    this.sortName = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       ownerKind = Value(ownerKind),
+       ownerItemId = Value(ownerItemId),
+       name = Value(name),
+       updatedAt = Value(updatedAt);
+  static Insertable<DownloadedCollectionRow> custom({
+    Expression<String>? accountKey,
+    Expression<String>? serverId,
+    Expression<String>? ownerKind,
+    Expression<String>? ownerItemId,
+    Expression<String>? name,
+    Expression<String>? sortName,
+    Expression<String>? imageItemId,
+    Expression<String>? imageKind,
+    Expression<String>? imageTag,
+    Expression<double>? imageAspectRatio,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
+      if (serverId != null) 'server_id': serverId,
+      if (ownerKind != null) 'owner_kind': ownerKind,
+      if (ownerItemId != null) 'owner_item_id': ownerItemId,
+      if (name != null) 'name': name,
+      if (sortName != null) 'sort_name': sortName,
+      if (imageItemId != null) 'image_item_id': imageItemId,
+      if (imageKind != null) 'image_kind': imageKind,
+      if (imageTag != null) 'image_tag': imageTag,
+      if (imageAspectRatio != null) 'image_aspect_ratio': imageAspectRatio,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DownloadedCollectionsCompanion copyWith({
+    Value<String>? accountKey,
+    Value<String>? serverId,
+    Value<String>? ownerKind,
+    Value<String>? ownerItemId,
+    Value<String>? name,
+    Value<String>? sortName,
+    Value<String?>? imageItemId,
+    Value<String?>? imageKind,
+    Value<String?>? imageTag,
+    Value<double?>? imageAspectRatio,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DownloadedCollectionsCompanion(
+      accountKey: accountKey ?? this.accountKey,
+      serverId: serverId ?? this.serverId,
+      ownerKind: ownerKind ?? this.ownerKind,
+      ownerItemId: ownerItemId ?? this.ownerItemId,
+      name: name ?? this.name,
+      sortName: sortName ?? this.sortName,
+      imageItemId: imageItemId ?? this.imageItemId,
+      imageKind: imageKind ?? this.imageKind,
+      imageTag: imageTag ?? this.imageTag,
+      imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (ownerKind.present) {
+      map['owner_kind'] = Variable<String>(ownerKind.value);
+    }
+    if (ownerItemId.present) {
+      map['owner_item_id'] = Variable<String>(ownerItemId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortName.present) {
+      map['sort_name'] = Variable<String>(sortName.value);
+    }
+    if (imageItemId.present) {
+      map['image_item_id'] = Variable<String>(imageItemId.value);
+    }
+    if (imageKind.present) {
+      map['image_kind'] = Variable<String>(imageKind.value);
+    }
+    if (imageTag.present) {
+      map['image_tag'] = Variable<String>(imageTag.value);
+    }
+    if (imageAspectRatio.present) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadedCollectionsCompanion(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('ownerKind: $ownerKind, ')
+          ..write('ownerItemId: $ownerItemId, ')
+          ..write('name: $name, ')
+          ..write('sortName: $sortName, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5439,6 +6357,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DownloadOwnersTable downloadOwners = $DownloadOwnersTable(this);
   late final $PlaylistDownloadMembersTable playlistDownloadMembers =
       $PlaylistDownloadMembersTable(this);
+  late final $DownloadedCollectionsTable downloadedCollections =
+      $DownloadedCollectionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5454,6 +6374,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     trackDownloads,
     downloadOwners,
     playlistDownloadMembers,
+    downloadedCollections,
   ];
 }
 
@@ -7277,9 +8198,11 @@ typedef $$QueueEntriesTableProcessedTableManager =
     >;
 typedef $$TrackDownloadsTableCreateCompanionBuilder =
     TrackDownloadsCompanion Function({
+      Value<String> accountKey,
       required String serverId,
       required String itemId,
       required String state,
+      Value<bool> serverGone,
       Value<String?> failureReason,
       Value<int> receivedBytes,
       Value<int?> totalBytes,
@@ -7300,9 +8223,11 @@ typedef $$TrackDownloadsTableCreateCompanionBuilder =
     });
 typedef $$TrackDownloadsTableUpdateCompanionBuilder =
     TrackDownloadsCompanion Function({
+      Value<String> accountKey,
       Value<String> serverId,
       Value<String> itemId,
       Value<String> state,
+      Value<bool> serverGone,
       Value<String?> failureReason,
       Value<int> receivedBytes,
       Value<int?> totalBytes,
@@ -7331,6 +8256,11 @@ class $$TrackDownloadsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnFilters(column),
@@ -7343,6 +8273,11 @@ class $$TrackDownloadsTableFilterComposer
 
   ColumnFilters<String> get state => $composableBuilder(
     column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get serverGone => $composableBuilder(
+    column: $table.serverGone,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7436,6 +8371,11 @@ class $$TrackDownloadsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnOrderings(column),
@@ -7448,6 +8388,11 @@ class $$TrackDownloadsTableOrderingComposer
 
   ColumnOrderings<String> get state => $composableBuilder(
     column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get serverGone => $composableBuilder(
+    column: $table.serverGone,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7541,6 +8486,11 @@ class $$TrackDownloadsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get serverId =>
       $composableBuilder(column: $table.serverId, builder: (column) => column);
 
@@ -7549,6 +8499,11 @@ class $$TrackDownloadsTableAnnotationComposer
 
   GeneratedColumn<String> get state =>
       $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<bool> get serverGone => $composableBuilder(
+    column: $table.serverGone,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get failureReason => $composableBuilder(
     column: $table.failureReason,
@@ -7660,9 +8615,11 @@ class $$TrackDownloadsTableTableManager
               $$TrackDownloadsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> accountKey = const Value.absent(),
                 Value<String> serverId = const Value.absent(),
                 Value<String> itemId = const Value.absent(),
                 Value<String> state = const Value.absent(),
+                Value<bool> serverGone = const Value.absent(),
                 Value<String?> failureReason = const Value.absent(),
                 Value<int> receivedBytes = const Value.absent(),
                 Value<int?> totalBytes = const Value.absent(),
@@ -7681,9 +8638,11 @@ class $$TrackDownloadsTableTableManager
                 Value<int> requestedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TrackDownloadsCompanion(
+                accountKey: accountKey,
                 serverId: serverId,
                 itemId: itemId,
                 state: state,
+                serverGone: serverGone,
                 failureReason: failureReason,
                 receivedBytes: receivedBytes,
                 totalBytes: totalBytes,
@@ -7704,9 +8663,11 @@ class $$TrackDownloadsTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> accountKey = const Value.absent(),
                 required String serverId,
                 required String itemId,
                 required String state,
+                Value<bool> serverGone = const Value.absent(),
                 Value<String?> failureReason = const Value.absent(),
                 Value<int> receivedBytes = const Value.absent(),
                 Value<int?> totalBytes = const Value.absent(),
@@ -7725,9 +8686,11 @@ class $$TrackDownloadsTableTableManager
                 required int requestedAt,
                 Value<int> rowid = const Value.absent(),
               }) => TrackDownloadsCompanion.insert(
+                accountKey: accountKey,
                 serverId: serverId,
                 itemId: itemId,
                 state: state,
+                serverGone: serverGone,
                 failureReason: failureReason,
                 receivedBytes: receivedBytes,
                 totalBytes: totalBytes,
@@ -7773,6 +8736,7 @@ typedef $$TrackDownloadsTableProcessedTableManager =
     >;
 typedef $$DownloadOwnersTableCreateCompanionBuilder =
     DownloadOwnersCompanion Function({
+      Value<String> accountKey,
       required String serverId,
       required String itemId,
       required String ownerKind,
@@ -7781,6 +8745,7 @@ typedef $$DownloadOwnersTableCreateCompanionBuilder =
     });
 typedef $$DownloadOwnersTableUpdateCompanionBuilder =
     DownloadOwnersCompanion Function({
+      Value<String> accountKey,
       Value<String> serverId,
       Value<String> itemId,
       Value<String> ownerKind,
@@ -7797,6 +8762,11 @@ class $$DownloadOwnersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnFilters(column),
@@ -7827,6 +8797,11 @@ class $$DownloadOwnersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnOrderings(column),
@@ -7857,6 +8832,11 @@ class $$DownloadOwnersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get serverId =>
       $composableBuilder(column: $table.serverId, builder: (column) => column);
 
@@ -7909,12 +8889,14 @@ class $$DownloadOwnersTableTableManager
               $$DownloadOwnersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> accountKey = const Value.absent(),
                 Value<String> serverId = const Value.absent(),
                 Value<String> itemId = const Value.absent(),
                 Value<String> ownerKind = const Value.absent(),
                 Value<String> ownerItemId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadOwnersCompanion(
+                accountKey: accountKey,
                 serverId: serverId,
                 itemId: itemId,
                 ownerKind: ownerKind,
@@ -7923,12 +8905,14 @@ class $$DownloadOwnersTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> accountKey = const Value.absent(),
                 required String serverId,
                 required String itemId,
                 required String ownerKind,
                 required String ownerItemId,
                 Value<int> rowid = const Value.absent(),
               }) => DownloadOwnersCompanion.insert(
+                accountKey: accountKey,
                 serverId: serverId,
                 itemId: itemId,
                 ownerKind: ownerKind,
@@ -7962,6 +8946,7 @@ typedef $$DownloadOwnersTableProcessedTableManager =
     >;
 typedef $$PlaylistDownloadMembersTableCreateCompanionBuilder =
     PlaylistDownloadMembersCompanion Function({
+      Value<String> accountKey,
       required String serverId,
       required String playlistItemId,
       required int position,
@@ -7970,6 +8955,7 @@ typedef $$PlaylistDownloadMembersTableCreateCompanionBuilder =
     });
 typedef $$PlaylistDownloadMembersTableUpdateCompanionBuilder =
     PlaylistDownloadMembersCompanion Function({
+      Value<String> accountKey,
       Value<String> serverId,
       Value<String> playlistItemId,
       Value<int> position,
@@ -7986,6 +8972,11 @@ class $$PlaylistDownloadMembersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnFilters(column),
@@ -8016,6 +9007,11 @@ class $$PlaylistDownloadMembersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnOrderings(column),
@@ -8046,6 +9042,11 @@ class $$PlaylistDownloadMembersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get serverId =>
       $composableBuilder(column: $table.serverId, builder: (column) => column);
 
@@ -8109,12 +9110,14 @@ class $$PlaylistDownloadMembersTableTableManager
               ),
           updateCompanionCallback:
               ({
+                Value<String> accountKey = const Value.absent(),
                 Value<String> serverId = const Value.absent(),
                 Value<String> playlistItemId = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 Value<String> trackItemId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlaylistDownloadMembersCompanion(
+                accountKey: accountKey,
                 serverId: serverId,
                 playlistItemId: playlistItemId,
                 position: position,
@@ -8123,12 +9126,14 @@ class $$PlaylistDownloadMembersTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> accountKey = const Value.absent(),
                 required String serverId,
                 required String playlistItemId,
                 required int position,
                 required String trackItemId,
                 Value<int> rowid = const Value.absent(),
               }) => PlaylistDownloadMembersCompanion.insert(
+                accountKey: accountKey,
                 serverId: serverId,
                 playlistItemId: playlistItemId,
                 position: position,
@@ -8164,6 +9169,347 @@ typedef $$PlaylistDownloadMembersTableProcessedTableManager =
       PlaylistDownloadMemberRow,
       PrefetchHooks Function()
     >;
+typedef $$DownloadedCollectionsTableCreateCompanionBuilder =
+    DownloadedCollectionsCompanion Function({
+      Value<String> accountKey,
+      required String serverId,
+      required String ownerKind,
+      required String ownerItemId,
+      required String name,
+      Value<String> sortName,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DownloadedCollectionsTableUpdateCompanionBuilder =
+    DownloadedCollectionsCompanion Function({
+      Value<String> accountKey,
+      Value<String> serverId,
+      Value<String> ownerKind,
+      Value<String> ownerItemId,
+      Value<String> name,
+      Value<String> sortName,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$DownloadedCollectionsTableFilterComposer
+    extends Composer<_$AppDatabase, $DownloadedCollectionsTable> {
+  $$DownloadedCollectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerKind => $composableBuilder(
+    column: $table.ownerKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerItemId => $composableBuilder(
+    column: $table.ownerItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sortName => $composableBuilder(
+    column: $table.sortName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadedCollectionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DownloadedCollectionsTable> {
+  $$DownloadedCollectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerKind => $composableBuilder(
+    column: $table.ownerKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerItemId => $composableBuilder(
+    column: $table.ownerItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sortName => $composableBuilder(
+    column: $table.sortName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadedCollectionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DownloadedCollectionsTable> {
+  $$DownloadedCollectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerKind =>
+      $composableBuilder(column: $table.ownerKind, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerItemId => $composableBuilder(
+    column: $table.ownerItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get sortName =>
+      $composableBuilder(column: $table.sortName, builder: (column) => column);
+
+  GeneratedColumn<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageKind =>
+      $composableBuilder(column: $table.imageKind, builder: (column) => column);
+
+  GeneratedColumn<String> get imageTag =>
+      $composableBuilder(column: $table.imageTag, builder: (column) => column);
+
+  GeneratedColumn<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DownloadedCollectionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DownloadedCollectionsTable,
+          DownloadedCollectionRow,
+          $$DownloadedCollectionsTableFilterComposer,
+          $$DownloadedCollectionsTableOrderingComposer,
+          $$DownloadedCollectionsTableAnnotationComposer,
+          $$DownloadedCollectionsTableCreateCompanionBuilder,
+          $$DownloadedCollectionsTableUpdateCompanionBuilder,
+          (
+            DownloadedCollectionRow,
+            BaseReferences<
+              _$AppDatabase,
+              $DownloadedCollectionsTable,
+              DownloadedCollectionRow
+            >,
+          ),
+          DownloadedCollectionRow,
+          PrefetchHooks Function()
+        > {
+  $$DownloadedCollectionsTableTableManager(
+    _$AppDatabase db,
+    $DownloadedCollectionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadedCollectionsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DownloadedCollectionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DownloadedCollectionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> accountKey = const Value.absent(),
+                Value<String> serverId = const Value.absent(),
+                Value<String> ownerKind = const Value.absent(),
+                Value<String> ownerItemId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> sortName = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadedCollectionsCompanion(
+                accountKey: accountKey,
+                serverId: serverId,
+                ownerKind: ownerKind,
+                ownerItemId: ownerItemId,
+                name: name,
+                sortName: sortName,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String> accountKey = const Value.absent(),
+                required String serverId,
+                required String ownerKind,
+                required String ownerItemId,
+                required String name,
+                Value<String> sortName = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadedCollectionsCompanion.insert(
+                accountKey: accountKey,
+                serverId: serverId,
+                ownerKind: ownerKind,
+                ownerItemId: ownerItemId,
+                name: name,
+                sortName: sortName,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadedCollectionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DownloadedCollectionsTable,
+      DownloadedCollectionRow,
+      $$DownloadedCollectionsTableFilterComposer,
+      $$DownloadedCollectionsTableOrderingComposer,
+      $$DownloadedCollectionsTableAnnotationComposer,
+      $$DownloadedCollectionsTableCreateCompanionBuilder,
+      $$DownloadedCollectionsTableUpdateCompanionBuilder,
+      (
+        DownloadedCollectionRow,
+        BaseReferences<
+          _$AppDatabase,
+          $DownloadedCollectionsTable,
+          DownloadedCollectionRow
+        >,
+      ),
+      DownloadedCollectionRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8194,4 +9540,6 @@ class $AppDatabaseManager {
         _db,
         _db.playlistDownloadMembers,
       );
+  $$DownloadedCollectionsTableTableManager get downloadedCollections =>
+      $$DownloadedCollectionsTableTableManager(_db, _db.downloadedCollections);
 }

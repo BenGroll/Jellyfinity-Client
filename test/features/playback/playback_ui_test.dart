@@ -220,6 +220,45 @@ void main() {
     );
   });
 
+  testWidgets('the queue editor opens over Now Playing and dismisses', (
+    tester,
+  ) async {
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Freddie Freeloader'),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+
+    final queueButton = find.byTooltip('Edit queue');
+    expect(tester.getSize(queueButton), const Size(56, 56));
+    await tester.tap(queueButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(QueueEditor), findsOneWidget);
+    expect(find.text('Edit queue'), findsOneWidget);
+    expect(find.text('Freddie Freeloader'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(QueueEditor), findsNothing);
+
+    await tester.tap(queueButton);
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(4, 200));
+    await tester.pumpAndSettle();
+    expect(find.byType(QueueEditor), findsNothing);
+
+    await playback.togglePlayPause();
+  });
+
   testWidgets('the queue screen lists entries and removes one', (tester) async {
     final playback = fakePlaybackCubit();
     addTearDown(playback.close);

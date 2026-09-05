@@ -19,6 +19,7 @@ import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import '../widgets/reconcile_downloaded_collection.dart';
 import 'media_detail_cubit.dart';
 
 /// One album: its header, then its tracks.
@@ -51,7 +52,10 @@ class AlbumDetailPage extends StatelessWidget {
           create: (_) => (tracks ?? getIt<SongsCubit>())..forAlbum(albumId),
         ),
       ],
-      child: const _AlbumDetailView(),
+      child: ReconcileDownloadedCollection(
+        owner: DownloadOwner.album(albumId),
+        child: const _AlbumDetailView(),
+      ),
     );
   }
 }

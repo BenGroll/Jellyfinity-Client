@@ -16,6 +16,8 @@ import '../../domain/media/Playlist.dart';
 import '../../domain/media/PlaylistRepository.dart';
 import '../../domain/media/Track.dart';
 import '../../domain/playback/AudioSourceResolver.dart';
+import '../session/SessionCubit.dart';
+import '../session/SessionState.dart';
 import '../settings/SettingsCubit.dart';
 
 /// The single source of truth for downloads — what has been asked for,
@@ -63,11 +65,18 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     this._playlists,
     this._settings,
     this._network,
+    this._session,
+    this._storage,
   ) : super(DownloadCatalog.empty) {
     // A held-back download should resume the moment Wi-Fi returns or the
     // user relaxes the policy, without them reopening the app.
     _networkSub = _network.changes().listen((_) => _reevaluateNetwork());
     _settingsSub = _settings.stream.listen((_) => _reevaluateNetwork());
+    // Downloads are per-profile (v0.2.3): when the active profile changes
+    // the catalog has to be rebuilt from the other profile's records, and
+    // a signed-out app shows nothing.
+    _activeAccountId = _session.state.session?.account.id;
+    _sessionSub = _session.stream.listen(_onSessionChanged);
   }
 
   final DownloadStore _store;
@@ -81,9 +90,23 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   final PlaylistRepository _playlists;
   final SettingsCubit _settings;
   final NetworkCondition _network;
+  final SessionCubit _session;
+  final DownloadStorageProbe _storage;
+
+  /// Warn a listener before a download when the device has less than this
+  /// much room left (v0.2.3). A round, conservative figure — enough for a
+  /// handful of lossless albums — not a computed estimate of what a
+  /// specific request needs.
+  static const int lowStorageThresholdBytes = 500 * 1024 * 1024;
 
   late final StreamSubscription<NetworkState> _networkSub;
   late final StreamSubscription<SettingsState> _settingsSub;
+  late final StreamSubscription<SessionState> _sessionSub;
+
+  /// The profile the current catalog belongs to, so a session event that
+  /// does not actually change profile (a token refresh) does not rebuild
+  /// it.
+  String? _activeAccountId;
 
   /// The track being transferred right now, if any.
   MediaId? _active;
@@ -116,10 +139,30 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   Future<void> close() {
     unawaited(_networkSub.cancel());
     unawaited(_settingsSub.cancel());
+    unawaited(_sessionSub.cancel());
     return super.close();
   }
 
   // ---- Cold start ----
+
+  /// Rebuilds the catalog when the signed-in profile changes (v0.2.3).
+  ///
+  /// A profile switch means a different set of `account_key` rows; a
+  /// sign-out means none. An in-flight transfer is abandoned first so its
+  /// completion cannot be written against whichever profile is active by
+  /// the time it lands.
+  Future<void> _onSessionChanged(SessionState state) async {
+    final accountId = state.session?.account.id;
+    if (accountId == _activeAccountId) return;
+    _activeAccountId = accountId;
+
+    if (_active case final MediaId active) {
+      _abandoned.add(active);
+      await _engine.abort(active);
+      _active = null;
+    }
+    await restore();
+  }
 
   /// Reads the stored records and picks up where the last run left off.
   ///
@@ -135,6 +178,11 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   /// gate is what decides whether the network is good enough this run —
   /// it puts them straight back to waiting if it is not.
   Future<void> restore() async {
+    // Claim any pre-v0.2.3 records for the signed-in profile before the
+    // first read, so the upgrade does not briefly show an empty screen
+    // (v0.2.3). A no-op after the first run, or with nobody signed in.
+    await _store.claimLegacyDownloads();
+
     final stored = await _store.all();
     if (stored case Err<List<TrackDownload>>()) {
       emit(state.copyWith(isLoaded: true));
@@ -146,6 +194,8 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
         snapshots is Ok<Map<MediaId, List<PlaylistDownloadMember>>>
         ? snapshots.value
         : const <MediaId, List<PlaylistDownloadMember>>{};
+
+    final collections = await _loadCollections();
 
     final downloads = <MediaId, TrackDownload>{};
     final interrupted = <TrackDownload>[];
@@ -165,6 +215,20 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
         );
         interrupted.add(requeued);
         downloads[record.id] = requeued;
+      } else if (record.state == DownloadState.completed &&
+          await _engine.locate(record.id) == null) {
+        // The record says the file is here and it is not — storage
+        // cleared under the app, an OS restore that did not bring media
+        // back, a half-finished move. Queue it again from nothing rather
+        // than leave a "downloaded" track that plays silence (v0.2.3).
+        final requeued = record.copyWith(
+          state: DownloadState.queued,
+          receivedBytes: 0,
+          clearTotalBytes: true,
+          clearFailureReason: true,
+        );
+        interrupted.add(requeued);
+        downloads[record.id] = requeued;
       } else {
         downloads[record.id] = record;
       }
@@ -174,6 +238,7 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       DownloadCatalog(
         downloads: downloads,
         playlistSnapshots: playlistSnapshots,
+        collections: collections,
         isLoaded: true,
       ),
     );
@@ -181,6 +246,27 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       await _store.save(record);
     }
     _pump();
+  }
+
+  /// Every downloaded collection's stored identity, read a page at a time
+  /// (v0.2.3). A read that fails leaves the map empty — the Downloads
+  /// screen then falls back to reconstructing names from track records,
+  /// exactly as it did before v0.2.3.
+  Future<Map<DownloadOwner, DownloadedCollection>> _loadCollections() async {
+    final result = <DownloadOwner, DownloadedCollection>{};
+    var request = const PageRequest.first();
+    while (true) {
+      final page = await _store.collections(page: request);
+      if (page case Err<Page<DownloadedCollection>>()) break;
+      final window = (page as Ok<Page<DownloadedCollection>>).value;
+      for (final collection in window.items) {
+        result[collection.owner] = collection;
+      }
+      final next = window.nextRequest();
+      if (next == null) break;
+      request = next;
+    }
+    return result;
   }
 
   // ---- Requesting ----
@@ -206,6 +292,13 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     await _request(
       (tracks as Ok<List<Track>>).value,
       owner: DownloadOwner.album(album.id),
+    );
+    await _rememberCollection(
+      DownloadedCollection(
+        owner: DownloadOwner.album(album.id),
+        name: album.name,
+        image: album.image,
+      ),
     );
     return const Result.ok(null);
   }
@@ -250,6 +343,13 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
         readFailure ?? const UnavailableFailure('That artist is not there.'),
       );
     }
+    await _rememberCollection(
+      DownloadedCollection(
+        owner: DownloadOwner.artist(artist.id),
+        name: artist.name,
+        image: artist.image,
+      ),
+    );
     return const Result.ok(null);
   }
 
@@ -263,6 +363,7 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     for (final record in state.ownedBy(owner).toList()) {
       await _release(record.id, owner);
     }
+    await _forgetCollection(owner);
   }
 
   /// Keeps [playlist] on this device as a membership snapshot (v0.2.1).
@@ -309,6 +410,13 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     }
 
     await _store.savePlaylistMembers(playlist.id, members);
+    await _rememberCollection(
+      DownloadedCollection(
+        owner: owner,
+        name: playlist.name,
+        image: playlist.image,
+      ),
+    );
     _emitSnapshot(playlist.id, members);
     _pump();
     return const Result.ok(null);
@@ -326,6 +434,7 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       await _release(record.id, owner);
     }
     await _store.deletePlaylistMembers(playlistId);
+    await _forgetCollection(owner);
     final snapshots = Map<MediaId, List<PlaylistDownloadMember>>.of(
       state.playlistSnapshots,
     )..remove(playlistId);
@@ -378,7 +487,21 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     var removedButKept = 0;
     for (final id in removed) {
       await _release(id, owner);
-      if (state[id] != null) removedButKept++;
+      // A member the server dropped but another download still keeps is
+      // now "only on this device" (v0.2.3) — kept and playable, honestly
+      // labelled rather than shown as a remote failure.
+      if (state[id] case final TrackDownload kept) {
+        removedButKept++;
+        if (!kept.serverGone) {
+          await _write(kept.copyWith(serverGone: true));
+        }
+      }
+    }
+    // A member the server lists again loses the mark.
+    for (final id in currentIds) {
+      if (state[id] case final TrackDownload record when record.serverGone) {
+        await _write(record.copyWith(serverGone: false));
+      }
     }
 
     final members = <PlaylistDownloadMember>[
@@ -394,6 +517,58 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       removed: removed.length,
       removedButKept: removedButKept,
     );
+  }
+
+  /// Reconciles a downloaded artist against the server (v0.2.3).
+  ///
+  /// Called when a downloaded artist page is opened online. Unlike an
+  /// album, the artist screen does not load a flat track list, so this
+  /// pages the artist's tracks itself — one window at a time, the same
+  /// bounded read `downloadArtist` uses — and hands the ids to
+  /// [reconcileCollectionPresence]. A cache-served or failed read is left
+  /// alone: there is nothing to reconcile against a server that did not
+  /// answer.
+  Future<void> reconcileArtist(MediaId artistId) async {
+    final owner = DownloadOwner.artist(artistId);
+    if (state.statusFor(owner).isEmpty) return;
+
+    final present = <MediaId>{};
+    var request = const PageRequest.first();
+    while (true) {
+      final page = await _library.tracks(page: request, artistId: artistId);
+      if (page case Err<Page<Track>>()) return;
+      final window = (page as Ok<Page<Track>>).value;
+      if (window.isCached) return;
+      present.addAll(window.items.map((track) => track.id));
+      if (window.consumed == 0) break;
+      final next = window.nextRequest();
+      if (next == null) break;
+      request = next;
+    }
+
+    await reconcileCollectionPresence(owner, present);
+  }
+
+  /// Reconciles which of a downloaded album's or artist's tracks the
+  /// server still lists (v0.2.3).
+  ///
+  /// Called when a downloaded collection is opened online: [present] is
+  /// the set of track ids the server just returned (a cache-served list
+  /// must not be passed — there is nothing to reconcile against a server
+  /// that did not speak). A downloaded track the server no longer lists
+  /// is marked "only on this device" — kept, still playable, shown as
+  /// such rather than as a remote failure or by vanishing; one that
+  /// reappears loses the mark. Nothing is ever deleted.
+  Future<void> reconcileCollectionPresence(
+    DownloadOwner owner,
+    Set<MediaId> present,
+  ) async {
+    for (final record in state.ownedBy(owner).toList()) {
+      final gone = !present.contains(record.id);
+      if (record.serverGone != gone) {
+        await _write(record.copyWith(serverGone: gone));
+      }
+    }
   }
 
   void _emitSnapshot(MediaId playlistId, List<PlaylistDownloadMember> members) {
@@ -504,6 +679,31 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     for (final record in state.ownedBy(owner).toList()) {
       await _release(record.id, owner);
     }
+    await _forgetCollection(owner);
+  }
+
+  /// Records or refreshes a downloaded collection's stored identity
+  /// (v0.2.3) and reflects it in the catalog, so its name and artwork
+  /// survive the server going away.
+  Future<void> _rememberCollection(DownloadedCollection collection) async {
+    await _store.saveCollection(collection);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        collections: {...state.collections, collection.owner: collection},
+      ),
+    );
+  }
+
+  /// Forgets a downloaded collection's stored identity when its download
+  /// is removed (v0.2.3).
+  Future<void> _forgetCollection(DownloadOwner owner) async {
+    await _store.deleteCollection(owner);
+    if (isClosed || !state.collections.containsKey(owner)) return;
+    final collections = Map<DownloadOwner, DownloadedCollection>.of(
+      state.collections,
+    )..remove(owner);
+    emit(state.copyWith(collections: collections));
   }
 
   /// Drops [owner]'s claim on [id] — or every claim, when [owner] is
@@ -529,6 +729,24 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       ..remove(id);
     emit(state.copyWith(downloads: downloads));
     _pump();
+  }
+
+  // ---- Storage warning (v0.2.3) ----
+
+  /// A [DownloadStorageWarning] when the device is running low on room,
+  /// or `null` when there is plenty — or when the platform will not say,
+  /// in which case a download is never blocked on a number nobody has.
+  ///
+  /// The download controls call this before a large request and, on a
+  /// warning, ask the user to confirm. There is no automatic cleanup in
+  /// this release, so a confirmed download still proceeds.
+  Future<DownloadStorageWarning?> storageWarning() async {
+    final available = await _storage.availableBytes();
+    if (available == null || available >= lowStorageThresholdBytes) return null;
+    return DownloadStorageWarning(
+      availableBytes: available,
+      thresholdBytes: lowStorageThresholdBytes,
+    );
   }
 
   // ---- Network policy (v0.2.2) ----

@@ -24,6 +24,7 @@ import '../../music/presentation/widgets/media_formatting.dart';
 import '../../music/presentation/widgets/music_rows.dart';
 import 'now_playing_details_cubit.dart';
 import 'track_source_info_cubit.dart';
+import 'QueuePage.dart';
 
 /// The full player: artwork, transport, seek, shuffle/repeat, and a way
 /// into the queue. Reached by tapping [MiniPlayer]; a root route so it
@@ -105,37 +106,16 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
       ],
       child: AppScaffold(
         padded: false,
-        leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          onPressed: () => context.pop(),
-        ),
-        // Lyrics and Queue are folded into the overflow sheet below
-        // (v0.1.6) rather than each keeping their own app bar icon; the
-        // heart moves down next to the title instead of living up here.
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert_rounded),
-            tooltip: 'More',
-            onPressed: () => showTrackActionsSheet(
-              context,
-              onPlayNext: () => cubit.playNextEntry(entry),
-              onAddToQueue: () => cubit.addEntryToQueue(entry),
-              onLyrics: () => context.pushNamed(RouteNames.nowPlayingLyrics),
-              onOpenQueue: state.hasQueue
-                  ? () => context.pushNamed(RouteNames.nowPlayingQueue)
-                  : null,
-            ),
-          ),
-        ],
         body: Stack(
           fit: StackFit.expand,
           children: [
             _BlurredBackground(image: entry.image),
+            const _PlayerContrastScrim(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
               child: Column(
                 children: [
-                  SizedBox(height: t.spacing.lg),
+                  const SizedBox(height: 72),
                   Expanded(
                     child: Center(
                       child: MediaArtwork(
@@ -146,46 +126,16 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                     ),
                   ),
                   SizedBox(height: t.spacing.xl),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          entry.title,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.typography.headlineLarge.copyWith(
-                            color: t.colors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      BlocBuilder<
-                        NowPlayingDetailsCubit,
-                        NowPlayingDetailsState
-                      >(
-                        builder: (context, details) {
-                          final track = details.track;
-                          if (track == null) return const SizedBox.shrink();
-                          return Padding(
-                            padding: EdgeInsets.only(left: t.spacing.xs),
-                            child: FavoriteButton(
-                              isFavorite: track.isFavorite,
-                              onChanged: (favorite) async {
-                                final result =
-                                    await getIt<FavoritesRepository>()
-                                        .setFavorite(
-                                          track.id,
-                                          favorite: favorite,
-                                        );
-                                return result.isOk;
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                  Text(
+                    entry.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.typography.displayLarge.copyWith(
+                      fontSize: 36,
+                      height: 1.12,
+                      color: Colors.white,
+                    ),
                   ),
                   _ArtistAlbumLinks(entry: entry),
                   const _SourceQualityRow(),
@@ -197,12 +147,203 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                 ],
               ),
             ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _PlayerTopBar(entry: entry, state: state),
+            ),
+            Positioned(
+              right: t.spacing.md,
+              bottom: t.spacing.md,
+              child: _QueueEditButton(
+                enabled: state.hasQueue,
+                onPressed: () => _showQueueOverlay(context),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+class _PlayerContrastScrim extends StatelessWidget {
+  const _PlayerContrastScrim();
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0x99000000), Color(0x52000000), Color(0xB3000000)],
+        stops: [0, .42, 1],
+      ),
+    ),
+  );
+}
+
+class _PlayerTopBar extends StatelessWidget {
+  const _PlayerTopBar({required this.entry, required this.state});
+
+  final QueueEntry entry;
+  final PlaybackUiState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              iconSize: 34,
+              color: Colors.white,
+              tooltip: 'Minimize player',
+              onPressed: () => context.pop(),
+            ),
+            const Spacer(),
+            BlocBuilder<NowPlayingDetailsCubit, NowPlayingDetailsState>(
+              builder: (context, details) {
+                final track = details.track;
+                if (track == null) return const SizedBox.shrink();
+                return FavoriteButton(
+                  isFavorite: track.isFavorite,
+                  unselectedColor: Colors.white,
+                  iconSize: 30,
+                  onChanged: (favorite) async {
+                    final result = await getIt<FavoritesRepository>()
+                        .setFavorite(track.id, favorite: favorite);
+                    return result.isOk;
+                  },
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.more_vert_rounded),
+              iconSize: 30,
+              color: Colors.white,
+              tooltip: 'More',
+              onPressed: () => showTrackActionsSheet(
+                context,
+                onPlayNext: () =>
+                    context.read<PlaybackCubit>().playNextEntry(entry),
+                onAddToQueue: () =>
+                    context.read<PlaybackCubit>().addEntryToQueue(entry),
+                onLyrics: () => context.pushNamed(RouteNames.nowPlayingLyrics),
+                onOpenQueue: state.hasQueue
+                    ? () => context.pushNamed(RouteNames.nowPlayingQueue)
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueEditButton extends StatelessWidget {
+  const _QueueEditButton({required this.enabled, required this.onPressed});
+
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Edit queue',
+      child: Material(
+        color: Colors.black.withValues(alpha: .48),
+        shape: const CircleBorder(),
+        child: IconButton(
+          icon: const Icon(Icons.queue_music_rounded),
+          iconSize: 30,
+          color: Colors.white,
+          tooltip: 'Edit queue',
+          constraints: const BoxConstraints.tightFor(width: 56, height: 56),
+          onPressed: enabled ? onPressed : null,
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showQueueOverlay(BuildContext context) => showGeneralDialog<void>(
+  context: context,
+  barrierDismissible: true,
+  barrierLabel: 'Close queue editor',
+  barrierColor: Colors.black.withValues(alpha: .62),
+  transitionDuration: const Duration(milliseconds: 220),
+  pageBuilder: (dialogContext, _, _) {
+    final t = dialogContext.tokens;
+    final width = (MediaQuery.sizeOf(dialogContext).width * .88)
+        .clamp(320.0, 440.0)
+        .toDouble();
+    return Align(
+      alignment: Alignment.centerRight,
+      child: SafeArea(
+        left: false,
+        child: Material(
+          color: t.colors.surface,
+          child: SizedBox(
+            width: width,
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    t.spacing.md,
+                    t.spacing.sm,
+                    t.spacing.xs,
+                    t.spacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Edit queue',
+                          style: t.typography.headlineLarge.copyWith(
+                            color: t.colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        iconSize: 28,
+                        tooltip: 'Close queue editor',
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: BlocBuilder<PlaybackCubit, PlaybackUiState>(
+                    builder: (context, state) => QueueEditor(
+                      state: state,
+                      cubit: context.read<PlaybackCubit>(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  },
+  transitionBuilder: (context, animation, _, child) => SlideTransition(
+    position: Tween<Offset>(
+      begin: const Offset(1, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+    child: child,
+  ),
+);
 
 /// A heavily blurred, scaled-up copy of the current artwork behind the
 /// whole player (v0.1.6) — "just display a very blurred version of the
@@ -278,8 +419,11 @@ class _ArtistAlbumLinks extends StatelessWidget {
               if (artistText != null)
                 _LinkOrText(
                   text: artistText,
-                  style: t.typography.bodyLarge,
-                  color: t.colors.textSecondary,
+                  style: t.typography.bodyLarge.copyWith(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  color: Colors.white,
                   linkColor: t.colors.accent,
                   onTap: artist != null && artist.isNavigable
                       ? () => _openLibraryRoute(
@@ -292,8 +436,8 @@ class _ArtistAlbumLinks extends StatelessWidget {
               if (entry.albumName != null)
                 _LinkOrText(
                   text: entry.albumName!,
-                  style: t.typography.bodyMedium,
-                  color: t.colors.textSecondary,
+                  style: t.typography.bodyMedium.copyWith(fontSize: 20),
+                  color: Colors.white,
                   linkColor: t.colors.accent,
                   onTap: album != null
                       ? () => _openLibraryRoute(
@@ -401,14 +545,14 @@ class _SourceQualityRow extends StatelessWidget {
                       Text(
                         format,
                         style: t.typography.caption.copyWith(
-                          color: t.colors.textSecondary,
+                          color: Colors.white,
                         ),
                       ),
                     if (bitrate != null)
                       Text(
                         bitrate,
                         style: t.typography.caption.copyWith(
-                          color: t.colors.textSecondary,
+                          color: Colors.white,
                         ),
                       ),
                   ],
@@ -491,9 +635,9 @@ class _SeekBar extends StatelessWidget {
       children: [
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            trackHeight: 5,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
             activeTrackColor: t.colors.accent,
             inactiveTrackColor: t.colors.border,
             thumbColor: t.colors.accent,
@@ -512,13 +656,15 @@ class _SeekBar extends StatelessWidget {
             Text(
               formatDuration(state.position),
               style: t.typography.caption.copyWith(
-                color: t.colors.textSecondary,
+                fontSize: 14,
+                color: Colors.white,
               ),
             ),
             Text(
               hasDuration ? formatDuration(duration) : '--:--',
               style: t.typography.caption.copyWith(
-                color: t.colors.textSecondary,
+                fontSize: 14,
+                color: Colors.white,
               ),
             ),
           ],
@@ -544,19 +690,20 @@ class _TransportRow extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.shuffle_rounded),
+          iconSize: 30,
           color: state.queue.shuffleEnabled
               ? t.colors.accent
               : t.colors.textSecondary,
           onPressed: state.hasQueue ? cubit.toggleShuffle : null,
         ),
         IconButton(
-          iconSize: 32,
+          iconSize: 40,
           icon: const Icon(Icons.skip_previous_rounded),
           color: t.colors.textPrimary,
           onPressed: state.hasQueue ? cubit.previous : null,
         ),
         IconButton(
-          iconSize: 64,
+          iconSize: 72,
           icon: Icon(
             state.isPlaying
                 ? Icons.pause_circle_filled_rounded
@@ -566,12 +713,13 @@ class _TransportRow extends StatelessWidget {
           onPressed: state.hasQueue ? cubit.togglePlayPause : null,
         ),
         IconButton(
-          iconSize: 32,
+          iconSize: 40,
           icon: const Icon(Icons.skip_next_rounded),
           color: t.colors.textPrimary,
           onPressed: state.hasQueue ? cubit.next : null,
         ),
         IconButton(
+          iconSize: 30,
           icon: Icon(
             repeatMode == RepeatMode.one
                 ? Icons.repeat_one_rounded

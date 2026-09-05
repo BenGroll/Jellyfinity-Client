@@ -24,7 +24,6 @@ class QueuePage extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<PlaybackCubit>();
         final entries = state.queue.entries;
-
         return AppScaffold(
           padded: false,
           title: 'Queue',
@@ -41,39 +40,53 @@ class QueuePage extends StatelessWidget {
                   : () => _confirmClear(context, cubit),
             ),
           ],
-          body: entries.isEmpty
-              ? const EmptyStateView(
-                  title: 'The queue is empty',
-                  message: 'Play something and it will show up here.',
-                  icon: Icons.queue_music_rounded,
-                )
-              : Column(
-                  children: [
-                    _QueueRuntimeHeader(queue: state.queue),
-                    Expanded(
-                      child: ReorderableListView.builder(
-                        itemCount: entries.length,
-                        onReorderItem: cubit.reorder,
-                        // Only the handle icon starts a drag (v0.1.6);
-                        // the rest of the row keeps its normal tap-to-play.
-                        buildDefaultDragHandles: false,
-                        itemBuilder: (context, index) {
-                          final entry = entries[index];
-                          return _QueueRow(
-                            key: ValueKey(entry),
-                            index: index,
-                            entry: entry,
-                            isCurrent: index == state.queue.currentIndex,
-                            onTap: () => cubit.playAt(index),
-                            onRemove: () => cubit.removeAt(index),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+          body: QueueEditor(state: state, cubit: cubit),
         );
       },
+    );
+  }
+}
+
+/// Reusable queue list for the full route and the Now Playing overlay.
+class QueueEditor extends StatelessWidget {
+  const QueueEditor({super.key, required this.state, required this.cubit});
+
+  final PlaybackUiState state;
+  final PlaybackCubit cubit;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = state.queue.entries;
+    if (entries.isEmpty) {
+      return const EmptyStateView(
+        title: 'The queue is empty',
+        message: 'Play something and it will show up here.',
+        icon: Icons.queue_music_rounded,
+      );
+    }
+
+    return Column(
+      children: [
+        _QueueRuntimeHeader(queue: state.queue),
+        Expanded(
+          child: ReorderableListView.builder(
+            itemCount: entries.length,
+            onReorderItem: cubit.reorder,
+            buildDefaultDragHandles: false,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return _QueueRow(
+                key: ValueKey(entry),
+                index: index,
+                entry: entry,
+                isCurrent: index == state.queue.currentIndex,
+                onTap: () => cubit.playAt(index),
+                onRemove: () => cubit.removeAt(index),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

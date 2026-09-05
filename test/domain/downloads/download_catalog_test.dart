@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/domain/downloads/downloads.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
+import 'package:jellyfinity/domain/media/media_availability.dart';
 
 import '../../support/music_fakes.dart';
 
@@ -77,6 +78,20 @@ void main() {
 
       expect(record.isPlayableOffline, isFalse);
       expect(record.toTrack().availability.isOnDevice, isFalse);
+    });
+
+    test('a completed download the server dropped is "only on this device"', () {
+      final record = _record(
+        'track-1',
+        state: DownloadState.completed,
+        owner: album,
+      ).copyWith(serverGone: true);
+
+      expect(record.isPlayableOffline, isTrue);
+      final track = record.toTrack();
+      expect(track.availability, MediaAvailability.localOnly);
+      expect(track.availability.isOnDevice, isTrue);
+      expect(track.availability.isPlayable, isTrue);
     });
 
     test('carries enough metadata to rebuild the track it came from', () {
@@ -357,6 +372,40 @@ void main() {
       // t2 is only ever wanted by itself — a standalone song, not a
       // collection.
       expect(catalog.standaloneTrackDownloads.map((r) => r.id.itemId), ['t2']);
+    });
+  });
+
+  group('DownloadCatalog collection identity (v0.2.3)', () {
+    final playlist = DownloadOwner.playlist(_id('pl-1'));
+
+    test('prefers the stored name over one reconstructed from tracks', () {
+      final catalog = DownloadCatalog(
+        collections: {
+          playlist: DownloadedCollection(owner: playlist, name: 'Roadtrip'),
+        },
+        isLoaded: true,
+      );
+
+      expect(catalog.collectionName(playlist), 'Roadtrip');
+      expect(catalog.collectionIdentity(playlist)?.name, 'Roadtrip');
+    });
+
+    test('a playlist with no stored identity falls back to the label', () {
+      const catalog = DownloadCatalog(isLoaded: true);
+      expect(
+        catalog.collectionName(playlist, fallback: 'Downloaded playlist'),
+        'Downloaded playlist',
+      );
+    });
+
+    test('a collection with only a stored identity still lists', () {
+      final catalog = DownloadCatalog(
+        collections: {
+          playlist: DownloadedCollection(owner: playlist, name: 'Empty Mix'),
+        },
+        isLoaded: true,
+      );
+      expect(catalog.collectionOwners, contains(playlist));
     });
   });
 }

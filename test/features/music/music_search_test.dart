@@ -14,8 +14,13 @@ import '../../support/pump_app.dart';
 MusicSearchCubit _cubit(
   FakeMusicLibraryRepository music, [
   FakePlaylistRepository? playlists,
+  FakeDownloadsLibrarySource? downloads,
 ]) {
-  final cubit = MusicSearchCubit(music, playlists ?? FakePlaylistRepository());
+  final cubit = MusicSearchCubit(
+    music,
+    playlists ?? FakePlaylistRepository(),
+    downloads ?? FakeDownloadsLibrarySource(),
+  );
   addTearDown(cubit.close);
   return cubit;
 }
@@ -27,7 +32,7 @@ MusicSearchCubit _cubit(
 MusicSearchCubit _pageCubit(
   FakeMusicLibraryRepository music, [
   FakePlaylistRepository? playlists,
-]) => MusicSearchCubit(music, playlists ?? FakePlaylistRepository());
+]) => MusicSearchCubit(music, playlists ?? FakePlaylistRepository(), FakeDownloadsLibrarySource());
 
 FakeMusicLibraryRepository _library() => FakeMusicLibraryRepository()
   ..artistList = [testArtist('a1', name: 'Miles Davis')]
@@ -113,6 +118,38 @@ void main() {
       await cubit.submit();
 
       expect(cubit.state.wholeSearchFailure, isA<RecoverableFailure>());
+    });
+
+    test('offline, falls back to the downloads when they match (v0.2.3)', () async {
+      final music = _library()
+        ..failure = const RecoverableFailure('Could not reach the server.');
+      final playlists = FakePlaylistRepository()
+        ..failure = const RecoverableFailure('Could not reach the server.');
+      final downloads = FakeDownloadsLibrarySource()
+        ..trackList = [testTrack('t1', name: 'Miles Runs the Voodoo Down')];
+      final cubit = _cubit(music, playlists, downloads);
+
+      cubit.queryChanged('miles');
+      await cubit.submit();
+
+      expect(cubit.state.wholeSearchFailure, isNull);
+      expect(cubit.state.songs.items.single.name, 'Miles Runs the Voodoo Down');
+    });
+
+    test('the Downloaded filter searches only the downloads (v0.2.3)', () async {
+      final music = _library();
+      final downloads = FakeDownloadsLibrarySource()
+        ..albumList = [testAlbum('al1', name: 'Blue Train')];
+      final cubit = _cubit(music, null, downloads);
+
+      await cubit.showDownloadedOnly(true);
+      cubit.queryChanged('blue');
+      await cubit.submit();
+
+      expect(cubit.downloadedOnly, isTrue);
+      expect(cubit.state.albums.items.single.name, 'Blue Train');
+      // The server list (Miles Ahead) is not consulted.
+      expect(cubit.state.artists.items, isEmpty);
     });
 
     test('a slow answer to an old query never wins', () async {

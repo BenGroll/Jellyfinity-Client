@@ -7,7 +7,9 @@
 /// from ([LocalAudioSource]), a downloaded playlist's ordered membership
 /// snapshot ([PlaylistDownloadMember], [PlaylistDownloadChange], v0.2.1),
 /// the network the device is on for the Wi-Fi-only preference
-/// ([NetworkCondition], [NetworkState], v0.2.2),
+/// ([NetworkCondition], [NetworkState], v0.2.2), a downloaded album's,
+/// artist's or playlist's stored identity for the offline library
+/// ([DownloadedCollection], v0.2.3),
 /// and the two seams underneath — durable records ([DownloadStore]) and
 /// the transfer mechanism itself ([DownloadEngine]).
 ///
@@ -19,8 +21,10 @@ library;
 
 export 'download_state.dart';
 export 'DownloadCatalog.dart';
+export 'DownloadedCollection.dart';
 export 'DownloadEngine.dart';
 export 'DownloadOwner.dart';
+export 'DownloadStorageProbe.dart';
 export 'DownloadStore.dart';
 export 'LocalAudioSource.dart';
 export 'NetworkCondition.dart';

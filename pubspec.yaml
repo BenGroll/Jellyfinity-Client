@@ -64,6 +64,7 @@ dependencies:
   # (v0.2.2, ADR-0022). Read only through the NetworkCondition domain
   # seam — ConnectivityNetworkCondition is the one class that imports it.
   connectivity_plus: ^7.3.1
+  disk_space_plus: ^0.2.6
 
 dev_dependencies:
   flutter_test:

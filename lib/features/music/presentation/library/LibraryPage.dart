@@ -60,8 +60,23 @@ class LibraryPage extends StatelessWidget {
   }
 }
 
-class _LibraryView extends StatelessWidget {
+class _LibraryView extends StatefulWidget {
   const _LibraryView();
+
+  @override
+  State<_LibraryView> createState() => _LibraryViewState();
+}
+
+class _LibraryViewState extends State<_LibraryView> {
+  bool _downloadedOnly = false;
+
+  void _setDownloadedOnly(bool value) {
+    setState(() => _downloadedOnly = value);
+    context.read<ArtistsCubit>().showDownloadedOnly(value);
+    context.read<AlbumsCubit>().showDownloadedOnly(value);
+    context.read<SongsCubit>().showDownloadedOnly(value);
+    context.read<PlaylistsCubit>().showDownloadedOnly(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +86,30 @@ class _LibraryView extends StatelessWidget {
       length: 4,
       child: Column(
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                t.spacing.md,
+                t.spacing.xs,
+                t.spacing.md,
+                t.spacing.xs,
+              ),
+              child: FilterChip(
+                label: const Text('Downloaded'),
+                avatar: Icon(
+                  Icons.download_done_rounded,
+                  size: 18,
+                  color: _downloadedOnly
+                      ? t.colors.accent
+                      : t.colors.textSecondary,
+                ),
+                selected: _downloadedOnly,
+                onSelected: _setDownloadedOnly,
+                tooltip: 'Show only music kept on this device',
+              ),
+            ),
+          ),
           TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,

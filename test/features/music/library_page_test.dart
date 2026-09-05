@@ -25,10 +25,10 @@ Future<void> _pumpMusic(
   await pumpThemed(
     tester,
     LibraryPage(
-      artists: ArtistsCubit(music, pageSize: pageSize),
-      albums: AlbumsCubit(music, pageSize: pageSize),
-      songs: SongsCubit(music, pageSize: pageSize),
-      playlists: PlaylistsCubit(playlistRepository, pageSize: pageSize),
+      artists: ArtistsCubit(music, FakeDownloadsLibrarySource(), pageSize: pageSize),
+      albums: AlbumsCubit(music, FakeDownloadsLibrarySource(), pageSize: pageSize),
+      songs: SongsCubit(music, FakeDownloadsLibrarySource(), pageSize: pageSize),
+      playlists: PlaylistsCubit(playlistRepository, FakeDownloadsLibrarySource(), pageSize: pageSize),
     ),
   );
 }

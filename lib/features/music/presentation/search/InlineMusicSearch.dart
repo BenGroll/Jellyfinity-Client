@@ -55,6 +55,18 @@ class _InlineSearchView extends StatelessWidget {
           ),
           child: _SearchField(onClose: onClose),
         ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.spacing.md,
+            0,
+            t.spacing.md,
+            t.spacing.sm,
+          ),
+          child: const Align(
+            alignment: Alignment.centerLeft,
+            child: _DownloadedSearchChip(),
+          ),
+        ),
         Expanded(child: _SearchResults(onNavigate: onClose)),
       ],
     );
@@ -264,6 +276,40 @@ class _SearchResults extends StatelessWidget {
             ),
           ],
         );
+      },
+    );
+  }
+}
+
+/// The "Downloaded" filter on the search screen (v0.2.3): searches only
+/// the signed-in profile's downloads. Also the fallback a normal search
+/// lands on automatically when the server cannot be reached — this chip
+/// just makes it a deliberate choice too.
+class _DownloadedSearchChip extends StatefulWidget {
+  const _DownloadedSearchChip();
+
+  @override
+  State<_DownloadedSearchChip> createState() => _DownloadedSearchChipState();
+}
+
+class _DownloadedSearchChipState extends State<_DownloadedSearchChip> {
+  bool _selected = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return FilterChip(
+      label: const Text('Downloaded'),
+      avatar: Icon(
+        Icons.download_done_rounded,
+        size: 18,
+        color: _selected ? t.colors.accent : t.colors.textSecondary,
+      ),
+      selected: _selected,
+      tooltip: 'Search only music kept on this device',
+      onSelected: (value) {
+        setState(() => _selected = value);
+        context.read<MusicSearchCubit>().showDownloadedOnly(value);
       },
     );
   }

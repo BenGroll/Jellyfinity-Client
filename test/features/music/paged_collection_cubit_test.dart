@@ -13,8 +13,16 @@ List<Track> _library(int count) => [
   for (var i = 0; i < count; i++) testTrack('t$i', name: 'Song $i'),
 ];
 
-SongsCubit _songs(FakeMusicLibraryRepository music, {int pageSize = 50}) {
-  final cubit = SongsCubit(music, pageSize: pageSize);
+SongsCubit _songs(
+  FakeMusicLibraryRepository music, {
+  int pageSize = 50,
+  FakeDownloadsLibrarySource? downloads,
+}) {
+  final cubit = SongsCubit(
+    music,
+    downloads ?? FakeDownloadsLibrarySource(),
+    pageSize: pageSize,
+  );
   addTearDown(cubit.close);
   return cubit;
 }
@@ -226,5 +234,22 @@ void main() {
     expect(music.calls.last.searchTerm, 'Song 3');
     expect(music.calls.last.page.startIndex, 0);
     expect(cubit.state.items, hasLength(1));
+  });
+
+  test('the Downloaded filter reads the downloads, not the server (v0.2.3)', () async {
+    final music = FakeMusicLibraryRepository()..trackList = _library(10);
+    final downloads = FakeDownloadsLibrarySource()
+      ..trackList = [testTrack('d1', name: 'Kept Song')];
+    final cubit = _songs(music, downloads: downloads);
+    await cubit.load();
+    music.calls.clear();
+
+    await cubit.showDownloadedOnly(true);
+
+    expect(cubit.downloadedOnly, isTrue);
+    expect(cubit.state.items.single.name, 'Kept Song');
+    expect(cubit.state.isCached, isTrue);
+    // The server was not asked again.
+    expect(music.calls, isEmpty);
   });
 }

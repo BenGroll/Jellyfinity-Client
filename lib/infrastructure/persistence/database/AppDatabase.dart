@@ -36,13 +36,14 @@ part 'AppDatabase.g.dart';
     TrackDownloads,
     DownloadOwners,
     PlaylistDownloadMembers,
+    DownloadedCollections,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -52,6 +53,8 @@ class AppDatabase extends _$AppDatabase {
       await m.createIndex(_savedServersBaseUrlIndex);
       await m.createIndex(_downloadOwnersOwnerIndex);
       await m.createIndex(_playlistDownloadMembersPlaylistIndex);
+      await m.createIndex(_trackDownloadsAccountIndex);
+      await m.createIndex(_downloadedCollectionsAccountIndex);
     },
     onUpgrade: (m, from, to) async {
       // v2 (v0.0.8): the media metadata cache. Purely additive — three
@@ -71,23 +74,113 @@ class AppDatabase extends _$AppDatabase {
       // v4 (v0.2.0): downloads. Additive again — the two new tables
       // start empty, so an upgrading install keeps everything it had
       // and simply has nothing downloaded yet.
+      //
+      // These two `CREATE TABLE`s are frozen at their v4 shape rather
+      // than built from the current definitions: v0.2.3 (v6) adds
+      // columns to both, and a v3 -> v4 step must still produce exactly
+      // the v4 schema. The v6 step below brings them up to date.
       if (from < 4) {
-        await m.createTable(trackDownloads);
-        await m.createTable(downloadOwners);
+        await m.database.customStatement(_createTrackDownloadsV4);
+        await m.database.customStatement(_createDownloadOwnersV4);
         await m.createIndex(_downloadOwnersOwnerIndex);
       }
       // v5 (v0.2.1): playlist download membership snapshots. One new
       // table, still additive — an upgrading install has every track and
       // album download it had, and simply no playlist snapshots yet.
+      // Frozen at its v5 shape for the same reason as the v4 tables.
       if (from < 5) {
-        await m.createTable(playlistDownloadMembers);
+        await m.database.customStatement(_createPlaylistDownloadMembersV5);
         await m.createIndex(_playlistDownloadMembersPlaylistIndex);
+      }
+      // v6 (v0.2.3): per-profile downloads and downloaded-collection
+      // identity. `track_downloads`, `download_owners` and
+      // `playlist_download_members` each gain an `account_key` in their
+      // primary key (and `track_downloads` a `server_gone` flag) so one
+      // profile never sees, plays or removes another profile's
+      // downloads. Every pre-v6 row keeps its data with an empty key,
+      // which `DownloadsCubit.restore` then claims for the first profile
+      // to sign in — the pre-v6 "one shared bucket" behaviour, carried
+      // forward. `downloaded_collections` is new and starts empty; a
+      // collection's name and artwork fill in the next time it is
+      // downloaded or opened online.
+      if (from < 6) {
+        await m.alterTable(
+          TableMigration(
+            trackDownloads,
+            newColumns: [trackDownloads.accountKey, trackDownloads.serverGone],
+          ),
+        );
+        await m.alterTable(
+          TableMigration(
+            downloadOwners,
+            newColumns: [downloadOwners.accountKey],
+          ),
+        );
+        await m.alterTable(
+          TableMigration(
+            playlistDownloadMembers,
+            newColumns: [playlistDownloadMembers.accountKey],
+          ),
+        );
+        await m.createTable(downloadedCollections);
+        // Recreating a table drops its indexes, so re-create the two the
+        // alterTable calls above just cleared, plus the new v0.2.3 ones.
+        await m.createIndex(_downloadOwnersOwnerIndex);
+        await m.createIndex(_playlistDownloadMembersPlaylistIndex);
+        await m.createIndex(_trackDownloadsAccountIndex);
+        await m.createIndex(_downloadedCollectionsAccountIndex);
       }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  /// The v4 shape of `track_downloads`, frozen so the v3 -> v4 step
+  /// produces exactly what schema v4 committed even though v6 adds
+  /// columns to the live definition.
+  static const String _createTrackDownloadsV4 =
+      'CREATE TABLE IF NOT EXISTS "track_downloads" ('
+      '"server_id" TEXT NOT NULL, '
+      '"item_id" TEXT NOT NULL, '
+      '"state" TEXT NOT NULL, '
+      '"failure_reason" TEXT NULL, '
+      '"received_bytes" INTEGER NOT NULL DEFAULT 0, '
+      '"total_bytes" INTEGER NULL, '
+      '"title" TEXT NOT NULL, '
+      '"artists_json" TEXT NULL, '
+      '"album_item_id" TEXT NULL, '
+      '"album_name" TEXT NULL, '
+      '"track_number" INTEGER NULL, '
+      '"disc_number" INTEGER NULL, '
+      '"duration_micros" INTEGER NULL, '
+      '"normalization_gain" REAL NULL, '
+      '"image_item_id" TEXT NULL, '
+      '"image_kind" TEXT NULL, '
+      '"image_tag" TEXT NULL, '
+      '"image_aspect_ratio" REAL NULL, '
+      '"requested_at" INTEGER NOT NULL, '
+      'PRIMARY KEY ("server_id", "item_id"))';
+
+  /// The v4 shape of `download_owners`, frozen (see
+  /// [_createTrackDownloadsV4]).
+  static const String _createDownloadOwnersV4 =
+      'CREATE TABLE IF NOT EXISTS "download_owners" ('
+      '"server_id" TEXT NOT NULL, '
+      '"item_id" TEXT NOT NULL, '
+      '"owner_kind" TEXT NOT NULL, '
+      '"owner_item_id" TEXT NOT NULL, '
+      'PRIMARY KEY ("server_id", "item_id", "owner_kind", "owner_item_id"))';
+
+  /// The v5 shape of `playlist_download_members`, frozen (see
+  /// [_createTrackDownloadsV4]).
+  static const String _createPlaylistDownloadMembersV5 =
+      'CREATE TABLE IF NOT EXISTS "playlist_download_members" ('
+      '"server_id" TEXT NOT NULL, '
+      '"playlist_item_id" TEXT NOT NULL, '
+      '"position" INTEGER NOT NULL, '
+      '"track_item_id" TEXT NOT NULL, '
+      'PRIMARY KEY ("server_id", "playlist_item_id", "position"))';
 
   static final Index _savedAccountsServerIdIndex = Index(
     'idx_saved_accounts_server_id',
@@ -117,5 +210,23 @@ class AppDatabase extends _$AppDatabase {
     'idx_playlist_download_members_playlist',
     'CREATE INDEX IF NOT EXISTS idx_playlist_download_members_playlist '
         'ON playlist_download_members (server_id, playlist_item_id, position)',
+  );
+
+  /// Every download read starts from the active profile (v0.2.3): the
+  /// catalog restore, the offline library listing, and the offline
+  /// search all scan `track_downloads` for one `account_key`.
+  static final Index _trackDownloadsAccountIndex = Index(
+    'idx_track_downloads_account',
+    'CREATE INDEX IF NOT EXISTS idx_track_downloads_account '
+        'ON track_downloads (account_key, state, title)',
+  );
+
+  /// Listing a profile's downloaded albums, artists and playlists — for
+  /// the Downloads screen and the offline library — is keyed by profile
+  /// and kind, ordered by name.
+  static final Index _downloadedCollectionsAccountIndex = Index(
+    'idx_downloaded_collections_account',
+    'CREATE INDEX IF NOT EXISTS idx_downloaded_collections_account '
+        'ON downloaded_collections (account_key, owner_kind, sort_name)',
   );
 }
