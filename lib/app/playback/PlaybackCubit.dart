@@ -29,12 +29,8 @@ import 'PlaybackUiState.dart';
 /// sources, computing the actual play order (including a shuffled one),
 /// persisting the queue, and reporting playback sessions to Jellyfin.
 ///
-/// The engine is reloaded — [PlaybackEngine.setSources] called again —
-/// on every structural queue change (add/remove/reorder/shuffle/repeat),
-/// not only when that change would actually disturb what's loaded. That
-/// is a deliberate simplicity trade-off for this release: it costs a
-/// brief reload on an explicit queue edit, never during ordinary
-/// track-to-track playback, which is where gapless actually matters.
+/// The engine playlist is updated in place for queue edits, preserving the
+/// currently playing native source and position whenever possible.
 @lazySingleton
 class PlaybackCubit extends Cubit<PlaybackUiState> {
   PlaybackCubit(
@@ -95,6 +91,10 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// skipped once for a track that already needed one.
   final Set<MediaId> _retriedAtOriginal = {};
 
+  final Map<(MediaId, StreamQuality), PlaybackSource> _resolvedSources = {};
+  Future<void> _operationTail = Future<void>.value();
+  bool _isSynchronizingSources = false;
+
   // ---- Cold start ----
 
   /// Restores the saved queue and primes the engine at its last position,
@@ -124,7 +124,13 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   /// Replaces the queue with [tracks] and starts playing [startIndex].
   /// Keeps the current shuffle/repeat settings.
-  Future<void> playNow(List<Track> tracks, {required int startIndex}) async {
+  // Do not serialize this behind queue edits: just_audio's play() Future stays
+  // pending for the lifetime of playback. Queue edits are serialized with one
+  // another, but must remain available while a new queue is playing.
+  Future<void> playNow(List<Track> tracks, {required int startIndex}) =>
+      _playNow(tracks, startIndex: startIndex);
+
+  Future<void> _playNow(List<Track> tracks, {required int startIndex}) async {
     if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
       return;
     }
@@ -210,7 +216,10 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> setRepeatMode(RepeatMode mode) =>
       _mutate((queue) => queue.withRepeatMode(mode));
 
-  Future<void> _mutate(
+  Future<void> _mutate(PlaybackQueue Function(PlaybackQueue queue) transform) =>
+      _enqueue(() => _mutateNow(transform));
+
+  Future<void> _mutateNow(
     PlaybackQueue Function(PlaybackQueue queue) transform,
   ) async {
     final wasPlaying = state.isPlaying;
@@ -228,6 +237,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     );
     unawaited(_queueRepository.replace(queue));
     await _loadIntoEngine(queue, play: wasPlaying, initialPosition: position);
+  }
+
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final next = _operationTail.then((_) => operation());
+    _operationTail = next.then<void>((_) {}, onError: (error, stack) {});
+    return next;
   }
 
   // ---- Engine loading ----
@@ -264,12 +279,9 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// Resolves stream addresses for the entries that should be loaded and
   /// hands them to the engine.
   ///
-  /// Under [RepeatMode.one] this loads only the current entry — a
-  /// gapless preloaded window would just be tracks that are never played
-  /// next while repeat-one stays on, and single-item completion is also
-  /// what makes replaying it detectable at all (a multi-item playlist
-  /// advances between items silently; only the very last item reaching
-  /// [PlaybackStatus.completed] is ever observable).
+  /// The complete play order stays loaded for every repeat mode. Repeat-one
+  /// is handled when completion is reported, avoiding a playlist replacement
+  /// when the user toggles the repeat button.
   Future<void> _loadIntoEngine(
     PlaybackQueue queue, {
     required bool play,
@@ -282,9 +294,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       return;
     }
 
-    final order = queue.repeatMode == RepeatMode.one
-        ? [currentIndex]
-        : queue.playOrder;
+    // Keep the full playlist loaded; repeat-one is handled at completion.
+    final order = queue.playOrder;
 
     final sources = <PlaybackSource>[];
     final loadedOrder = <int>[];
@@ -296,13 +307,15 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       final quality = _retriedAtOriginal.contains(entry.id)
           ? StreamQuality.original
           : _settings.state.streamQuality;
-      final resolved = await _sourceResolver.resolve(
-        entry.id,
-        quality: quality,
-      );
-      if (resolved case Ok<Uri>(:final value)) {
-        sources.add(
-          PlaybackSource(
+      final cacheKey = (entry.id, quality);
+      var source = _resolvedSources[cacheKey];
+      if (source == null) {
+        final resolved = await _sourceResolver.resolve(
+          entry.id,
+          quality: quality,
+        );
+        if (resolved case Ok<Uri>(:final value)) {
+          source = PlaybackSource(
             id: entry.id,
             uri: value,
             title: entry.title,
@@ -310,8 +323,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
             album: entry.albumName,
             duration: entry.duration,
             image: entry.image,
-          ),
-        );
+          );
+          _resolvedSources[cacheKey] = source;
+        }
+      }
+      if (source != null) {
+        sources.add(source);
         loadedOrder.add(entriesIndex);
       } else {
         updated = updated.withEntryMarkedUnavailable(entriesIndex);
@@ -337,6 +354,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       unawaited(_queueRepository.replace(updated));
     }
 
+    final hadLoadedSources = _loadedOrder.isNotEmpty;
     _loadedOrder = loadedOrder;
 
     if (sources.isEmpty) {
@@ -348,12 +366,28 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     final startEngineIndex = updatedCurrentIndex == null
         ? -1
         : loadedOrder.indexOf(updatedCurrentIndex);
-    await _engine.setSources(
-      sources,
-      initialIndex: startEngineIndex < 0 ? 0 : startEngineIndex,
-      initialPosition: initialPosition,
-    );
-    if (play) await _engine.play();
+    final initialIndex = startEngineIndex < 0 ? 0 : startEngineIndex;
+    if (!hadLoadedSources) {
+      await _engine.setSources(
+        sources,
+        initialIndex: initialIndex,
+        initialPosition: initialPosition,
+      );
+      if (play) await _engine.play();
+    } else {
+      _isSynchronizingSources = true;
+      try {
+        await _engine.updateSources(
+          sources,
+          initialIndex: initialIndex,
+          initialPosition: initialPosition,
+          resumePlaying: play,
+        );
+        await Future<void>.delayed(Duration.zero);
+      } finally {
+        _isSynchronizingSources = false;
+      }
+    }
   }
 
   // ---- Engine stream handling ----
@@ -407,6 +441,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   }
 
   void _onEngineIndexChanged(int? engineIndex) {
+    if (_isSynchronizingSources) return;
     if (engineIndex == null ||
         engineIndex < 0 ||
         engineIndex >= _loadedOrder.length) {
@@ -501,7 +536,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         await _engine.seek(Duration.zero);
         await _engine.play();
       case RepeatMode.all:
-        await _loadIntoEngine(queue, play: true);
+        final next = queue.nextIndexOnCompletion();
+        if (next != null) await _advanceTo(next);
       case RepeatMode.off:
       // The queue reached its natural end; there is nothing more to do.
     }

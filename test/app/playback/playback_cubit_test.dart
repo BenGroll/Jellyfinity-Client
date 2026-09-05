@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
@@ -33,6 +35,9 @@ Future<void> _pump() => Future<void>.delayed(Duration.zero);
 int _setSourcesCalls(FakePlaybackEngine engine) =>
     engine.calls.where((c) => c.startsWith('setSources')).length;
 
+int _updateSourcesCalls(FakePlaybackEngine engine) =>
+    engine.calls.where((c) => c.startsWith('updateSources')).length;
+
 void main() {
   late AppDatabase db;
   late QueueRepository queueRepository;
@@ -66,6 +71,19 @@ void main() {
   });
 
   group('starting playback', () {
+    test('queue controls remain available while playNow is playing', () async {
+      final completion = Completer<void>();
+      engine.playCompletion = completion;
+
+      final starting = cubit.playNow([_track('a')], startIndex: 0);
+      await _pump();
+      await cubit.setRepeatMode(RepeatMode.all);
+
+      expect(cubit.state.queue.repeatMode, RepeatMode.all);
+      completion.complete();
+      await starting;
+    });
+
     test('playNow loads the engine and starts playing', () async {
       await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
 
@@ -212,24 +230,36 @@ void main() {
   });
 
   group('repeat', () {
-    test('repeat all reloads the engine from the top on completion', () async {
+    test(
+      'transient indices during playlist synchronization do not change the current track',
+      () async {
+        await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+        engine.indicesToEmitDuringUpdate.add(1);
+
+        await cubit.setRepeatMode(RepeatMode.all);
+
+        expect(cubit.state.queue.currentIndex, 0);
+      },
+    );
+
+    test('repeat all advances without replacing the engine playlist', () async {
       await cubit.setRepeatMode(RepeatMode.all);
       await cubit.playNow([_track('a'), _track('b')], startIndex: 1);
-      final callsBefore = _setSourcesCalls(engine);
+      final callsBefore = _updateSourcesCalls(engine);
 
       engine.emitStatus(PlaybackStatus.completed);
       await _pump();
 
-      expect(_setSourcesCalls(engine), callsBefore + 1);
+      expect(_updateSourcesCalls(engine), callsBefore);
     });
 
-    test('repeat one replays the same track without reloading', () async {
+    test('repeat one replays the same track without rebuilding', () async {
       await cubit.setRepeatMode(RepeatMode.one);
       await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
       expect(
         engine.sources,
-        hasLength(1),
-        reason: 'only the current entry is loaded',
+        hasLength(2),
+        reason: 'the full playlist remains loaded',
       );
       final callsBefore = _setSourcesCalls(engine);
 
@@ -322,7 +352,7 @@ void main() {
         'original instead of marking unavailable', () async {
       await settings.setStreamQuality(StreamQuality.high);
       await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
-      final setSourcesBefore = _setSourcesCalls(engine);
+      final updateSourcesBefore = _updateSourcesCalls(engine);
 
       engine.emitFailure(
         PlaybackFailure(
@@ -340,7 +370,7 @@ void main() {
       );
       expect(cubit.state.queue.currentIndex, 0, reason: 'still track a');
       expect(resolver.requestedQuality['a'], StreamQuality.original);
-      expect(_setSourcesCalls(engine), setSourcesBefore + 1);
+      expect(_updateSourcesCalls(engine), updateSourcesBefore + 1);
     });
 
     test('a second failure after the retry marks the entry unavailable as '

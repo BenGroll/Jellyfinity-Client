@@ -54,6 +54,8 @@ class FakePlaybackEngine implements PlaybackEngine {
   List<PlaybackSource> sources = const [];
   int? currentIndex;
   bool playing = false;
+  Completer<void>? playCompletion;
+  final List<int?> indicesToEmitDuringUpdate = [];
 
   /// Every call made, in the order they arrived — for asserting exactly
   /// what the cubit told the engine to do.
@@ -72,10 +74,28 @@ class FakePlaybackEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> updateSources(
+    List<PlaybackSource> sources, {
+    required int initialIndex,
+    Duration? initialPosition,
+    required bool resumePlaying,
+  }) async {
+    this.sources = sources;
+    currentIndex = sources.isEmpty ? null : initialIndex;
+    calls.add('updateSources(${sources.length}, initialIndex: $initialIndex)');
+    _currentIndexController.add(currentIndex);
+    for (final index in indicesToEmitDuringUpdate) {
+      _currentIndexController.add(index);
+    }
+    if (resumePlaying && !playing) await play();
+  }
+
+  @override
   Future<void> play() async {
     playing = true;
     calls.add('play');
     _statusController.add(PlaybackStatus.playing);
+    await playCompletion?.future;
   }
 
   @override

@@ -45,8 +45,8 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   final ArtworkResolver _artworkResolver;
   final just_audio.AudioPlayer _player = just_audio.AudioPlayer();
 
-  /// The list [setSources] was last given — the only thing indices from
-  /// `just_audio` or `audio_service` are resolved against.
+  /// The source list currently mirrored into `just_audio`; indices from
+  /// `just_audio` and `audio_service` are resolved against this list.
   List<PlaybackSource> _sources = const [];
 
   final StreamController<PlaybackStatus> _statusController =
@@ -85,6 +85,85 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     } on Object catch (error) {
       _reportFailure(initialIndex, error);
     }
+  }
+
+  @override
+  Future<void> updateSources(
+    List<PlaybackSource> sources, {
+    required int initialIndex,
+    Duration? initialPosition,
+    required bool resumePlaying,
+  }) async {
+    if (sources.isEmpty) {
+      await stop();
+      return;
+    }
+
+    final wasPlaying = _player.playing;
+    final oldKeys = _occurrenceKeys(_sources);
+    final desiredKeys = _occurrenceKeys(sources);
+    final activeKey =
+        _player.currentIndex == null || _player.currentIndex! >= oldKeys.length
+        ? null
+        : oldKeys[_player.currentIndex!];
+    final workingKeys = [...oldKeys];
+    final workingSources = [..._sources];
+
+    for (var index = workingKeys.length - 1; index >= 0; index--) {
+      if (!desiredKeys.contains(workingKeys[index])) {
+        await _player.removeAudioSourceAt(index);
+        workingKeys.removeAt(index);
+        workingSources.removeAt(index);
+      }
+    }
+
+    for (var index = 0; index < desiredKeys.length; index++) {
+      final key = desiredKeys[index];
+      if (index < workingKeys.length && workingKeys[index] == key) continue;
+      final existing = workingKeys.indexOf(key, index);
+      if (existing >= 0) {
+        await _player.moveAudioSource(existing, index);
+        final movedKey = workingKeys.removeAt(existing);
+        final movedSource = workingSources.removeAt(existing);
+        workingKeys.insert(index, movedKey);
+        workingSources.insert(index, movedSource);
+      } else {
+        await _player.insertAudioSource(index, _toAudioSource(sources[index]));
+        workingKeys.insert(index, key);
+        workingSources.insert(index, sources[index]);
+      }
+    }
+
+    _sources = List.unmodifiable(sources);
+    queue.add([for (final source in sources) _toMediaItem(source)]);
+
+    final activeIndex = activeKey == null ? -1 : desiredKeys.indexOf(activeKey);
+    final targetIndex = activeIndex >= 0
+        ? activeIndex
+        : initialIndex.clamp(0, sources.length - 1);
+    if (activeIndex < 0) {
+      mediaItem.add(_toMediaItem(sources[targetIndex]));
+      await _player.seek(initialPosition ?? Duration.zero, index: targetIndex);
+    } else if (targetIndex < sources.length) {
+      mediaItem.add(_toMediaItem(sources[targetIndex]));
+    }
+    if (resumePlaying && !wasPlaying && !_player.playing) await _player.play();
+  }
+
+  List<String> _occurrenceKeys(List<PlaybackSource> sources) {
+    final counts = <String, int>{};
+    return [
+      for (final source in sources)
+        () {
+          final base = '${source.id.key}|${source.uri}';
+          final occurrence = counts.update(
+            base,
+            (value) => value + 1,
+            ifAbsent: () => 0,
+          );
+          return '$base#$occurrence';
+        }(),
+    ];
   }
 
   @override

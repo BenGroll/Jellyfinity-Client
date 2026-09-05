@@ -7,10 +7,9 @@ import 'playback_status.dart';
 /// This is Jellyfinity's swappable boundary (ADR-0013): the engine has no
 /// idea what a queue, shuffle or repeat is. `PlaybackQueue` computes the
 /// actual play order — including a shuffled one — and `PlaybackCubit`
-/// hands it to [setSources] as a plain list. Advancing, repeating and
-/// reordering are queue operations that recompute the list and call
-/// [setSources] again; the engine only ever plays what it was just given,
-/// start to finish.
+/// hands it to [setSources] as a plain list. Subsequent queue changes are
+/// applied through [updateSources] so a native playlist can be edited without
+/// interrupting the current source.
 ///
 /// Keeping the contract this narrow is what makes a second implementation
 /// (e.g. over `media_kit`) a real one-class swap: it only has to satisfy
@@ -35,6 +34,16 @@ abstract class PlaybackEngine {
     Duration? initialPosition,
   });
 
+  /// Applies a changed playlist without replacing the native player playlist.
+  /// Implementations should preserve the currently playing source and position
+  /// whenever that source still exists in [sources].
+  Future<void> updateSources(
+    List<PlaybackSource> sources, {
+    required int initialIndex,
+    Duration? initialPosition,
+    required bool resumePlaying,
+  });
+
   Future<void> play();
 
   Future<void> pause();
@@ -57,7 +66,7 @@ abstract class PlaybackEngine {
   /// is known or when nothing is loaded.
   Stream<Duration?> get durationStream;
 
-  /// Which index of the last [setSources] list is current, or `null`
+  /// Which index of the currently loaded source list is current, or `null`
   /// when nothing is loaded.
   Stream<int?> get currentIndexStream;
 
