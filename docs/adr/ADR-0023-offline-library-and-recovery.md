@@ -97,30 +97,57 @@ and is only ever a filter or a fallback, and folding it into the contract
 would force every caller to reason about a third source. Two callers
 reach for it explicitly:
 
-- The **"Downloaded" filter** on the library tabs and the search screen.
-  A `DownloadedFilter` mixin on the collection cubits, and a flag on
-  `MusicSearchCubit`, switch the data source; the contract is unchanged,
-  so no repository or remote implementation learns about the filter.
+- The **`DownloadedFilter` mixin** on the collection cubits (and a flag on
+  `MusicSearchCubit`) switches the data source; the contract is unchanged,
+  so no repository or remote implementation learns about it. There is no
+  manual "Downloaded" toggle in the UI yet — it was removed as redundant
+  and returns with library sort/filter in a later release; today the
+  filter is driven only by the offline "Downloads only" scope.
 - The **offline search fallback**. A music search that fails every
   category because the server is unreachable retries against the
   downloads, and shows those results *only if they match something* — an
   offline search with no local hits still says "search needs the server"
   rather than a misleading "no matches".
 
-Normal offline browsing is unchanged: the metadata cache still serves the
-collections a user has actually browsed. The filter is how the full
-downloaded set is found offline.
+`DownloadsLibrarySource.artists` and `.albums` do **not** just read the
+`downloaded_collections` rows — a whole-artist or whole-album download.
+They also reconstruct an artist or album from any completed **track**
+download's denormalized `artists` / `albumId` / `albumName`: one kept song
+is enough to make its artist and album browsable offline. The merge is in
+memory, which would be wrong for the 130k-song server library but is fine
+here — a profile's downloads are bounded by what the user chose to keep.
 
-Three smaller surface changes go with it. A downloaded album, artist or
-playlist now carries a small marker on its library tile/row and detail
-header (`DownloadedMarker`, off `DownloadCatalog.statusFor`). A downloaded
-track plays from a tap even where its row reads "unavailable" — the
-library and search track rows, and the Downloads screen's own song rows,
-now gate playback on `catalog.isDownloaded(id)` as well as remote
-availability, since playback already resolves local-first. And the search
-screen's "server unreachable" state is one line under the field, not a
-full-page error plus four per-category failure lines — an offline search
-still shows whatever downloaded results match beneath it.
+Normal offline browsing is unchanged: the metadata cache still serves the
+collections a user has actually browsed.
+
+Four smaller surface changes go with it:
+
+- A downloaded album, artist or playlist carries a small marker on its
+  library tile/row and detail header (`DownloadedMarker`, off
+  `DownloadCatalog.statusFor`).
+- A downloaded track plays from a tap even where its row reads
+  "unavailable" — the library, album, playlist and search track rows, and
+  the Downloads screen's own song rows, gate playback on
+  `catalog.isDownloaded(id)` as well as remote availability, since
+  playback already resolves local-first.
+- A track that genuinely cannot play — offline, never downloaded — is
+  greyed out and non-interactive in place (`TrackRow.playable`), rather
+  than shown identically to a playable one. This is the per-item dimming
+  the `SavedCopyNotice` era had suppressed.
+- The per-list "showing your saved copy" notice is gone. One offline line
+  sits under the shared search field for every Home/Library tab
+  (`HomeLibraryHeader`), and the search screen's "server unreachable"
+  state is one line under its field rather than a full-page error plus a
+  per-category failure line.
+
+### Crossing on-/offline reloads what is on screen
+
+`OfflineReload`, a mixin on `PagedCollectionCubit`, `MediaDetailCubit`,
+`MusicSearchCubit` and `ArtistStatsCubit`, subscribes each to
+`OfflineMode.changes` and re-reads on the transitions that flip
+`isOffline` (an unopened tab is left alone). Without it a screen already
+rendered would keep showing the server's list after the user went offline,
+or the saved copy after they came back.
 
 ## Decision: the user can switch the whole app offline
 
@@ -144,8 +171,8 @@ The `SettingsCubit` `offlineLibraryScope` preference
 library with markers, or only downloads. It is consulted **only while
 offline** — online, the library is always the full one — and it is
 enforced in the presentation layer (the library page and the search view
-force the existing "Downloaded" filter and hide its chip), so no
-repository or cubit contract learns about it.
+force the `DownloadedFilter`), so no repository or cubit contract learns
+about it.
 
 ## Decision: a server-side deletion is a state, not a removal
 
@@ -200,9 +227,12 @@ download proceeds.
 - `OfflineMode` is a new domain seam with a `NetworkCondition` +
   `KeyValueStore` implementation; `OfflineCubit` joins the
   `JellyfinityApp`-level providers. The cached music and playlist
-  repositories gain an `OfflineMode` dependency. `CONTEXT.md`'s
-  "not a separate app mode" invariant and the arc's "offline-only app
-  mode" non-goal are amended, not silently broken.
+  repositories gain an `OfflineMode` dependency, and every music
+  list/detail/search cubit gains one too (for `OfflineReload`).
+  `CONTEXT.md`'s "not a separate app mode" invariant and the arc's
+  "offline-only app mode" non-goal are amended, not silently broken.
+- `SavedCopyNotice` is deleted; the shell header owns the one offline
+  line now.
 - The playback pipeline, queue, crossfade and normalization learn nothing
   new: a "only on this device" track plays through the exact v0.2.0
   local-first path, and the offline library windows are ordinary `Page`s.
