@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../design/design.dart';
+import 'connectivity/OfflineCubit.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'navigation/MediaScopeCubit.dart';
 import 'playback/PlaybackCubit.dart';
@@ -35,6 +36,7 @@ class JellyfinityApp extends StatelessWidget {
     required this.settings,
     required this.mediaScope,
     required this.downloads,
+    required this.offline,
   });
 
   final GoRouter router;
@@ -43,6 +45,7 @@ class JellyfinityApp extends StatelessWidget {
   final SettingsCubit settings;
   final MediaScopeCubit mediaScope;
   final DownloadsCubit downloads;
+  final OfflineCubit offline;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +56,7 @@ class JellyfinityApp extends StatelessWidget {
         BlocProvider<SettingsCubit>.value(value: settings),
         BlocProvider<MediaScopeCubit>.value(value: mediaScope),
         BlocProvider<DownloadsCubit>.value(value: downloads),
+        BlocProvider<OfflineCubit>.value(value: offline),
       ],
       child: MaterialApp.router(
         title: 'Jellyfinity',

@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/connectivity/OfflineCubit.dart';
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/settings/SettingsCubit.dart';
 import '../../../../design/design.dart';
+import '../../../../domain/connectivity/OfflineLibraryScope.dart';
+import '../../../../domain/downloads/downloads.dart';
+import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../domain/media/media.dart';
 import '../widgets/download_controls.dart';
+import '../widgets/downloaded_marker.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
@@ -68,19 +74,41 @@ class _LibraryView extends StatefulWidget {
 }
 
 class _LibraryViewState extends State<_LibraryView> {
-  bool _downloadedOnly = false;
+  /// The user's explicit choice on the "Downloaded" chip. The library may
+  /// still be downloaded-only without it — see [_forcedByOffline].
+  bool _chipSelected = false;
 
-  void _setDownloadedOnly(bool value) {
-    setState(() => _downloadedOnly = value);
-    context.read<ArtistsCubit>().showDownloadedOnly(value);
-    context.read<AlbumsCubit>().showDownloadedOnly(value);
-    context.read<SongsCubit>().showDownloadedOnly(value);
-    context.read<PlaylistsCubit>().showDownloadedOnly(value);
+  /// The last value pushed to the four collection cubits, so a rebuild
+  /// that does not change it does not reload them.
+  bool? _applied;
+
+  /// Downloaded-only because the app is offline and the user set the
+  /// "Downloads only" offline-library scope.
+  bool _forcedByOffline(BuildContext context) {
+    final offline = context.watch<OfflineCubit>().state.isOffline;
+    final scope = context.watch<SettingsCubit>().state.offlineLibraryScope;
+    return offline && scope == OfflineLibraryScope.limited;
+  }
+
+  void _sync(BuildContext context, {required bool effective}) {
+    if (_applied == effective) return;
+    _applied = effective;
+    context.read<ArtistsCubit>().showDownloadedOnly(effective);
+    context.read<AlbumsCubit>().showDownloadedOnly(effective);
+    context.read<SongsCubit>().showDownloadedOnly(effective);
+    context.read<PlaylistsCubit>().showDownloadedOnly(effective);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final forced = _forcedByOffline(context);
+    final effective = _chipSelected || forced;
+    // Applying the scope is a side effect; run it after this frame so it
+    // never reloads a cubit mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sync(context, effective: effective);
+    });
 
     return DefaultTabController(
       length: 4,
@@ -95,19 +123,22 @@ class _LibraryViewState extends State<_LibraryView> {
                 t.spacing.md,
                 t.spacing.xs,
               ),
-              child: FilterChip(
-                label: const Text('Downloaded'),
-                avatar: Icon(
-                  Icons.download_done_rounded,
-                  size: 18,
-                  color: _downloadedOnly
-                      ? t.colors.accent
-                      : t.colors.textSecondary,
-                ),
-                selected: _downloadedOnly,
-                onSelected: _setDownloadedOnly,
-                tooltip: 'Show only music kept on this device',
-              ),
+              child: forced
+                  ? const _OfflineScopeNotice()
+                  : FilterChip(
+                      label: const Text('Downloaded'),
+                      avatar: Icon(
+                        Icons.download_done_rounded,
+                        size: 18,
+                        color: _chipSelected
+                            ? t.colors.accent
+                            : t.colors.textSecondary,
+                      ),
+                      selected: _chipSelected,
+                      onSelected: (value) =>
+                          setState(() => _chipSelected = value),
+                      tooltip: 'Show only music kept on this device',
+                    ),
             ),
           ),
           TabBar(
@@ -176,6 +207,7 @@ class _ArtistsTabState extends State<ArtistsTab>
     return BlocBuilder<ArtistsCubit, PagedCollectionState<Artist>>(
       builder: (context, state) {
         final cubit = context.read<ArtistsCubit>();
+        final catalog = context.watch<DownloadsCubit>().state;
         return PagedCollectionView<Artist>(
           key: const PageStorageKey('music.artists'),
           state: state,
@@ -192,6 +224,9 @@ class _ArtistsTabState extends State<ArtistsTab>
           itemBuilder: (context, artist, _) => ArtistRow(
             artist: artist,
             markUnavailable: !state.isCached,
+            downloaded: DownloadedMarker.warranted(
+              catalog.statusFor(DownloadOwner.artist(artist.id)),
+            ),
             onTap: () => context.pushNamed(
               RouteNames.libraryArtist,
               pathParameters: {'id': artist.id.key},
@@ -229,6 +264,7 @@ class _AlbumsTabState extends State<AlbumsTab>
     return BlocBuilder<AlbumsCubit, PagedCollectionState<Album>>(
       builder: (context, state) {
         final cubit = context.read<AlbumsCubit>();
+        final catalog = context.watch<DownloadsCubit>().state;
         return PagedCollectionView<Album>(
           key: const PageStorageKey('music.albums'),
           state: state,
@@ -244,6 +280,9 @@ class _AlbumsTabState extends State<AlbumsTab>
           itemBuilder: (context, album, _) => AlbumTile(
             album: album,
             markUnavailable: !state.isCached,
+            downloaded: DownloadedMarker.warranted(
+              catalog.statusFor(DownloadOwner.album(album.id)),
+            ),
             onTap: () => context.pushNamed(
               RouteNames.libraryAlbum,
               pathParameters: {'id': album.id.key},
@@ -281,6 +320,7 @@ class _SongsTabState extends State<SongsTab>
     return BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
       builder: (context, state) {
         final cubit = context.read<SongsCubit>();
+        final catalog = context.watch<DownloadsCubit>().state;
         return PagedCollectionView<Track>(
           key: const PageStorageKey('music.songs'),
           state: state,
@@ -292,28 +332,34 @@ class _SongsTabState extends State<SongsTab>
           onRetry: cubit.reload,
           onRetryLoadMore: cubit.retryLoadMore,
           unavailableBuilder: (context, item) => UnavailableRow(item: item),
-          itemBuilder: (context, track, index) => TrackRow(
-            track: track,
-            markUnavailable: !state.isCached,
-            onTap: track.availability == MediaAvailability.remoteUnavailable
-                ? null
-                : () => context.read<PlaybackCubit>().playNow(
-                    state.items,
-                    startIndex: index,
-                  ),
-            onPlayNext:
-                track.availability == MediaAvailability.remoteUnavailable
-                ? null
-                : () => context.read<PlaybackCubit>().playNext(track),
-            onAddToQueue:
-                track.availability == MediaAvailability.remoteUnavailable
-                ? null
-                : () => context.read<PlaybackCubit>().addToQueue(track),
-            downloadAction:
-                track.availability == MediaAvailability.remoteUnavailable
-                ? null
-                : TrackDownloadButton(track: track),
-          ),
+          itemBuilder: (context, track, index) {
+            // A track the server does not list still plays if its file is
+            // on the device (v0.2.3) — the download button turned the row
+            // "unavailable" but the audio is right here.
+            final playable =
+                track.availability != MediaAvailability.remoteUnavailable ||
+                catalog.isDownloaded(track.id);
+            return TrackRow(
+              track: track,
+              markUnavailable: !state.isCached,
+              onTap: playable
+                  ? () => context.read<PlaybackCubit>().playNow(
+                      state.items,
+                      startIndex: index,
+                    )
+                  : null,
+              onPlayNext: playable
+                  ? () => context.read<PlaybackCubit>().playNext(track)
+                  : null,
+              onAddToQueue: playable
+                  ? () => context.read<PlaybackCubit>().addToQueue(track)
+                  : null,
+              downloadAction:
+                  track.availability == MediaAvailability.remoteUnavailable
+                  ? null
+                  : TrackDownloadButton(track: track),
+            );
+          },
         );
       },
     );
@@ -361,6 +407,10 @@ class _PlaylistsTabState extends State<PlaylistsTab>
           itemBuilder: (context, playlist, _) => PlaylistRow(
             playlist: playlist,
             markUnavailable: !state.isCached,
+            downloaded: context
+                .watch<DownloadsCubit>()
+                .state
+                .isPlaylistDownloaded(playlist.id),
             onTap: () => context.pushNamed(
               RouteNames.libraryPlaylist,
               pathParameters: {'id': playlist.id.key},
@@ -368,6 +418,32 @@ class _PlaylistsTabState extends State<PlaylistsTab>
           ),
         );
       },
+    );
+  }
+}
+
+/// Shown in place of the "Downloaded" chip when the library is locked to
+/// downloads because the app is offline and the "Downloads only" scope is
+/// set (v0.2.3). A plain, non-actionable line — the switch back is in the
+/// sidebar (come online) or Settings (change the scope).
+class _OfflineScopeNotice extends StatelessWidget {
+  const _OfflineScopeNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.cloud_off_rounded, size: 16, color: t.colors.textSecondary),
+        SizedBox(width: t.spacing.xs),
+        Flexible(
+          child: Text(
+            'Offline — showing downloaded music only',
+            style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+          ),
+        ),
+      ],
     );
   }
 }

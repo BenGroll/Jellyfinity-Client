@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/result/partial.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
+import 'downloaded_marker.dart';
 import 'MediaArtwork.dart';
 import 'media_formatting.dart';
 
@@ -34,6 +35,7 @@ class ArtistRow extends StatelessWidget {
     required this.artist,
     this.onTap,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.downloaded = false,
   });
 
   final Artist artist;
@@ -41,6 +43,10 @@ class ArtistRow extends StatelessWidget {
 
   /// See [MusicRowStyle.markUnavailable].
   final bool markUnavailable;
+
+  /// Whether any of this artist is kept on the device (v0.2.3) — shows a
+  /// small marker in the trailing slot.
+  final bool downloaded;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +61,7 @@ class ArtistRow extends StatelessWidget {
         shape: ArtworkShape.circle,
       ),
       title: artist.name,
+      trailing: downloaded ? const DownloadedMarker.inline() : null,
     );
   }
 }
@@ -66,6 +73,7 @@ class AlbumRow extends StatelessWidget {
     required this.album,
     this.onTap,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.downloaded = false,
   });
 
   final Album album;
@@ -73,6 +81,9 @@ class AlbumRow extends StatelessWidget {
 
   /// See [MusicRowStyle.markUnavailable].
   final bool markUnavailable;
+
+  /// Whether this album is kept on the device (v0.2.3).
+  final bool downloaded;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +101,7 @@ class AlbumRow extends StatelessWidget {
         formatArtists(album.artists),
         album.productionYear?.toString(),
       ]),
+      trailing: downloaded ? const DownloadedMarker.inline() : null,
     );
   }
 }
@@ -289,6 +301,7 @@ class PlaylistRow extends StatelessWidget {
     required this.playlist,
     this.onTap,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.downloaded = false,
   });
 
   final Playlist playlist;
@@ -296,6 +309,9 @@ class PlaylistRow extends StatelessWidget {
 
   /// See [MusicRowStyle.markUnavailable].
   final bool markUnavailable;
+
+  /// Whether this playlist is kept on the device (v0.2.3).
+  final bool downloaded;
 
   @override
   Widget build(BuildContext context) {
@@ -315,6 +331,7 @@ class PlaylistRow extends StatelessWidget {
             ? null
             : formatRunningTime(playlist.duration!),
       ]),
+      trailing: downloaded ? const DownloadedMarker.inline() : null,
     );
   }
 }
@@ -378,6 +395,7 @@ class AlbumTile extends StatelessWidget {
     required this.album,
     this.onTap,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.downloaded = false,
   });
 
   final Album album;
@@ -385,6 +403,10 @@ class AlbumTile extends StatelessWidget {
 
   /// See [MusicRowStyle.markUnavailable].
   final bool markUnavailable;
+
+  /// Whether this album is kept on the device (v0.2.3) — shows a small
+  /// badge on the cover.
+  final bool downloaded;
 
   @override
   Widget build(BuildContext context) {
@@ -408,12 +430,24 @@ class AlbumTile extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 1,
-              child: LayoutBuilder(
-                builder: (context, constraints) => MediaArtwork(
-                  image: album.image,
-                  kind: MediaKind.album,
-                  size: constraints.maxWidth,
-                ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => MediaArtwork(
+                        image: album.image,
+                        kind: MediaKind.album,
+                        size: constraints.maxWidth,
+                      ),
+                    ),
+                  ),
+                  if (downloaded)
+                    Positioned(
+                      right: t.spacing.xxs,
+                      bottom: t.spacing.xxs,
+                      child: const DownloadedMarker.badge(),
+                    ),
+                ],
               ),
             ),
             SizedBox(height: t.spacing.xs),

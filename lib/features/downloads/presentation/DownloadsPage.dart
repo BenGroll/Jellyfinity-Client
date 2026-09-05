@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/downloads/DownloadsCubit.dart';
+import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/downloads/downloads.dart';
@@ -99,12 +100,25 @@ class DownloadsPage extends StatelessWidget {
                   label: 'Individual songs',
                   icon: Icons.music_note_outlined,
                 ),
-                for (final record in standalone)
+                for (var i = 0; i < standalone.length; i++)
                   TrackRow(
-                    track: record.toTrack(),
+                    track: standalone[i].toTrack(),
                     markUnavailable: false,
+                    // Tapping a downloaded song plays it, in the order the
+                    // section shows (v0.2.3) — it should not take a trip
+                    // through the album to hear one track.
+                    onTap: () => context.read<PlaybackCubit>().playNow(
+                      [for (final record in standalone) record.toTrack()],
+                      startIndex: i,
+                    ),
+                    onPlayNext: () => context.read<PlaybackCubit>().playNext(
+                      standalone[i].toTrack(),
+                    ),
+                    onAddToQueue: () => context.read<PlaybackCubit>().addToQueue(
+                      standalone[i].toTrack(),
+                    ),
                     downloadAction: TrackDownloadButton(
-                      track: record.toTrack(),
+                      track: standalone[i].toTrack(),
                     ),
                   ),
               ],

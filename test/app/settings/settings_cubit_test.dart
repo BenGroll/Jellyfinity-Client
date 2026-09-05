@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
+import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
 import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
@@ -42,6 +43,7 @@ void main() {
       StreamQuality.original,
       StreamQuality.original,
       false,
+      OfflineLibraryScope.unlimited,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -64,6 +66,7 @@ void main() {
       StreamQuality.original,
       StreamQuality.original,
       false,
+      OfflineLibraryScope.unlimited,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -112,6 +115,7 @@ void main() {
       StreamQuality.original,
       StreamQuality.original,
       false,
+      OfflineLibraryScope.unlimited,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -134,6 +138,7 @@ void main() {
       StreamQuality.original,
       StreamQuality.original,
       false,
+      OfflineLibraryScope.unlimited,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -206,6 +211,7 @@ void main() {
         StreamQuality.original,
         StreamQuality.original,
         false,
+        OfflineLibraryScope.unlimited,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -225,6 +231,7 @@ void main() {
         StreamQuality.original,
         StreamQuality.original,
         false,
+        OfflineLibraryScope.unlimited,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -250,6 +257,7 @@ void main() {
           StreamQuality.original,
           StreamQuality.original,
           false,
+          OfflineLibraryScope.unlimited,
           CrossfadeSettings.disabled,
           NormalizationSettings.disabled,
         );
@@ -278,6 +286,7 @@ void main() {
         StreamQuality.original,
         StreamQuality.original,
         false,
+        OfflineLibraryScope.unlimited,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -320,6 +329,7 @@ void main() {
         StreamQuality.original,
         StreamQuality.original,
         false,
+        OfflineLibraryScope.unlimited,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -342,6 +352,7 @@ void main() {
         StreamQuality.original,
         StreamQuality.original,
         false,
+        OfflineLibraryScope.unlimited,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -365,6 +376,7 @@ void main() {
         StreamQuality.original,
         StreamQuality.original,
         false,
+        OfflineLibraryScope.unlimited,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -424,5 +436,39 @@ void main() {
         expect(states, isEmpty);
       },
     );
+  });
+
+  group('offline library scope (v0.2.3)', () {
+    test('defaults to unlimited when nothing is stored', () async {
+      final store = InMemoryKeyValueStore();
+
+      expect(
+        await SettingsCubit.loadInitialOfflineLibraryScope(store),
+        OfflineLibraryScope.unlimited,
+      );
+    });
+
+    test('setOfflineLibraryScope persists and emits', () async {
+      final store = InMemoryKeyValueStore();
+      final cubit = SettingsCubit(
+        store,
+        ShellNavigationMode.mediaPills,
+        StreamQuality.original,
+        StreamQuality.original,
+        false,
+        OfflineLibraryScope.unlimited,
+        CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.setOfflineLibraryScope(OfflineLibraryScope.limited);
+
+      expect(cubit.state.offlineLibraryScope, OfflineLibraryScope.limited);
+      expect(
+        await SettingsCubit.loadInitialOfflineLibraryScope(store),
+        OfflineLibraryScope.limited,
+      );
+    });
   });
 }

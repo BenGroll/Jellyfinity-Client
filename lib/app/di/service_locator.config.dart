@@ -13,6 +13,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart' as _i45;
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart' as _i84;
 import 'package:jellyfinity/app/playback/LocalFirstAudioSourceResolver.dart'
@@ -27,6 +28,9 @@ import 'package:jellyfinity/app/settings/SettingsCubit.dart' as _i230;
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart' as _i883;
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
+import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
+    as _i813;
+import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
 import 'package:jellyfinity/domain/downloads/DownloadEngine.dart' as _i768;
 import 'package:jellyfinity/domain/downloads/downloads.dart' as _i306;
 import 'package:jellyfinity/domain/downloads/DownloadStorageProbe.dart' as _i21;
@@ -75,6 +79,8 @@ import 'package:jellyfinity/features/playback/presentation/now_playing_details_c
     as _i29;
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart'
     as _i766;
+import 'package:jellyfinity/infrastructure/connectivity/PersistedOfflineMode.dart'
+    as _i311;
 import 'package:jellyfinity/infrastructure/downloads/ConnectivityNetworkCondition.dart'
     as _i116;
 import 'package:jellyfinity/infrastructure/downloads/DiskSpaceStorageProbe.dart'
@@ -200,11 +206,20 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i612.Logger>(),
       ),
     );
+    gh.lazySingleton<_i797.OfflineMode>(
+      () => _i311.PersistedOfflineMode(
+        gh<_i1047.NetworkCondition>(),
+        gh<_i617.KeyValueStore>(),
+      ),
+    );
     await gh.lazySingletonAsync<_i787.JellyfinClientIdentity>(
       () => jellyfinTransportModule.clientIdentity(
         gh<_i584.DeviceIdentityStore>(),
       ),
       preResolve: true,
+    );
+    gh.lazySingleton<_i605.OfflineCubit>(
+      () => _i605.OfflineCubit(gh<_i797.OfflineMode>()),
     );
     gh.lazySingleton<_i230.SettingsCubit>(
       () => _i230.SettingsCubit(
@@ -215,6 +230,7 @@ extension GetItInjectableX on _i174.GetIt {
           instanceName: 'settings.initialDownloadQuality',
         ),
         gh<bool>(instanceName: 'settings.initialDownloadsWifiOnly'),
+        gh<_i813.OfflineLibraryScope>(),
         gh<_i119.CrossfadeSettings>(),
         gh<_i122.NormalizationSettings>(),
       ),
@@ -318,14 +334,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
       ),
     );
-    gh.lazySingleton<_i747.PlaylistRepository>(
-      () => _i246.CachedPlaylistRepository(
-        gh<_i516.JellyfinPlaylistRepository>(),
-        gh<_i1018.MediaCacheStore>(),
-        gh<_i346.JellyfinSessionContext>(),
-        gh<_i853.DownloadStore>(),
-      ),
-    );
     gh.lazySingleton<_i392.LyricsResolver>(
       () => _i417.JellyfinLyricsResolver(gh<_i963.JellyfinMediaApi>()),
     );
@@ -351,25 +359,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i720.DownloadsLibrarySource>(
       () => _i720.DownloadsLibrarySource(gh<_i853.DownloadStore>()),
     );
-    gh.factory<_i618.PlaylistTracksCubit>(
-      () => _i618.PlaylistTracksCubit(gh<_i747.PlaylistRepository>()),
-    );
     gh.factory<_i766.TrackSourceInfoCubit>(
       () => _i766.TrackSourceInfoCubit(gh<_i621.TrackSourceInfoResolver>()),
-    );
-    gh.lazySingleton<_i747.MusicLibraryRepository>(
-      () => _i664.CachedMusicLibraryRepository(
-        gh<_i814.JellyfinMusicLibraryRepository>(),
-        gh<_i1018.MediaCacheStore>(),
-        gh<_i346.JellyfinSessionContext>(),
-      ),
-    );
-    gh.factory<_i169.MusicSearchCubit>(
-      () => _i169.MusicSearchCubit(
-        gh<_i747.MusicLibraryRepository>(),
-        gh<_i747.PlaylistRepository>(),
-        gh<_i720.DownloadsLibrarySource>(),
-      ),
     );
     gh.lazySingleton<_i922.AudioSourceResolver>(
       () => _i620.LocalFirstAudioSourceResolver(
@@ -377,6 +368,23 @@ extension GetItInjectableX on _i174.GetIt {
           instanceName: 'remoteAudioSourceResolver',
         ),
         gh<_i186.LocalAudioSource>(),
+      ),
+    );
+    gh.lazySingleton<_i747.PlaylistRepository>(
+      () => _i246.CachedPlaylistRepository(
+        gh<_i516.JellyfinPlaylistRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i853.DownloadStore>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.lazySingleton<_i747.MusicLibraryRepository>(
+      () => _i664.CachedMusicLibraryRepository(
+        gh<_i814.JellyfinMusicLibraryRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
     gh.factory<_i618.PlaylistsCubit>(
@@ -440,6 +448,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.NetworkCondition>(),
         gh<_i809.SessionCubit>(),
         gh<_i306.DownloadStorageProbe>(),
+      ),
+    );
+    gh.factory<_i618.PlaylistTracksCubit>(
+      () => _i618.PlaylistTracksCubit(gh<_i747.PlaylistRepository>()),
+    );
+    gh.factory<_i169.MusicSearchCubit>(
+      () => _i169.MusicSearchCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
       ),
     );
     return this;

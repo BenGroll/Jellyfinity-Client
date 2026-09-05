@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/features/music/presentation/search/InlineMusicSearch.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
 import '../../support/music_fakes.dart';
+import '../../support/offline_fakes.dart';
 import '../../support/pump_app.dart';
+import '../../support/settings_fakes.dart';
 
 /// A cubit this test owns and must close itself.
 MusicSearchCubit _cubit(
@@ -32,7 +35,12 @@ MusicSearchCubit _cubit(
 MusicSearchCubit _pageCubit(
   FakeMusicLibraryRepository music, [
   FakePlaylistRepository? playlists,
-]) => MusicSearchCubit(music, playlists ?? FakePlaylistRepository(), FakeDownloadsLibrarySource());
+  FakeDownloadsLibrarySource? downloads,
+]) => MusicSearchCubit(
+  music,
+  playlists ?? FakePlaylistRepository(),
+  downloads ?? FakeDownloadsLibrarySource(),
+);
 
 FakeMusicLibraryRepository _library() => FakeMusicLibraryRepository()
   ..artistList = [testArtist('a1', name: 'Miles Davis')]
@@ -224,6 +232,57 @@ void main() {
       await settle(tester);
 
       expect(find.text('No matches'), findsOneWidget);
+    });
+
+    testWidgets(
+      'an unreachable server is one line under the field, not a page or '
+      'four (v0.2.3)',
+      (tester) async {
+        final music = FakeMusicLibraryRepository()
+          ..failure = const RecoverableFailure('offline');
+        await pumpThemed(
+          tester,
+          InlineMusicSearch(cubit: _pageCubit(music)),
+        );
+        await settle(tester);
+
+        await tester.enterText(find.byType(TextField), 'miles');
+        await tester.pump(MusicSearchCubit.debounce);
+        await settle(tester);
+
+        expect(
+          find.text("Can't reach the server — showing downloaded music"),
+          findsOneWidget,
+        );
+        // Not the old full-page error, and no per-category red text.
+        expect(find.byType(ErrorStateView), findsNothing);
+        expect(find.text('offline'), findsNothing);
+      },
+    );
+
+    testWidgets('offline with the Downloads-only scope searches the device', (
+      tester,
+    ) async {
+      final downloads = FakeDownloadsLibrarySource()
+        ..trackList = [testTrack('d1', name: 'Kept Song')];
+      await pumpThemed(
+        tester,
+        InlineMusicSearch(cubit: _pageCubit(_library(), null, downloads)),
+        offline: fakeOfflineCubit(manual: true),
+        settings: fakeSettingsCubit(
+          offlineLibraryScope: OfflineLibraryScope.limited,
+        ),
+      );
+      await settle(tester);
+
+      await tester.enterText(find.byType(TextField), 'song');
+      await tester.pump(MusicSearchCubit.debounce);
+      await settle(tester);
+
+      expect(find.text('Searching music on this device'), findsOneWidget);
+      expect(find.widgetWithText(TrackRow, 'Kept Song'), findsOneWidget);
+      // The chip is gone while the scope forces the filter.
+      expect(find.widgetWithText(FilterChip, 'Downloaded'), findsNothing);
     });
   });
 }

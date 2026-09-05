@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/settings/SettingsCubit.dart';
 import '../../../app/settings/ShellNavigationMode.dart';
 import '../../../design/design.dart';
+import '../../../domain/connectivity/OfflineLibraryScope.dart';
 import '../../../domain/playback/CrossfadeSettings.dart';
 import '../../../domain/playback/stream_quality.dart';
 
@@ -101,6 +102,38 @@ class SettingsPage extends StatelessWidget {
                 activeThumbColor: t.colors.accent,
                 onChanged: (enabled) =>
                     context.read<SettingsCubit>().setDownloadsWifiOnly(enabled),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: t.spacing.sm),
+                child: Text(
+                  'Offline library',
+                  style: t.typography.titleMedium.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+              _SettingsOption(
+                selected:
+                    state.offlineLibraryScope == OfflineLibraryScope.unlimited,
+                title: 'Show everything',
+                description:
+                    'While offline, keep the whole browsed library visible '
+                    'and mark what is downloaded. Anything not on the device '
+                    'cannot play until you are back online.',
+                onTap: () => context
+                    .read<SettingsCubit>()
+                    .setOfflineLibraryScope(OfflineLibraryScope.unlimited),
+              ),
+              _SettingsOption(
+                selected:
+                    state.offlineLibraryScope == OfflineLibraryScope.limited,
+                title: 'Downloads only',
+                description:
+                    'While offline, the library and search show only music '
+                    'kept on this device. Online, the full library is back.',
+                onTap: () => context
+                    .read<SettingsCubit>()
+                    .setOfflineLibraryScope(OfflineLibraryScope.limited),
               ),
               Padding(
                 padding: EdgeInsets.symmetric(vertical: t.spacing.sm),

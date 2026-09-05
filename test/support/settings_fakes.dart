@@ -1,6 +1,7 @@
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
+import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
 import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
@@ -66,6 +67,7 @@ SettingsCubit fakeSettingsCubit({
   StreamQuality quality = StreamQuality.original,
   StreamQuality downloadQuality = StreamQuality.original,
   bool downloadsWifiOnly = false,
+  OfflineLibraryScope offlineLibraryScope = OfflineLibraryScope.unlimited,
   CrossfadeSettings crossfade = CrossfadeSettings.disabled,
   NormalizationSettings normalization = NormalizationSettings.disabled,
 }) => SettingsCubit(
@@ -74,6 +76,7 @@ SettingsCubit fakeSettingsCubit({
   quality,
   downloadQuality,
   downloadsWifiOnly,
+  offlineLibraryScope,
   crossfade,
   normalization,
 );

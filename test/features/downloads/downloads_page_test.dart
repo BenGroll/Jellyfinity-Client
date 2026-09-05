@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/features/downloads/presentation/DownloadsPage.dart';
+import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
 import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
+import '../../support/playback_fakes.dart';
 import '../../support/pump_app.dart';
 import '../../support/session_fakes.dart';
 import '../../support/settings_fakes.dart';
@@ -116,5 +118,42 @@ void main() {
     );
     expect(engine.fetched, isEmpty);
     expect(find.byTooltip('Waiting for Wi-Fi'), findsOneWidget);
+  });
+
+  testWidgets('tapping a downloaded song plays it (v0.2.3)', (tester) async {
+    final store = InMemoryDownloadStore();
+    final track = mediaId('t1');
+    store.records[track] = _record(
+      't1',
+      state: DownloadState.completed,
+      owner: DownloadOwner.track(track),
+      totalBytes: 1000,
+    );
+    final engine = FakeDownloadEngine()
+      ..stored[track] = Uri.file('/downloads/t1/audio.flac');
+    final downloads = fakeDownloadsCubit(store: store, engine: engine);
+    addTearDown(downloads.close);
+    await downloads.restore();
+
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+
+    await pumpThemed(
+      tester,
+      const DownloadsPage(),
+      downloads: downloads,
+      playback: playback,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TrackRow, 'Song t1'));
+    await tester.pumpAndSettle();
+
+    expect(playback.state.currentEntry?.title, 'Song t1');
+
+    // Stop the transport so its position-save ticker does not outlive the
+    // test (the same reason the playback-UI tests tap pause).
+    await playback.togglePlayPause();
+    await tester.pumpAndSettle();
   });
 }

@@ -1,5 +1,6 @@
 import 'app/JellyfinityApp.dart';
 import 'app/bootstrap.dart';
+import 'app/connectivity/OfflineCubit.dart';
 import 'app/di/service_locator.dart';
 import 'app/downloads/DownloadsCubit.dart';
 import 'app/navigation/MediaScopeCubit.dart';
@@ -17,6 +18,7 @@ Future<void> main() async {
       settings: getIt<SettingsCubit>(),
       mediaScope: getIt<MediaScopeCubit>(),
       downloads: getIt<DownloadsCubit>(),
+      offline: getIt<OfflineCubit>(),
     ),
   );
 }

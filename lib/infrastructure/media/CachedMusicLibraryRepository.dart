@@ -1,6 +1,8 @@
 import 'package:injectable/injectable.dart';
 
+import '../../core/result/failure.dart';
 import '../../core/result/result.dart';
+import '../../domain/connectivity/OfflineMode.dart';
 import '../../domain/media/media.dart';
 import '../jellyfin/identity/JellyfinSessionContext.dart';
 import '../jellyfin/media/JellyfinMusicLibraryRepository.dart';
@@ -40,11 +42,28 @@ import 'cache_fallback.dart';
 /// the server rather than quietly searching a fraction of the library.
 @LazySingleton(as: MusicLibraryRepository)
 class CachedMusicLibraryRepository implements MusicLibraryRepository {
-  CachedMusicLibraryRepository(this._remote, this._cache, this._context);
+  CachedMusicLibraryRepository(
+    this._remote,
+    this._cache,
+    this._context,
+    this._offline,
+  );
 
   final JellyfinMusicLibraryRepository _remote;
   final MediaCacheStore _cache;
   final JellyfinSessionContext _context;
+
+  /// When Jellyfinity is working offline (v0.2.3), a read never leaves the
+  /// device: it goes straight to the same saved-copy fallback an
+  /// unreachable server would take, without the network round-trip and
+  /// timeout first.
+  final OfflineMode _offline;
+
+  /// The failure a read is short-circuited with while offline — a
+  /// [RecoverableFailure] so [canServeFromCache] serves the local copy,
+  /// exactly as it does for a real timeout.
+  static Result<T> _offlineFailure<T>() =>
+      const Result.err(RecoverableFailure('You are offline.'));
 
   @override
   Future<Result<Page<Artist>>> artists({
@@ -129,7 +148,9 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     required Future<Result<Page<T>>> Function() read,
   }) async {
     final isSearch = searchTerm != null && searchTerm.trim().isNotEmpty;
-    final result = await read();
+    final result = _offline.status.isOffline
+        ? _offlineFailure<Page<T>>()
+        : await read();
 
     switch (result) {
       case Ok<Page<T>>(:final value):
@@ -148,7 +169,7 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     MediaId id,
     Future<Result<T>> Function() read,
   ) async {
-    final result = await read();
+    final result = _offline.status.isOffline ? _offlineFailure<T>() : await read();
 
     switch (result) {
       case Ok<T>(:final value):
