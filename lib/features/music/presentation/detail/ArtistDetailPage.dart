@@ -4,13 +4,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
+import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
 import '../../../../infrastructure/artwork/ArtworkCache.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
+import '../widgets/download_controls.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/media_formatting.dart';
@@ -73,6 +76,12 @@ class _ArtistDetailView extends StatelessWidget {
           actions: artist == null
               ? const []
               : [
+                  BlocBuilder<ArtistStatsCubit, ArtistStatsState>(
+                    builder: (context, stats) => ArtistDownloadButton(
+                      artist: artist,
+                      trackCount: stats.stats?.songCount,
+                    ),
+                  ),
                   FavoriteButton(
                     isFavorite: artist.isFavorite,
                     onChanged: (favorite) async {
@@ -196,11 +205,35 @@ class _ArtistHeader extends StatelessWidget {
               ],
               SizedBox(height: t.spacing.sm),
               const _ArtistStatsRow(),
+              _ArtistDownloadSummary(artistId: artist.id),
               SizedBox(height: t.spacing.md),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The honest download summary an artist header shows once any of the
+/// artist has been downloaded (v0.2.2) — the same line the album and
+/// playlist headers carry, hidden entirely until there is something to
+/// say.
+class _ArtistDownloadSummary extends StatelessWidget {
+  const _ArtistDownloadSummary({required this.artistId});
+
+  final MediaId artistId;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final status = context.watch<DownloadsCubit>().state.statusFor(
+      DownloadOwner.artist(artistId),
+    );
+    if (status.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(top: t.spacing.xxs),
+      child: CollectionDownloadSummary(status: status),
     );
   }
 }

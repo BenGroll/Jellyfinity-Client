@@ -3,6 +3,11 @@
          release build has no network access at all. Jellyfinity is useless
          without it. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Wi-Fi-only downloads (v0.2.2, ADR-0022): connectivity_plus reads
+         the current network type through this. It declares the permission
+         itself; Jellyfinity lists it too so the release manifest is
+         explicit about what it uses. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- Background playback (ADR-0013): a foreground service so playback
          survives leaving the app, and the wake lock audio_service takes
          while that service is running. -->

@@ -21,7 +21,14 @@ enum DownloadOwnerKind {
   /// as a snapshot — see `DownloadStore.playlistMembers` — so a later
   /// server-side edit reconciles against it rather than silently
   /// rewriting what the user chose to keep.
-  playlist;
+  playlist,
+
+  /// An artist the track is credited to was downloaded (v0.2.2), defined
+  /// as that artist's browsable albums/tracks at request time. It uses
+  /// the same reference counting as an `album` owner — no ordered
+  /// snapshot, because an artist's discography order is derivable from
+  /// release date and disc/track number the same way an album's is.
+  artist;
 
   static DownloadOwnerKind? tryParse(String? raw) {
     for (final kind in values) {
@@ -36,8 +43,9 @@ enum DownloadOwnerKind {
 /// Owners are the v0.2.0 form of the reference counting `ROADMAP.md`
 /// makes explicit in v0.2.2: the count is the size of a download's owner
 /// set, and "remove this album" means "drop the album owner", not
-/// "delete the file". v0.2.1 adds [DownloadOwnerKind.playlist] with no
-/// change here; an artist owner (v0.2.2) is the same shape again.
+/// "delete the file". v0.2.1 adds [DownloadOwnerKind.playlist] and v0.2.2
+/// [DownloadOwnerKind.artist] with no change here — each is the same
+/// shape again.
 class DownloadOwner extends Equatable {
   const DownloadOwner({required this.kind, required this.id});
 
@@ -53,11 +61,16 @@ class DownloadOwner extends Equatable {
   const DownloadOwner.playlist(MediaId id)
     : this(kind: DownloadOwnerKind.playlist, id: id);
 
+  /// The track is kept because [id]'s artist was downloaded (v0.2.2).
+  const DownloadOwner.artist(MediaId id)
+    : this(kind: DownloadOwnerKind.artist, id: id);
+
   final DownloadOwnerKind kind;
 
   /// The item that wants the file kept — the track itself for
   /// [DownloadOwnerKind.track], the album for [DownloadOwnerKind.album],
-  /// the playlist for [DownloadOwnerKind.playlist].
+  /// the playlist for [DownloadOwnerKind.playlist], the artist for
+  /// [DownloadOwnerKind.artist].
   final MediaId id;
 
   @override

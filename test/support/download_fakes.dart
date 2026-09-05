@@ -6,12 +6,20 @@ import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/downloads/downloads.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 export 'package:jellyfinity/domain/downloads/downloads.dart'
-    show DownloadFailureReason, DownloadOwner, DownloadState, TrackDownload;
+    show
+        DownloadFailureReason,
+        DownloadOwner,
+        DownloadState,
+        NetworkCondition,
+        NetworkState,
+        TrackDownload;
+import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart';
 import 'package:jellyfinity/domain/media/PlaylistRepository.dart';
 import 'music_fakes.dart'
     show FakeMusicLibraryRepository, FakePlaylistRepository;
 import 'playback_fakes.dart' show FakeAudioSourceResolver;
+import 'settings_fakes.dart' show fakeSettingsCubit;
 
 /// A [DownloadsCubit] wired entirely to fakes, for tests that only need
 /// one to exist because the widget tree provides it.
@@ -21,13 +29,38 @@ DownloadsCubit fakeDownloadsCubit({
   FakeAudioSourceResolver? resolver,
   MusicLibraryRepository? library,
   PlaylistRepository? playlists,
+  SettingsCubit? settings,
+  FakeNetworkCondition? network,
 }) => DownloadsCubit(
   store ?? InMemoryDownloadStore(),
   engine ?? FakeDownloadEngine(),
   resolver ?? FakeAudioSourceResolver(),
   library ?? FakeMusicLibraryRepository(),
   playlists ?? FakePlaylistRepository(),
+  settings ?? fakeSettingsCubit(),
+  network ?? FakeNetworkCondition(),
 );
+
+/// A [NetworkCondition] a test drives: set [state] and push changes.
+class FakeNetworkCondition implements NetworkCondition {
+  FakeNetworkCondition({this.state = NetworkState.unmetered});
+
+  NetworkState state;
+  final _controller = StreamController<NetworkState>.broadcast();
+
+  @override
+  Future<NetworkState> current() async => state;
+
+  @override
+  Stream<NetworkState> changes() => _controller.stream;
+
+  /// Moves to [next] and notifies listeners, the way a real device
+  /// dropping from Wi-Fi to cellular would.
+  void moveTo(NetworkState next) {
+    state = next;
+    _controller.add(next);
+  }
+}
 
 /// A [DownloadStore] with no database behind it.
 class InMemoryDownloadStore implements DownloadStore {

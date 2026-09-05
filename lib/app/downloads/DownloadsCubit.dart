@@ -8,6 +8,7 @@ import '../../core/result/failure.dart';
 import '../../core/result/result.dart';
 import '../../domain/downloads/downloads.dart';
 import '../../domain/media/Album.dart';
+import '../../domain/media/artist.dart';
 import '../../domain/media/MediaId.dart';
 import '../../domain/media/MusicLibraryRepository.dart';
 import '../../domain/media/page.dart';
@@ -15,7 +16,7 @@ import '../../domain/media/Playlist.dart';
 import '../../domain/media/PlaylistRepository.dart';
 import '../../domain/media/Track.dart';
 import '../../domain/playback/AudioSourceResolver.dart';
-import '../../domain/playback/stream_quality.dart';
+import '../settings/SettingsCubit.dart';
 
 /// The single source of truth for downloads — what has been asked for,
 /// what state each request is in, and the worker that moves them along
@@ -38,19 +39,36 @@ import '../../domain/playback/stream_quality.dart';
 ///
 /// ## Quality
 ///
-/// Files are fetched at [StreamQuality.original] — `ROADMAP.md`'s
-/// "intended safe starting point ... because it never silently changes
-/// what a user gets". The separate, configurable download-quality
-/// preference is v0.2.2's.
+/// Files are fetched at the download-quality preference
+/// `SettingsCubit` holds (v0.2.2) — `StreamQuality.original` by default,
+/// `ROADMAP.md`'s "intended safe starting point ... because it never
+/// silently changes what a user gets". A change to that preference
+/// applies to downloads requested or retried afterwards; a file already
+/// on the device is never re-fetched to match it.
+///
+/// ## Network policy
+///
+/// When the Wi-Fi-only preference is on and the connection is metered or
+/// absent, a queued download is held in [DownloadState.waitingForNetwork]
+/// rather than failed. A connectivity change or a preference change
+/// re-queues it. Enforcement is foreground only, the same limitation as
+/// the foreground download engine (ADR-0020, ADR-0022).
 @lazySingleton
 class DownloadsCubit extends Cubit<DownloadCatalog> {
   DownloadsCubit(
     this._store,
     this._engine,
-    this._remote,
+    @Named(remoteAudioSourceResolver) this._remote,
     this._library,
     this._playlists,
-  ) : super(DownloadCatalog.empty);
+    this._settings,
+    this._network,
+  ) : super(DownloadCatalog.empty) {
+    // A held-back download should resume the moment Wi-Fi returns or the
+    // user relaxes the policy, without them reopening the app.
+    _networkSub = _network.changes().listen((_) => _reevaluateNetwork());
+    _settingsSub = _settings.stream.listen((_) => _reevaluateNetwork());
+  }
 
   final DownloadStore _store;
   final DownloadEngine _engine;
@@ -61,6 +79,11 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
 
   final MusicLibraryRepository _library;
   final PlaylistRepository _playlists;
+  final SettingsCubit _settings;
+  final NetworkCondition _network;
+
+  late final StreamSubscription<NetworkState> _networkSub;
+  late final StreamSubscription<SettingsState> _settingsSub;
 
   /// The track being transferred right now, if any.
   MediaId? _active;
@@ -84,6 +107,18 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   static DownloadOwner playlistOwner(MediaId playlistId) =>
       DownloadOwner.playlist(playlistId);
 
+  /// A record's artist, for the aggregate an artist header shows
+  /// (v0.2.2).
+  static DownloadOwner artistOwner(MediaId artistId) =>
+      DownloadOwner.artist(artistId);
+
+  @override
+  Future<void> close() {
+    unawaited(_networkSub.cancel());
+    unawaited(_settingsSub.cancel());
+    return super.close();
+  }
+
   // ---- Cold start ----
 
   /// Reads the stored records and picks up where the last run left off.
@@ -94,6 +129,11 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   /// [DownloadState.queued] and resume from the bytes already on disk,
   /// which is what makes "close the app, come back later" finish an
   /// album rather than silently abandon it.
+  ///
+  /// [DownloadState.waitingForNetwork] is also reset to queued (v0.2.2):
+  /// `connectivity_plus` only reports a *change*, so the worker's own
+  /// gate is what decides whether the network is good enough this run —
+  /// it puts them straight back to waiting if it is not.
   Future<void> restore() async {
     final stored = await _store.all();
     if (stored case Err<List<TrackDownload>>()) {
@@ -118,6 +158,13 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
         );
         interrupted.add(resumed);
         downloads[record.id] = resumed;
+      } else if (record.state == DownloadState.waitingForNetwork) {
+        final requeued = record.copyWith(
+          state: DownloadState.queued,
+          clearFailureReason: true,
+        );
+        interrupted.add(requeued);
+        downloads[record.id] = requeued;
       } else {
         downloads[record.id] = record;
       }
@@ -161,6 +208,61 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       owner: DownloadOwner.album(album.id),
     );
     return const Result.ok(null);
+  }
+
+  /// Keeps every track credited to [artist] on this device (v0.2.2),
+  /// defined as the artist's browsable tracks at the time of the request.
+  ///
+  /// Unlike an album, an artist is not a bounded collection — a prolific
+  /// one runs to thousands of tracks — so this pages the artist's tracks
+  /// one window at a time and requests each window as it arrives, never
+  /// holding more than a page plus the queue in memory. An already
+  /// downloaded track (its own download, its album's, a playlist's) is
+  /// reused: it gains an artist owner and its file is not fetched again.
+  /// A window that fails after the first succeeded leaves the artist
+  /// partially requested rather than failing the whole thing; the
+  /// "download the missing tracks" action completes it.
+  Future<Result<void>> downloadArtist(Artist artist) async {
+    final owner = DownloadOwner.artist(artist.id);
+    var request = const PageRequest.first();
+    var readAnything = false;
+    Failure? readFailure;
+
+    while (true) {
+      final page = await _library.tracks(page: request, artistId: artist.id);
+      if (page case Err<Page<Track>>(:final failure)) {
+        readFailure = failure;
+        break;
+      }
+      readAnything = true;
+      final window = (page as Ok<Page<Track>>).value;
+      if (window.items.isNotEmpty) {
+        await _request(window.items, owner: owner);
+      }
+      if (window.consumed == 0) break;
+      final next = window.nextRequest();
+      if (next == null) break;
+      request = next;
+    }
+
+    if (!readAnything) {
+      return Result.err(
+        readFailure ?? const UnavailableFailure('That artist is not there.'),
+      );
+    }
+    return const Result.ok(null);
+  }
+
+  /// Gives up an artist's claim on every track it asked for (v0.2.2).
+  ///
+  /// A track the user downloaded on its own, or that a downloaded album
+  /// or playlist still lists, keeps its file — the artist was only one of
+  /// the reasons it was there.
+  Future<void> removeArtist(MediaId artistId) async {
+    final owner = DownloadOwner.artist(artistId);
+    for (final record in state.ownedBy(owner).toList()) {
+      await _release(record.id, owner);
+    }
   }
 
   /// Keeps [playlist] on this device as a membership snapshot (v0.2.1).
@@ -429,6 +531,67 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     _pump();
   }
 
+  // ---- Network policy (v0.2.2) ----
+
+  /// Whether a download may run right now under the Wi-Fi-only
+  /// preference. With the preference off, always yes — an actually
+  /// offline device then fails the transfer itself, honestly, rather
+  /// than being pre-empted here.
+  Future<bool> _networkAllowsDownload() async {
+    if (!_settings.state.downloadsWifiOnly) return true;
+    final network = await _network.current();
+    return network.allowsDownload(wifiOnly: true);
+  }
+
+  /// Re-checks the policy against the current network — called whenever
+  /// connectivity or the preference changes. Releases held-back
+  /// downloads once they are allowed again, and marks queued ones as
+  /// waiting when they are not, so the UI is honest the moment the policy
+  /// bites rather than only when the worker next turns.
+  Future<void> _reevaluateNetwork() async {
+    if (isClosed) return;
+    final hasCandidates = state.downloads.values.any(
+      (record) =>
+          record.state == DownloadState.queued ||
+          record.state == DownloadState.waitingForNetwork,
+    );
+    if (!hasCandidates) return;
+
+    if (await _networkAllowsDownload()) {
+      if (isClosed) return;
+      var released = false;
+      for (final record in state.downloads.values.toList()) {
+        if (record.state == DownloadState.waitingForNetwork) {
+          await _write(
+            record.copyWith(
+              state: DownloadState.queued,
+              clearFailureReason: true,
+            ),
+          );
+          released = true;
+        }
+      }
+      if (released) _pump();
+    } else {
+      if (isClosed) return;
+      await _holdForNetwork();
+    }
+  }
+
+  /// Moves every queued download to [DownloadState.waitingForNetwork].
+  Future<void> _holdForNetwork() async {
+    for (final record in state.downloads.values.toList()) {
+      if (record.state == DownloadState.queued) {
+        await _write(
+          record.copyWith(
+            state: DownloadState.waitingForNetwork,
+            clearFailureReason: true,
+          ),
+        );
+      }
+    }
+  }
+
   // ---- The worker ----
 
   void _pump() {
@@ -437,7 +600,21 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
 
   Future<void> _drain() async {
     if (isClosed || _active != null) return;
+    if (_nextPending() == null) return;
 
+    // Wi-Fi-only (v0.2.2): if the policy blocks work right now, hold the
+    // whole queue as waiting-for-network rather than starting a transfer
+    // that would spend a metered connection.
+    if (!await _networkAllowsDownload()) {
+      if (isClosed) return;
+      await _holdForNetwork();
+      return;
+    }
+    if (isClosed || _active != null) return;
+
+    // Re-read after the awaited network check: a request that landed
+    // while it was in flight may have added an owner to this record or
+    // queued an older one ahead of it.
     final next = _nextPending();
     if (next == null) return;
 
@@ -468,7 +645,7 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   Future<DownloadFailureReason?> _transfer(TrackDownload record) async {
     final address = await _remote.resolve(
       record.id,
-      quality: StreamQuality.original,
+      quality: _settings.state.downloadQuality,
     );
     if (address case Err<Uri>(:final failure)) {
       return _reasonFor(failure);
@@ -522,7 +699,9 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
 
   /// The oldest request still waiting. [DownloadState.paused] records
   /// are deliberately not picked up: the user stopped those, and only
-  /// an explicit retry starts them again.
+  /// an explicit retry starts them again. [DownloadState.waitingForNetwork]
+  /// is skipped the same way — `_reevaluateNetwork` re-queues those when
+  /// the policy allows (v0.2.2).
   TrackDownload? _nextPending() {
     TrackDownload? next;
     for (final record in state.downloads.values) {

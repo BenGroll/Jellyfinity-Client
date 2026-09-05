@@ -9,9 +9,10 @@ import '../../../domain/playback/CrossfadeSettings.dart';
 import '../../../domain/playback/stream_quality.dart';
 
 /// Jellyfinity's settings screen: which navigation-mode presentation the
-/// shell uses, which streaming quality playback requests (ADR-0015), how
-/// tracks hand over to one another (ADR-0016), and whether loudness is
-/// normalized between them (ADR-0017) — with room to grow the same way
+/// shell uses, which streaming quality playback requests (ADR-0015), the
+/// quality and network policy for downloads (ADR-0022), how tracks hand
+/// over to one another (ADR-0016), and whether loudness is normalized
+/// between them (ADR-0017) — with room to grow the same way
 /// `JellyfinityApp`'s theme-mode comment already anticipates.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -70,6 +71,37 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               _StreamQualityDropdown(selected: state.streamQuality),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: t.spacing.sm),
+                child: Text(
+                  'Downloads',
+                  style: t.typography.titleMedium.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+              _DownloadQualityDropdown(selected: state.downloadQuality),
+              SwitchListTile(
+                value: state.downloadsWifiOnly,
+                title: Text(
+                  'Download on Wi-Fi only',
+                  style: t.typography.bodyLarge.copyWith(
+                    color: t.colors.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  'Holds downloads until you are on Wi-Fi instead of using '
+                  'mobile data. A held download resumes on its own. Enforced '
+                  'while the app is open; a transfer already running is not '
+                  'interrupted.',
+                  style: t.typography.caption.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+                activeThumbColor: t.colors.accent,
+                onChanged: (enabled) =>
+                    context.read<SettingsCubit>().setDownloadsWifiOnly(enabled),
+              ),
               Padding(
                 padding: EdgeInsets.symmetric(vertical: t.spacing.sm),
                 child: Text(
@@ -237,6 +269,90 @@ class _StreamQualityDropdown extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: t.spacing.xs),
             child: Text(
               _qualityDescription(selected),
+              style: t.typography.caption.copyWith(
+                color: t.colors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _downloadQualityDescription(StreamQuality quality) => switch (quality) {
+  StreamQuality.original =>
+    'Keeps the original file, exactly as stored on your server. Largest '
+        'files; nothing is re-encoded.',
+  StreamQuality.high =>
+    'Transcodes to AAC 320 kbps when the source is larger — roughly '
+        '150 MB per hour of music.',
+  StreamQuality.medium =>
+    'Transcodes to AAC 192 kbps when the source is larger — roughly '
+        '85 MB per hour of music.',
+  StreamQuality.dataSaver =>
+    'Transcodes to AAC 128 kbps when the source is larger — smallest '
+        'files, roughly 55 MB per hour of music.',
+};
+
+/// The download-quality picker (v0.2.2). Same shape as
+/// [_StreamQualityDropdown], separate preference: it governs the quality
+/// a file is kept at, and takes effect for new and retried downloads
+/// without touching anything already on the device.
+class _DownloadQualityDropdown extends StatelessWidget {
+  const _DownloadQualityDropdown({required this.selected});
+
+  final StreamQuality selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: t.spacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: t.spacing.sm),
+            decoration: BoxDecoration(
+              color: t.colors.surfaceSunken,
+              borderRadius: t.radii.mdBorder,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<StreamQuality>(
+                value: selected,
+                isExpanded: true,
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: t.colors.textSecondary,
+                ),
+                dropdownColor: t.colors.surfaceElevated,
+                borderRadius: t.radii.mdBorder,
+                style: t.typography.bodyLarge.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+                items: [
+                  for (final quality in StreamQuality.values)
+                    DropdownMenuItem(
+                      value: quality,
+                      child: Text(
+                        'Download quality: ${_qualityTitle(quality)}',
+                      ),
+                    ),
+                ],
+                onChanged: (quality) {
+                  if (quality == null) return;
+                  context.read<SettingsCubit>().setDownloadQuality(quality);
+                },
+              ),
+            ),
+          ),
+          SizedBox(height: t.spacing.xxs),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: t.spacing.xs),
+            child: Text(
+              _downloadQualityDescription(selected),
               style: t.typography.caption.copyWith(
                 color: t.colors.textSecondary,
               ),

@@ -5,6 +5,7 @@ import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/Album.dart';
+import '../../../../domain/media/artist.dart';
 import '../../../../domain/media/Playlist.dart';
 import '../../../../domain/media/Track.dart';
 
@@ -65,6 +66,20 @@ class TrackDownloadButton extends StatelessWidget {
         icon: Icons.play_arrow_rounded,
         tooltip: 'Stopped — tap to resume',
         onPressed: () => downloads.retry(track.id),
+      ),
+      DownloadState.waitingForNetwork => _IconAction(
+        icon: Icons.wifi_rounded,
+        tooltip: 'Waiting for Wi-Fi',
+        color: t.colors.textSecondary,
+        onPressed: () => confirmRemoveDownload(
+          context,
+          title: 'Stop waiting for "${track.name}"?',
+          message:
+              'It downloads on its own once you are on Wi-Fi. Removing it '
+              'cancels the request. The song stays on your server.',
+          confirmLabel: 'Cancel download',
+          onConfirm: () => downloads.removeTrack(track.id),
+        ),
       ),
       DownloadState.completed => _IconAction(
         icon: Icons.check_circle_rounded,
@@ -366,6 +381,175 @@ class PlaylistDownloadButton extends StatelessWidget {
   }
 }
 
+/// The download affordance on an artist header (v0.2.2).
+///
+/// The artist-wide counterpart to [AlbumDownloadButton]. It differs in
+/// one way that matters: an artist can be a very large collection, so the
+/// first download asks for confirmation, naming how many tracks it is
+/// about to queue. Everything else — the aggregate state, the menu of
+/// retry/download-missing/remove — mirrors the album control.
+class ArtistDownloadButton extends StatelessWidget {
+  const ArtistDownloadButton({
+    super.key,
+    required this.artist,
+    this.trackCount,
+  });
+
+  final Artist artist;
+
+  /// The artist's song count, when the stats row has loaded it — used to
+  /// tell the user what a download will cost before they commit.
+  final int? trackCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final catalog = context.watch<DownloadsCubit>().state;
+    final downloads = context.read<DownloadsCubit>();
+    final status = catalog.statusFor(DownloadOwner.artist(artist.id));
+
+    if (!catalog.isLoaded) {
+      return const SizedBox(width: 40, height: 40);
+    }
+
+    if (status.isEmpty) {
+      return _IconAction(
+        icon: Icons.download_outlined,
+        tooltip: 'Download every song by this artist',
+        color: t.colors.textPrimary,
+        onPressed: () => _confirmAndDownload(context, downloads),
+      );
+    }
+
+    if (status.isActive) {
+      return _ProgressAction(
+        progress: status.progress,
+        tooltip: 'Downloading — tap for options',
+        onPressed: () => _openMenu(context, downloads, status),
+      );
+    }
+
+    return _IconAction(
+      icon: status.needsAttention
+          ? Icons.error_outline_rounded
+          : Icons.check_circle_rounded,
+      tooltip: status.needsAttention
+          ? '${status.completed} of ${status.total} downloaded'
+          : 'Artist downloaded',
+      color: status.needsAttention ? t.colors.danger : t.colors.accent,
+      onPressed: () => _openMenu(context, downloads, status),
+    );
+  }
+
+  Future<void> _confirmAndDownload(
+    BuildContext context,
+    DownloadsCubit downloads,
+  ) async {
+    final count = trackCount;
+    final scope = count == null
+        ? 'every song by ${artist.name}'
+        : '$count ${count == 1 ? 'song' : 'songs'} by ${artist.name}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Download ${artist.name}?'),
+        content: Text(
+          'This keeps $scope on this device. It downloads at your chosen '
+          'download quality, one track at a time, and you can stop it from '
+          'the Downloads screen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Download'),
+          ),
+        ],
+      ),
+    );
+    if (!(confirmed ?? false) || !context.mounted) return;
+    await _download(context, downloads);
+  }
+
+  Future<void> _download(BuildContext context, DownloadsCubit downloads) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await downloads.downloadArtist(artist);
+    if (result.failureOrNull case final failure?) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not download "${artist.name}". ${failure.message}',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _openMenu(
+    BuildContext context,
+    DownloadsCubit downloads,
+    CollectionDownloadStatus status,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.info_outline_rounded),
+              title: Text(describeCollectionDownload(status)),
+              dense: true,
+            ),
+            if (status.needsAttention)
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded),
+                title: const Text('Try the rest again'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  downloads.retryAll(DownloadOwner.artist(artist.id));
+                },
+              ),
+            if (!status.isComplete && !status.isActive)
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Download the missing tracks'),
+                subtitle: const Text(
+                  'Also picks up anything released since you downloaded',
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _download(context, downloads);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Remove download'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                confirmRemoveDownload(
+                  context,
+                  title: 'Remove "${artist.name}"?',
+                  message:
+                      'Frees up ${status.completed} downloaded '
+                      '${status.completed == 1 ? 'track' : 'tracks'} on this '
+                      'device. Songs you downloaded on their own, or that a '
+                      'downloaded album or playlist keeps, stay — and nothing '
+                      'changes on your server.',
+                  onConfirm: () => downloads.removeArtist(artist.id),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// One line describing what a playlist reconcile changed (v0.2.1).
 String describePlaylistDownloadChange(PlaylistDownloadChange change) {
   if (change.isEmpty) return 'This playlist download is up to date';
@@ -428,6 +612,20 @@ class CollectionDownloadSummary extends StatelessWidget {
   }
 }
 
+/// A downloaded-size figure for the Downloads screen (v0.2.2). Rounded,
+/// not false-precise: "1.2 GB", "340 MB", "12 MB", "800 KB", or "—" for
+/// nothing.
+String formatDownloadSize(int bytes) {
+  if (bytes <= 0) return '—';
+  const kb = 1024;
+  const mb = kb * 1024;
+  const gb = mb * 1024;
+  if (bytes >= gb) return '${(bytes / gb).toStringAsFixed(1)} GB';
+  if (bytes >= mb) return '${(bytes / mb).round()} MB';
+  if (bytes >= kb) return '${(bytes / kb).round()} KB';
+  return '$bytes B';
+}
+
 /// One line describing where a collection's downloads stand.
 String describeCollectionDownload(CollectionDownloadStatus status) {
   if (status.isEmpty) return 'Not downloaded';
@@ -438,6 +636,9 @@ String describeCollectionDownload(CollectionDownloadStatus status) {
     parts.add('${status.completed} of ${status.total} downloaded');
   }
   if (status.pending > 0) parts.add('${status.pending} to go');
+  if (status.waitingForNetwork > 0) {
+    parts.add('${status.waitingForNetwork} waiting for Wi-Fi');
+  }
   if (status.paused > 0) parts.add('${status.paused} stopped');
   if (status.failed > 0) {
     parts.add('${status.failed} failed');

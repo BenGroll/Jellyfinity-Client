@@ -64,12 +64,16 @@ class InMemoryKeyValueStore implements KeyValueStore {
 SettingsCubit fakeSettingsCubit({
   ShellNavigationMode mode = ShellNavigationMode.mediaPills,
   StreamQuality quality = StreamQuality.original,
+  StreamQuality downloadQuality = StreamQuality.original,
+  bool downloadsWifiOnly = false,
   CrossfadeSettings crossfade = CrossfadeSettings.disabled,
   NormalizationSettings normalization = NormalizationSettings.disabled,
 }) => SettingsCubit(
   InMemoryKeyValueStore(),
   mode,
   quality,
+  downloadQuality,
+  downloadsWifiOnly,
   crossfade,
   normalization,
 );

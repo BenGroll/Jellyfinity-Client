@@ -18,6 +18,14 @@ enum DownloadState {
   /// up where it left off rather than starting over.
   paused,
 
+  /// Held back because the current network does not satisfy the user's
+  /// Wi-Fi-only preference (v0.2.2). Not a failure and not something the
+  /// user stopped: the request is intact and the engine picks it up on
+  /// its own once an unmetered connection is available or the preference
+  /// is turned off. `ROADMAP.md` v0.2.2: "retain it as a clearly paused
+  /// request rather than reporting a permanent failure."
+  waitingForNetwork,
+
   /// The whole file is on the device and playable without the server.
   completed,
 

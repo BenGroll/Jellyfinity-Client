@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/domain/playback/stream_quality.dart';
 
 import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
+import '../../support/settings_fakes.dart';
 
 void main() {
   late InMemoryDownloadStore store;
@@ -370,6 +372,25 @@ void main() {
       },
     );
 
+    test(
+      'a waiting-for-network record is re-evaluated, not left stuck (v0.2.2)',
+      () async {
+        final track = testTrack('t1');
+        store.records[track.id] = downloadRecord(
+          track.id,
+          state: DownloadState.waitingForNetwork,
+        );
+
+        // The default fake network is unmetered, so the worker's gate
+        // clears it and it completes — connectivity_plus would not have
+        // fired a change event to unstick it.
+        await cubit.restore();
+        await pumpEventQueue();
+
+        expect(cubit.state[track.id]?.state, DownloadState.completed);
+      },
+    );
+
     test('a downloaded playlist\'s snapshot is restored', () async {
       final t1 = testTrack('t1');
       final t2 = testTrack('t2');
@@ -561,6 +582,227 @@ void main() {
 
       expect(change.isEmpty, isTrue);
       expect(cubit.state.stateOf(mediaId('t2')), isNull);
+    });
+  });
+
+  group('requesting an artist (v0.2.2)', () {
+    test('downloads every track credited to the artist', () async {
+      library.trackList = [testTrack('t1'), testTrack('t2'), testTrack('t3')];
+
+      final result = await cubit.downloadArtist(testArtist('ar-1'));
+      await pumpEventQueue();
+
+      expect(result.isOk, isTrue);
+      expect(engine.fetched, [mediaId('t1'), mediaId('t2'), mediaId('t3')]);
+      for (final id in ['t1', 't2', 't3']) {
+        expect(cubit.state[mediaId(id)]?.owners, {
+          DownloadOwner.artist(mediaId('ar-1')),
+        });
+      }
+    });
+
+    test('pages a large artist rather than reading it all at once', () async {
+      library.trackList = [for (var i = 0; i < 250; i++) testTrack('t$i')];
+
+      await cubit.downloadArtist(testArtist('ar-1'));
+      await pumpEventQueue();
+
+      // 250 tracks over the default 100-wide window: three reads, and
+      // every track requested.
+      final trackReads = library.calls
+          .where((call) => call.method == 'tracks')
+          .toList();
+      expect(trackReads, hasLength(3));
+      expect(trackReads.map((c) => c.page.startIndex), [0, 100, 200]);
+      expect(cubit.state.downloads, hasLength(250));
+    });
+
+    test('reuses a track an album download already holds', () async {
+      final shared = testTrack('t1', albumId: 'al-1');
+      library.trackList = [shared, testTrack('t2')];
+
+      await cubit.downloadAlbum(testAlbum('al-1', name: 'Kind of Blue'));
+      await pumpEventQueue();
+      await cubit.downloadArtist(testArtist('ar-1'));
+      await pumpEventQueue();
+
+      // Fetched once for the album; the artist only adds a reason to keep
+      // it.
+      expect(engine.fetched.where((id) => id == shared.id), hasLength(1));
+      expect(cubit.state[shared.id]?.owners, {
+        DownloadOwner.album(mediaId('al-1')),
+        DownloadOwner.artist(mediaId('ar-1')),
+      });
+    });
+
+    test('reports a failure when the artist could not be read', () async {
+      library.failure = const UnavailableFailure('no such artist');
+
+      final result = await cubit.downloadArtist(testArtist('ar-1'));
+
+      expect(result.isErr, isTrue);
+      expect(cubit.state.downloads, isEmpty);
+    });
+
+    test(
+      'removing the artist keeps a track another target still wants',
+      () async {
+        final shared = testTrack('t1', albumId: 'al-1');
+        library.tracksByAlbum['al-1'] = [shared];
+        library.tracksByArtist['ar-1'] = [shared, testTrack('t2')];
+        await cubit.downloadAlbum(testAlbum('al-1'));
+        await pumpEventQueue();
+        await cubit.downloadArtist(testArtist('ar-1'));
+        await pumpEventQueue();
+
+        await cubit.removeArtist(mediaId('ar-1'));
+        await pumpEventQueue();
+
+        // t1 stays — the album still holds it; t2 goes with the artist.
+        expect(cubit.state[shared.id]?.owners, {
+          DownloadOwner.album(mediaId('al-1')),
+        });
+        expect(cubit.state[mediaId('t2')], isNull);
+        expect(engine.discarded, contains(mediaId('t2')));
+        expect(engine.discarded, isNot(contains(shared.id)));
+      },
+    );
+  });
+
+  group('download quality (v0.2.2)', () {
+    test('fetches at the settings-selected download quality', () async {
+      final settings = fakeSettingsCubit(downloadQuality: StreamQuality.medium);
+      addTearDown(settings.close);
+      final scoped = fakeDownloadsCubit(
+        store: store,
+        engine: engine,
+        resolver: resolver,
+        library: library,
+        playlists: playlists,
+        settings: settings,
+      );
+      addTearDown(scoped.close);
+
+      await scoped.downloadTrack(testTrack('t1'));
+      await pumpEventQueue();
+
+      expect(resolver.requestedQuality['t1'], StreamQuality.medium);
+    });
+
+    test('a quality change does not re-fetch a completed download', () async {
+      final settings = fakeSettingsCubit(
+        downloadQuality: StreamQuality.original,
+      );
+      addTearDown(settings.close);
+      final scoped = fakeDownloadsCubit(
+        store: store,
+        engine: engine,
+        resolver: resolver,
+        library: library,
+        playlists: playlists,
+        settings: settings,
+      );
+      addTearDown(scoped.close);
+
+      await scoped.downloadTrack(testTrack('t1'));
+      await pumpEventQueue();
+      expect(engine.fetched, [mediaId('t1')]);
+
+      await settings.setDownloadQuality(StreamQuality.dataSaver);
+      await pumpEventQueue();
+
+      // Still one fetch: the file on the device is left as it is.
+      expect(engine.fetched, [mediaId('t1')]);
+    });
+  });
+
+  group('Wi-Fi-only downloads (v0.2.2)', () {
+    ({DownloadsCubit cubit, FakeNetworkCondition network}) wifiOnly(
+      NetworkState network,
+    ) {
+      final settings = fakeSettingsCubit(downloadsWifiOnly: true);
+      addTearDown(settings.close);
+      final condition = FakeNetworkCondition(state: network);
+      final scoped = fakeDownloadsCubit(
+        store: store,
+        engine: engine,
+        resolver: resolver,
+        library: library,
+        playlists: playlists,
+        settings: settings,
+        network: condition,
+      );
+      addTearDown(scoped.close);
+      return (cubit: scoped, network: condition);
+    }
+
+    test(
+      'holds a request on a metered connection instead of failing it',
+      () async {
+        final (:cubit, :network) = wifiOnly(NetworkState.metered);
+
+        await cubit.downloadTrack(testTrack('t1'));
+        await pumpEventQueue();
+
+        expect(
+          cubit.state.stateOf(mediaId('t1')),
+          DownloadState.waitingForNetwork,
+        );
+        expect(engine.fetched, isEmpty);
+      },
+    );
+
+    test('resumes a held request when Wi-Fi comes back', () async {
+      final (:cubit, :network) = wifiOnly(NetworkState.metered);
+
+      await cubit.downloadTrack(testTrack('t1'));
+      await pumpEventQueue();
+      expect(
+        cubit.state.stateOf(mediaId('t1')),
+        DownloadState.waitingForNetwork,
+      );
+
+      network.moveTo(NetworkState.unmetered);
+      await pumpEventQueue();
+
+      expect(cubit.state.stateOf(mediaId('t1')), DownloadState.completed);
+      expect(engine.fetched, [mediaId('t1')]);
+    });
+
+    test('resumes a held request when the preference is turned off', () async {
+      final settings = fakeSettingsCubit(downloadsWifiOnly: true);
+      addTearDown(settings.close);
+      final scoped = fakeDownloadsCubit(
+        store: store,
+        engine: engine,
+        resolver: resolver,
+        library: library,
+        playlists: playlists,
+        settings: settings,
+        network: FakeNetworkCondition(state: NetworkState.metered),
+      );
+      addTearDown(scoped.close);
+
+      await scoped.downloadTrack(testTrack('t1'));
+      await pumpEventQueue();
+      expect(
+        scoped.state.stateOf(mediaId('t1')),
+        DownloadState.waitingForNetwork,
+      );
+
+      await settings.setDownloadsWifiOnly(false);
+      await pumpEventQueue();
+
+      expect(scoped.state.stateOf(mediaId('t1')), DownloadState.completed);
+    });
+
+    test('an unmetered connection runs the download normally', () async {
+      final (:cubit, :network) = wifiOnly(NetworkState.unmetered);
+
+      await cubit.downloadTrack(testTrack('t1'));
+      await pumpEventQueue();
+
+      expect(cubit.state.stateOf(mediaId('t1')), DownloadState.completed);
     });
   });
 }

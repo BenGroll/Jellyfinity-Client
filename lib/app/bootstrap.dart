@@ -60,6 +60,26 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   );
   getIt.registerSingleton<StreamQuality>(initialStreamQuality);
 
+  // The download-quality (v0.2.2) preference, read the same way and for
+  // the same reason: DownloadsCubit reads it through SettingsCubit and
+  // the first frame's download controls should reflect the saved choice.
+  // Registered under a name because a plain StreamQuality is already
+  // taken by streaming above.
+  final startingDownloadQuality =
+      await SettingsCubit.loadInitialDownloadQuality(getIt<KeyValueStore>());
+  getIt.registerSingleton<StreamQuality>(
+    startingDownloadQuality,
+    instanceName: initialDownloadQuality,
+  );
+
+  // Wi-Fi-only downloads (v0.2.2). A bool, so it too takes a name.
+  final startingDownloadsWifiOnly =
+      await SettingsCubit.loadInitialDownloadsWifiOnly(getIt<KeyValueStore>());
+  getIt.registerSingleton<bool>(
+    startingDownloadsWifiOnly,
+    instanceName: initialDownloadsWifiOnly,
+  );
+
   // Crossfade (ADR-0016) is read here too, so the engine is configured
   // before the restored queue is primed rather than after — a saved
   // crossfade preference is in force from the first transition, not the

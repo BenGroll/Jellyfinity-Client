@@ -40,6 +40,8 @@ void main() {
       store,
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
+      StreamQuality.original,
+      false,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -60,6 +62,8 @@ void main() {
       store,
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
+      StreamQuality.original,
+      false,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -106,6 +110,8 @@ void main() {
       store,
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
+      StreamQuality.original,
+      false,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -126,6 +132,8 @@ void main() {
       store,
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
+      StreamQuality.original,
+      false,
       CrossfadeSettings.disabled,
       NormalizationSettings.disabled,
     );
@@ -196,6 +204,8 @@ void main() {
         store,
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
+        StreamQuality.original,
+        false,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -213,6 +223,8 @@ void main() {
         store,
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
+        StreamQuality.original,
+        false,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -236,6 +248,8 @@ void main() {
           store,
           ShellNavigationMode.mediaPills,
           StreamQuality.original,
+          StreamQuality.original,
+          false,
           CrossfadeSettings.disabled,
           NormalizationSettings.disabled,
         );
@@ -262,6 +276,8 @@ void main() {
         store,
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
+        StreamQuality.original,
+        false,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -302,6 +318,8 @@ void main() {
         store,
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
+        StreamQuality.original,
+        false,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -322,6 +340,8 @@ void main() {
         store,
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
+        StreamQuality.original,
+        false,
         CrossfadeSettings.disabled,
         NormalizationSettings.disabled,
       );
@@ -335,5 +355,74 @@ void main() {
 
       expect(states, isEmpty);
     });
+  });
+
+  group('download preferences (v0.2.2)', () {
+    SettingsCubit build(InMemoryKeyValueStore store) {
+      final cubit = SettingsCubit(
+        store,
+        ShellNavigationMode.mediaPills,
+        StreamQuality.original,
+        StreamQuality.original,
+        false,
+        CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
+      );
+      addTearDown(cubit.close);
+      return cubit;
+    }
+
+    test('download quality defaults to lossless and is independent', () async {
+      final store = InMemoryKeyValueStore();
+      expect(
+        await SettingsCubit.loadInitialDownloadQuality(store),
+        StreamQuality.original,
+      );
+
+      final cubit = build(store);
+      await cubit.setStreamQuality(StreamQuality.dataSaver);
+
+      // Changing the streaming quality left the download quality alone.
+      expect(cubit.state.downloadQuality, StreamQuality.original);
+    });
+
+    test('setDownloadQuality persists and emits', () async {
+      final store = InMemoryKeyValueStore();
+      final cubit = build(store);
+
+      await cubit.setDownloadQuality(StreamQuality.high);
+
+      expect(cubit.state.downloadQuality, StreamQuality.high);
+      expect(
+        await SettingsCubit.loadInitialDownloadQuality(store),
+        StreamQuality.high,
+      );
+    });
+
+    test('Wi-Fi-only defaults off and round-trips', () async {
+      final store = InMemoryKeyValueStore();
+      expect(await SettingsCubit.loadInitialDownloadsWifiOnly(store), isFalse);
+
+      final cubit = build(store);
+      await cubit.setDownloadsWifiOnly(true);
+
+      expect(cubit.state.downloadsWifiOnly, isTrue);
+      expect(await SettingsCubit.loadInitialDownloadsWifiOnly(store), isTrue);
+    });
+
+    test(
+      'setting a download preference to its current value is a no-op',
+      () async {
+        final cubit = build(InMemoryKeyValueStore());
+        final states = <SettingsState>[];
+        final sub = cubit.stream.listen(states.add);
+        addTearDown(sub.cancel);
+
+        await cubit.setDownloadQuality(StreamQuality.original);
+        await cubit.setDownloadsWifiOnly(false);
+
+        expect(states, isEmpty);
+      },
+    );
   });
 }

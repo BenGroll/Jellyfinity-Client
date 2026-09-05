@@ -8,27 +8,52 @@ import '../../domain/playback/stream_quality.dart';
 import '../../infrastructure/persistence/key_value_store.dart';
 import 'ShellNavigationMode.dart';
 
+/// The instance names the two download preferences resolved in
+/// `bootstrap()` are registered under (v0.2.2). `StreamQuality` and
+/// `bool` are both already-registered plain types, so the download
+/// preferences take a name to sit beside them.
+const String initialDownloadQuality = 'settings.initialDownloadQuality';
+const String initialDownloadsWifiOnly = 'settings.initialDownloadsWifiOnly';
+
 class SettingsState extends Equatable {
   const SettingsState({
     required this.navigationMode,
     required this.streamQuality,
+    required this.downloadQuality,
+    required this.downloadsWifiOnly,
     required this.crossfade,
     required this.normalization,
   });
 
   final ShellNavigationMode navigationMode;
   final StreamQuality streamQuality;
+
+  /// The quality new and retried downloads are fetched at (v0.2.2),
+  /// persisted independently of [streamQuality]: a listener can stream
+  /// data-saver on the move while still keeping lossless copies, or the
+  /// reverse. It never rewrites a file already on the device.
+  final StreamQuality downloadQuality;
+
+  /// Whether a download may only run on an unmetered connection (v0.2.2).
+  /// Off by default — `ROADMAP.md`'s safe starting point, since it never
+  /// silently blocks a requested download.
+  final bool downloadsWifiOnly;
+
   final CrossfadeSettings crossfade;
   final NormalizationSettings normalization;
 
   SettingsState copyWith({
     ShellNavigationMode? navigationMode,
     StreamQuality? streamQuality,
+    StreamQuality? downloadQuality,
+    bool? downloadsWifiOnly,
     CrossfadeSettings? crossfade,
     NormalizationSettings? normalization,
   }) => SettingsState(
     navigationMode: navigationMode ?? this.navigationMode,
     streamQuality: streamQuality ?? this.streamQuality,
+    downloadQuality: downloadQuality ?? this.downloadQuality,
+    downloadsWifiOnly: downloadsWifiOnly ?? this.downloadsWifiOnly,
     crossfade: crossfade ?? this.crossfade,
     normalization: normalization ?? this.normalization,
   );
@@ -37,33 +62,43 @@ class SettingsState extends Equatable {
   List<Object?> get props => [
     navigationMode,
     streamQuality,
+    downloadQuality,
+    downloadsWifiOnly,
     crossfade,
     normalization,
   ];
 }
 
 /// The app's persisted preferences — [ShellNavigationMode],
-/// [StreamQuality], [CrossfadeSettings] and [NormalizationSettings]
-/// today, with room to grow the same way `AppConfig`/`KeyValueStore`
-/// already do.
+/// [StreamQuality], the download quality and Wi-Fi-only policy (v0.2.2),
+/// [CrossfadeSettings] and [NormalizationSettings] — with room to grow
+/// the same way `AppConfig`/`KeyValueStore` already do.
 ///
 /// Every initial value is resolved once in `bootstrap()`, right after
 /// `configureDependencies()` returns, so the very first frame already
 /// renders/plays at the saved settings — no flash of the default followed
 /// by a swap, unlike `SessionCubit`/`PlaybackCubit`'s unawaited restores,
 /// which are fine to resolve after first paint.
-@injectable
+///
+/// A [lazySingleton], not a factory: it is app-wide state that
+/// `PlaybackCubit` and `DownloadsCubit` both read and listen to, and
+/// those must see the same instance the settings screen writes to.
+@lazySingleton
 class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit(
     this._store,
     ShellNavigationMode initialNavigationMode,
     StreamQuality initialStreamQuality,
+    @Named(initialDownloadQuality) StreamQuality startingDownloadQuality,
+    @Named(initialDownloadsWifiOnly) bool startingDownloadsWifiOnly,
     CrossfadeSettings initialCrossfade,
     NormalizationSettings initialNormalization,
   ) : super(
         SettingsState(
           navigationMode: initialNavigationMode,
           streamQuality: initialStreamQuality,
+          downloadQuality: startingDownloadQuality,
+          downloadsWifiOnly: startingDownloadsWifiOnly,
           crossfade: initialCrossfade,
           normalization: initialNormalization,
         ),
@@ -73,6 +108,8 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   static const _navigationModeKey = 'settings.navigationMode';
   static const _streamQualityKey = 'settings.streamQuality';
+  static const _downloadQualityKey = 'settings.downloadQuality';
+  static const _downloadsWifiOnlyKey = 'settings.downloadsWifiOnly';
   static const _crossfadeEnabledKey = 'settings.crossfadeEnabled';
   static const _crossfadeSecondsKey = 'settings.crossfadeSeconds';
   static const _normalizationEnabledKey = 'settings.normalizationEnabled';
@@ -89,6 +126,23 @@ class SettingsCubit extends Cubit<SettingsState> {
   ) async {
     final raw = await store.getString(_streamQualityKey);
     return StreamQuality.tryParse(raw) ?? StreamQuality.fallback;
+  }
+
+  /// Reads the download-quality preference (v0.2.2). A missing value
+  /// degrades to [StreamQuality.original] — `ROADMAP.md`'s intended safe
+  /// starting point, because it never silently changes what a user gets.
+  static Future<StreamQuality> loadInitialDownloadQuality(
+    KeyValueStore store,
+  ) async {
+    final raw = await store.getString(_downloadQualityKey);
+    return StreamQuality.tryParse(raw) ?? StreamQuality.original;
+  }
+
+  /// Reads the Wi-Fi-only download preference (v0.2.2). Missing means
+  /// off, the safe default: an opt-in that never blocks a requested
+  /// download until the user asks it to.
+  static Future<bool> loadInitialDownloadsWifiOnly(KeyValueStore store) async {
+    return await store.getBool(_downloadsWifiOnlyKey) ?? false;
   }
 
   /// Reads the crossfade preference (ADR-0016). Enabled state and
@@ -131,6 +185,21 @@ class SettingsCubit extends Cubit<SettingsState> {
     if (quality == state.streamQuality) return;
     await _store.setString(_streamQualityKey, quality.name);
     emit(state.copyWith(streamQuality: quality));
+  }
+
+  /// Sets the download quality. Takes effect for downloads requested or
+  /// retried after this point; files already on the device are left as
+  /// they are (v0.2.2).
+  Future<void> setDownloadQuality(StreamQuality quality) async {
+    if (quality == state.downloadQuality) return;
+    await _store.setString(_downloadQualityKey, quality.name);
+    emit(state.copyWith(downloadQuality: quality));
+  }
+
+  Future<void> setDownloadsWifiOnly(bool wifiOnly) async {
+    if (wifiOnly == state.downloadsWifiOnly) return;
+    await _store.setBool(_downloadsWifiOnlyKey, wifiOnly);
+    emit(state.copyWith(downloadsWifiOnly: wifiOnly));
   }
 
   Future<void> setCrossfadeEnabled(bool enabled) async {

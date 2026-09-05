@@ -19,6 +19,8 @@ class CollectionDownloadStatus extends Equatable {
     required this.pending,
     required this.failed,
     required this.paused,
+    this.waitingForNetwork = 0,
+    this.storageInUse = 0,
     this.progress,
   });
 
@@ -39,6 +41,15 @@ class CollectionDownloadStatus extends Equatable {
   final int failed;
   final int paused;
 
+  /// Held back by the Wi-Fi-only preference (v0.2.2). Distinct from
+  /// [paused], which the user chose: these resume on their own.
+  final int waitingForNetwork;
+
+  /// Bytes the collection's completed downloads occupy on the device
+  /// (v0.2.2) — the honest figure a Downloads screen shows, summed from
+  /// each finished file's own size.
+  final int storageInUse;
+
   /// Byte-weighted progress across the whole collection, `0.0`–`1.0`, or
   /// `null` when too little is known to state one. Falls back to
   /// track counts when the server has not reported sizes.
@@ -50,10 +61,12 @@ class CollectionDownloadStatus extends Equatable {
   /// Every requested track is on the device.
   bool get isComplete => total > 0 && completed == total;
 
-  /// Work is still going on.
-  bool get isActive => pending > 0;
+  /// Work is still going on — a transfer running, or one only held back
+  /// by the network policy.
+  bool get isActive => pending > 0 || waitingForNetwork > 0;
 
-  /// Something needs the user: a failure or a paused transfer.
+  /// Something needs the user: a failure or a paused transfer. A
+  /// waiting-for-network transfer does not — it resumes on its own.
   bool get needsAttention => failed > 0 || paused > 0;
 
   @override
@@ -63,6 +76,8 @@ class CollectionDownloadStatus extends Equatable {
     pending,
     failed,
     paused,
+    waitingForNetwork,
+    storageInUse,
     progress,
   ];
 }
@@ -128,17 +143,57 @@ class DownloadCatalog extends Equatable {
   }
 
   /// What [owner]'s downloads add up to.
-  CollectionDownloadStatus statusFor(DownloadOwner owner) {
+  CollectionDownloadStatus statusFor(DownloadOwner owner) =>
+      _summarize(ownedBy(owner));
+
+  /// What every download the app is keeping adds up to (v0.2.2) — the
+  /// figure the Downloads screen's header shows.
+  CollectionDownloadStatus get overallStatus => _summarize(downloads.values);
+
+  /// Bytes every completed download occupies on the device (v0.2.2).
+  int get storageInUse => overallStatus.storageInUse;
+
+  /// The distinct album, playlist, and artist targets that own at least
+  /// one download (v0.2.2) — one row each on the Downloads screen. A
+  /// downloaded playlist with a snapshot but no surviving members is
+  /// included so it does not vanish from the screen.
+  List<DownloadOwner> get collectionOwners {
+    final owners = <DownloadOwner>{};
+    for (final download in downloads.values) {
+      for (final owner in download.owners) {
+        if (owner.kind != DownloadOwnerKind.track) owners.add(owner);
+      }
+    }
+    for (final playlistId in playlistSnapshots.keys) {
+      owners.add(DownloadOwner.playlist(playlistId));
+    }
+    return owners.toList();
+  }
+
+  /// The tracks the user downloaded on their own — a `track` owner, with
+  /// no album/artist/playlist also keeping them (v0.2.2). These get their
+  /// own section on the Downloads screen rather than being hidden inside
+  /// a collection.
+  List<TrackDownload> get standaloneTrackDownloads => [
+    for (final download in downloads.values)
+      if (download.owners.any((o) => o.kind == DownloadOwnerKind.track) &&
+          !download.owners.any((o) => o.kind != DownloadOwnerKind.track))
+        download,
+  ];
+
+  static CollectionDownloadStatus _summarize(Iterable<TrackDownload> records) {
     var total = 0;
     var completed = 0;
     var pending = 0;
     var failed = 0;
     var paused = 0;
+    var waiting = 0;
+    var storageInUse = 0;
     var receivedBytes = 0;
     var totalBytes = 0;
     var everySizeKnown = true;
 
-    for (final download in ownedBy(owner)) {
+    for (final download in records) {
       total++;
       switch (download.state) {
         case DownloadState.completed:
@@ -146,12 +201,17 @@ class DownloadCatalog extends Equatable {
         case DownloadState.queued:
         case DownloadState.downloading:
           pending++;
+        case DownloadState.waitingForNetwork:
+          waiting++;
         case DownloadState.failed:
           failed++;
         case DownloadState.paused:
           paused++;
       }
       final size = download.totalBytes;
+      if (download.state == DownloadState.completed) {
+        storageInUse += size ?? download.receivedBytes;
+      }
       if (size == null || size <= 0) {
         everySizeKnown = false;
       } else {
@@ -177,6 +237,8 @@ class DownloadCatalog extends Equatable {
       pending: pending,
       failed: failed,
       paused: paused,
+      waitingForNetwork: waiting,
+      storageInUse: storageInUse,
       progress: progress,
     );
   }
