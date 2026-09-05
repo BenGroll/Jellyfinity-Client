@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/playlists/PlaylistCurationService.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
@@ -13,6 +14,7 @@ import '../widgets/MediaArtwork.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import '../widgets/playlist_add_flow.dart';
 import 'media_detail_cubit.dart';
 
 /// One artist: who they are, then what they released, newest release
@@ -147,6 +149,18 @@ class _ArtistHeader extends StatelessWidget {
           artist.name,
           textAlign: TextAlign.center,
           style: t.typography.titleLarge.copyWith(color: t.colors.textPrimary),
+        ),
+        SizedBox(height: t.spacing.md),
+        AppButton(
+          label: 'Add to Playlist',
+          icon: Icons.playlist_add_rounded,
+          variant: AppButtonVariant.secondary,
+          onPressed: () => addToPlaylistFlow(
+            context,
+            add: (playlistId) =>
+                getIt<PlaylistCurationService>().addArtist(playlistId, artist.id),
+            successMessage: "Added ${artist.name}'s songs to playlist.",
+          ),
         ),
         SizedBox(height: t.spacing.md),
       ],

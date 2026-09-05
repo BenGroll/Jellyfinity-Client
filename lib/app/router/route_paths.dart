@@ -40,6 +40,9 @@ abstract final class RoutePaths {
   static const libraryAlbum = 'album/:id';
   static const libraryPlaylist = 'playlist/:id';
 
+  /// Combining two or more playlists into a new one.
+  static const libraryMergePlaylists = 'playlists/merge';
+
   /// Saved servers & profiles: switch active profile, sign out, remove.
   static const accounts = '/accounts';
 
@@ -71,6 +74,7 @@ abstract final class RouteNames {
   static const libraryArtist = 'libraryArtist';
   static const libraryAlbum = 'libraryAlbum';
   static const libraryPlaylist = 'libraryPlaylist';
+  static const libraryMergePlaylists = 'libraryMergePlaylists';
   static const accounts = 'accounts';
   static const settings = 'settings';
   static const nowPlaying = 'nowPlaying';

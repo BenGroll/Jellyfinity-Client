@@ -10,6 +10,7 @@ import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
 import '../../features/music/presentation/detail/PlaylistDetailPage.dart';
 import '../../features/music/presentation/library/LibraryPage.dart';
+import '../../features/music/presentation/playlists/MergePlaylistsPage.dart';
 import '../../features/music/presentation/search/music_search_cubit.dart';
 import '../../features/music/presentation/search/SearchCategoryPage.dart';
 import '../../features/onboarding/presentation/WelcomePage.dart';
@@ -217,6 +218,11 @@ class AppRouter {
       name: RouteNames.libraryPlaylist,
       builder: (context, state) =>
           _withMediaId(state, (id) => PlaylistDetailPage(playlistId: id)),
+    ),
+    GoRoute(
+      path: RoutePaths.libraryMergePlaylists,
+      name: RouteNames.libraryMergePlaylists,
+      builder: (context, state) => const MergePlaylistsPage(),
     ),
   ];
 

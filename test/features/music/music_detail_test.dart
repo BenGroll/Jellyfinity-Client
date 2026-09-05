@@ -6,6 +6,7 @@ import 'package:jellyfinity/design/design.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/PlaylistDetailPage.dart';
+import 'package:jellyfinity/features/music/presentation/detail/playlist_edit_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
@@ -130,6 +131,7 @@ void main() {
         playlistId: mediaId('pl1'),
         detail: PlaylistDetailCubit(metadata),
         tracks: PlaylistTracksCubit(playlists),
+        edit: PlaylistEditCubit(playlists, FakePlaylistEditor()),
       ),
     );
     await tester.pumpAndSettle();

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
+import '../../../../app/playlists/PlaylistCurationService.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
@@ -13,6 +14,7 @@ import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import '../widgets/playlist_add_flow.dart';
 import 'media_detail_cubit.dart';
 
 /// One album: its header, then its tracks.
@@ -116,6 +118,14 @@ class _AlbumDetailView extends StatelessWidget {
                       track.availability == MediaAvailability.remoteUnavailable
                       ? null
                       : () => context.read<PlaybackCubit>().addToQueue(track),
+                  onAddToPlaylist:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : () => addToPlaylistFlow(
+                          context,
+                          add: (playlistId) => getIt<PlaylistCurationService>()
+                              .addTrack(playlistId, track.id),
+                        ),
                 ),
               );
             },
@@ -190,12 +200,32 @@ class _AlbumHeader extends StatelessWidget {
         ],
         SizedBox(height: t.spacing.md),
         if (tracks.isNotEmpty)
-          AppButton(
-            label: 'Play',
-            icon: Icons.play_arrow_rounded,
-            variant: AppButtonVariant.secondary,
-            onPressed: () =>
-                context.read<PlaybackCubit>().playNow(tracks, startIndex: 0),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: t.spacing.sm,
+            runSpacing: t.spacing.sm,
+            children: [
+              AppButton(
+                label: 'Play',
+                icon: Icons.play_arrow_rounded,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => context.read<PlaybackCubit>().playNow(
+                  tracks,
+                  startIndex: 0,
+                ),
+              ),
+              AppButton(
+                label: 'Add to Playlist',
+                icon: Icons.playlist_add_rounded,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => addToPlaylistFlow(
+                  context,
+                  add: (playlistId) => getIt<PlaylistCurationService>()
+                      .addAlbum(playlistId, album.id),
+                  successMessage: 'Album added to playlist.',
+                ),
+              ),
+            ],
           ),
         SizedBox(height: t.spacing.md),
       ],

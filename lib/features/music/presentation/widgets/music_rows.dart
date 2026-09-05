@@ -106,6 +106,7 @@ class TrackRow extends StatelessWidget {
     this.markUnavailable = MusicRowStyle.markUnavailable,
     this.onPlayNext,
     this.onAddToQueue,
+    this.onAddToPlaylist,
   });
 
   final Track track;
@@ -128,11 +129,15 @@ class TrackRow extends StatelessWidget {
   /// Appends [track] to the end of the queue.
   final VoidCallback? onAddToQueue;
 
+  /// Opens the add-to-playlist picker for [track].
+  final VoidCallback? onAddToPlaylist;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final duration = track.duration;
-    final showMenu = onPlayNext != null || onAddToQueue != null;
+    final showMenu =
+        onPlayNext != null || onAddToQueue != null || onAddToPlaylist != null;
 
     return _MusicRow(
       onTap: onTap,
@@ -176,6 +181,7 @@ class TrackRow extends StatelessWidget {
                   _TrackOverflowButton(
                     onPlayNext: onPlayNext,
                     onAddToQueue: onAddToQueue,
+                    onAddToPlaylist: onAddToPlaylist,
                   ),
               ],
             ),
@@ -188,10 +194,15 @@ class TrackRow extends StatelessWidget {
 /// so it reads the same as a system share sheet instead of a desktop-style
 /// dropdown.
 class _TrackOverflowButton extends StatelessWidget {
-  const _TrackOverflowButton({this.onPlayNext, this.onAddToQueue});
+  const _TrackOverflowButton({
+    this.onPlayNext,
+    this.onAddToQueue,
+    this.onAddToPlaylist,
+  });
 
   final VoidCallback? onPlayNext;
   final VoidCallback? onAddToQueue;
+  final VoidCallback? onAddToPlaylist;
 
   @override
   Widget build(BuildContext context) {
@@ -200,42 +211,66 @@ class _TrackOverflowButton extends StatelessWidget {
       icon: const Icon(Icons.more_vert_rounded),
       iconSize: 20,
       color: t.colors.textSecondary,
-      onPressed: () => _openMenu(context),
+      onPressed: () => showOverflowSheet(context, [
+        if (onPlayNext case final action?)
+          OverflowAction(
+            icon: Icons.playlist_play_rounded,
+            label: 'Play Next',
+            onSelected: action,
+          ),
+        if (onAddToQueue case final action?)
+          OverflowAction(
+            icon: Icons.queue_music_rounded,
+            label: 'Add to Queue',
+            onSelected: action,
+          ),
+        if (onAddToPlaylist case final action?)
+          OverflowAction(
+            icon: Icons.playlist_add_rounded,
+            label: 'Add to Playlist',
+            onSelected: action,
+          ),
+      ]),
     );
   }
+}
 
-  void _openMenu(BuildContext context) {
-    final playNext = onPlayNext;
-    final addToQueue = onAddToQueue;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (playNext != null)
-              ListTile(
-                leading: const Icon(Icons.playlist_play_rounded),
-                title: const Text('Play Next'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  playNext();
-                },
-              ),
-            if (addToQueue != null)
-              ListTile(
-                leading: const Icon(Icons.queue_music_rounded),
-                title: const Text('Add to Queue'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  addToQueue();
-                },
-              ),
-          ],
-        ),
+/// One row of a row's overflow sheet ([showOverflowSheet]).
+class OverflowAction {
+  const OverflowAction({
+    required this.icon,
+    required this.label,
+    required this.onSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onSelected;
+}
+
+/// A small bottom sheet of [actions] — the "..." menu every music row
+/// shares, so it reads the same as a system share sheet rather than a
+/// desktop-style dropdown.
+void showOverflowSheet(BuildContext context, List<OverflowAction> actions) {
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in actions)
+            ListTile(
+              leading: Icon(action.icon),
+              title: Text(action.label),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                action.onSelected();
+              },
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// One playlist.
@@ -245,6 +280,8 @@ class PlaylistRow extends StatelessWidget {
     required this.playlist,
     this.onTap,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.onRename,
+    this.onDelete,
   });
 
   final Playlist playlist;
@@ -253,8 +290,16 @@ class PlaylistRow extends StatelessWidget {
   /// See [MusicRowStyle.markUnavailable].
   final bool markUnavailable;
 
+  /// `null` hides the overflow menu entirely — a read-only listing (e.g.
+  /// search results) simply does not pass either callback.
+  final VoidCallback? onRename;
+  final VoidCallback? onDelete;
+
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
+    final showMenu = onRename != null || onDelete != null;
+
     return _MusicRow(
       onTap: onTap,
       availability: playlist.availability,
@@ -271,6 +316,27 @@ class PlaylistRow extends StatelessWidget {
             ? null
             : formatRunningTime(playlist.duration!),
       ]),
+      trailing: !showMenu
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.more_vert_rounded),
+              iconSize: 20,
+              color: t.colors.textSecondary,
+              onPressed: () => showOverflowSheet(context, [
+                if (onRename case final action?)
+                  OverflowAction(
+                    icon: Icons.edit_outlined,
+                    label: 'Rename',
+                    onSelected: action,
+                  ),
+                if (onDelete case final action?)
+                  OverflowAction(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    onSelected: action,
+                  ),
+              ]),
+            ),
     );
   }
 }

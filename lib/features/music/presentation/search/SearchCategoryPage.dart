@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
+import '../../../../app/playlists/PlaylistCurationService.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../core/result/result.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
@@ -13,6 +15,8 @@ import '../library/paged_collection_cubit.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import '../widgets/playlist_add_flow.dart';
+import '../widgets/playlist_dialogs.dart';
 import 'music_search_cubit.dart';
 
 /// Every match in one search category, paged.
@@ -169,6 +173,14 @@ class _SongResults extends StatelessWidget {
                 track.availability == MediaAvailability.remoteUnavailable
                 ? null
                 : () => context.read<PlaybackCubit>().addToQueue(track),
+            onAddToPlaylist:
+                track.availability == MediaAvailability.remoteUnavailable
+                ? null
+                : () => addToPlaylistFlow(
+                    context,
+                    add: (playlistId) => getIt<PlaylistCurationService>()
+                        .addTrack(playlistId, track.id),
+                  ),
           ),
         );
       },
@@ -199,9 +211,65 @@ class _PlaylistResults extends StatelessWidget {
               RouteNames.libraryPlaylist,
               pathParameters: {'id': playlist.id.key},
             ),
+            onRename: () => _renamePlaylist(context, cubit, playlist),
+            onDelete: () => _deletePlaylist(context, cubit, playlist),
           ),
         );
       },
     );
+  }
+
+  Future<void> _renamePlaylist(
+    BuildContext context,
+    PlaylistsCubit cubit,
+    Playlist playlist,
+  ) async {
+    final name = await promptForPlaylistName(
+      context,
+      title: 'Rename Playlist',
+      initialValue: playlist.name,
+    );
+    if (name == null || !context.mounted) return;
+
+    final result = await getIt<PlaylistCurationService>().renamePlaylist(
+      playlist.id,
+      name,
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case Ok<void>():
+        await cubit.refresh();
+      case Err<void>(:final failure):
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+    }
+  }
+
+  Future<void> _deletePlaylist(
+    BuildContext context,
+    PlaylistsCubit cubit,
+    Playlist playlist,
+  ) async {
+    final confirmed = await confirmDialog(
+      context,
+      title: 'Delete "${playlist.name}"?',
+      message: 'This removes the playlist from your Jellyfin server. Its '
+          'songs stay in your library.',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final result = await getIt<PlaylistCurationService>().deletePlaylist(
+      playlist.id,
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case Ok<void>():
+        await cubit.refresh();
+      case Err<void>(:final failure):
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+    }
   }
 }

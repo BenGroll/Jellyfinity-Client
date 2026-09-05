@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
+import '../../../../app/playlists/PlaylistCurationService.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../core/result/result.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
+import '../widgets/playlist_add_flow.dart';
+import '../widgets/playlist_dialogs.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
@@ -269,6 +273,14 @@ class _SongsTabState extends State<SongsTab>
                 track.availability == MediaAvailability.remoteUnavailable
                 ? null
                 : () => context.read<PlaybackCubit>().addToQueue(track),
+            onAddToPlaylist:
+                track.availability == MediaAvailability.remoteUnavailable
+                ? null
+                : () => addToPlaylistFlow(
+                    context,
+                    add: (playlistId) => getIt<PlaylistCurationService>()
+                        .addTrack(playlistId, track.id),
+                  ),
           ),
         );
       },
@@ -298,6 +310,7 @@ class _PlaylistsTabState extends State<PlaylistsTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final t = context.tokens;
 
     return BlocBuilder<PlaylistsCubit, PagedCollectionState<Playlist>>(
       builder: (context, state) {
@@ -305,10 +318,48 @@ class _PlaylistsTabState extends State<PlaylistsTab>
         return PagedCollectionView<Playlist>(
           key: const PageStorageKey('music.playlists'),
           state: state,
+          headerSlivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  t.spacing.md,
+                  t.spacing.sm,
+                  t.spacing.md,
+                  0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        label: 'New Playlist',
+                        icon: Icons.add_rounded,
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => _createPlaylist(context, cubit),
+                      ),
+                    ),
+                    if (state.items.length > 1) ...[
+                      SizedBox(width: t.spacing.sm),
+                      Expanded(
+                        child: AppButton(
+                          label: 'Merge',
+                          icon: Icons.call_merge_rounded,
+                          variant: AppButtonVariant.secondary,
+                          onPressed: () => context.pushNamed(
+                            RouteNames.libraryMergePlaylists,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
           skeleton: const MusicListSkeleton(),
           emptyTitle: 'No playlists yet',
           emptyMessage:
-              'Playlists you create on your Jellyfin server show up here.',
+              'Create one above, or it will show up here once you have one '
+              'on your Jellyfin server.',
           emptyIcon: Icons.queue_music_outlined,
           onLoadMore: cubit.loadMore,
           onRefresh: cubit.refresh,
@@ -321,9 +372,90 @@ class _PlaylistsTabState extends State<PlaylistsTab>
               RouteNames.libraryPlaylist,
               pathParameters: {'id': playlist.id.key},
             ),
+            onRename: () => _renamePlaylist(context, cubit, playlist),
+            onDelete: () => _deletePlaylist(context, cubit, playlist),
           ),
         );
       },
     );
+  }
+
+  Future<void> _createPlaylist(
+    BuildContext context,
+    PlaylistsCubit cubit,
+  ) async {
+    final name = await promptForPlaylistName(
+      context,
+      title: 'New Playlist',
+      confirmLabel: 'Create',
+    );
+    if (name == null || !context.mounted) return;
+
+    final result = await getIt<PlaylistCurationService>().createPlaylist(
+      name,
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case Ok<MediaId>():
+        await cubit.refresh();
+      case Err<MediaId>(:final failure):
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+    }
+  }
+
+  Future<void> _renamePlaylist(
+    BuildContext context,
+    PlaylistsCubit cubit,
+    Playlist playlist,
+  ) async {
+    final name = await promptForPlaylistName(
+      context,
+      title: 'Rename Playlist',
+      initialValue: playlist.name,
+    );
+    if (name == null || !context.mounted) return;
+
+    final result = await getIt<PlaylistCurationService>().renamePlaylist(
+      playlist.id,
+      name,
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case Ok<void>():
+        await cubit.refresh();
+      case Err<void>(:final failure):
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+    }
+  }
+
+  Future<void> _deletePlaylist(
+    BuildContext context,
+    PlaylistsCubit cubit,
+    Playlist playlist,
+  ) async {
+    final confirmed = await confirmDialog(
+      context,
+      title: 'Delete "${playlist.name}"?',
+      message: 'This removes the playlist from your Jellyfin server. Its '
+          'songs stay in your library.',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final result = await getIt<PlaylistCurationService>().deletePlaylist(
+      playlist.id,
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case Ok<void>():
+        await cubit.refresh();
+      case Err<void>(:final failure):
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+    }
   }
 }
