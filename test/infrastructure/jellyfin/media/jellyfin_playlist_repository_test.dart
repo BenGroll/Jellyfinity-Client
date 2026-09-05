@@ -69,6 +69,60 @@ void main() {
     expect(page.consumed, 3);
   });
 
+  test('recovers a playlist\'s real count when the server misreports it as '
+      'empty', () async {
+    // Jellyfin reports ChildCount 0 for a playlist owned by another
+    // user, even when it's shared and its contents are readable.
+    final adapter = FakeDioAdapter((options) async {
+      if (options.path == '/Playlists/pl-1/Items') {
+        return jsonResponseBody(
+          itemsResponse([
+            {'Id': 't1', 'Name': 'So What', 'Type': 'Audio'},
+          ], totalRecordCount: 12),
+        );
+      }
+      return jsonResponseBody(
+        itemsResponse([
+          {
+            'Id': 'pl-1',
+            'Name': 'Shared Mix',
+            'Type': 'Playlist',
+            'ChildCount': 0,
+          },
+        ]),
+      );
+    });
+
+    final result = await _repository(adapter).playlists();
+
+    final playlist = result.valueOrNull!.items.single;
+    expect(playlist.name, 'Shared Mix');
+    expect(playlist.itemCount, 12);
+  });
+
+  test('leaves a genuinely empty playlist alone', () async {
+    final adapter = FakeDioAdapter((options) async {
+      if (options.path == '/Playlists/pl-1/Items') {
+        return jsonResponseBody(itemsResponse(const []));
+      }
+      return jsonResponseBody(
+        itemsResponse([
+          {
+            'Id': 'pl-1',
+            'Name': 'Empty Playlist',
+            'Type': 'Playlist',
+            'ChildCount': 0,
+          },
+        ]),
+      );
+    });
+
+    final result = await _repository(adapter).playlists();
+
+    final playlist = result.valueOrNull!.items.single;
+    expect(playlist.itemCount, 0);
+  });
+
   test('narrows playlists by a search term server-side', () async {
     final adapter = FakeDioAdapter(
       (_) async => jsonResponseBody(itemsResponse(const [])),
