@@ -21,6 +21,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0015](ADR-0015-streaming-quality-and-transcoding.md) | Quality and transcoding |
 | [0016](ADR-0016-crossfade.md) | Crossfade |
 | [0017](ADR-0017-volume-normalization.md) | Volume normalization |
+| [0018](ADR-0018-lyrics.md) | Lyrics |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

@@ -252,3 +252,13 @@ All notable changes to Jellyfinity are documented here.
   Gain is only ever applied as attenuation, never a boost, to avoid
   clipping a track with no limiter downstream; a track with no reported
   gain plays unchanged rather than being guessed at.
+- Added lyrics (ADR-0018, v0.1.5), reached from a new lyrics button in Now
+  Playing's app bar. Jellyfin's `/Audio/{itemId}/Lyrics` endpoint answers
+  with a line list that carries per-line timing only when the source
+  lyrics file has it, so Jellyfinity decides plain vs. synchronized per
+  track rather than as a single app-wide choice: synchronized scrolling
+  and highlighting only when every line is timed and the timestamps never
+  run backwards, plain lyrics otherwise. A 404 (no lyrics file, or the
+  track itself is gone) is treated as the empty state the roadmap asks
+  for, not an error; the Lyrics view otherwise shows a loading skeleton or
+  a retryable failure like every other on-demand detail screen.
