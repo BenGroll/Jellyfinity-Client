@@ -1,3 +1,4 @@
+import 'CrossfadeSettings.dart';
 import 'PlaybackFailure.dart';
 import 'PlaybackSource.dart';
 import 'playback_status.dart';
@@ -43,6 +44,22 @@ abstract class PlaybackEngine {
     Duration? initialPosition,
     required bool resumePlaying,
   });
+
+  /// Configures how the engine transitions between two consecutive
+  /// sources (ADR-0016). Applies from the next transition onwards; it
+  /// never reloads or interrupts what is currently playing.
+  ///
+  /// This stays inside the seam because it describes the *handover*
+  /// between two sources the engine was already given, not which source
+  /// comes next — that remains `PlaybackQueue`'s answer. A second
+  /// implementation that cannot overlap sources may treat an enabled
+  /// setting as a no-op; it must not fail.
+  ///
+  /// Until this is first called an implementation must behave as
+  /// [CrossfadeSettings.disabled] — `PlaybackCubit` configures the engine
+  /// explicitly at construction rather than assuming a default, so a
+  /// second implementation never has to guess one.
+  Future<void> setCrossfade(CrossfadeSettings settings);
 
   Future<void> play();
 
