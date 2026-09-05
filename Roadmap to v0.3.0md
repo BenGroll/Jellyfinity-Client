@@ -1,0 +1,202 @@
+# Jellyfinity v0.2.x–v0.3.0 specifications
+
+Read only the assigned version. Each version is one complete, user-visible
+music increment. All versions require focused changes, behavior tests, a
+current changelog entry, and passing CI. A durable technical choice receives
+an ADR. This arc intentionally remains music-only: movies, TV, sharing,
+collaboration, and theme customization are out of scope.
+
+## Big goal — dependable music without a connection
+
+Make downloads feel like normal Jellyfinity music rather than a separate
+mode. A person can deliberately keep songs, albums, artists, and playlists
+on the device; play them through the normal queue when the server cannot be
+reached; understand progress and storage use; and remove them only by an
+explicit action. Downloads must survive app restarts and server-side deletion,
+work at large-library scale, and never make remote music disappear.
+
+The sequence below delivers value at every release. The small amount of
+platform/download-engine investigation in v0.2.0 is release work only when it
+ends in a usable track and album download experience; it is not a standalone
+"prework" branch.
+
+## v0.2.0 — Downloaded tracks and albums
+
+**Goal:** Let a listener take individual tracks and whole albums with them and
+play them reliably while offline.
+
+**Required:**
+
+- Add domain contracts for a download request, item state, progress, failure,
+  local file reference, and explicit removal. Keep Jellyfin transport details,
+  filesystem paths, and platform-worker details in infrastructure.
+- Extend the local database with ordered, migratable download records and
+  metadata sufficient to render and queue a local-only track without asking
+  the server. Store downloaded audio outside disposable caches.
+- Select and validate a replaceable Android+iOS download execution seam that
+  can resume safely after an app/background interruption. It must support
+  cancellation, retry, atomic completion, stale-session failure, and cleanup
+  of a partial file. Record the choice in an ADR.
+- Add Download / Remove download actions for a track and an album, including
+  visible queued, in-progress, complete, paused/retryable, failed, and
+  insufficient-storage states. Album actions show aggregate progress and do
+  not conceal a failed track.
+- Resolve a completed local file before a remote stream in playback while
+  retaining the existing queue, playback failure, and availability semantics.
+  A downloaded item remains playable when the server is unreachable.
+- Keep artwork and persisted metadata usable where already cached; clearly
+  distinguish unavailable remote-only items from downloaded/local-only ones.
+- Test download state transitions, restart recovery, local-source preference,
+  failed/cancelled cleanup, album aggregation, migration, and UI state. Manually
+  validate background/interruption behavior on Android and iOS.
+
+**Done when:** A user can download a track or album, see honest progress, close
+the app, later play the completed music without a server connection, and remove
+it deliberately without affecting its server copy.
+
+## v0.2.1 — Downloadable playlists
+
+**Goal:** Make a playlist a reliable offline listening set, including the
+ability to keep it current when the server is available.
+
+**Required:**
+
+- Add a Download / Remove download action to playlist detail. Download its
+  ordered tracks using the v0.2.0 engine, preserving playlist numbering and
+  partial/unavailable-item behavior.
+- Treat a playlist download as a durable membership snapshot: an already
+  downloaded track is reused; duplicate requests do not duplicate files; a
+  failed member remains visible and retryable rather than invalidating the
+  entire playlist.
+- On a user-requested refresh and when the playlist is opened online, reconcile
+  membership against Jellyfin: queue new tracks, retain removed tracks only
+  when another download owns them, and report what changed. Do not silently
+  spend storage through background auto-sync in this version.
+- Allow offline playback from the downloaded playlist detail and make its
+  offline/partial state intelligible. Remote metadata refresh must never erase
+  a locally completed file.
+- Test deduplication, ordered snapshot playback, partial completion, changed
+  playlist membership, deletion/reference ownership, and offline UI behavior.
+
+**Stretch:** An explicit "download all available" recovery action for a
+partially completed playlist.
+
+**Done when:** A user can download a playlist, play its completed members in
+order offline, refresh it deliberately online, and see precisely which tracks
+still need attention.
+
+## v0.2.2 — Artist downloads, download quality, and management
+
+**Goal:** Let users manage a meaningful offline collection without losing
+control of quality, network use, or device storage.
+
+**Required:**
+
+- Add artist-level download and removal, defined as the artist's browsable
+  albums/tracks at the time of request. It uses the same ownership and
+  deduplication rules as album and playlist downloads; it must never load an
+  entire large artist/library into memory.
+- Add a Downloads screen reachable from normal music navigation. It presents
+  active work, completed collections, failed items, per-item retry/cancel,
+  remove actions, and accurate aggregate storage usage.
+- Persist a download-quality preference independent of streaming quality, with
+  an explicit original/lossless option and only tiers Jellyfin can actually
+  fulfill. A quality change applies to new/retried downloads; it does not
+  silently replace existing files.
+- Add Wi-Fi-only as an opt-in preference. If a constrained/no-network state
+  blocks a request, retain it as a clearly paused request rather than reporting
+  a permanent failure. Platform capability gaps must be disclosed in the UI
+  and ADR.
+- Make local-file ownership reference-counted (or an equivalently provable
+  design) so removing one album, artist, or playlist does not delete a track
+  still retained by another target.
+- Test quality-to-source resolution, preference persistence, constrained-network
+  pauses, large paged artist expansion, storage accounting, and shared-file
+  retention/removal.
+
+**Done when:** A user can download an artist, choose an intentional quality for
+future downloads, see and control all download work in one place, and reclaim
+space without accidentally removing music retained elsewhere.
+
+## v0.2.3 — Offline library and recovery
+
+**Goal:** Make downloaded music discoverable and trustworthy when the server is
+unavailable or later changes.
+
+**Required:**
+
+- Add local-aware filtering to the existing music library and search so a user
+  can find downloaded tracks, albums, artists, and playlists while offline.
+  Queries are indexed, paginated, and bounded for the normal 130k-song scale.
+- Preserve a downloaded item's display metadata, collection placement, and
+  artwork reference independently of server presence. When a remote item is
+  no longer returned, present it as **Only on this device** rather than delete
+  it or misrepresent it as a remote failure.
+- Reconcile downloaded records safely at session/server changes: never expose
+  one account's local media to another account; do not delete local-only media
+  as a side effect of sign-in, refresh, or server removal.
+- Surface disk-write, corruption, expired authorization, and post-restart
+  recovery failures through normalized download states with retry/re-auth paths.
+  Recoverable work resumes only under the user's configured network policy.
+- Add a storage-warning threshold before a request cannot complete; do not add
+  automatic cleanup in this release.
+- Test offline local search/filtering, account isolation, server-deleted local
+  media, indexed paging at scale, state recovery, and every user-visible
+  failure/empty/partial state.
+
+**Done when:** With the server turned off, a user can find and play their
+downloaded music through familiar screens; with the server changed or missing,
+the app preserves downloaded content safely and explains its state.
+
+## v0.3.0 — Offline music completion
+
+**Goal:** Release a polished offline music experience that users can trust for
+travel and daily listening.
+
+**Required:**
+
+- Audit every music entry point—library, album, artist, playlist, search,
+  mini-player, Now Playing, queue, and relevant context menus—so download,
+  offline, local-only, partial, and remote states are consistent and actionable.
+- Support batch retry and explicit removal for failed/completed downloads, plus
+  a clear confirmation that states the affected files and any shared retention.
+  Removal never changes Jellyfin server media or playlist membership.
+- Verify playback behavior across a mixed queue of local files, reachable
+  streams, missing remote entries, and local-only entries. Preserve queue
+  order, crossfade/normalization compatibility where supported by local files,
+  and the existing non-destructive failure behavior.
+- Harden lifecycle behavior: rapid network transitions, app termination during
+  downloads, low storage, expired sessions, server deletion, and database/file
+  mismatch must converge on an honest recoverable state without orphaned files
+  or phantom completed downloads.
+- Establish release-level Android and iOS device validation for background
+  download, Wi-Fi policy, offline playback after restart, account switch,
+  removal, and a representative large library. Add regression tests for the
+  complete primary flows and update any ADRs/changelog entries required by the
+  final architecture.
+
+**Stretch:** Optional storage limit and automatic cleanup rules, but only if
+they can provide a preview and never remove user-selected downloads silently.
+
+**Done when:** Users can intentionally build, find, manage, and play a full
+offline music collection with predictable quality, storage, recovery, and
+server-independence behavior on Android and iOS.
+
+## Non-goals for v0.2.0–v0.3.0
+
+Movies, TV, video playback, video downloads, automatic cleanup, automatic
+playlist synchronization, smart playlists, recommendations, social sharing,
+collaboration, multi-server unified libraries, desktop/TV clients, theme
+editing, and an offline-only app mode are outside this arc.
+
+## Decisions to settle during implementation
+
+- The default quality and default network policy must be chosen from measured
+  storage and reliability behavior on representative devices. The intended
+  safe starting point is original quality with Wi-Fi-only disabled, because it
+  never silently changes what a user gets or blocks a requested download.
+- The background-transfer dependency/implementation must be selected only after
+  an Android+iOS resume/cancellation proof of behavior. If no candidate meets
+  that bar, v0.2.0 may use a documented foreground-only implementation only if
+  it still delivers a safe, useful download flow; otherwise the release is
+  blocked rather than shipping unreliable downloads.

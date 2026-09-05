@@ -1,1 +1,2 @@
 Implement Jellyfinity vX.Y.Z. Follow AGENTS.md. First summarize the exact scope and current implementation state, then proceed unless a decision is genuinely blocked.
+Make a own branch fitting the naming conventions of the other branches, commit your work there, and when finished, open a pr.
