@@ -24,6 +24,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0018](ADR-0018-lyrics.md) | Lyrics |
 | [0019](ADR-0019-favorites.md) | Favorites |
 | [0020](ADR-0020-downloaded-tracks-and-albums.md) | Downloaded tracks and albums |
+| [0021](ADR-0021-downloadable-playlists.md) | Downloadable playlists |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

@@ -354,3 +354,33 @@ All notable changes to Jellyfinity are documented here.
     summary.
   - `InsufficientStorageFailure` joins the core `Failure` hierarchy
     (ADR-0004) as its own distinct, user-actionable outcome.
+- Added downloadable playlists (ADR-0021, v0.2.1), the next release in
+  the offline-music arc:
+  - `DownloadOwnerKind.playlist` joins `track` and `album` with no
+    change to the owner model — "remove this playlist" drops the
+    playlist claim from each member, and a file a standalone download or
+    another downloaded playlist still wants is kept.
+  - Schema v5 adds `playlist_download_members`: the ordered membership
+    snapshot, one row per downloadable member, additive per ADR-0010.
+    It records the order the user arranged — separate from the per-track
+    owner rows, the same split `cached_collection_entries` uses — so a
+    later server-side edit reconciles against it rather than rewriting
+    it.
+  - `DownloadsCubit` gains `downloadPlaylist` (pages the playlist and
+    requests each page as it arrives, reusing a track already
+    downloaded), `removePlaylist`, and `reconcilePlaylist` — the diff
+    against the server that queues members added to the playlist, drops
+    the claim on ones removed, rewrites the snapshot to the server's
+    order, and reports the counts. Reconcile refuses to run against a
+    cache-served read, and `retryAll` already covered the roadmap's
+    "download all available" stretch item.
+  - The playlist header gains a download control mirroring the album's,
+    plus the aggregate summary. It differs where a playlist must:
+    "downloaded" means a snapshot exists, and its menu offers "Check for
+    changes." Opening a downloaded playlist online reconciles it once
+    and reports what changed in a dismissible message — the roadmap's
+    other reconcile trigger; there is no background auto-sync.
+  - `CachedPlaylistRepository` falls back to the download snapshot when
+    the server is unreachable and the metadata cache has been evicted,
+    so a downloaded playlist still plays in order offline. A downloaded
+    member plays through the unchanged v0.2.0 local-first path.

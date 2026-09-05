@@ -26,7 +26,7 @@ published Git tag.
 | v0.1.5 | Lyrics | Implemented | [spec](Roadmap%20to%20v0.2.md#v015--lyrics) |
 | v0.1.6 | Interface refresh | Implemented | [spec](Roadmap%20to%20v0.2.md#v016--interface-refresh) |
 | v0.2.0 | Downloaded tracks and albums | Implemented | [spec](Roadmap%20to%20v0.3.0md#v020--downloaded-tracks-and-albums) |
-| v0.2.1 | Downloadable playlists | Planned | [spec](Roadmap%20to%20v0.3.0md#v021--downloadable-playlists) |
+| v0.2.1 | Downloadable playlists | Implemented | [spec](Roadmap%20to%20v0.3.0md#v021--downloadable-playlists) |
 | v0.2.2 | Artist downloads, quality, and management | Planned | [spec](Roadmap%20to%20v0.3.0md#v022--artist-downloads-download-quality-and-management) |
 | v0.2.3 | Offline library and recovery | Planned | [spec](Roadmap%20to%20v0.3.0md#v023--offline-library-and-recovery) |
 | v0.3.0 | Offline music completion | Planned | [spec](Roadmap%20to%20v0.3.0md#v030--offline-music-completion) |
