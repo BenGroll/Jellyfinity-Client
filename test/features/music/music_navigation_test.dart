@@ -22,9 +22,10 @@ Future<AppRouter> _openLibrary(
   WidgetTester tester,
   FakeMusicLibraryRepository music, {
   FakeMediaMetadataRepository? metadata,
+  FakePlaylistRepository? playlists,
   PlaybackCubit? playback,
 }) async {
-  registerMusicCubits(music: music, metadata: metadata);
+  registerMusicCubits(music: music, metadata: metadata, playlists: playlists);
   final scope = TestSessionScope();
   final router = AppRouter(scope.cubit);
   final s = await pumpApp(
@@ -136,7 +137,10 @@ void main() {
     // both tracks are already in the queue.
     expect(playback.state.queue.entries, hasLength(2));
 
-    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    // .last, not .first: the album header now has its own overflow menu
+    // (v0.1.6) ahead of the per-track ones in the sliver order, so the
+    // first "..." on screen is the album's, not a track's.
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).last);
     await tester.pumpAndSettle();
     expect(find.text('Play Next'), findsOneWidget);
     await tester.tap(find.text('Add to Queue'));
@@ -149,6 +153,68 @@ void main() {
     );
 
     await playback.togglePlayPause();
+  });
+
+  group('Album header actions (v0.1.6)', () {
+    testWidgets('Shuffle plays the whole album shuffled', (tester) async {
+      final music = FakeMusicLibraryRepository()
+        ..artistList = [testArtist('a1', name: 'Miles Davis')]
+        ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+        ..trackList = [
+          testTrack('t1', name: 'So What', albumId: 'al1'),
+          testTrack('t2', name: 'Freddie Freeloader', albumId: 'al1'),
+        ];
+
+      final playback = fakePlaybackCubit();
+      await _openLibrary(tester, music, playback: playback);
+      await tester.tap(find.text('Miles Davis'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kind of Blue'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.shuffle_rounded));
+      await tester.pumpAndSettle();
+
+      expect(playback.state.queue.shuffleEnabled, isTrue);
+      expect(playback.state.queue.entries, hasLength(2));
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('Add to playlist adds every track to the chosen playlist', (
+      tester,
+    ) async {
+      final music = FakeMusicLibraryRepository()
+        ..artistList = [testArtist('a1', name: 'Miles Davis')]
+        ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+        ..trackList = [
+          testTrack('t1', name: 'So What', albumId: 'al1'),
+          testTrack('t2', name: 'Freddie Freeloader', albumId: 'al1'),
+        ];
+      final playlists = FakePlaylistRepository()
+        ..playlistList = [testPlaylist('pl1', name: 'Late Night')];
+
+      await _openLibrary(tester, music, playlists: playlists);
+      await tester.tap(find.text('Miles Davis'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kind of Blue'));
+      await tester.pumpAndSettle();
+
+      // .first: the album header's overflow menu precedes the per-track
+      // ones in the sliver order.
+      await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add to playlist'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Late Night'), findsOneWidget);
+      await tester.tap(find.text('Late Night'));
+      await tester.pumpAndSettle();
+
+      expect(playlists.addTracksCalls, hasLength(1));
+      expect(playlists.addTracksCalls.single.trackIds, hasLength(2));
+      expect(find.textContaining('Added to "Late Night"'), findsOneWidget);
+    });
   });
 
   testWidgets('a music detail keeps the bottom navigation', (tester) async {

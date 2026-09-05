@@ -80,4 +80,30 @@ void main() {
     expect(query['searchTerm'], 'road trip');
     expect(query['includeItemTypes'], 'Playlist');
   });
+
+  group('addTracks (v0.1.6)', () {
+    test('appends every track id to the playlist', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+
+      final result = await _repository(adapter).addTracks(_playlistId, const [
+        MediaId(serverId: 'server-1', itemId: 't1'),
+        MediaId(serverId: 'server-1', itemId: 't2'),
+      ]);
+
+      expect(result.isOk, isTrue);
+      final request = adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/Playlists/pl-1/Items');
+      expect(request.queryParameters['ids'], 't1,t2');
+    });
+
+    test('does nothing for an empty track list', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+
+      final result = await _repository(adapter).addTracks(_playlistId, []);
+
+      expect(result.isOk, isTrue);
+      expect(adapter.callCount, isZero);
+    });
+  });
 }

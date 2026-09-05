@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,13 +7,17 @@ import '../../../../app/di/service_locator.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
+import '../../../../infrastructure/artwork/ArtworkCache.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
+import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
+import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import 'artist_stats_cubit.dart';
 import 'media_detail_cubit.dart';
 
 /// One artist: who they are, then what they released, newest release
@@ -23,11 +28,13 @@ class ArtistDetailPage extends StatelessWidget {
     required this.artistId,
     this.detail,
     this.albums,
+    this.stats,
   });
 
   final MediaId artistId;
   final ArtistDetailCubit? detail;
   final AlbumsCubit? albums;
+  final ArtistStatsCubit? stats;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +45,9 @@ class ArtistDetailPage extends StatelessWidget {
         ),
         BlocProvider<AlbumsCubit>(
           create: (_) => (albums ?? getIt<AlbumsCubit>())..forArtist(artistId),
+        ),
+        BlocProvider<ArtistStatsCubit>(
+          create: (_) => (stats ?? getIt<ArtistStatsCubit>())..open(artistId),
         ),
       ],
       child: const _ArtistDetailView(),
@@ -50,17 +60,28 @@ class _ArtistDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-
     return BlocBuilder<ArtistDetailCubit, MediaDetailState<Artist>>(
       builder: (context, header) {
+        final artist = header.item;
         return AppScaffold(
           padded: false,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
-          title: header.item?.name,
+          title: artist?.name,
+          actions: artist == null
+              ? const []
+              : [
+                  FavoriteButton(
+                    isFavorite: artist.isFavorite,
+                    onChanged: (favorite) async {
+                      final result = await getIt<FavoritesRepository>()
+                          .setFavorite(artist.id, favorite: favorite);
+                      return result.isOk;
+                    },
+                  ),
+                ],
           body: BlocBuilder<AlbumsCubit, PagedCollectionState<Album>>(
             builder: (context, state) {
               final cubit = context.read<AlbumsCubit>();
@@ -68,12 +89,7 @@ class _ArtistDetailView extends StatelessWidget {
                 state: state,
                 gridDelegate: albumGridDelegate,
                 headerSlivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
-                      child: _ArtistHeader(state: header),
-                    ),
-                  ),
+                  SliverToBoxAdapter(child: _ArtistHeader(state: header)),
                 ],
                 skeleton: const AlbumGridSkeleton(
                   gridDelegate: albumGridDelegate,
@@ -122,7 +138,10 @@ class _ArtistHeader extends StatelessWidget {
       final failure = state.failure;
       if (failure != null) {
         return Padding(
-          padding: EdgeInsets.symmetric(vertical: t.spacing.lg),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spacing.md,
+            vertical: t.spacing.lg,
+          ),
           child: ErrorStateView.forFailure(
             failure,
             title: 'Artist unavailable',
@@ -130,26 +149,136 @@ class _ArtistHeader extends StatelessWidget {
           ),
         );
       }
-      return const MediaHeaderSkeleton(artworkSize: 140);
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+        child: const MediaHeaderSkeleton(artworkSize: 140),
+      );
     }
 
     return Column(
       children: [
-        SizedBox(height: t.spacing.sm),
-        MediaArtwork(
-          image: artist.image,
-          kind: MediaKind.artist,
-          size: 140,
-          shape: ArtworkShape.circle,
+        _ArtistBanner(banner: artist.banner),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+          child: Column(
+            children: [
+              Transform.translate(
+                // Overlaps the banner slightly, the same "profile picture
+                // over the cover" layout most music apps use — purely
+                // cosmetic, so it is skipped entirely when there is no
+                // banner to overlap.
+                offset: Offset(0, artist.banner == null ? 0 : -32),
+                child: MediaArtwork(
+                  image: artist.image,
+                  kind: MediaKind.artist,
+                  size: 120,
+                  shape: ArtworkShape.circle,
+                ),
+              ),
+              Text(
+                artist.name,
+                textAlign: TextAlign.center,
+                style: t.typography.titleLarge.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+              ),
+              if (artist.overview != null) ...[
+                SizedBox(height: t.spacing.xs),
+                Text(
+                  artist.overview!,
+                  textAlign: TextAlign.center,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.typography.bodyMedium.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ],
+              SizedBox(height: t.spacing.sm),
+              const _ArtistStatsRow(),
+              SizedBox(height: t.spacing.md),
+            ],
+          ),
         ),
-        SizedBox(height: t.spacing.md),
-        Text(
-          artist.name,
-          textAlign: TextAlign.center,
-          style: t.typography.titleLarge.copyWith(color: t.colors.textPrimary),
-        ),
-        SizedBox(height: t.spacing.md),
       ],
     );
+  }
+}
+
+/// A wide backdrop behind the artist's profile picture (v0.1.6). `null`
+/// collapses to nothing rather than a placeholder — a missing banner is
+/// the header v0.1.0 already shipped, not a broken one.
+class _ArtistBanner extends StatelessWidget {
+  const _ArtistBanner({required this.banner});
+
+  final MediaImage? banner;
+
+  static const double _height = 140;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final image = banner;
+    if (image == null) return const SizedBox(height: 16);
+
+    final url = getIt<ArtworkResolver>().imageUrl(
+      image,
+      maxWidth: MediaQuery.sizeOf(context).width.round(),
+    );
+    if (url == null) return const SizedBox(height: 16);
+
+    return SizedBox(
+      height: _height,
+      width: double.infinity,
+      child: CachedNetworkImage(
+        imageUrl: url.toString(),
+        cacheManager: ArtworkCache.instance,
+        fit: BoxFit.cover,
+        fadeInDuration: context.motion.fast,
+        placeholder: (context, _) => ColoredBox(color: t.colors.surfaceSunken),
+        errorWidget: (context, _, _) =>
+            ColoredBox(color: t.colors.surfaceSunken),
+      ),
+    );
+  }
+}
+
+/// "12 albums · 340 songs · 18 hr 42 min" (v0.1.6) — hidden entirely while
+/// loading or unavailable rather than showing a placeholder row, since
+/// these numbers are live-only (`ArtistStats`'s doc comment) and an
+/// offline artist page simply has none to show.
+class _ArtistStatsRow extends StatelessWidget {
+  const _ArtistStatsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return BlocBuilder<ArtistStatsCubit, ArtistStatsState>(
+      builder: (context, state) {
+        final stats = state.stats;
+        if (stats == null) return const SizedBox.shrink();
+
+        final text = joinDetails([
+          _formatAlbumCount(stats.albumCount),
+          formatTrackCount(stats.songCount),
+          stats.totalDuration == null
+              ? null
+              : formatRunningTime(stats.totalDuration!),
+        ]);
+        if (text.isEmpty) return const SizedBox.shrink();
+
+        return Text(
+          text,
+          textAlign: TextAlign.center,
+          style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+        );
+      },
+    );
+  }
+
+  String? _formatAlbumCount(int count) {
+    if (count <= 0) return null;
+    return count == 1 ? '1 album' : '$count albums';
   }
 }

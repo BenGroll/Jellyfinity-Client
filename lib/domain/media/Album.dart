@@ -18,6 +18,7 @@ class Album extends MediaItem {
     this.productionYear,
     this.duration,
     this.trackCount,
+    this.isFavorite = false,
     super.availability = MediaAvailability.remoteOnly,
     super.image,
   });
@@ -32,6 +33,10 @@ class Album extends MediaItem {
 
   final int? trackCount;
 
+  /// Whether the signed-in user has favorited this album. See
+  /// `Artist.isFavorite` for why it is not part of the offline cache.
+  final bool isFavorite;
+
   @override
   MediaKind get kind => MediaKind.album;
 
@@ -43,6 +48,7 @@ class Album extends MediaItem {
     productionYear,
     duration,
     trackCount,
+    isFavorite,
     availability,
     image,
   ];

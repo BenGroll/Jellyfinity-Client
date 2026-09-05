@@ -89,6 +89,7 @@ void main() {
           ],
           'ImageTags': {'Primary': 'tag-1'},
           'PrimaryImageAspectRatio': 1.0,
+          'UserData': {'IsFavorite': true},
         }),
       )!;
 
@@ -103,6 +104,7 @@ void main() {
       );
       expect(album.image!.tag, 'tag-1');
       expect(album.image!.aspectRatio, 1.0);
+      expect(album.isFavorite, isTrue);
     });
 
     test('leaves unreported details null rather than inventing zeroes', () {
@@ -115,6 +117,51 @@ void main() {
       expect(album.duration, isNull);
       expect(album.image, isNull);
       expect(album.artists, isEmpty);
+      expect(album.isFavorite, isFalse);
+    });
+  });
+
+  group('artist (v0.1.6)', () {
+    test('maps overview, banner and favorite state', () {
+      final artist = _mapper.toArtist(
+        _dto({
+          'Id': 'artist-1',
+          'Name': 'Miles Davis',
+          'Type': 'MusicArtist',
+          'Overview': 'American jazz trumpeter and composer.',
+          'BackdropImageTags': ['backdrop-tag'],
+          'UserData': {'IsFavorite': true},
+        }),
+      )!;
+
+      expect(artist.overview, 'American jazz trumpeter and composer.');
+      expect(artist.banner!.tag, 'backdrop-tag');
+      expect(artist.banner!.kind, MediaImageKind.backdrop);
+      expect(artist.banner!.itemId, artist.id);
+      expect(artist.isFavorite, isTrue);
+    });
+
+    test('has no banner, overview or favorite mark when unreported', () {
+      final artist = _mapper.toArtist(
+        _dto({'Id': 'artist-1', 'Name': 'Unscanned', 'Type': 'MusicArtist'}),
+      )!;
+
+      expect(artist.overview, isNull);
+      expect(artist.banner, isNull);
+      expect(artist.isFavorite, isFalse);
+    });
+
+    test('ignores an empty backdrop tag rather than pointing at nothing', () {
+      final artist = _mapper.toArtist(
+        _dto({
+          'Id': 'artist-1',
+          'Name': 'No Backdrop',
+          'Type': 'MusicArtist',
+          'BackdropImageTags': <String>[],
+        }),
+      )!;
+
+      expect(artist.banner, isNull);
     });
   });
 
@@ -154,6 +201,23 @@ void main() {
       )!;
 
       expect(track.normalizationGain, -4.5);
+    });
+
+    test('maps favorite state, defaulting to false', () {
+      final favorited = _mapper.toTrack(
+        _dto({
+          'Id': 'track-1',
+          'Name': 'So What',
+          'Type': 'Audio',
+          'UserData': {'IsFavorite': true},
+        }),
+      )!;
+      final unmarked = _mapper.toTrack(
+        _dto({'Id': 'track-2', 'Name': 'Freddie Freeloader', 'Type': 'Audio'}),
+      )!;
+
+      expect(favorited.isFavorite, isTrue);
+      expect(unmarked.isFavorite, isFalse);
     });
 
     test(

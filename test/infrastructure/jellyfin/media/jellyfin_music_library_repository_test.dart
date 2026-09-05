@@ -223,4 +223,69 @@ void main() {
     expect(query['artistIds'], 'artist-1');
     expect(query['searchTerm'], 'blue');
   });
+
+  group('artistStats (v0.1.6)', () {
+    test('reports album and song counts, and their summed runtime', () async {
+      final adapter = FakeDioAdapter((options) async {
+        final types = options.queryParameters['includeItemTypes'];
+        if (types == 'MusicAlbum') {
+          return jsonResponseBody(itemsResponse(const [], totalRecordCount: 7));
+        }
+        // Two songs, three minutes each — one page covers both.
+        return jsonResponseBody(
+          itemsResponse([
+            {'Id': 't1', 'Name': 'So What', 'RunTimeTicks': 1800000000},
+            {
+              'Id': 't2',
+              'Name': 'Freddie Freeloader',
+              'RunTimeTicks': 1800000000,
+            },
+          ], totalRecordCount: 2),
+        );
+      });
+
+      final result = await _repository(adapter).artistStats(_artistId);
+
+      final stats = result.valueOrNull!;
+      expect(stats.albumCount, 7);
+      expect(stats.songCount, 2);
+      expect(stats.totalDuration, const Duration(minutes: 6));
+    });
+
+    test('omits the total when there are too many songs to sum', () async {
+      final adapter = FakeDioAdapter((options) async {
+        final types = options.queryParameters['includeItemTypes'];
+        if (types == 'MusicAlbum') {
+          return jsonResponseBody(itemsResponse(const [], totalRecordCount: 1));
+        }
+        return jsonResponseBody(
+          itemsResponse(
+            const [],
+            totalRecordCount: ArtistStats.durationSumLimit + 1,
+          ),
+        );
+      });
+
+      final result = await _repository(adapter).artistStats(_artistId);
+
+      final stats = result.valueOrNull!;
+      expect(stats.songCount, ArtistStats.durationSumLimit + 1);
+      expect(stats.totalDuration, isNull);
+      // The duration-summing pages were never requested.
+      expect(adapter.callCount, 2);
+    });
+
+    test(
+      'propagates a transport failure instead of a partial answer',
+      () async {
+        final adapter = FakeDioAdapter(
+          (_) async => jsonResponseBody({}, statusCode: 401),
+        );
+
+        final result = await _repository(adapter).artistStats(_artistId);
+
+        expect(result.failureOrNull, isA<UnauthorizedFailure>());
+      },
+    );
+  });
 }

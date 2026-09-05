@@ -79,6 +79,10 @@ Future<TestSessionScope> pumpApp(
   // straight from getIt, reachable from every pumpApp test via Now
   // Playing's lyrics button.
   registerLyricsCubit(resolver: lyricsResolver);
+  // Now Playing's favorite heart and artist/album links (v0.1.6) read
+  // these straight from getIt too.
+  registerNowPlayingDetailsCubit();
+  registerFavoritesRepository();
   await tester.pumpWidget(
     JellyfinityApp(
       router: effectiveRouter.config,

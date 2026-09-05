@@ -49,13 +49,13 @@ class HomeLibraryHeader extends StatelessWidget {
               Expanded(
                 child: InkWell(
                   onTap: onSearchTap,
-                  borderRadius: t.radii.mdBorder,
+                  borderRadius: BorderRadius.circular(t.radii.pill),
                   child: Container(
                     height: 40,
                     padding: EdgeInsets.symmetric(horizontal: t.spacing.sm),
                     decoration: BoxDecoration(
                       color: t.colors.surfaceSunken,
-                      borderRadius: t.radii.mdBorder,
+                      borderRadius: BorderRadius.circular(t.radii.pill),
                     ),
                     child: Row(
                       children: [
@@ -94,7 +94,7 @@ class _MediaPillRow extends StatelessWidget {
     final scope = context.watch<MediaScopeCubit>().state;
 
     return SizedBox(
-      height: 44,
+      height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.fromLTRB(
@@ -111,11 +111,15 @@ class _MediaPillRow extends StatelessWidget {
                 label: Text(c.label),
                 selected: c.id == scope.activeId,
                 onSelected: (_) => context.read<MediaScopeCubit>().select(c.id),
-                labelStyle: t.typography.label.copyWith(
+                labelStyle: t.typography.caption.copyWith(
                   color: c.id == scope.activeId
                       ? t.colors.onAccent
                       : t.colors.textPrimary,
                 ),
+                labelPadding: EdgeInsets.symmetric(horizontal: t.spacing.xs),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 backgroundColor: t.colors.surfaceElevated,
                 selectedColor: t.colors.accent,
                 shape: StadiumBorder(side: BorderSide(color: t.colors.border)),

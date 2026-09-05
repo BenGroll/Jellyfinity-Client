@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -148,6 +149,21 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> playNow(List<Track> tracks, {required int startIndex}) =>
       _playNow(tracks, startIndex: startIndex);
 
+  /// Replaces the queue with [tracks], shuffled, starting from a random
+  /// entry (v0.1.6's Album/Playlist shuffle button).
+  ///
+  /// Turns shuffle on first (if it was not already) so [_playNow]'s own
+  /// `withEntries` builds the shuffled play order directly, then starts
+  /// at a random index rather than always index 0 — [PlaybackQueue]
+  /// pins whichever index starts playing first in that order, so starting
+  /// at a fixed index would make "shuffle" always open the same track.
+  Future<void> playShuffled(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (!state.queue.shuffleEnabled) await toggleShuffle();
+    final startIndex = tracks.length == 1 ? 0 : Random().nextInt(tracks.length);
+    await _playNow(tracks, startIndex: startIndex);
+  }
+
   Future<void> _playNow(List<Track> tracks, {required int startIndex}) async {
     if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
       return;
@@ -219,6 +235,29 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     (queue) =>
         queue.withEntryAdded(QueueEntry.fromTrack(track), playNext: true),
   );
+
+  /// Appends every one of [tracks] to the end of the queue in one mutation
+  /// (v0.1.6's Album/Playlist "Add to queue") — one engine sync for the
+  /// whole album rather than one per track.
+  Future<void> addAllToQueue(List<Track> tracks) {
+    if (tracks.isEmpty) return Future<void>.value();
+    return _mutate((queue) {
+      var updated = queue;
+      for (final track in tracks) {
+        updated = updated.withEntryAdded(QueueEntry.fromTrack(track));
+      }
+      return updated;
+    });
+  }
+
+  /// Re-queues [entry] — the currently playing track, from Now Playing's
+  /// overflow menu (v0.1.6) — right after whatever plays next.
+  Future<void> playNextEntry(QueueEntry entry) =>
+      _mutate((queue) => queue.withEntryAdded(entry, playNext: true));
+
+  /// Re-queues [entry] at the end of the queue, from the same menu.
+  Future<void> addEntryToQueue(QueueEntry entry) =>
+      _mutate((queue) => queue.withEntryAdded(entry));
 
   Future<void> removeAt(int entriesIndex) =>
       _mutate((queue) => queue.withEntryRemoved(entriesIndex));

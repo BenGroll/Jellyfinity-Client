@@ -101,6 +101,16 @@ class JellyfinMediaApi {
   static String playlistItemsPath(String playlistId) =>
       '/Playlists/$playlistId/Items';
 
+  /// Marking/unmarking an item as a favorite (v0.1.6). `UserFavoriteItems`
+  /// is the current route; the legacy `Users/{userId}/FavoriteItems/{id}`
+  /// form still works but is obsolete as of the servers Jellyfinity
+  /// targets.
+  static String favoriteItemPath(String itemId) => '/UserFavoriteItems/$itemId';
+
+  /// Fields needed to sum an artist's total playtime (v0.1.6) — nothing
+  /// else about the track matters for this query.
+  static const List<String> durationOnlyFields = ['RunTimeTicks'];
+
   /// A track's lyrics (v0.1.5). 404 when the track has none.
   static String lyricsPath(String itemId) => '/Audio/$itemId/Lyrics';
 
@@ -299,6 +309,47 @@ class JellyfinMediaApi {
       playedItemPath(itemId),
       method: played ? 'POST' : 'DELETE',
       queryParameters: {'userId': active.userId},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Sets or clears Jellyfin's favorite flag for an item (v0.1.6).
+  Future<Result<void>> setFavorite(
+    String itemId, {
+    required bool favorite,
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      favoriteItemPath(itemId),
+      method: favorite ? 'POST' : 'DELETE',
+      queryParameters: {'userId': active.userId},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Appends [itemIds] to the end of [playlistId] (v0.1.6's minimal slice
+  /// of v0.1.2's still-unfinished playlist write contract).
+  Future<Result<void>> addPlaylistItems(
+    String playlistId,
+    List<String> itemIds, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      playlistItemsPath(playlistId),
+      method: 'POST',
+      queryParameters: {'userId': active.userId, 'ids': itemIds.join(',')},
       cancelToken: cancelToken,
     );
   }

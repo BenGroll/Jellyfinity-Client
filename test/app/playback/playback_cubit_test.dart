@@ -368,6 +368,60 @@ void main() {
 
       expect(cubit.state.queue.entries, hasLength(1));
     });
+
+    test('addAllToQueue appends every track in one mutation', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      await cubit.addAllToQueue([_track('b'), _track('c')]);
+
+      expect(cubit.state.queue.entries, hasLength(3));
+      expect(cubit.state.queue.currentIndex, 0);
+    });
+
+    test('addAllToQueue does nothing for an empty list', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      await cubit.addAllToQueue(const []);
+
+      expect(cubit.state.queue.entries, hasLength(1));
+    });
+
+    test('playNextEntry re-queues the current entry right after it', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+      final entry = cubit.state.currentEntry!;
+
+      await cubit.playNextEntry(entry);
+
+      expect(cubit.state.queue.entries, hasLength(3));
+      expect(cubit.state.queue.entries[1].id, entry.id);
+    });
+
+    test('addEntryToQueue re-queues the current entry at the end', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+      final entry = cubit.state.currentEntry!;
+
+      await cubit.addEntryToQueue(entry);
+
+      expect(cubit.state.queue.entries, hasLength(3));
+      expect(cubit.state.queue.entries.last.id, entry.id);
+    });
+  });
+
+  group('playShuffled (v0.1.6)', () {
+    test('turns shuffle on and plays every track', () async {
+      await cubit.playShuffled([_track('a'), _track('b'), _track('c')]);
+
+      expect(cubit.state.queue.shuffleEnabled, isTrue);
+      expect(cubit.state.queue.entries, hasLength(3));
+      expect(engine.playing, isTrue);
+    });
+
+    test('does nothing for an empty list', () async {
+      await cubit.playShuffled(const []);
+
+      expect(cubit.state.queue.isEmpty, isTrue);
+      expect(cubit.state.queue.shuffleEnabled, isFalse);
+    });
   });
 
   group('streaming quality (ADR-0015)', () {

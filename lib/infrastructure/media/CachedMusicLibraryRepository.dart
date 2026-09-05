@@ -114,6 +114,14 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   @override
   Future<Result<Album>> album(MediaId id) => _item(id, () => _remote.album(id));
 
+  /// Live only, like every write and every derived-not-browsed read in
+  /// this repository: nothing here for the cache fallback to serve, so an
+  /// unreachable server surfaces its failure directly and the artist page
+  /// hides the stats section (`ArtistStats`'s doc comment).
+  @override
+  Future<Result<ArtistStats>> artistStats(MediaId artistId) =>
+      _remote.artistStats(artistId);
+
   Future<Result<Page<T>>> _collection<T extends MediaItem>({
     required PageRequest page,
     required String? searchTerm,

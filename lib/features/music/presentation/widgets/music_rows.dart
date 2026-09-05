@@ -204,38 +204,50 @@ class _TrackOverflowButton extends StatelessWidget {
     );
   }
 
-  void _openMenu(BuildContext context) {
-    final playNext = onPlayNext;
-    final addToQueue = onAddToQueue;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (playNext != null)
-              ListTile(
-                leading: const Icon(Icons.playlist_play_rounded),
-                title: const Text('Play Next'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  playNext();
-                },
-              ),
-            if (addToQueue != null)
-              ListTile(
-                leading: const Icon(Icons.queue_music_rounded),
-                title: const Text('Add to Queue'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  addToQueue();
-                },
-              ),
-          ],
-        ),
+  void _openMenu(BuildContext context) => showTrackActionsSheet(
+    context,
+    onPlayNext: onPlayNext,
+    onAddToQueue: onAddToQueue,
+  );
+}
+
+/// The "Play Next" / "Add to Queue" bottom sheet [TrackRow] opens from its
+/// overflow button — extracted so Now Playing's app bar (v0.1.6) can open
+/// the exact same menu for the track currently playing, instead of a
+/// second, only-slightly-different one.
+void showTrackActionsSheet(
+  BuildContext context, {
+  VoidCallback? onPlayNext,
+  VoidCallback? onAddToQueue,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onPlayNext != null)
+            ListTile(
+              leading: const Icon(Icons.playlist_play_rounded),
+              title: const Text('Play Next'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onPlayNext();
+              },
+            ),
+          if (onAddToQueue != null)
+            ListTile(
+              leading: const Icon(Icons.queue_music_rounded),
+              title: const Text('Add to Queue'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onAddToQueue();
+              },
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// One playlist.

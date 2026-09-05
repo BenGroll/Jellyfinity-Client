@@ -187,6 +187,7 @@ class UserItemDataDto {
     this.playbackPositionTicks,
     this.played,
     this.lastPlayedDate,
+    this.isFavorite,
   });
 
   factory UserItemDataDto.fromJson(Map<String, dynamic> json) =>
@@ -198,4 +199,7 @@ class UserItemDataDto {
   final bool? played;
 
   final DateTime? lastPlayedDate;
+
+  /// Whether the signed-in user has favorited this item (v0.1.6).
+  final bool? isFavorite;
 }

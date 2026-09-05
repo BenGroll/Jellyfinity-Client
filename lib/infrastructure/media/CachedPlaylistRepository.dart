@@ -63,6 +63,13 @@ class CachedPlaylistRepository implements PlaylistRepository {
     }
   }
 
+  /// A write, not a read: nothing here to cache or fall back to. When the
+  /// server cannot be reached the caller sees that failure directly,
+  /// same as any other mutation in this codebase.
+  @override
+  Future<Result<void>> addTracks(MediaId playlistId, List<MediaId> trackIds) =>
+      _remote.addTracks(playlistId, trackIds);
+
   /// The saved window, or `null` when there is nothing saved to show —
   /// in which case the caller returns the server's failure, because an
   /// empty list would claim the collection is empty.

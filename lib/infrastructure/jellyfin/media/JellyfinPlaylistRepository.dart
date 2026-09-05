@@ -78,4 +78,27 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
       ),
     );
   }
+
+  @override
+  Future<Result<void>> addTracks(
+    MediaId playlistId,
+    List<MediaId> trackIds,
+  ) async {
+    final playlistItemId = _api.localItemId(playlistId);
+    if (playlistItemId case Err<String>(:final failure)) {
+      return Result.err(failure);
+    }
+    final trackItemIds = <String>[];
+    for (final id in trackIds) {
+      final resolved = _api.localItemId(id);
+      if (resolved case Err<String>(:final failure)) return Result.err(failure);
+      trackItemIds.add((resolved as Ok<String>).value);
+    }
+    if (trackItemIds.isEmpty) return const Result.ok(null);
+
+    return _api.addPlaylistItems(
+      (playlistItemId as Ok<String>).value,
+      trackItemIds,
+    );
+  }
 }

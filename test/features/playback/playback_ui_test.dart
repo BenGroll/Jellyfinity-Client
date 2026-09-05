@@ -7,10 +7,12 @@ import 'package:jellyfinity/domain/playback/Lyrics.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
+import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/playback/presentation/LyricsPage.dart';
 import 'package:jellyfinity/features/playback/presentation/QueuePage.dart';
 
+import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
 import '../../support/pump_app.dart';
 import '../../support/settings_fakes.dart';
@@ -115,6 +117,109 @@ void main() {
     await playback.togglePlayPause();
   });
 
+  group('Now Playing details (v0.1.6)', () {
+    testWidgets('the heart toggles the favorite state on the server', (
+      tester,
+    ) async {
+      final track = Track(
+        id: const MediaId(serverId: 's1', itemId: 'a'),
+        name: 'So What',
+        duration: const Duration(minutes: 3),
+      );
+      final favorites = FakeFavoritesRepository();
+      registerNowPlayingDetailsCubit(
+        metadata: FakeMediaMetadataRepository()..items = [track],
+      );
+      registerFavoritesRepository(favorites: favorites);
+
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final scope = await pumpApp(tester, playback: playback);
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([track], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.favorite_border_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+      expect(favorites.calls.single.id, track.id);
+      expect(favorites.calls.single.favorite, isTrue);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('the artist name opens that artist\'s page', (tester) async {
+      const artistId = MediaId(serverId: 's1', itemId: 'artist-1');
+      final track = Track(
+        id: const MediaId(serverId: 's1', itemId: 'a'),
+        name: 'So What',
+        artists: const [ArtistRef(name: 'Miles Davis', id: artistId)],
+        duration: const Duration(minutes: 3),
+      );
+      registerNowPlayingDetailsCubit(
+        metadata: FakeMediaMetadataRepository()..items = [track],
+      );
+      registerMusicCubits(
+        music: FakeMusicLibraryRepository()
+          ..artistList = [const Artist(id: artistId, name: 'Miles Davis')],
+      );
+
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final scope = await pumpApp(tester, playback: playback);
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([track], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Miles Davis'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ArtistDetailPage), findsOneWidget);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets(
+      'falls back to plain, unlinked text before the track record loads',
+      (tester) async {
+        final playback = fakePlaybackCubit();
+        addTearDown(playback.close);
+        final scope = await pumpApp(tester, playback: playback);
+        await scope.signIn();
+        await tester.pumpAndSettle();
+
+        await playback.playNow([
+          Track(
+            id: const MediaId(serverId: 's1', itemId: 'a'),
+            name: 'So What',
+            artists: const [ArtistRef(name: 'Miles Davis')],
+            duration: const Duration(minutes: 3),
+          ),
+        ], startIndex: 0);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('So What'));
+        await tester.pumpAndSettle();
+
+        // No favorite heart without a resolved track record, and the
+        // credit with no artist id is not a link either way.
+        expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+        expect(find.text('Miles Davis'), findsOneWidget);
+
+        await playback.togglePlayPause();
+      },
+    );
+  });
+
   testWidgets('the queue screen lists entries and removes one', (tester) async {
     final playback = fakePlaybackCubit();
     addTearDown(playback.close);
@@ -136,6 +241,10 @@ void main() {
     expect(find.byType(QueuePage), findsOneWidget);
     expect(find.text('So What'), findsOneWidget);
     expect(find.text('Freddie Freeloader'), findsOneWidget);
+    // The total runtime header (v0.1.6): both 3-minute tracks, from now on.
+    expect(find.text('2 songs · 6 min left'), findsOneWidget);
+    // A drag handle per row (v0.1.6), not a whole-row long-press.
+    expect(find.byIcon(Icons.drag_indicator_rounded), findsNWidgets(2));
 
     await tester.tap(find.byIcon(Icons.close_rounded).last);
     await tester.pumpAndSettle();
@@ -163,11 +272,51 @@ void main() {
     await tester.tap(find.byIcon(Icons.queue_music_rounded));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.clear_all_rounded));
+    await tester.tap(find.byIcon(Icons.clear_rounded));
+    await tester.pumpAndSettle();
+
+    // A confirmation prompt stands between the icon and actually
+    // clearing the queue (v0.1.6).
+    expect(
+      find.text('Do you want to remove all items from the queue?'),
+      findsOneWidget,
+    );
+    expect(playback.state.queue.isEmpty, isFalse);
+
+    await tester.tap(find.text('Remove all'));
     await tester.pumpAndSettle();
 
     expect(playback.state.queue.isEmpty, isTrue);
     expect(find.text('The queue is empty'), findsOneWidget);
+  });
+
+  testWidgets('cancelling the clear-queue prompt leaves it untouched', (
+    tester,
+  ) async {
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Freddie Freeloader'),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.clear_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(playback.state.queue.entries, hasLength(2));
+
+    await playback.togglePlayPause();
   });
 
   testWidgets('an empty queue screen shows the empty state', (tester) async {
@@ -244,8 +393,9 @@ void main() {
         await tester.tap(find.text('So What'));
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('Transcoding to AAC'), findsOneWidget);
-        expect(find.textContaining('192 kbps'), findsOneWidget);
+        // The v0.1.6 badge names the transcode target instead of a
+        // "Transcoding to..." sentence.
+        expect(find.textContaining('AAC · 192 kbps'), findsOneWidget);
 
         await playback.togglePlayPause();
       },

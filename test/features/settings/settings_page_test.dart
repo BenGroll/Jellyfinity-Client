@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/stream_quality.dart';
 
 import '../../support/pump_app.dart';
 import '../../support/session_fakes.dart';
@@ -36,9 +37,8 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Music'), findsNothing);
   });
 
-  testWidgets('selecting a streaming quality updates the selected option', (
-    tester,
-  ) async {
+  testWidgets('selecting a streaming quality from the dropdown updates the '
+      'description shown beneath it', (tester) async {
     final scope = TestSessionScope();
     await pumpApp(tester, scope: scope, settings: fakeSettingsCubit());
     await scope.signIn();
@@ -52,28 +52,36 @@ void main() {
     // Starts on Lossless — the default quality (StreamQuality.original).
     expect(
       find.descendant(
-        of: find.widgetWithText(ListTile, 'Lossless'),
-        matching: find.byIcon(Icons.radio_button_checked_rounded),
+        of: find.byType(DropdownButton<StreamQuality>),
+        matching: find.text('Lossless'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'The original file, exactly as stored on your server. No '
+        'transcoding, largest downloads.',
       ),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('High'));
+    await tester.tap(find.byType(DropdownButton<StreamQuality>));
+    await tester.pumpAndSettle();
+    // Two "High" texts now exist: the closed field and the open menu
+    // item: The menu entry is the last one added to the tree.
+    await tester.tap(find.text('High').last);
     await tester.pumpAndSettle();
 
     expect(
       find.descendant(
-        of: find.widgetWithText(ListTile, 'High'),
-        matching: find.byIcon(Icons.radio_button_checked_rounded),
+        of: find.byType(DropdownButton<StreamQuality>),
+        matching: find.text('High'),
       ),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: find.widgetWithText(ListTile, 'Lossless'),
-        matching: find.byIcon(Icons.radio_button_checked_rounded),
-      ),
-      findsNothing,
+      find.text('Transcodes to AAC at 320 kbps when needed.'),
+      findsOneWidget,
     );
   });
 

@@ -5,6 +5,7 @@ import '../../../core/result/result.dart';
 import '../../../domain/media/media.dart';
 import 'base_item_dto.dart';
 import 'BaseItemMapper.dart';
+import 'ItemsResponseDto.dart';
 import 'jellyfin_media_api.dart';
 
 /// [MusicLibraryRepository] backed by the active session's Jellyfin
@@ -162,6 +163,75 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   @override
   Future<Result<Album>> album(MediaId id) =>
       _single(id, (mapper, dto) => mapper.toAlbum(dto), 'album');
+
+  @override
+  Future<Result<ArtistStats>> artistStats(MediaId artistId) async {
+    final idResult = _api.localItemId(artistId);
+    if (idResult case Err<String>(:final failure)) return Result.err(failure);
+    final id = (idResult as Ok<String>).value;
+
+    final albumCountResult = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.albumType],
+      albumArtistId: id,
+      page: const PageRequest(limit: 1),
+    );
+    if (albumCountResult case Err<ItemsResponseDto>(:final failure)) {
+      return Result.err(failure);
+    }
+    final albumCount =
+        (albumCountResult as Ok<ItemsResponseDto>).value.totalRecordCount ?? 0;
+
+    final songCountResult = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.trackType],
+      artistId: id,
+      page: const PageRequest(limit: 1),
+    );
+    if (songCountResult case Err<ItemsResponseDto>(:final failure)) {
+      return Result.err(failure);
+    }
+    final songCount =
+        (songCountResult as Ok<ItemsResponseDto>).value.totalRecordCount ?? 0;
+
+    return Result.ok(
+      ArtistStats(
+        albumCount: albumCount,
+        songCount: songCount,
+        totalDuration:
+            songCount == 0 || songCount > ArtistStats.durationSumLimit
+            ? null
+            : await _sumDurations(id, songCount),
+      ),
+    );
+  }
+
+  /// Sums [songCount] tracks' running time, page by page — bounded by
+  /// [ArtistStats.durationSumLimit] at the call site, so this never reads
+  /// more of the library than one artist's own discography.
+  Future<Duration?> _sumDurations(String artistItemId, int songCount) async {
+    const pageSize = 200;
+    var total = Duration.zero;
+    var startIndex = 0;
+
+    while (startIndex < songCount) {
+      final page = await _api.queryItems(
+        includeItemTypes: const [BaseItemMapper.trackType],
+        artistId: artistItemId,
+        fields: JellyfinMediaApi.durationOnlyFields,
+        page: PageRequest(startIndex: startIndex, limit: pageSize),
+      );
+      if (page case Err<ItemsResponseDto>()) return null;
+      final items = (page as Ok<ItemsResponseDto>).value.items ?? const [];
+      if (items.isEmpty) break;
+      for (final item in items) {
+        final ticks = item.runTimeTicks;
+        if (ticks != null && ticks > 0) {
+          total += Duration(microseconds: ticks ~/ 10);
+        }
+      }
+      startIndex += items.length;
+    }
+    return total;
+  }
 
   /// Fetches one item and maps it, turning "not there" and "not what we
   /// asked for" into the same honest failure.

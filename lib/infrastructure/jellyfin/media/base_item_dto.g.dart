@@ -80,4 +80,5 @@ UserItemDataDto _$UserItemDataDtoFromJson(Map<String, dynamic> json) =>
       lastPlayedDate: json['LastPlayedDate'] == null
           ? null
           : DateTime.parse(json['LastPlayedDate'] as String),
+      isFavorite: json['IsFavorite'] as bool?,
     );

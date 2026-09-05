@@ -20,6 +20,7 @@ class Track extends MediaItem {
     this.discNumber,
     this.duration,
     this.normalizationGain,
+    this.isFavorite = false,
     super.availability = MediaAvailability.remoteOnly,
     super.image,
   });
@@ -42,6 +43,10 @@ class Track extends MediaItem {
   /// file's loudness nor found an embedded ReplayGain tag.
   final double? normalizationGain;
 
+  /// Whether the signed-in user has favorited this track. See
+  /// `Artist.isFavorite` for why it is not part of the offline cache.
+  final bool isFavorite;
+
   @override
   MediaKind get kind => MediaKind.track;
 
@@ -56,6 +61,7 @@ class Track extends MediaItem {
     discNumber,
     duration,
     normalizationGain,
+    isFavorite,
     availability,
     image,
   ];

@@ -1,6 +1,7 @@
 import '../../core/result/result.dart';
 import 'Album.dart';
 import 'artist.dart';
+import 'ArtistStats.dart';
 import 'MediaId.dart';
 import 'page.dart';
 import 'Track.dart';
@@ -68,4 +69,10 @@ abstract class MusicLibraryRepository {
   /// One album, without its tracks — ask [tracks] for those, so an album
   /// header can render while a long track list is still loading.
   Future<Result<Album>> album(MediaId id);
+
+  /// How much of the library is credited to [artistId] (v0.1.6): its
+  /// album and song counts, and — when there are few enough tracks to sum
+  /// — their total running time. Read live; not part of the offline cache
+  /// (see `ArtistStats.totalDuration`).
+  Future<Result<ArtistStats>> artistStats(MediaId artistId);
 }

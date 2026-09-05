@@ -151,6 +151,36 @@ void main() {
     });
   });
 
+  group('favorite flag (v0.1.6)', () {
+    test('posts to set it and deletes to clear it', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+      final api = testMediaApi(adapter);
+
+      await api.setFavorite('item-1', favorite: true);
+      await api.setFavorite('item-1', favorite: false);
+
+      expect(adapter.requests[0].method, 'POST');
+      expect(adapter.requests[0].path, '/UserFavoriteItems/item-1');
+      expect(adapter.requests[0].queryParameters['userId'], 'user-1');
+      expect(adapter.requests[1].method, 'DELETE');
+    });
+  });
+
+  group('addPlaylistItems (v0.1.6)', () {
+    test('posts the ids to append, for the signed-in user', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+      final api = testMediaApi(adapter);
+
+      await api.addPlaylistItems('pl-1', ['t1', 't2']);
+
+      final request = adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/Playlists/pl-1/Items');
+      expect(request.queryParameters['userId'], 'user-1');
+      expect(request.queryParameters['ids'], 't1,t2');
+    });
+  });
+
   group('identity scoping', () {
     test('accepts an id from the active server', () {
       final api = testMediaApi(

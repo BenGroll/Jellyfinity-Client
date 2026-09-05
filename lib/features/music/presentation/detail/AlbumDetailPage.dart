@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
+import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
+import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
+import '../widgets/MediaPlaybackActionsRow.dart';
 import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
@@ -59,13 +62,26 @@ class _AlbumDetailView extends StatelessWidget {
 
     return BlocBuilder<AlbumDetailCubit, MediaDetailState<Album>>(
       builder: (context, header) {
+        final album = header.item;
         return AppScaffold(
           padded: false,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
-          title: header.item?.name,
+          title: album?.name,
+          actions: album == null
+              ? const []
+              : [
+                  FavoriteButton(
+                    isFavorite: album.isFavorite,
+                    onChanged: (favorite) async {
+                      final result = await getIt<FavoritesRepository>()
+                          .setFavorite(album.id, favorite: favorite);
+                      return result.isOk;
+                    },
+                  ),
+                ],
           body: BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
             builder: (context, state) {
               final cubit = context.read<SongsCubit>();
@@ -175,11 +191,7 @@ class _AlbumHeader extends StatelessWidget {
         ),
         if (album.artists.isNotEmpty) ...[
           SizedBox(height: t.spacing.xxs),
-          Text(
-            album.artists.display,
-            textAlign: TextAlign.center,
-            style: t.typography.bodyMedium.copyWith(color: t.colors.accent),
-          ),
+          _AlbumArtistCredit(artists: album.artists),
         ],
         if (details.isNotEmpty) ...[
           SizedBox(height: t.spacing.xxs),
@@ -189,16 +201,51 @@ class _AlbumHeader extends StatelessWidget {
           ),
         ],
         SizedBox(height: t.spacing.md),
-        if (tracks.isNotEmpty)
-          AppButton(
-            label: 'Play',
-            icon: Icons.play_arrow_rounded,
-            variant: AppButtonVariant.secondary,
-            onPressed: () =>
-                context.read<PlaybackCubit>().playNow(tracks, startIndex: 0),
-          ),
+        MediaPlaybackActionsRow(tracks: tracks),
         SizedBox(height: t.spacing.md),
       ],
     );
+  }
+}
+
+/// The album's artist credit line, with each navigable name (v0.1.6)
+/// opening that artist's page — a credit the server gave only as a name
+/// stays plain text, since [ArtistRef.isNavigable] is false for it.
+///
+/// Built from small tappable/plain [Text] pieces in a [Wrap] rather than
+/// one [TextSpan] with a [GestureRecognizer]: a recognizer needs manual
+/// disposal to avoid leaking, which a credit list this short does not
+/// need to take on.
+class _AlbumArtistCredit extends StatelessWidget {
+  const _AlbumArtistCredit({required this.artists});
+
+  final List<ArtistRef> artists;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final style = t.typography.bodyMedium.copyWith(color: t.colors.accent);
+
+    final pieces = <Widget>[];
+    for (var i = 0; i < artists.length; i++) {
+      final artist = artists[i];
+      if (i > 0) pieces.add(Text(', ', style: style));
+      pieces.add(
+        artist.isNavigable
+            ? InkWell(
+                onTap: () => context.pushNamed(
+                  RouteNames.libraryArtist,
+                  pathParameters: {'id': artist.id!.key},
+                ),
+                child: Text(
+                  artist.name,
+                  style: style.copyWith(decoration: TextDecoration.underline),
+                ),
+              )
+            : Text(artist.name, style: style),
+      );
+    }
+
+    return Wrap(alignment: WrapAlignment.center, children: pieces);
   }
 }
