@@ -7,6 +7,7 @@ import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
 import '../domain/media/ArtworkResolver.dart';
 import '../domain/playback/CrossfadeSettings.dart';
+import '../domain/playback/NormalizationSettings.dart';
 import '../domain/playback/PlaybackEngine.dart';
 import '../domain/playback/stream_quality.dart';
 import '../infrastructure/artwork/ArtworkCache.dart';
@@ -66,6 +67,13 @@ Future<void> bootstrap({required Widget Function() builder}) async {
     getIt<KeyValueStore>(),
   );
   getIt.registerSingleton<CrossfadeSettings>(initialCrossfade);
+
+  // Normalization (v0.1.4) is read here for the same reason crossfade is:
+  // the engine should be configured before the restored queue is primed.
+  final initialNormalization = await SettingsCubit.loadInitialNormalization(
+    getIt<KeyValueStore>(),
+  );
+  getIt.registerSingleton<NormalizationSettings>(initialNormalization);
 
   // JustAudioPlaybackEngine is BaseAudioHandler itself, and AudioService
   // .init() can only ever be called once per process — that makes it a

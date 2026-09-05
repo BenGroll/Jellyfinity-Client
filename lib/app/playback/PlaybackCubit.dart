@@ -9,6 +9,7 @@ import '../../domain/media/PlaybackProgressRepository.dart';
 import '../../domain/media/Track.dart';
 import '../../domain/playback/AudioSourceResolver.dart';
 import '../../domain/playback/CrossfadeSettings.dart';
+import '../../domain/playback/NormalizationSettings.dart';
 import '../../domain/playback/PlaybackEngine.dart';
 import '../../domain/playback/PlaybackFailure.dart';
 import '../../domain/playback/PlaybackQueue.dart';
@@ -46,8 +47,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     _durationSub = _engine.durationStream.listen(_onDuration);
     _currentIndexSub = _engine.currentIndexStream.listen(_onEngineIndexChanged);
     _failureSub = _engine.failureStream.listen(_onEngineFailure);
-    _settingsSub = _settings.stream.listen((_) => _applyCrossfade());
+    _settingsSub = _settings.stream.listen((_) {
+      _applyCrossfade();
+      _applyNormalization();
+    });
     _applyCrossfade();
+    _applyNormalization();
   }
 
   final PlaybackEngine _engine;
@@ -67,6 +72,10 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// settings change that does not affect it (a stream-quality change,
   /// say) does not churn the engine.
   CrossfadeSettings? _appliedCrossfade;
+
+  /// The normalization configuration last pushed to the engine, for the
+  /// same reason [_appliedCrossfade] exists.
+  NormalizationSettings? _appliedNormalization;
 
   /// Frequent enough that a restart loses at most a few seconds of
   /// position; cheap enough to run on every tick while a track plays.
@@ -248,6 +257,19 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     unawaited(_engine.setCrossfade(effective));
   }
 
+  /// Pushes the normalization preference to the engine (v0.1.4) whenever
+  /// it changes.
+  ///
+  /// Unlike crossfade there is no repeat-mode override: gain is a
+  /// per-source property carried on [PlaybackSource] itself, so it
+  /// applies identically no matter how the queue orders sources.
+  void _applyNormalization() {
+    final effective = _settings.state.normalization;
+    if (effective == _appliedNormalization) return;
+    _appliedNormalization = effective;
+    unawaited(_engine.setNormalization(effective));
+  }
+
   Future<void> _mutate(PlaybackQueue Function(PlaybackQueue queue) transform) =>
       _enqueue(() => _mutateNow(transform));
 
@@ -355,6 +377,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
             album: entry.albumName,
             duration: entry.duration,
             image: entry.image,
+            normalizationGain: entry.normalizationGain,
           );
           _resolvedSources[cacheKey] = source;
         }

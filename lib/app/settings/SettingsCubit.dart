@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../domain/playback/CrossfadeSettings.dart';
+import '../../domain/playback/NormalizationSettings.dart';
 import '../../domain/playback/stream_quality.dart';
 import '../../infrastructure/persistence/key_value_store.dart';
 import 'ShellNavigationMode.dart';
@@ -12,29 +13,39 @@ class SettingsState extends Equatable {
     required this.navigationMode,
     required this.streamQuality,
     required this.crossfade,
+    required this.normalization,
   });
 
   final ShellNavigationMode navigationMode;
   final StreamQuality streamQuality;
   final CrossfadeSettings crossfade;
+  final NormalizationSettings normalization;
 
   SettingsState copyWith({
     ShellNavigationMode? navigationMode,
     StreamQuality? streamQuality,
     CrossfadeSettings? crossfade,
+    NormalizationSettings? normalization,
   }) => SettingsState(
     navigationMode: navigationMode ?? this.navigationMode,
     streamQuality: streamQuality ?? this.streamQuality,
     crossfade: crossfade ?? this.crossfade,
+    normalization: normalization ?? this.normalization,
   );
 
   @override
-  List<Object?> get props => [navigationMode, streamQuality, crossfade];
+  List<Object?> get props => [
+    navigationMode,
+    streamQuality,
+    crossfade,
+    normalization,
+  ];
 }
 
 /// The app's persisted preferences — [ShellNavigationMode],
-/// [StreamQuality] and [CrossfadeSettings] today, with room to grow the
-/// same way `AppConfig`/`KeyValueStore` already do.
+/// [StreamQuality], [CrossfadeSettings] and [NormalizationSettings]
+/// today, with room to grow the same way `AppConfig`/`KeyValueStore`
+/// already do.
 ///
 /// Every initial value is resolved once in `bootstrap()`, right after
 /// `configureDependencies()` returns, so the very first frame already
@@ -48,11 +59,13 @@ class SettingsCubit extends Cubit<SettingsState> {
     ShellNavigationMode initialNavigationMode,
     StreamQuality initialStreamQuality,
     CrossfadeSettings initialCrossfade,
+    NormalizationSettings initialNormalization,
   ) : super(
         SettingsState(
           navigationMode: initialNavigationMode,
           streamQuality: initialStreamQuality,
           crossfade: initialCrossfade,
+          normalization: initialNormalization,
         ),
       );
 
@@ -62,6 +75,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   static const _streamQualityKey = 'settings.streamQuality';
   static const _crossfadeEnabledKey = 'settings.crossfadeEnabled';
   static const _crossfadeSecondsKey = 'settings.crossfadeSeconds';
+  static const _normalizationEnabledKey = 'settings.normalizationEnabled';
 
   static Future<ShellNavigationMode> loadInitialNavigationMode(
     KeyValueStore store,
@@ -95,6 +109,18 @@ class SettingsCubit extends Cubit<SettingsState> {
     );
   }
 
+  /// Reads the normalization preference (v0.1.4). A missing value
+  /// degrades to [NormalizationSettings.disabled] the same way a missing
+  /// crossfade or navigation-mode value does.
+  static Future<NormalizationSettings> loadInitialNormalization(
+    KeyValueStore store,
+  ) async {
+    final enabled = await store.getBool(_normalizationEnabledKey);
+    return NormalizationSettings(
+      enabled: enabled ?? NormalizationSettings.disabled.enabled,
+    );
+  }
+
   Future<void> setNavigationMode(ShellNavigationMode mode) async {
     if (mode == state.navigationMode) return;
     await _store.setString(_navigationModeKey, mode.name);
@@ -122,6 +148,16 @@ class SettingsCubit extends Cubit<SettingsState> {
     await _store.setInt(_crossfadeSecondsKey, clamped.inSeconds);
     emit(
       state.copyWith(crossfade: state.crossfade.copyWith(duration: clamped)),
+    );
+  }
+
+  Future<void> setNormalizationEnabled(bool enabled) async {
+    if (enabled == state.normalization.enabled) return;
+    await _store.setBool(_normalizationEnabledKey, enabled);
+    emit(
+      state.copyWith(
+        normalization: state.normalization.copyWith(enabled: enabled),
+      ),
     );
   }
 }

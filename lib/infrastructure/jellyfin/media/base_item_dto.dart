@@ -44,6 +44,7 @@ class BaseItemDto {
     this.primaryImageAspectRatio,
     this.userData,
     this.mediaSources,
+    this.normalizationGain,
   });
 
   factory BaseItemDto.fromJson(Map<String, dynamic> json) =>
@@ -112,6 +113,13 @@ class BaseItemDto {
   /// streams. Only requested via `MediaSources` in `fields` (ADR-0015's
   /// `TrackSourceInfoResolver`), never in a list query's default fields.
   final List<MediaSourceInfoDto>? mediaSources;
+
+  /// The dB gain Jellyfin computed for this item's loudness (v0.1.4,
+  /// ADR-0017) — from server-side LUFS analysis when available, else an
+  /// embedded ReplayGain tag, else absent. Set unconditionally by the
+  /// server on every item response, unlike [mediaSources]; no extra
+  /// `fields` entry is needed for it.
+  final double? normalizationGain;
 }
 
 /// One file behind an item — Jellyfin supports multiple versions per

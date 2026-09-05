@@ -9,9 +9,10 @@ import '../../../domain/playback/CrossfadeSettings.dart';
 import '../../../domain/playback/stream_quality.dart';
 
 /// Jellyfinity's settings screen: which navigation-mode presentation the
-/// shell uses, which streaming quality playback requests (ADR-0015), and
-/// how tracks hand over to one another (ADR-0016) — with room to grow the
-/// same way `JellyfinityApp`'s theme-mode comment already anticipates.
+/// shell uses, which streaming quality playback requests (ADR-0015), how
+/// tracks hand over to one another (ADR-0016), and whether loudness is
+/// normalized between them (ADR-0017) — with room to grow the same way
+/// `JellyfinityApp`'s theme-mode comment already anticipates.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -108,6 +109,36 @@ class SettingsPage extends StatelessWidget {
               // nothing to apply to is a control that does nothing.
               if (state.crossfade.enabled)
                 _CrossfadeDurationSlider(duration: state.crossfade.duration),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: t.spacing.sm),
+                child: Text(
+                  'Volume normalization',
+                  style: t.typography.titleMedium.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+              SwitchListTile(
+                value: state.normalization.enabled,
+                title: Text(
+                  'Volume normalization',
+                  style: t.typography.bodyLarge.copyWith(
+                    color: t.colors.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  "Evens out loud and quiet tracks using your server's "
+                  'loudness data, when it has any. Tracks with no '
+                  'loudness data play unchanged.',
+                  style: t.typography.caption.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+                activeThumbColor: t.colors.accent,
+                onChanged: (enabled) => context
+                    .read<SettingsCubit>()
+                    .setNormalizationEnabled(enabled),
+              ),
             ],
           );
         },

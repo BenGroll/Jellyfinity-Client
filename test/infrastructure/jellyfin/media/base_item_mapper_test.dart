@@ -140,6 +140,30 @@ void main() {
       );
     });
 
+    test('maps the server-reported normalization gain', () {
+      final track = _mapper.toTrack(
+        _dto({
+          'Id': 'track-1',
+          'Name': 'So What',
+          'Type': 'Audio',
+          'NormalizationGain': -4.5,
+        }),
+      )!;
+
+      expect(track.normalizationGain, -4.5);
+    });
+
+    test(
+      'leaves normalization gain null for an untagged, unanalyzed track',
+      () {
+        final track = _mapper.toTrack(
+          _dto({'Id': 'track-1', 'Name': 'So What', 'Type': 'Audio'}),
+        )!;
+
+        expect(track.normalizationGain, isNull);
+      },
+    );
+
     test('falls back to its album cover when it has no artwork', () {
       final track = _mapper.toTrack(
         _dto({

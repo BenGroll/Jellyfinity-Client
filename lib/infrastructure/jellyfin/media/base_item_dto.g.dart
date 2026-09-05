@@ -48,6 +48,7 @@ BaseItemDto _$BaseItemDtoFromJson(Map<String, dynamic> json) => BaseItemDto(
   mediaSources: (json['MediaSources'] as List<dynamic>?)
       ?.map((e) => MediaSourceInfoDto.fromJson(e as Map<String, dynamic>))
       .toList(),
+  normalizationGain: (json['NormalizationGain'] as num?)?.toDouble(),
 );
 
 MediaSourceInfoDto _$MediaSourceInfoDtoFromJson(Map<String, dynamic> json) =>

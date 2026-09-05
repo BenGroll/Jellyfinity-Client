@@ -240,3 +240,15 @@ All notable changes to Jellyfinity are documented here.
   path, so gapless playback is preserved by construction. Repeat-one
   suppresses crossfade, since a queue repeating one track never reaches
   the next source the engine would otherwise fade into.
+- Added volume normalization (ADR-0017, v0.1.4), configurable from a new
+  Volume normalization switch in Settings. Reads Jellyfin's own
+  `NormalizationGain` — server-side loudness analysis when available,
+  else an embedded ReplayGain tag — already sent on every track
+  response, so no extra request or minimum-version bump was needed.
+  `JustAudioPlaybackEngine` folds the gain-adjusted volume into every
+  place it already sets `AudioPlayer.volume`: steady state, every
+  natural gapless transition, and both ends of the crossfade ramp, so
+  the two features share one volume seam instead of fighting over two.
+  Gain is only ever applied as attenuation, never a boost, to avoid
+  clipping a track with no limiter downstream; a track with no reported
+  gain plays unchanged rather than being guessed at.

@@ -11,6 +11,7 @@ import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart';
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart';
 import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
@@ -57,6 +58,10 @@ class FakePlaybackEngine implements PlaybackEngine {
   /// The configuration most recently given to [setCrossfade] — what the
   /// engine-configuration seam (ADR-0016) is asserted against.
   CrossfadeSettings crossfade = CrossfadeSettings.disabled;
+
+  /// The configuration most recently given to [setNormalization] — the
+  /// v0.1.4 counterpart to [crossfade].
+  NormalizationSettings normalization = NormalizationSettings.disabled;
   int? currentIndex;
   bool playing = false;
   Completer<void>? playCompletion;
@@ -102,6 +107,12 @@ class FakePlaybackEngine implements PlaybackEngine {
       'setCrossfade(enabled: ${settings.enabled}, '
       '${settings.duration.inSeconds}s)',
     );
+  }
+
+  @override
+  Future<void> setNormalization(NormalizationSettings settings) async {
+    normalization = settings;
+    calls.add('setNormalization(enabled: ${settings.enabled})');
   }
 
   @override

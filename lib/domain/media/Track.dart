@@ -19,6 +19,7 @@ class Track extends MediaItem {
     this.trackNumber,
     this.discNumber,
     this.duration,
+    this.normalizationGain,
     super.availability = MediaAvailability.remoteOnly,
     super.image,
   });
@@ -36,6 +37,11 @@ class Track extends MediaItem {
 
   final Duration? duration;
 
+  /// Jellyfin's loudness gain for this track (its `NormalizationGain`,
+  /// v0.1.4), in dB. `null` when the server has neither analyzed the
+  /// file's loudness nor found an embedded ReplayGain tag.
+  final double? normalizationGain;
+
   @override
   MediaKind get kind => MediaKind.track;
 
@@ -49,6 +55,7 @@ class Track extends MediaItem {
     trackNumber,
     discNumber,
     duration,
+    normalizationGain,
     availability,
     image,
   ];
