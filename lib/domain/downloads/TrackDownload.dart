@@ -36,6 +36,7 @@ class TrackDownload extends Equatable {
     this.receivedBytes = 0,
     this.totalBytes,
     this.failureReason,
+    this.serverGone = false,
   });
 
   /// The record a fresh request starts from.
@@ -95,6 +96,13 @@ class TrackDownload extends Equatable {
   /// Set only when [state] is [DownloadState.failed].
   final DownloadFailureReason? failureReason;
 
+  /// The server has been reached since this was downloaded and no longer
+  /// lists the track (v0.2.3). The file is kept; [toTrack] then reports
+  /// [MediaAvailability.localOnly] so the app shows it as "Only on this
+  /// device" rather than as a remote failure or by making it vanish.
+  /// Never set from a merely unreachable server.
+  final bool serverGone;
+
   /// How much of the file is on the device, `0.0`–`1.0`, or `null` when
   /// the total size is not known yet.
   double? get progress {
@@ -109,11 +117,13 @@ class TrackDownload extends Equatable {
 
   /// The track as the rest of the application speaks about it.
   ///
-  /// [availability] defaults to [MediaAvailability.localAndRemote] for a
-  /// completed download: it is on the device and, as far as this record
-  /// knows, still on the server. A caller that has learned otherwise —
-  /// v0.2.3's server-deleted case — passes
-  /// [MediaAvailability.localOnly] instead.
+  /// [availability], when omitted, is derived from the record: a
+  /// completed download the server still lists is
+  /// [MediaAvailability.localAndRemote]; one the server has dropped
+  /// ([serverGone], v0.2.3) is [MediaAvailability.localOnly] — kept and
+  /// playable, shown as "Only on this device"; an incomplete one is
+  /// [MediaAvailability.remoteOnly]. A caller that knows better passes
+  /// [availability] explicitly.
   Track toTrack({MediaAvailability? availability}) => Track(
     id: id,
     name: title,
@@ -124,13 +134,16 @@ class TrackDownload extends Equatable {
     discNumber: discNumber,
     duration: duration,
     normalizationGain: normalizationGain,
-    availability:
-        availability ??
-        (isPlayableOffline
-            ? MediaAvailability.localAndRemote
-            : MediaAvailability.remoteOnly),
+    availability: availability ?? _availability,
     image: image,
   );
+
+  MediaAvailability get _availability {
+    if (!isPlayableOffline) return MediaAvailability.remoteOnly;
+    return serverGone
+        ? MediaAvailability.localOnly
+        : MediaAvailability.localAndRemote;
+  }
 
   TrackDownload copyWith({
     DownloadState? state,
@@ -138,6 +151,7 @@ class TrackDownload extends Equatable {
     int? receivedBytes,
     int? totalBytes,
     DownloadFailureReason? failureReason,
+    bool? serverGone,
     bool clearFailureReason = false,
     bool clearTotalBytes = false,
   }) => TrackDownload(
@@ -159,6 +173,7 @@ class TrackDownload extends Equatable {
     failureReason: clearFailureReason
         ? null
         : (failureReason ?? this.failureReason),
+    serverGone: serverGone ?? this.serverGone,
   );
 
   @override
@@ -179,5 +194,6 @@ class TrackDownload extends Equatable {
     receivedBytes,
     totalBytes,
     failureReason,
+    serverGone,
   ];
 }

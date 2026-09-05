@@ -69,7 +69,9 @@ void main() {
     ]) {
       store.records[record.id] = record;
     }
-    final downloads = fakeDownloadsCubit(store: store);
+    final engine = FakeDownloadEngine()
+      ..stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
+    final downloads = fakeDownloadsCubit(store: store, engine: engine);
     await downloads.restore();
 
     final scope = TestSessionScope();

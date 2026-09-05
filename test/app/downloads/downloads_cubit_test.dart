@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
+import 'package:jellyfinity/app/session/SessionCubit.dart';
+import 'package:jellyfinity/app/session/SessionState.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
@@ -9,6 +11,7 @@ import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
+import '../../support/session_fakes.dart';
 import '../../support/settings_fakes.dart';
 
 void main() {
@@ -17,6 +20,7 @@ void main() {
   late FakeAudioSourceResolver resolver;
   late FakeMusicLibraryRepository library;
   late FakePlaylistRepository playlists;
+  late SessionCubit session;
   late DownloadsCubit cubit;
 
   setUp(() {
@@ -25,12 +29,14 @@ void main() {
     resolver = FakeAudioSourceResolver();
     library = FakeMusicLibraryRepository();
     playlists = FakePlaylistRepository();
+    session = fakeSessionCubit(signedIn: fakeAuthSession());
     cubit = fakeDownloadsCubit(
       store: store,
       engine: engine,
       resolver: resolver,
       library: library,
       playlists: playlists,
+      session: session,
     );
   });
 
@@ -346,6 +352,8 @@ void main() {
         totalBytes: 900,
         receivedBytes: 900,
       );
+      // Its file is still on the device.
+      engine.stored[track.id] = Uri.file('/downloads/t1/audio.flac');
 
       await cubit.restore();
       await pumpEventQueue();
@@ -354,6 +362,28 @@ void main() {
       // Nothing was re-fetched — it was already done.
       expect(engine.fetched, isEmpty);
     });
+
+    test(
+      'a completed record whose file has vanished is downloaded again (v0.2.3)',
+      () async {
+        final track = testTrack('t1');
+        store.records[track.id] = downloadRecord(
+          track.id,
+          state: DownloadState.completed,
+          totalBytes: 900,
+          receivedBytes: 900,
+        );
+        // No engine.stored entry: the record says "downloaded", the file
+        // is not there — storage cleared under the app, an OS restore
+        // that dropped media. It must not stay a phantom "downloaded".
+
+        await cubit.restore();
+        await pumpEventQueue();
+
+        expect(engine.fetched, [track.id]);
+        expect(cubit.state[track.id]?.state, DownloadState.completed);
+      },
+    );
 
     test(
       'a paused record stays paused rather than resuming on its own',
@@ -803,6 +833,116 @@ void main() {
       await pumpEventQueue();
 
       expect(cubit.state.stateOf(mediaId('t1')), DownloadState.completed);
+    });
+  });
+
+  group('downloaded-collection identity (v0.2.3)', () {
+    test('downloading an album records its name and artwork', () async {
+      library.tracksByAlbum['al-1'] = [testTrack('t1', albumId: 'al-1')];
+
+      await cubit.downloadAlbum(testAlbum('al-1', name: 'Kind of Blue'));
+      await pumpEventQueue();
+
+      final owner = DownloadOwner.album(mediaId('al-1'));
+      expect(cubit.state.collectionIdentity(owner)?.name, 'Kind of Blue');
+      expect(store.collectionsMap[owner]?.name, 'Kind of Blue');
+    });
+
+    test('downloading a playlist gives the Downloads screen its real name', () async {
+      playlists.trackList = [testTrack('t1')];
+
+      await cubit.downloadPlaylist(testPlaylist('pl-1', name: 'Roadtrip'));
+      await pumpEventQueue();
+
+      expect(
+        cubit.state.collectionName(DownloadOwner.playlist(mediaId('pl-1'))),
+        'Roadtrip',
+      );
+    });
+
+    test('removing a collection forgets its stored identity', () async {
+      library.tracksByAlbum['al-1'] = [testTrack('t1', albumId: 'al-1')];
+      await cubit.downloadAlbum(testAlbum('al-1', name: 'Kind of Blue'));
+      await pumpEventQueue();
+
+      await cubit.removeAlbum(mediaId('al-1'));
+      await pumpEventQueue();
+
+      final owner = DownloadOwner.album(mediaId('al-1'));
+      expect(cubit.state.collectionIdentity(owner), isNull);
+      expect(store.collectionsMap.containsKey(owner), isFalse);
+    });
+
+    test('restore reloads stored collection identities', () async {
+      final owner = DownloadOwner.playlist(mediaId('pl-1'));
+      store.collectionsMap[owner] = DownloadedCollection(
+        owner: owner,
+        name: 'Saved Mix',
+      );
+
+      await cubit.restore();
+      await pumpEventQueue();
+
+      expect(cubit.state.collectionName(owner), 'Saved Mix');
+    });
+  });
+
+  group('per-profile downloads (v0.2.3)', () {
+    test('switching profile rebuilds the catalog from that profile\'s records', () async {
+      // Alice has a download.
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        state: DownloadState.completed,
+      );
+      engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
+      await cubit.restore();
+      await pumpEventQueue();
+      expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
+
+      // Bob signs in — a different profile with nothing downloaded.
+      store.accountKey = 'server-1/user-2';
+      session.emit(
+        SessionState.signedIn(
+          fakeAuthSession(
+            account: fakeJellyfinAccount(id: 'acct-2', userId: 'user-2'),
+          ),
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(cubit.state.downloads, isEmpty);
+      expect(cubit.state.isLoaded, isTrue);
+    });
+
+    test('signing out empties the catalog', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        state: DownloadState.completed,
+      );
+      engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
+      await cubit.restore();
+      await pumpEventQueue();
+
+      store.accountKey = 'signed-out';
+      session.emit(const SessionState.signedOut());
+      await pumpEventQueue();
+
+      expect(cubit.state.downloads, isEmpty);
+    });
+
+    test('restore claims downloads left unscoped by the schema-v6 upgrade', () async {
+      store.accountKey = '';
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        state: DownloadState.completed,
+      );
+      engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
+
+      store.accountKey = 'server-1/user-1';
+      await cubit.restore();
+      await pumpEventQueue();
+
+      expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:jellyfinity/app/session/AuthSessionManager.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
+import 'package:jellyfinity/app/session/SessionState.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/session/session.dart';
@@ -218,6 +219,46 @@ void registerAuthCubits(TestSessionScope scope) {
       () => AccountsCubit(scope.servers, scope.accounts, scope.cubit),
     );
   addTearDown(getIt.reset);
+}
+
+/// A [JellyfinServer] with test defaults.
+JellyfinServer fakeJellyfinServer({String id = 'server-1'}) => JellyfinServer(
+  id: id,
+  baseUrl: 'https://demo.jellyfin.org',
+  name: 'Home Media',
+  reportedVersion: '10.11.6',
+);
+
+/// A [JellyfinAccount] with test defaults.
+JellyfinAccount fakeJellyfinAccount({
+  String id = 'acct-1',
+  String serverId = 'server-1',
+  String userId = 'user-1',
+  String username = 'alice',
+}) => JellyfinAccount(
+  id: id,
+  serverId: serverId,
+  userId: userId,
+  username: username,
+);
+
+/// A resolved [AuthSession] with test defaults.
+AuthSession fakeAuthSession({
+  JellyfinAccount? account,
+  JellyfinServer? server,
+}) => AuthSession(
+  account: account ?? fakeJellyfinAccount(),
+  server: server ?? fakeJellyfinServer(),
+  accessToken: 'token',
+);
+
+/// A [SessionCubit] a test can hold, optionally already signed in as
+/// [signedIn]. Backed by a throwaway [TestSessionScope] so no network or
+/// storage is touched.
+SessionCubit fakeSessionCubit({AuthSession? signedIn}) {
+  final cubit = TestSessionScope().cubit;
+  if (signedIn != null) cubit.emit(SessionState.signedIn(signedIn));
+  return cubit;
 }
 
 /// Whether [failure] is any [Failure]; a readable matcher helper.

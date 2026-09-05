@@ -6,7 +6,9 @@ import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/downloads/downloads.dart';
+import '../../../domain/media/media_kind.dart';
 import '../../music/presentation/widgets/download_controls.dart';
+import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/music_rows.dart';
 import '../../music/presentation/widgets/music_skeletons.dart';
 
@@ -258,11 +260,22 @@ class _CollectionTile extends StatelessWidget {
     final t = context.tokens;
     final status = catalog.statusFor(owner);
     final downloads = context.read<DownloadsCubit>();
+    final name = catalog.collectionName(owner, fallback: _fallbackName);
+    final image = catalog.collectionImage(owner);
 
     return ListTile(
-      leading: Icon(_icon, color: t.colors.textSecondary),
+      leading: image != null
+          ? MediaArtwork(
+              image: image,
+              kind: _mediaKind,
+              size: 44,
+              shape: owner.kind == DownloadOwnerKind.artist
+                  ? ArtworkShape.circle
+                  : ArtworkShape.rounded,
+            )
+          : Icon(_icon, color: t.colors.textSecondary),
       title: Text(
-        _name(catalog),
+        name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: t.typography.bodyLarge.copyWith(color: t.colors.textPrimary),
@@ -283,7 +296,7 @@ class _CollectionTile extends StatelessWidget {
         tooltip: 'Remove download',
         onPressed: () => confirmRemoveDownload(
           context,
-          title: 'Remove "${_name(catalog)}"?',
+          title: 'Remove "$name"?',
           message:
               'Frees up ${status.completed} downloaded '
               '${status.completed == 1 ? 'track' : 'tracks'}. Songs kept by '
@@ -333,35 +346,20 @@ class _CollectionTile extends StatelessWidget {
     DownloadOwnerKind.track => 'Song',
   };
 
-  /// The collection's name, taken from the denormalized track records
-  /// where they carry it (an album name, an artist credit), so the
-  /// screen still reads correctly with the server switched off. A
-  /// playlist's name is not on the records, so it falls back to a
-  /// labelled generic until v0.2.3 gives downloaded collections their
-  /// own stored identity.
-  String _name(DownloadCatalog catalog) {
-    final records = catalog.ownedBy(owner);
-    switch (owner.kind) {
-      case DownloadOwnerKind.album:
-        for (final record in records) {
-          if (record.albumName case final name? when name.isNotEmpty) {
-            return name;
-          }
-        }
-        return 'Album';
-      case DownloadOwnerKind.artist:
-        for (final record in records) {
-          for (final credit in record.artists) {
-            if (credit.id == owner.id && credit.name.isNotEmpty) {
-              return credit.name;
-            }
-          }
-        }
-        return 'Artist';
-      case DownloadOwnerKind.playlist:
-        return 'Downloaded playlist';
-      case DownloadOwnerKind.track:
-        return records.isEmpty ? 'Song' : records.first.title;
-    }
-  }
+  MediaKind get _mediaKind => switch (owner.kind) {
+    DownloadOwnerKind.album => MediaKind.album,
+    DownloadOwnerKind.artist => MediaKind.artist,
+    DownloadOwnerKind.playlist => MediaKind.playlist,
+    DownloadOwnerKind.track => MediaKind.track,
+  };
+
+  /// The last-resort label when a collection has neither a stored
+  /// identity (v0.2.3) nor a name on its tracks — a playlist downloaded
+  /// before v0.2.3 and not reopened online since.
+  String get _fallbackName => switch (owner.kind) {
+    DownloadOwnerKind.album => 'Album',
+    DownloadOwnerKind.artist => 'Artist',
+    DownloadOwnerKind.playlist => 'Downloaded playlist',
+    DownloadOwnerKind.track => 'Song',
+  };
 }

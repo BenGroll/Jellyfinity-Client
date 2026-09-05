@@ -4,16 +4,19 @@ import 'package:jellyfinity/domain/media/artist.dart';
 import 'package:jellyfinity/infrastructure/downloads/DriftDownloadStore.dart';
 import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
 
+import '../../support/FakeSessionContext.dart';
 import '../../support/music_fakes.dart';
 import '../../support/test_database.dart';
 
 void main() {
   late AppDatabase db;
+  late FakeSessionContext session;
   late DriftDownloadStore store;
 
   setUp(() {
     db = newTestDatabase();
-    store = DriftDownloadStore(db);
+    session = FakeSessionContext();
+    store = DriftDownloadStore(db, session);
   });
 
   tearDown(() => db.close());
@@ -208,6 +211,119 @@ void main() {
       await store.deletePlaylistMembers(playlist);
 
       expect((await store.playlistMembers(playlist)).valueOrNull, isEmpty);
+    });
+  });
+
+  group('per-profile scope (v0.2.3)', () {
+    test('one profile never sees another profile\'s downloads', () async {
+      // Alice, on server-1, downloads a track.
+      await store.save(record('t1', state: DownloadState.completed));
+      await store.savePlaylistMembers(mediaId('pl-1'), [
+        (position: 0, trackId: mediaId('t1')),
+      ]);
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(mediaId('al-1')),
+          name: 'Alice Album',
+        ),
+      );
+
+      // Bob signs in on the same server.
+      session.userId = 'user-2';
+
+      expect((await store.all()).valueOrNull, isEmpty);
+      expect((await store.find(mediaId('t1'))).valueOrNull, isNull);
+      expect((await store.allPlaylistMembers()).valueOrNull, isEmpty);
+      expect(
+        (await store.collections()).valueOrNull!.items,
+        isEmpty,
+      );
+
+      // Back to Alice — her collection is intact.
+      session.userId = 'user-1';
+      expect((await store.all()).valueOrNull, hasLength(1));
+    });
+
+    test('the same track downloaded by two profiles stays two records', () async {
+      await store.save(record('t1', state: DownloadState.completed));
+      session.userId = 'user-2';
+      await store.save(record('t1', state: DownloadState.queued));
+
+      expect((await store.find(mediaId('t1'))).valueOrNull!.state,
+          DownloadState.queued);
+      session.userId = 'user-1';
+      expect((await store.find(mediaId('t1'))).valueOrNull!.state,
+          DownloadState.completed);
+    });
+
+    test('signed out, reads are empty and writes are no-ops', () async {
+      session.signOut();
+
+      expect((await store.all()).valueOrNull, isEmpty);
+      expect((await store.save(record('t1'))).isOk, isTrue);
+      expect((await store.all()).valueOrNull, isEmpty);
+    });
+
+    test('claimLegacyDownloads adopts pre-v0.2.3 rows for the active profile', () async {
+      // A row written before v0.2.3 has an empty account_key. Simulate it
+      // by clearing the session, writing, then signing back in.
+      await db.customStatement(
+        'INSERT INTO track_downloads '
+        '(server_id, item_id, state, title, requested_at) '
+        "VALUES ('server-1', 'legacy', 'completed', 'Old Song', 0)",
+      );
+
+      final moved = await store.claimLegacyDownloads();
+      expect(moved.valueOrNull, greaterThanOrEqualTo(1));
+
+      final all = (await store.all()).valueOrNull!;
+      expect(all.map((r) => r.id.itemId), contains('legacy'));
+    });
+  });
+
+  group('offline discovery (v0.2.3)', () {
+    test('saveCollection / collections round-trips identity, filtered by kind', () async {
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(mediaId('al-1')),
+          name: 'Blue Train',
+        ),
+      );
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.playlist(mediaId('pl-1')),
+          name: 'Focus',
+        ),
+      );
+
+      final albums = (await store.collections(
+        kind: DownloadOwnerKind.album,
+      )).valueOrNull!;
+      expect(albums.items.map((c) => c.name), ['Blue Train']);
+
+      final searched = (await store.collections(searchTerm: 'foc')).valueOrNull!;
+      expect(searched.items.single.name, 'Focus');
+    });
+
+    test('deleteCollection forgets one identity', () async {
+      final owner = DownloadOwner.album(mediaId('al-1'));
+      await store.saveCollection(
+        DownloadedCollection(owner: owner, name: 'Blue Train'),
+      );
+      await store.deleteCollection(owner);
+      expect((await store.collections()).valueOrNull!.items, isEmpty);
+    });
+
+    test('searchTrackDownloads returns completed matches, ordered and paged', () async {
+      await store.save(record('t1', state: DownloadState.completed));
+      await store.save(record('t2', state: DownloadState.queued));
+
+      final all = (await store.searchTrackDownloads()).valueOrNull!;
+      expect(all.items.map((r) => r.id.itemId), ['t1']);
+
+      final none = (await store.searchTrackDownloads(searchTerm: 'zzz'))
+          .valueOrNull!;
+      expect(none.items, isEmpty);
     });
   });
 }

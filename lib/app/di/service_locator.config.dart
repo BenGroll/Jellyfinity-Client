@@ -179,17 +179,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1018.MediaCacheStore>(
       () => _i1018.DriftMediaCacheStore(gh<_i242.AppDatabase>()),
     );
-    gh.lazySingleton<_i853.DownloadStore>(
-      () => _i167.DriftDownloadStore(gh<_i242.AppDatabase>()),
-    );
     gh.lazySingleton<_i617.KeyValueStore>(
       () => _i617.DriftKeyValueStore(gh<_i242.AppDatabase>()),
-    );
-    gh.lazySingleton<_i186.LocalAudioSource>(
-      () => _i212.StoredAudioSource(
-        gh<_i853.DownloadStore>(),
-        gh<_i768.DownloadEngine>(),
-      ),
     );
     gh.lazySingleton<_i584.DeviceIdentityStore>(
       () => _i584.PersistentDeviceIdentityStore(gh<_i617.KeyValueStore>()),
@@ -274,20 +265,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i285.ArtworkResolver>(
       () => _i1022.JellyfinArtworkResolver(gh<_i346.JellyfinSessionContext>()),
     );
+    gh.lazySingleton<_i853.DownloadStore>(
+      () => _i167.DriftDownloadStore(
+        gh<_i242.AppDatabase>(),
+        gh<_i346.JellyfinSessionContext>(),
+      ),
+    );
     gh.lazySingleton<_i963.JellyfinMediaApi>(
       () => _i963.JellyfinMediaApi(
         gh<_i346.JellyfinSessionContext>(),
         gh<_i787.JellyfinClientIdentity>(),
         gh<_i430.AuthTokenProvider>(),
         gh<_i612.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i922.AudioSourceResolver>(
-      () => _i620.LocalFirstAudioSourceResolver(
-        gh<_i922.AudioSourceResolver>(
-          instanceName: 'remoteAudioSourceResolver',
-        ),
-        gh<_i186.LocalAudioSource>(),
       ),
     );
     gh.factory<_i1045.LoginCubit>(
@@ -298,6 +287,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i952.ServerSetupCubit>(
       () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
+    );
+    gh.lazySingleton<_i186.LocalAudioSource>(
+      () => _i212.StoredAudioSource(
+        gh<_i853.DownloadStore>(),
+        gh<_i768.DownloadEngine>(),
+      ),
     );
     gh.lazySingleton<_i830.JellyfinMediaMetadataRepository>(
       () => _i830.JellyfinMediaMetadataRepository(gh<_i963.JellyfinMediaApi>()),
@@ -336,15 +331,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i685.FavoritesRepository>(
       () => _i545.JellyfinFavoritesRepository(gh<_i963.JellyfinMediaApi>()),
     );
-    gh.lazySingleton<_i126.PlaybackCubit>(
-      () => _i126.PlaybackCubit(
-        gh<_i717.PlaybackEngine>(),
-        gh<_i642.QueueRepository>(),
-        gh<_i922.AudioSourceResolver>(),
-        gh<_i474.PlaybackProgressRepository>(),
-        gh<_i230.SettingsCubit>(),
-      ),
-    );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
       () => _i912.CachedMediaMetadataRepository(
         gh<_i830.JellyfinMediaMetadataRepository>(),
@@ -370,6 +356,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.lazySingleton<_i922.AudioSourceResolver>(
+      () => _i620.LocalFirstAudioSourceResolver(
+        gh<_i922.AudioSourceResolver>(
+          instanceName: 'remoteAudioSourceResolver',
+        ),
+        gh<_i186.LocalAudioSource>(),
+      ),
+    );
     gh.lazySingleton<_i45.DownloadsCubit>(
       () => _i45.DownloadsCubit(
         gh<_i306.DownloadStore>(),
@@ -381,6 +375,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i597.PlaylistRepository>(),
         gh<_i230.SettingsCubit>(),
         gh<_i306.NetworkCondition>(),
+        gh<_i809.SessionCubit>(),
       ),
     );
     gh.factory<_i824.ArtistStatsCubit>(
@@ -397,6 +392,15 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i29.NowPlayingDetailsCubit>(
       () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
+    );
+    gh.lazySingleton<_i126.PlaybackCubit>(
+      () => _i126.PlaybackCubit(
+        gh<_i717.PlaybackEngine>(),
+        gh<_i642.QueueRepository>(),
+        gh<_i922.AudioSourceResolver>(),
+        gh<_i474.PlaybackProgressRepository>(),
+        gh<_i230.SettingsCubit>(),
+      ),
     );
     gh.factory<_i213.ArtistDetailCubit>(
       () => _i213.ArtistDetailCubit(gh<_i747.MusicLibraryRepository>()),

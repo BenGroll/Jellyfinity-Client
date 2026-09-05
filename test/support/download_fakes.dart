@@ -7,18 +7,26 @@ import 'package:jellyfinity/domain/downloads/downloads.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 export 'package:jellyfinity/domain/downloads/downloads.dart'
     show
+        DownloadCatalog,
+        DownloadedCollection,
         DownloadFailureReason,
         DownloadOwner,
+        DownloadOwnerKind,
         DownloadState,
         NetworkCondition,
         NetworkState,
         TrackDownload;
+import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
+import 'package:jellyfinity/core/result/partial.dart' show Partial;
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart';
+import 'package:jellyfinity/domain/media/page.dart'
+    show Page, PageRequest, PageSource;
 import 'package:jellyfinity/domain/media/PlaylistRepository.dart';
 import 'music_fakes.dart'
     show FakeMusicLibraryRepository, FakePlaylistRepository;
 import 'playback_fakes.dart' show FakeAudioSourceResolver;
+import 'session_fakes.dart' show fakeAuthSession, fakeSessionCubit;
 import 'settings_fakes.dart' show fakeSettingsCubit;
 
 /// A [DownloadsCubit] wired entirely to fakes, for tests that only need
@@ -31,6 +39,7 @@ DownloadsCubit fakeDownloadsCubit({
   PlaylistRepository? playlists,
   SettingsCubit? settings,
   FakeNetworkCondition? network,
+  SessionCubit? session,
 }) => DownloadsCubit(
   store ?? InMemoryDownloadStore(),
   engine ?? FakeDownloadEngine(),
@@ -39,6 +48,7 @@ DownloadsCubit fakeDownloadsCubit({
   playlists ?? FakePlaylistRepository(),
   settings ?? fakeSettingsCubit(),
   network ?? FakeNetworkCondition(),
+  session ?? fakeSessionCubit(signedIn: fakeAuthSession()),
 );
 
 /// A [NetworkCondition] a test drives: set [state] and push changes.
@@ -63,14 +73,34 @@ class FakeNetworkCondition implements NetworkCondition {
 }
 
 /// A [DownloadStore] with no database behind it.
+///
+/// Scoped per profile (v0.2.3) the same way `DriftDownloadStore` is: set
+/// [accountKey] to the profile a call belongs to. The default key means
+/// tests that do not care about isolation need do nothing.
 class InMemoryDownloadStore implements DownloadStore {
-  final Map<MediaId, TrackDownload> records = {};
+  /// The profile the next call reads and writes. Flip it to model a
+  /// profile switch.
+  String accountKey = 'server-1/user-1';
 
-  /// Playlist membership snapshots, keyed by playlist id (v0.2.1).
-  final Map<MediaId, List<PlaylistDownloadMember>> playlistSnapshots = {};
+  final Map<String, Map<MediaId, TrackDownload>> _recordsByAccount = {};
+  final Map<String, Map<MediaId, List<PlaylistDownloadMember>>>
+  _snapshotsByAccount = {};
+  final Map<String, Map<DownloadOwner, DownloadedCollection>>
+  _collectionsByAccount = {};
 
   /// Set to make every write fail, for the "storage is broken" paths.
   Failure? writeFailure;
+
+  /// The current profile's records, keyed by track — kept for the many
+  /// existing tests that read `store.records` directly.
+  Map<MediaId, TrackDownload> get records =>
+      _recordsByAccount.putIfAbsent(accountKey, () => {});
+
+  Map<MediaId, List<PlaylistDownloadMember>> get playlistSnapshots =>
+      _snapshotsByAccount.putIfAbsent(accountKey, () => {});
+
+  Map<DownloadOwner, DownloadedCollection> get collectionsMap =>
+      _collectionsByAccount.putIfAbsent(accountKey, () => {});
 
   @override
   Future<Result<List<TrackDownload>>> all() async {
@@ -133,6 +163,101 @@ class InMemoryDownloadStore implements DownloadStore {
   Future<Result<void>> deletePlaylistMembers(MediaId playlistId) async {
     playlistSnapshots.remove(playlistId);
     return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<void>> saveCollection(DownloadedCollection collection) async {
+    if (writeFailure case final failure?) return Result.err(failure);
+    collectionsMap[collection.owner] = collection;
+    return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<void>> deleteCollection(DownloadOwner owner) async {
+    collectionsMap.remove(owner);
+    return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<Page<DownloadedCollection>>> collections({
+    DownloadOwnerKind? kind,
+    String? searchTerm,
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    final term = searchTerm?.trim().toLowerCase();
+    final all =
+        collectionsMap.values
+            .where((c) => kind == null || c.kind == kind)
+            .where(
+              (c) =>
+                  term == null ||
+                  term.isEmpty ||
+                  c.name.toLowerCase().contains(term),
+            )
+            .toList()
+          ..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
+    final window = all
+        .skip(page.startIndex)
+        .take(page.limit)
+        .toList(growable: false);
+    return Result.ok(
+      Page<DownloadedCollection>(
+        content: Partial(available: window),
+        startIndex: page.startIndex,
+        totalCount: all.length,
+        source: PageSource.cache,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<Page<TrackDownload>>> searchTrackDownloads({
+    String? searchTerm,
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    final term = searchTerm?.trim().toLowerCase();
+    final all =
+        records.values
+            .where((r) => r.state == DownloadState.completed)
+            .where(
+              (r) =>
+                  term == null ||
+                  term.isEmpty ||
+                  r.title.toLowerCase().contains(term),
+            )
+            .toList()
+          ..sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+          );
+    final window = all
+        .skip(page.startIndex)
+        .take(page.limit)
+        .toList(growable: false);
+    return Result.ok(
+      Page<TrackDownload>(
+        content: Partial(available: window),
+        startIndex: page.startIndex,
+        totalCount: all.length,
+        source: PageSource.cache,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<int>> claimLegacyDownloads() async {
+    final legacyRecords = _recordsByAccount.remove('');
+    final legacySnapshots = _snapshotsByAccount.remove('');
+    final legacyCollections = _collectionsByAccount.remove('');
+    var moved = 0;
+    if (legacyRecords != null) {
+      records.addAll(legacyRecords);
+      moved += legacyRecords.length;
+    }
+    if (legacySnapshots != null) playlistSnapshots.addAll(legacySnapshots);
+    if (legacyCollections != null) collectionsMap.addAll(legacyCollections);
+    return Result.ok(moved);
   }
 }
 

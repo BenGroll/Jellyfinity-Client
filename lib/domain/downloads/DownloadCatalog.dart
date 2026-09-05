@@ -1,7 +1,9 @@
 import 'package:equatable/equatable.dart';
 
 import '../media/MediaId.dart';
+import '../media/MediaImage.dart';
 import 'download_state.dart';
+import 'DownloadedCollection.dart';
 import 'DownloadOwner.dart';
 import 'PlaylistDownload.dart';
 import 'TrackDownload.dart';
@@ -93,6 +95,7 @@ class DownloadCatalog extends Equatable {
   const DownloadCatalog({
     this.downloads = const {},
     this.playlistSnapshots = const {},
+    this.collections = const {},
     this.isLoaded = false,
   });
 
@@ -105,6 +108,13 @@ class DownloadCatalog extends Equatable {
   /// (v0.2.1), keyed by playlist id. A playlist absent here has not been
   /// downloaded; its presence — even with an empty list — means it has.
   final Map<MediaId, List<PlaylistDownloadMember>> playlistSnapshots;
+
+  /// The stored identity — name and artwork — of every downloaded album,
+  /// artist and playlist (v0.2.3), keyed by its owner. Filled when a
+  /// collection is downloaded and refreshed when it is opened online, so
+  /// the Downloads screen and the offline library render it with the
+  /// server switched off rather than guessing a name from its tracks.
+  final Map<DownloadOwner, DownloadedCollection> collections;
 
   /// Whether the stored records have been read yet. Before that, a
   /// screen shows nothing rather than briefly claiming nothing is
@@ -142,6 +152,49 @@ class DownloadCatalog extends Equatable {
     ];
   }
 
+  /// [owner]'s stored identity (v0.2.3), or `null` when it has not been
+  /// recorded yet — an album or artist downloaded before v0.2.3 and not
+  /// reopened online since, for which [collectionName] falls back to the
+  /// track records.
+  DownloadedCollection? collectionIdentity(DownloadOwner owner) =>
+      collections[owner];
+
+  /// A name to show for [owner]: its stored identity where there is one,
+  /// otherwise reconstructed from the denormalized track records (an
+  /// album name, an artist credit) so the row still reads with the
+  /// server off. A playlist with no stored identity has no name on its
+  /// tracks at all and falls back to [fallback].
+  String collectionName(DownloadOwner owner, {String fallback = 'Downloaded'}) {
+    final stored = collections[owner]?.name;
+    if (stored != null && stored.isNotEmpty) return stored;
+
+    final records = ownedBy(owner);
+    switch (owner.kind) {
+      case DownloadOwnerKind.album:
+        for (final record in records) {
+          final name = record.albumName;
+          if (name != null && name.isNotEmpty) return name;
+        }
+        return fallback;
+      case DownloadOwnerKind.artist:
+        for (final record in records) {
+          for (final credit in record.artists) {
+            if (credit.id == owner.id && credit.name.isNotEmpty) {
+              return credit.name;
+            }
+          }
+        }
+        return fallback;
+      case DownloadOwnerKind.track:
+        return records.isEmpty ? fallback : records.first.title;
+      case DownloadOwnerKind.playlist:
+        return fallback;
+    }
+  }
+
+  /// [owner]'s artwork pointer from its stored identity, or `null`.
+  MediaImage? collectionImage(DownloadOwner owner) => collections[owner]?.image;
+
   /// What [owner]'s downloads add up to.
   CollectionDownloadStatus statusFor(DownloadOwner owner) =>
       _summarize(ownedBy(owner));
@@ -167,6 +220,9 @@ class DownloadCatalog extends Equatable {
     for (final playlistId in playlistSnapshots.keys) {
       owners.add(DownloadOwner.playlist(playlistId));
     }
+    // A collection whose every track has since been removed but whose
+    // identity is still stored stays on the screen rather than vanishing.
+    owners.addAll(collections.keys);
     return owners.toList();
   }
 
@@ -246,13 +302,20 @@ class DownloadCatalog extends Equatable {
   DownloadCatalog copyWith({
     Map<MediaId, TrackDownload>? downloads,
     Map<MediaId, List<PlaylistDownloadMember>>? playlistSnapshots,
+    Map<DownloadOwner, DownloadedCollection>? collections,
     bool? isLoaded,
   }) => DownloadCatalog(
     downloads: downloads ?? this.downloads,
     playlistSnapshots: playlistSnapshots ?? this.playlistSnapshots,
+    collections: collections ?? this.collections,
     isLoaded: isLoaded ?? this.isLoaded,
   );
 
   @override
-  List<Object?> get props => [downloads, playlistSnapshots, isLoaded];
+  List<Object?> get props => [
+    downloads,
+    playlistSnapshots,
+    collections,
+    isLoaded,
+  ];
 }
