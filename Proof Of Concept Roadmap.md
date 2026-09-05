@@ -1,5 +1,9 @@
 # Jellyfinity Roadmap
 
+> Historical specification for v0.0.1–v0.1.0. Do not read this file end to
+> end for current work. Start at `ROADMAP.md` and open only the assigned
+> version's linked section.
+
 ## Scope of This Roadmap
 
 This document defines the development path from **v0.0.1** through **v0.1.0**.

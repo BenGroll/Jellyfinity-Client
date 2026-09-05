@@ -1,0 +1,1 @@
+Implement Jellyfinity vX.Y.Z. Follow AGENTS.md. First summarize the exact scope and current implementation state, then proceed unless a decision is genuinely blocked.

@@ -4,7 +4,9 @@
 
 Jellyfinity is a free and open-source Flutter client for Jellyfin, built primarily for Android and iOS.
 
-> Jellyfinity is currently in early development. The architectural foundations — bootstrap, state management, navigation, the design system, the Jellyfin transport layer, authentication with saved servers and sessions, the local database, and now the media domain with its repository contracts — are in place; the music library experience comes next.
+> Jellyfinity is in early development. The first music vertical slice and
+> streaming-quality support are implemented; playlist curation is the current
+> development milestone.
 
 ## Development Setup
 
@@ -275,20 +277,17 @@ Real iOS-specific runtime testing will eventually require access to Apple hardwa
 
 ## Project Documentation
 
-Before making significant changes, contributors should familiarize themselves with:
+For feature work, start with `AGENTS.md`. It routes contributors to the minimum
+context needed for a specific version:
 
-* `CONTEXT.md` — compact project context and current direction
-* `ROADMAP.md` — planned milestones and release scope
-* `PHILOSOPHY.md` — product, UX, privacy, architecture, and engineering principles
-* `OUTLOOK.md` — ideas intentionally deferred beyond the current roadmap
+* `AGENTS.md` — implementation workflow and reusable starter prompt
+* `CONTEXT.md` — short, stable product and architecture constraints
+* `ROADMAP.md` — current status and links to each version's exact specification
+* `docs/adr/README.md` — architecture decision index
+* `PHILOSOPHY.md` and `OUTLOOK.md` — optional rationale and future ideas
 
-The current development milestone is **v0.0.9 — Audio Playback & Persistent Queue**.
-
-Jellyfinity can now connect to a server, sign in, browse a large music
-library, search it, and actually play something: background playback,
-lock-screen/notification controls, a persistent queue with shuffle and
-repeat, and Play Next / Add to Queue from any track. `v0.1.0` — the
-first coherent usable music client — is next.
+Do not read every document or ADR before starting a feature. The current
+milestone is **v0.1.2 — Playlist Curation**.
 
 ## Repository Structure
 
