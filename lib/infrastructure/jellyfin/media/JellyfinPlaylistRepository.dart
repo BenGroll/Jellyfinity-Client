@@ -1,9 +1,11 @@
 import 'package:injectable/injectable.dart';
 
+import '../../../core/result/failure.dart';
 import '../../../core/result/partial.dart';
 import '../../../core/result/result.dart';
 import '../../../domain/media/media.dart';
 import 'BaseItemMapper.dart';
+import 'ItemsResponseDto.dart';
 import 'jellyfin_media_api.dart';
 
 /// [PlaylistRepository] backed by the active session's Jellyfin server.
@@ -51,12 +53,10 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
     );
   }
 
-  /// Jellyfin only computes a playlist's `ChildCount` against the current
-  /// user's own ownership of it: a playlist another client created — even
-  /// one shared with this user — reports `ChildCount: 0` in the list
-  /// response, though its contents are still readable. Rather than show
-  /// a wrong "0 songs", ask the playlist's own items route (which isn't
-  /// subject to that per-owner quirk) for playlists that came back empty.
+  /// A playlist with no owner of record reports `ChildCount: 0` — see
+  /// [tracks] — so a row can look empty when it is not. Ask its own
+  /// contents (which [tracks] can now read regardless) for the playlists
+  /// that came back that way.
   Future<Page<Playlist>> _withRealCounts(Page<Playlist> page) async {
     final zeroCount = page.items.where(
       (playlist) => (playlist.itemCount ?? 0) == 0,
@@ -121,14 +121,28 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
 
     final itemId = _api.localItemId(playlistId);
     if (itemId case Err<String>(:final failure)) return Result.err(failure);
+    final id = (itemId as Ok<String>).value;
 
     final response = await _api.queryItems(
-      path: JellyfinMediaApi.playlistItemsPath((itemId as Ok<String>).value),
+      path: JellyfinMediaApi.playlistItemsPath(id),
       // No sort: a playlist's order is the user's own.
       page: page,
     );
 
-    return response.map(
+    final resolved = switch (response) {
+      Err<ItemsResponseDto>(failure: UnauthorizedFailure()) =>
+        // Some playlists predate Jellyfin's per-user ownership model and
+        // its dedicated `/Playlists/{id}/Items` route refuses everyone,
+        // even the account that "owns" them in spirit — that route
+        // requires an `OwnerUserId`/share match these playlists were
+        // never given. The generic item listing isn't gated the same
+        // way, though it can't supply a `PlaylistItemId`, so entries
+        // read this way can't be reordered or removed.
+        await _api.queryItems(parentId: id, page: page),
+      _ => response,
+    };
+
+    return resolved.map(
       (dto) => mapper.toPage(
         dto,
         request: page,
