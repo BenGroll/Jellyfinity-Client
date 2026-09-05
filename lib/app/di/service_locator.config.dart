@@ -30,6 +30,8 @@ import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
     as _i474;
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart' as _i119;
+import 'package:jellyfinity/domain/playback/NormalizationSettings.dart'
+    as _i122;
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart' as _i717;
 import 'package:jellyfinity/domain/playback/QueueRepository.dart' as _i642;
 import 'package:jellyfinity/domain/playback/stream_quality.dart' as _i731;
@@ -139,6 +141,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i617.KeyValueStore>(
       () => _i617.DriftKeyValueStore(gh<_i242.AppDatabase>()),
     );
+    gh.factory<_i230.SettingsCubit>(
+      () => _i230.SettingsCubit(
+        gh<_i617.KeyValueStore>(),
+        gh<_i883.ShellNavigationMode>(),
+        gh<_i731.StreamQuality>(),
+        gh<_i119.CrossfadeSettings>(),
+        gh<_i122.NormalizationSettings>(),
+      ),
+    );
     gh.lazySingleton<_i584.DeviceIdentityStore>(
       () => _i584.PersistentDeviceIdentityStore(gh<_i617.KeyValueStore>()),
     );
@@ -154,14 +165,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i584.DeviceIdentityStore>(),
       ),
       preResolve: true,
-    );
-    gh.factory<_i230.SettingsCubit>(
-      () => _i230.SettingsCubit(
-        gh<_i617.KeyValueStore>(),
-        gh<_i883.ShellNavigationMode>(),
-        gh<_i731.StreamQuality>(),
-        gh<_i119.CrossfadeSettings>(),
-      ),
     );
     gh.lazySingleton<_i756.AccountStore>(
       () => _i243.DriftAccountStore(

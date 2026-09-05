@@ -1,4 +1,5 @@
 import 'CrossfadeSettings.dart';
+import 'NormalizationSettings.dart';
 import 'PlaybackFailure.dart';
 import 'PlaybackSource.dart';
 import 'playback_status.dart';
@@ -60,6 +61,25 @@ abstract class PlaybackEngine {
   /// explicitly at construction rather than assuming a default, so a
   /// second implementation never has to guess one.
   Future<void> setCrossfade(CrossfadeSettings settings);
+
+  /// Configures whether the engine applies each loaded [PlaybackSource]'s
+  /// [PlaybackSource.normalizationGain] when setting playback volume
+  /// (v0.1.4).
+  ///
+  /// Like [setCrossfade], this describes what the engine does with data
+  /// it is already handed, not where that data comes from or which
+  /// source is current — [PlaybackSource.normalizationGain] carries the
+  /// loudness value itself, so the engine never has to know what a
+  /// track, an album, or ReplayGain is. Unlike crossfade this applies
+  /// immediately, including to whatever is playing right now, since
+  /// there is no "next transition" a volume level waits for.
+  ///
+  /// A second implementation that cannot look up or apply gain may treat
+  /// any setting as a no-op; it must not fail. Until this is first
+  /// called an implementation must behave as
+  /// [NormalizationSettings.disabled] — `PlaybackCubit` configures the
+  /// engine explicitly at construction rather than assuming a default.
+  Future<void> setNormalization(NormalizationSettings settings);
 
   Future<void> play();
 

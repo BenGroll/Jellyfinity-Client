@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 
 import '../../support/settings_fakes.dart';
@@ -40,6 +41,7 @@ void main() {
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
       CrossfadeSettings.disabled,
+      NormalizationSettings.disabled,
     );
     addTearDown(cubit.close);
 
@@ -59,6 +61,7 @@ void main() {
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
       CrossfadeSettings.disabled,
+      NormalizationSettings.disabled,
     );
     addTearDown(cubit.close);
 
@@ -104,6 +107,7 @@ void main() {
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
       CrossfadeSettings.disabled,
+      NormalizationSettings.disabled,
     );
     addTearDown(cubit.close);
 
@@ -123,6 +127,7 @@ void main() {
       ShellNavigationMode.mediaPills,
       StreamQuality.original,
       CrossfadeSettings.disabled,
+      NormalizationSettings.disabled,
     );
     addTearDown(cubit.close);
 
@@ -136,14 +141,17 @@ void main() {
   });
 
   group('crossfade', () {
-    test('defaults to off at the default duration when nothing is stored', () async {
-      final store = InMemoryKeyValueStore();
+    test(
+      'defaults to off at the default duration when nothing is stored',
+      () async {
+        final store = InMemoryKeyValueStore();
 
-      final initial = await SettingsCubit.loadInitialCrossfade(store);
+        final initial = await SettingsCubit.loadInitialCrossfade(store);
 
-      expect(initial, CrossfadeSettings.disabled);
-      expect(initial.duration, CrossfadeSettings.defaultDuration);
-    });
+        expect(initial, CrossfadeSettings.disabled);
+        expect(initial.duration, CrossfadeSettings.defaultDuration);
+      },
+    );
 
     test('loads a previously saved enabled state and duration', () async {
       final store = InMemoryKeyValueStore();
@@ -169,15 +177,18 @@ void main() {
       expect(initial.duration, CrossfadeSettings.maximumDuration);
     });
 
-    test('a stored enabled state with no stored duration uses the default', () async {
-      final store = InMemoryKeyValueStore();
-      await store.setBool('settings.crossfadeEnabled', true);
+    test(
+      'a stored enabled state with no stored duration uses the default',
+      () async {
+        final store = InMemoryKeyValueStore();
+        await store.setBool('settings.crossfadeEnabled', true);
 
-      final initial = await SettingsCubit.loadInitialCrossfade(store);
+        final initial = await SettingsCubit.loadInitialCrossfade(store);
 
-      expect(initial.enabled, isTrue);
-      expect(initial.duration, CrossfadeSettings.defaultDuration);
-    });
+        expect(initial.enabled, isTrue);
+        expect(initial.duration, CrossfadeSettings.defaultDuration);
+      },
+    );
 
     test('setCrossfadeEnabled persists and emits', () async {
       final store = InMemoryKeyValueStore();
@@ -186,6 +197,7 @@ void main() {
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
         CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
       );
       addTearDown(cubit.close);
 
@@ -202,6 +214,7 @@ void main() {
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
         CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
       );
       addTearDown(cubit.close);
 
@@ -215,26 +228,33 @@ void main() {
       expect(restored.duration, CrossfadeSettings.minimumDuration);
     });
 
-    test('a duration set while crossfade is off survives turning it on', () async {
-      final store = InMemoryKeyValueStore();
-      final cubit = SettingsCubit(
-        store,
-        ShellNavigationMode.mediaPills,
-        StreamQuality.original,
-        CrossfadeSettings.disabled,
-      );
-      addTearDown(cubit.close);
+    test(
+      'a duration set while crossfade is off survives turning it on',
+      () async {
+        final store = InMemoryKeyValueStore();
+        final cubit = SettingsCubit(
+          store,
+          ShellNavigationMode.mediaPills,
+          StreamQuality.original,
+          CrossfadeSettings.disabled,
+          NormalizationSettings.disabled,
+        );
+        addTearDown(cubit.close);
 
-      await cubit.setCrossfadeDuration(const Duration(seconds: 10));
-      await cubit.setCrossfadeEnabled(true);
-      await cubit.setCrossfadeEnabled(false);
-      await cubit.setCrossfadeEnabled(true);
+        await cubit.setCrossfadeDuration(const Duration(seconds: 10));
+        await cubit.setCrossfadeEnabled(true);
+        await cubit.setCrossfadeEnabled(false);
+        await cubit.setCrossfadeEnabled(true);
 
-      expect(
-        await SettingsCubit.loadInitialCrossfade(store),
-        const CrossfadeSettings(enabled: true, duration: Duration(seconds: 10)),
-      );
-    });
+        expect(
+          await SettingsCubit.loadInitialCrossfade(store),
+          const CrossfadeSettings(
+            enabled: true,
+            duration: Duration(seconds: 10),
+          ),
+        );
+      },
+    );
 
     test('setting the value already in state is a no-op', () async {
       final store = InMemoryKeyValueStore();
@@ -243,6 +263,7 @@ void main() {
         ShellNavigationMode.mediaPills,
         StreamQuality.original,
         CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
       );
       addTearDown(cubit.close);
 
@@ -252,6 +273,65 @@ void main() {
 
       await cubit.setCrossfadeEnabled(false);
       await cubit.setCrossfadeDuration(CrossfadeSettings.defaultDuration);
+
+      expect(states, isEmpty);
+    });
+  });
+
+  group('normalization', () {
+    test('defaults to off when nothing is stored', () async {
+      final store = InMemoryKeyValueStore();
+
+      final initial = await SettingsCubit.loadInitialNormalization(store);
+
+      expect(initial, NormalizationSettings.disabled);
+    });
+
+    test('loads a previously saved enabled state', () async {
+      final store = InMemoryKeyValueStore();
+      await store.setBool('settings.normalizationEnabled', true);
+
+      final initial = await SettingsCubit.loadInitialNormalization(store);
+
+      expect(initial.enabled, isTrue);
+    });
+
+    test('setNormalizationEnabled persists and emits', () async {
+      final store = InMemoryKeyValueStore();
+      final cubit = SettingsCubit(
+        store,
+        ShellNavigationMode.mediaPills,
+        StreamQuality.original,
+        CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.setNormalizationEnabled(true);
+
+      expect(cubit.state.normalization.enabled, isTrue);
+      expect(
+        (await SettingsCubit.loadInitialNormalization(store)).enabled,
+        isTrue,
+      );
+    });
+
+    test('setNormalizationEnabled to the current value is a no-op', () async {
+      final store = InMemoryKeyValueStore();
+      final cubit = SettingsCubit(
+        store,
+        ShellNavigationMode.mediaPills,
+        StreamQuality.original,
+        CrossfadeSettings.disabled,
+        NormalizationSettings.disabled,
+      );
+      addTearDown(cubit.close);
+
+      final states = <SettingsState>[];
+      final sub = cubit.stream.listen(states.add);
+      addTearDown(sub.cancel);
+
+      await cubit.setNormalizationEnabled(false);
 
       expect(states, isEmpty);
     });

@@ -20,6 +20,7 @@ class PlaybackSource extends Equatable {
     this.album,
     this.duration,
     this.image,
+    this.normalizationGain,
   });
 
   final MediaId id;
@@ -30,6 +31,22 @@ class PlaybackSource extends Equatable {
   final Duration? duration;
   final MediaImage? image;
 
+  /// The dB gain Jellyfin reports for this source (its `NormalizationGain`),
+  /// or `null` when the server has neither analyzed nor tagged it.
+  /// [NormalizationSettings.volumeFactorFor] is what turns this into an
+  /// actual volume multiplier — carried as plain dB here so a disabled
+  /// setting costs nothing and a re-enabled one needs no re-resolve.
+  final double? normalizationGain;
+
   @override
-  List<Object?> get props => [id, uri, title, artist, album, duration, image];
+  List<Object?> get props => [
+    id,
+    uri,
+    title,
+    artist,
+    album,
+    duration,
+    image,
+    normalizationGain,
+  ];
 }

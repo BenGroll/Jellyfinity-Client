@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart' as just_audio;
 
 import '../../domain/media/ArtworkResolver.dart';
 import '../../domain/playback/CrossfadeSettings.dart';
+import '../../domain/playback/NormalizationSettings.dart';
 import '../../domain/playback/PlaybackEngine.dart';
 import '../../domain/playback/PlaybackFailure.dart';
 import '../../domain/playback/PlaybackSource.dart';
@@ -84,6 +85,7 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   List<PlaybackSource> _sources = const [];
 
   CrossfadeSettings _crossfade = CrossfadeSettings.disabled;
+  NormalizationSettings _normalization = NormalizationSettings.disabled;
 
   /// Loading the incoming source only once the fade starts would spend
   /// the first seconds of the overlap buffering a network stream. The
@@ -146,6 +148,7 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
         // because the device is offline).
         preload: false,
       );
+      await _applyCurrentVolume();
     } on Object catch (error) {
       _reportFailure(initialIndex, error);
     }
@@ -215,6 +218,7 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     } else if (targetIndex < sources.length) {
       mediaItem.add(_toMediaItem(sources[targetIndex]));
     }
+    await _applyCurrentVolume();
     if (resumePlaying && !wasPlaying && !_player.playing) await _player.play();
   }
 
@@ -244,6 +248,39 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     // through an overlap does end that overlap, though — the user asked
     // for no crossfade.
     if (!settings.enabled) await _abandonCrossfade();
+  }
+
+  @override
+  Future<void> setNormalization(NormalizationSettings settings) async {
+    if (settings == _normalization) return;
+    _normalization = settings;
+    // Unlike crossfade, a volume level has no "next transition" to wait
+    // for — toggling this should be audible immediately. Mid-overlap the
+    // ramp owns both decks' volume, so it is left alone; it already
+    // reads gain through [_gainFactorFor] on its own next tick.
+    if (!_crossfading) await _applyCurrentVolume();
+  }
+
+  /// The gain-adjusted volume [source] should play at, applying
+  /// [_normalization] to its reported [PlaybackSource.normalizationGain].
+  double _gainFactorFor(PlaybackSource? source) =>
+      _normalization.volumeFactorFor(source?.normalizationGain);
+
+  PlaybackSource? get _currentSource {
+    final index = _player.currentIndex;
+    if (index == null || index < 0 || index >= _sources.length) return null;
+    return _sources[index];
+  }
+
+  /// Sets the active deck's volume from the current source's gain.
+  ///
+  /// Called wherever the active deck's current source could have changed
+  /// — after loading a new source list and on every
+  /// `currentIndexStream` event — so a gapless transition between two
+  /// differently-tagged tracks re-levels exactly like a crossfaded one
+  /// does, even though no crossfade code runs on that path at all.
+  Future<void> _applyCurrentVolume() async {
+    await _player.setVolume(_gainFactorFor(_currentSource));
   }
 
   @override
@@ -315,7 +352,7 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
       await standby.stop();
       await standby.setVolume(1);
     }
-    if (_player.volume != 1) await _player.setVolume(1);
+    await _applyCurrentVolume();
   }
 
   /// Decides, on each position tick of the active deck, whether it is
@@ -395,11 +432,20 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     // even a few milliseconds. Truncating its playlist makes the end of
     // this source the end of that deck.
     final outgoingIndex = outgoing.currentIndex;
+    // Read before the transfer below can change what `_sources[index]`
+    // means relative to either deck (ADR-0017): normalization is a
+    // per-source property, so each deck ramps toward its own source's
+    // gain, not the other's.
+    final outgoingGain = _gainFactorFor(
+      outgoingIndex != null && outgoingIndex < _sources.length
+          ? _sources[outgoingIndex]
+          : null,
+    );
+    final incomingGain = _gainFactorFor(
+      index < _sources.length ? _sources[index] : null,
+    );
     if (outgoingIndex != null && outgoingIndex + 1 < _sources.length) {
-      await outgoing.removeAudioSourceRange(
-        outgoingIndex + 1,
-        _sources.length,
-      );
+      await outgoing.removeAudioSourceRange(outgoingIndex + 1, _sources.length);
     }
 
     // Control transfers here, at the start of the overlap.
@@ -412,10 +458,17 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     _durationController.add(incoming.duration);
     _broadcastPlaybackState(incoming.playerState);
 
-    _ramp(outgoing: outgoing, incoming: incoming, fade: fade);
+    _ramp(
+      outgoing: outgoing,
+      incoming: incoming,
+      fade: fade,
+      outgoingGain: outgoingGain,
+      incomingGain: incomingGain,
+    );
   }
 
-  /// Ramps [outgoing] down and [incoming] up over [fade].
+  /// Ramps [outgoing] down and [incoming] up over [fade], each toward its
+  /// own source's normalization gain rather than toward unity.
   ///
   /// Equal-power (cosine/sine) rather than linear: two different
   /// recordings are uncorrelated, so their loudness sums as power, and a
@@ -425,6 +478,8 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     required just_audio.AudioPlayer outgoing,
     required just_audio.AudioPlayer incoming,
     required Duration fade,
+    required double outgoingGain,
+    required double incomingGain,
   }) {
     final steps = math.max(
       1,
@@ -436,8 +491,12 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     _rampTimer = Timer.periodic(_rampStep, (timer) {
       step++;
       final progress = math.min(1.0, step / steps);
-      unawaited(outgoing.setVolume(math.cos(progress * math.pi / 2)));
-      unawaited(incoming.setVolume(math.sin(progress * math.pi / 2)));
+      unawaited(
+        outgoing.setVolume(math.cos(progress * math.pi / 2) * outgoingGain),
+      );
+      unawaited(
+        incoming.setVolume(math.sin(progress * math.pi / 2) * incomingGain),
+      );
       if (progress < 1) return;
 
       timer.cancel();
@@ -446,7 +505,7 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
       unawaited(() async {
         await outgoing.stop();
         await outgoing.setVolume(1);
-        await incoming.setVolume(1);
+        await incoming.setVolume(incomingGain);
       }());
     });
   }
@@ -522,6 +581,11 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     if (index != null && index >= 0 && index < _sources.length) {
       mediaItem.add(_toMediaItem(_sources[index]));
     }
+    // Mid-crossfade the ramp owns both decks' volume; everywhere else —
+    // including an ordinary gapless transition, which runs none of the
+    // crossfade code at all — this is what re-levels the newly current
+    // source.
+    if (!_crossfading) unawaited(_applyCurrentVolume());
   }
 
   void _onPlayerError(just_audio.PlayerException error) {

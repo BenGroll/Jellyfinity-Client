@@ -7,6 +7,7 @@ import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/Track.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
@@ -20,11 +21,17 @@ import '../../support/playback_fakes.dart';
 import '../../support/settings_fakes.dart';
 import '../../support/test_database.dart';
 
-Track _track(String itemId, {String name = 'Track', Duration? duration}) {
+Track _track(
+  String itemId, {
+  String name = 'Track',
+  Duration? duration,
+  double? normalizationGain,
+}) {
   return Track(
     id: MediaId(serverId: 's1', itemId: itemId),
     name: name,
     duration: duration ?? const Duration(minutes: 3),
+    normalizationGain: normalizationGain,
   );
 }
 
@@ -117,6 +124,19 @@ void main() {
         expect(cubit.state.queue.currentIndex, 1);
         expect(engine.sources, hasLength(1));
         expect(engine.playing, isTrue);
+      },
+    );
+
+    test(
+      "a track's normalization gain is carried onto its PlaybackSource",
+      () async {
+        await cubit.playNow([
+          _track('a', normalizationGain: -4.5),
+          _track('b'),
+        ], startIndex: 0);
+
+        expect(engine.sources[0].normalizationGain, -4.5);
+        expect(engine.sources[1].normalizationGain, isNull);
       },
     );
   });
@@ -312,10 +332,15 @@ void main() {
       await cubit.restore();
 
       expect(cubit.state.queue.isEmpty, isTrue);
-      // Construction configures crossfade on the engine (ADR-0016);
-      // restore itself must not load, play or otherwise touch it.
+      // Construction configures crossfade (ADR-0016) and normalization
+      // (v0.1.4) on the engine; restore itself must not load, play or
+      // otherwise touch it.
       expect(
-        engine.calls.where((c) => !c.startsWith('setCrossfade')),
+        engine.calls.where(
+          (c) =>
+              !c.startsWith('setCrossfade') &&
+              !c.startsWith('setNormalization'),
+        ),
         isEmpty,
       );
     });
@@ -476,15 +501,17 @@ void main() {
       expect(engine.crossfade.enabled, isFalse);
     });
 
-    test('an unrelated settings change does not reconfigure the engine',
-        () async {
-      final before = crossfadeCalls().length;
+    test(
+      'an unrelated settings change does not reconfigure the engine',
+      () async {
+        final before = crossfadeCalls().length;
 
-      await settings.setStreamQuality(StreamQuality.high);
-      await _pump();
+        await settings.setStreamQuality(StreamQuality.high);
+        await _pump();
 
-      expect(crossfadeCalls(), hasLength(before));
-    });
+        expect(crossfadeCalls(), hasLength(before));
+      },
+    );
 
     test('repeat-one suppresses crossfade, and leaving it restores the '
         'preference', () async {
@@ -517,5 +544,68 @@ void main() {
       await _pump();
       expect(engine.crossfade.enabled, isTrue);
     });
+  });
+
+  group('normalization configuration seam (v0.1.4)', () {
+    List<String> normalizationCalls() =>
+        engine.calls.where((c) => c.startsWith('setNormalization')).toList();
+
+    test('the engine is configured from the saved preference at '
+        'construction, before anything is queued', () async {
+      final saved = fakeSettingsCubit(
+        normalization: const NormalizationSettings(enabled: true),
+      );
+      addTearDown(saved.close);
+      final savedEngine = FakePlaybackEngine();
+      addTearDown(savedEngine.disposeForTest);
+      final savedCubit = PlaybackCubit(
+        savedEngine,
+        queueRepository,
+        resolver,
+        progress,
+        saved,
+      );
+      addTearDown(savedCubit.close);
+      await _pump();
+
+      expect(savedEngine.normalization.enabled, isTrue);
+    });
+
+    test('a preference change reaches the engine', () async {
+      await settings.setNormalizationEnabled(true);
+      await _pump();
+
+      expect(engine.normalization.enabled, isTrue);
+
+      await settings.setNormalizationEnabled(false);
+      await _pump();
+
+      expect(engine.normalization.enabled, isFalse);
+    });
+
+    test(
+      'an unrelated settings change does not reconfigure the engine',
+      () async {
+        final before = normalizationCalls().length;
+
+        await settings.setStreamQuality(StreamQuality.high);
+        await _pump();
+
+        expect(normalizationCalls(), hasLength(before));
+      },
+    );
+
+    test(
+      'repeat mode does not affect normalization, unlike crossfade',
+      () async {
+        await settings.setNormalizationEnabled(true);
+        await _pump();
+
+        await cubit.setRepeatMode(RepeatMode.one);
+        await _pump();
+
+        expect(engine.normalization.enabled, isTrue);
+      },
+    );
   });
 }

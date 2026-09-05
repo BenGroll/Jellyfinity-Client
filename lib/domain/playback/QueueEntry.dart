@@ -23,6 +23,7 @@ class QueueEntry extends Equatable {
     this.albumName,
     this.duration,
     this.image,
+    this.normalizationGain,
     this.availability = MediaAvailability.remoteOnly,
   });
 
@@ -33,6 +34,7 @@ class QueueEntry extends Equatable {
     albumName: track.albumName,
     duration: track.duration,
     image: track.image,
+    normalizationGain: track.normalizationGain,
     availability: track.availability,
   );
 
@@ -44,6 +46,11 @@ class QueueEntry extends Equatable {
   final String? albumName;
   final Duration? duration;
   final MediaImage? image;
+
+  /// Denormalized from [Track.normalizationGain] (v0.1.4), for the same
+  /// reason every other display field here is: a restored queue has to
+  /// hand `PlaybackCubit` a source-ready value without a network call.
+  final double? normalizationGain;
 
   /// Set to [MediaAvailability.remoteUnavailable] when
   /// [PlaybackEngine.failureStream] reports this entry could not be
@@ -58,6 +65,7 @@ class QueueEntry extends Equatable {
     albumName: albumName,
     duration: duration,
     image: image,
+    normalizationGain: normalizationGain,
     availability: MediaAvailability.remoteUnavailable,
   );
 
@@ -69,6 +77,7 @@ class QueueEntry extends Equatable {
     albumName,
     duration,
     image,
+    normalizationGain,
     availability,
   ];
 }

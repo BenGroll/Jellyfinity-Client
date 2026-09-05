@@ -90,13 +90,14 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.byType(SwitchListTile), 200);
+    final crossfadeSwitch = find.widgetWithText(SwitchListTile, 'Crossfade');
+    await tester.scrollUntilVisible(crossfadeSwitch, 200);
     await tester.pumpAndSettle();
 
     // Off by default, so there is nothing to set a length on yet.
     expect(find.byType(Slider), findsNothing);
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(crossfadeSwitch);
     await tester.pumpAndSettle();
 
     expect(settings.state.crossfade.enabled, isTrue);
@@ -112,9 +113,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(find.byType(SwitchListTile), -200);
+    await tester.scrollUntilVisible(crossfadeSwitch, -200);
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(crossfadeSwitch);
     await tester.pumpAndSettle();
 
     expect(settings.state.crossfade.enabled, isFalse);
@@ -151,8 +152,40 @@ void main() {
     await tester.drag(find.byType(Slider), const Offset(500, 0));
     await tester.pumpAndSettle();
 
-    expect(settings.state.crossfade.duration, CrossfadeSettings.maximumDuration);
+    expect(
+      settings.state.crossfade.duration,
+      CrossfadeSettings.maximumDuration,
+    );
     // One write per adjustment, not one per pixel of the drag.
     expect(states, hasLength(1));
+  });
+
+  testWidgets('turning volume normalization on updates the setting', (
+    tester,
+  ) async {
+    final scope = TestSessionScope();
+    final settings = fakeSettingsCubit();
+    await pumpApp(tester, scope: scope, settings: settings);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.menu_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    final normalizationSwitch = find.widgetWithText(
+      SwitchListTile,
+      'Volume normalization',
+    );
+    await tester.scrollUntilVisible(normalizationSwitch, 200);
+    await tester.pumpAndSettle();
+
+    expect(settings.state.normalization.enabled, isFalse);
+
+    await tester.tap(normalizationSwitch);
+    await tester.pumpAndSettle();
+
+    expect(settings.state.normalization.enabled, isTrue);
   });
 }

@@ -2,6 +2,7 @@ import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 
@@ -64,7 +65,14 @@ SettingsCubit fakeSettingsCubit({
   ShellNavigationMode mode = ShellNavigationMode.mediaPills,
   StreamQuality quality = StreamQuality.original,
   CrossfadeSettings crossfade = CrossfadeSettings.disabled,
-}) => SettingsCubit(InMemoryKeyValueStore(), mode, quality, crossfade);
+  NormalizationSettings normalization = NormalizationSettings.disabled,
+}) => SettingsCubit(
+  InMemoryKeyValueStore(),
+  mode,
+  quality,
+  crossfade,
+  normalization,
+);
 
 /// A [MediaScopeCubit] with its default seeded state (Music only).
 MediaScopeCubit fakeMediaScopeCubit() => MediaScopeCubit();
