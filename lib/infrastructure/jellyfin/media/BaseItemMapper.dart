@@ -101,6 +101,7 @@ class BaseItemMapper {
       trackNumber: dto.indexNumber,
       discNumber: dto.parentIndexNumber,
       duration: _duration(dto.runTimeTicks),
+      playlistEntryId: _name(dto.playlistItemId),
       availability: _availability(dto),
       image: _primaryImage(dto, id),
     );

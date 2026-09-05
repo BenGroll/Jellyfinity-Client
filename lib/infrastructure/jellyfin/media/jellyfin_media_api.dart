@@ -97,8 +97,25 @@ class JellyfinMediaApi {
     return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 
+  /// Playlist creation/curation; everything browsable comes from
+  /// [itemsPath], everything mutating a playlist comes from here.
+  static const String playlistsPath = '/Playlists';
+
+  static String playlistPath(String playlistId) =>
+      '$playlistsPath/$playlistId';
+
   static String playlistItemsPath(String playlistId) =>
-      '/Playlists/$playlistId/Items';
+      '${playlistPath(playlistId)}/Items';
+
+  static String playlistItemMovePath(
+    String playlistId,
+    String entryId,
+    int newIndex,
+  ) => '${playlistItemsPath(playlistId)}/$entryId/Move/$newIndex';
+
+  /// Jellyfin's generic item deletion route — used to delete a playlist
+  /// itself, which is otherwise an ordinary library item.
+  static String itemPath(String itemId) => '$itemsPath/$itemId';
 
   /// Jellyfin 10.10 replaced `/Users/{userId}/PlayedItems/{itemId}` with
   /// this user-implicit form; the minimum supported server is 10.11.6.
@@ -263,6 +280,150 @@ class JellyfinMediaApi {
       playedItemPath(itemId),
       method: played ? 'POST' : 'DELETE',
       queryParameters: {'userId': active.userId},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// The most ids [addPlaylistItems] puts on one request. Jellyfin takes
+  /// them as a single comma-separated query value, so a bulk add (an
+  /// entire artist's discography, say) is sent in chunks rather than one
+  /// unbounded URL.
+  static const int playlistBatchSize = 200;
+
+  /// Creates a playlist named [name], optionally seeded with [ids] in
+  /// order. Returns the new playlist's item id.
+  Future<Result<String>> createPlaylist({
+    required String name,
+    List<String> ids = const [],
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.postJson<String>(
+      playlistsPath,
+      parse: (json) => json['Id'] as String,
+      queryParameters: {
+        'name': name,
+        'userId': active.userId,
+        'mediaType': 'Audio',
+        if (ids.isNotEmpty) 'ids': ids.join(','),
+      },
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Renames a playlist. Every other field of `UpdatePlaylistDto` is left
+  /// out of the body: Jellyfin treats an absent field as "keep the current
+  /// value", so this cannot touch the playlist's contents.
+  Future<Result<void>> renamePlaylist(
+    String playlistId,
+    String name, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      playlistPath(playlistId),
+      method: 'POST',
+      body: {'Name': name},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Deletes an item outright — used for a playlist itself, which is
+  /// otherwise an ordinary library item.
+  Future<Result<void>> deleteItem(String itemId, {CancelToken? cancelToken}) {
+    return _send(itemPath(itemId), method: 'DELETE', cancelToken: cancelToken);
+  }
+
+  /// Appends [ids] to [playlistId], in [playlistBatchSize] chunks.
+  Future<Result<void>> addPlaylistItems(
+    String playlistId,
+    List<String> ids, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    for (var start = 0; start < ids.length; start += playlistBatchSize) {
+      final chunk = ids.sublist(
+        start,
+        (start + playlistBatchSize).clamp(0, ids.length),
+      );
+      final result = await active.client.send(
+        playlistItemsPath(playlistId),
+        method: 'POST',
+        queryParameters: {'ids': chunk.join(','), 'userId': active.userId},
+        cancelToken: cancelToken,
+      );
+      if (result case Err<void>(:final failure)) return Result.err(failure);
+    }
+    return const Result.ok(null);
+  }
+
+  /// Removes [entryIds] (the playlist's own per-entry ids, not track ids)
+  /// from [playlistId], in [playlistBatchSize] chunks.
+  Future<Result<void>> removePlaylistItems(
+    String playlistId,
+    List<String> entryIds, {
+    CancelToken? cancelToken,
+  }) async {
+    for (var start = 0; start < entryIds.length; start += playlistBatchSize) {
+      final chunk = entryIds.sublist(
+        start,
+        (start + playlistBatchSize).clamp(0, entryIds.length),
+      );
+      final result = await _send(
+        playlistItemsPath(playlistId),
+        method: 'DELETE',
+        queryParameters: {'entryIds': chunk.join(',')},
+        cancelToken: cancelToken,
+      );
+      if (result case Err<void>(:final failure)) return Result.err(failure);
+    }
+    return const Result.ok(null);
+  }
+
+  /// Moves entry [entryId] within [playlistId] to [newIndex].
+  Future<Result<void>> movePlaylistItem(
+    String playlistId,
+    String entryId,
+    int newIndex, {
+    CancelToken? cancelToken,
+  }) {
+    return _send(
+      playlistItemMovePath(playlistId, entryId, newIndex),
+      method: 'POST',
+      cancelToken: cancelToken,
+    );
+  }
+
+  Future<Result<void>> _send(
+    String path, {
+    required String method,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+    return active.client.send(
+      path,
+      method: method,
+      queryParameters: queryParameters,
       cancelToken: cancelToken,
     );
   }

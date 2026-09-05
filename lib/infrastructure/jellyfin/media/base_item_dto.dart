@@ -44,6 +44,7 @@ class BaseItemDto {
     this.primaryImageAspectRatio,
     this.userData,
     this.mediaSources,
+    this.playlistItemId,
   });
 
   factory BaseItemDto.fromJson(Map<String, dynamic> json) =>
@@ -112,6 +113,12 @@ class BaseItemDto {
   /// streams. Only requested via `MediaSources` in `fields` (ADR-0015's
   /// `TrackSourceInfoResolver`), never in a list query's default fields.
   final List<MediaSourceInfoDto>? mediaSources;
+
+  /// This item's own entry id within the playlist it was just read from.
+  /// Only present on `/Playlists/{Id}/Items` responses — Jellyfin adds it
+  /// there because a playlist can hold the same item more than once, each
+  /// occurrence needing its own id for removal/reordering.
+  final String? playlistItemId;
 }
 
 /// One file behind an item — Jellyfin supports multiple versions per

@@ -15,6 +15,8 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart' as _i84;
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart' as _i126;
+import 'package:jellyfinity/app/playlists/PlaylistCurationService.dart'
+    as _i799;
 import 'package:jellyfinity/app/router/AppRouter.dart' as _i587;
 import 'package:jellyfinity/app/session/AuthSessionManager.dart' as _i56;
 import 'package:jellyfinity/app/session/SessionAuthTokenProvider.dart' as _i51;
@@ -47,6 +49,8 @@ import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup
     as _i952;
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart'
     as _i213;
+import 'package:jellyfinity/features/music/presentation/detail/playlist_edit_cubit.dart'
+    as _i259;
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart'
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
@@ -75,6 +79,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMusicLibraryRe
     as _i814;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaybackProgressRepository.dart'
     as _i36;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistEditor.dart'
+    as _i801;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistRepository.dart'
     as _i516;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinTrackSourceInfoResolver.dart'
@@ -261,6 +267,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i621.TrackSourceInfoResolver>(
       () => _i89.JellyfinTrackSourceInfoResolver(gh<_i963.JellyfinMediaApi>()),
     );
+    gh.lazySingleton<_i747.PlaylistEditor>(
+      () => _i801.JellyfinPlaylistEditor(gh<_i963.JellyfinMediaApi>()),
+    );
     gh.lazySingleton<_i126.PlaybackCubit>(
       () => _i126.PlaybackCubit(
         gh<_i717.PlaybackEngine>(),
@@ -290,6 +299,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i814.JellyfinMusicLibraryRepository>(),
         gh<_i1018.MediaCacheStore>(),
         gh<_i346.JellyfinSessionContext>(),
+      ),
+    );
+    gh.lazySingleton<_i799.PlaylistCurationService>(
+      () => _i799.PlaylistCurationService(
+        gh<_i747.PlaylistEditor>(),
+        gh<_i747.PlaylistRepository>(),
+        gh<_i747.MusicLibraryRepository>(),
+      ),
+    );
+    gh.factory<_i259.PlaylistEditCubit>(
+      () => _i259.PlaylistEditCubit(
+        gh<_i747.PlaylistRepository>(),
+        gh<_i747.PlaylistEditor>(),
       ),
     );
     gh.factory<_i169.MusicSearchCubit>(

@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:jellyfinity/app/playlists/PlaylistCurationService.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
+import 'package:jellyfinity/features/music/presentation/detail/playlist_edit_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 
@@ -208,6 +210,69 @@ class FakePlaylistRepository implements PlaylistRepository {
   }
 }
 
+/// A [PlaylistEditor] that records every call it receives and answers
+/// [failure] (or success) for all of them.
+class FakePlaylistEditor implements PlaylistEditor {
+  Failure? failure;
+  final List<String> calls = [];
+
+  @override
+  Future<Result<MediaId>> create({
+    required String name,
+    List<MediaId> trackIds = const [],
+  }) async {
+    calls.add('create($name)');
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(MediaId(serverId: 'server-1', itemId: 'new-playlist'));
+  }
+
+  @override
+  Future<Result<void>> rename(MediaId playlistId, String name) async {
+    calls.add('rename($playlistId, $name)');
+    final failed = failure;
+    return failed == null ? const Result.ok(null) : Result.err(failed);
+  }
+
+  @override
+  Future<Result<void>> delete(MediaId playlistId) async {
+    calls.add('delete($playlistId)');
+    final failed = failure;
+    return failed == null ? const Result.ok(null) : Result.err(failed);
+  }
+
+  @override
+  Future<Result<void>> addTracks(
+    MediaId playlistId,
+    List<MediaId> trackIds,
+  ) async {
+    calls.add('addTracks($playlistId, $trackIds)');
+    final failed = failure;
+    return failed == null ? const Result.ok(null) : Result.err(failed);
+  }
+
+  @override
+  Future<Result<void>> removeEntries(
+    MediaId playlistId,
+    List<String> entryIds,
+  ) async {
+    calls.add('removeEntries($playlistId, $entryIds)');
+    final failed = failure;
+    return failed == null ? const Result.ok(null) : Result.err(failed);
+  }
+
+  @override
+  Future<Result<void>> moveEntry(
+    MediaId playlistId, {
+    required String entryId,
+    required int newIndex,
+  }) async {
+    calls.add('moveEntry($playlistId, $entryId, $newIndex)');
+    final failed = failure;
+    return failed == null ? const Result.ok(null) : Result.err(failed);
+  }
+}
+
 /// A [MediaMetadataRepository] that answers from a fixed set of items.
 class FakeMediaMetadataRepository implements MediaMetadataRepository {
   List<MediaItem> items = [];
@@ -232,10 +297,12 @@ void registerMusicCubits({
   required FakeMusicLibraryRepository music,
   FakePlaylistRepository? playlists,
   FakeMediaMetadataRepository? metadata,
+  FakePlaylistEditor? editor,
 }) {
   final getIt = GetIt.instance;
   final playlistRepository = playlists ?? FakePlaylistRepository();
   final metadataRepository = metadata ?? FakeMediaMetadataRepository();
+  final playlistEditor = editor ?? FakePlaylistEditor();
 
   getIt
     ..registerFactory<ArtistsCubit>(() => ArtistsCubit(music))
@@ -245,6 +312,9 @@ void registerMusicCubits({
     ..registerFactory<PlaylistTracksCubit>(
       () => PlaylistTracksCubit(playlistRepository),
     )
+    ..registerFactory<PlaylistEditCubit>(
+      () => PlaylistEditCubit(playlistRepository, playlistEditor),
+    )
     ..registerFactory<ArtistDetailCubit>(() => ArtistDetailCubit(music))
     ..registerFactory<AlbumDetailCubit>(() => AlbumDetailCubit(music))
     ..registerFactory<PlaylistDetailCubit>(
@@ -252,6 +322,9 @@ void registerMusicCubits({
     )
     ..registerFactory<MusicSearchCubit>(
       () => MusicSearchCubit(music, playlistRepository),
+    )
+    ..registerLazySingleton<PlaylistCurationService>(
+      () => PlaylistCurationService(playlistEditor, playlistRepository, music),
     );
   addTearDown(getIt.reset);
 }

@@ -19,6 +19,7 @@ class Track extends MediaItem {
     this.trackNumber,
     this.discNumber,
     this.duration,
+    this.playlistEntryId,
     super.availability = MediaAvailability.remoteOnly,
     super.image,
   });
@@ -36,6 +37,15 @@ class Track extends MediaItem {
 
   final Duration? duration;
 
+  /// This track's own entry id within the playlist it was just read from
+  /// (`PlaylistRepository.tracks`), or `null` outside that context.
+  ///
+  /// Distinct from [id]: the same track can appear in a playlist more than
+  /// once, each occurrence with its own entry id, so removing or
+  /// reordering "this row" needs this rather than the track's own id
+  /// (`PlaylistEditor.removeEntries`/`moveEntry`).
+  final String? playlistEntryId;
+
   @override
   MediaKind get kind => MediaKind.track;
 
@@ -49,6 +59,7 @@ class Track extends MediaItem {
     trackNumber,
     discNumber,
     duration,
+    playlistEntryId,
     availability,
     image,
   ];
