@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
 import '../domain/media/ArtworkResolver.dart';
+import '../domain/playback/CrossfadeSettings.dart';
 import '../domain/playback/PlaybackEngine.dart';
 import '../domain/playback/stream_quality.dart';
 import '../infrastructure/artwork/ArtworkCache.dart';
@@ -56,6 +57,15 @@ Future<void> bootstrap({required Widget Function() builder}) async {
     getIt<KeyValueStore>(),
   );
   getIt.registerSingleton<StreamQuality>(initialStreamQuality);
+
+  // Crossfade (ADR-0016) is read here too, so the engine is configured
+  // before the restored queue is primed rather than after — a saved
+  // crossfade preference is in force from the first transition, not the
+  // second.
+  final initialCrossfade = await SettingsCubit.loadInitialCrossfade(
+    getIt<KeyValueStore>(),
+  );
+  getIt.registerSingleton<CrossfadeSettings>(initialCrossfade);
 
   // JustAudioPlaybackEngine is BaseAudioHandler itself, and AudioService
   // .init() can only ever be called once per process — that makes it a

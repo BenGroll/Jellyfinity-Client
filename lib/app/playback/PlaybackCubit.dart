@@ -8,6 +8,7 @@ import '../../domain/media/MediaId.dart';
 import '../../domain/media/PlaybackProgressRepository.dart';
 import '../../domain/media/Track.dart';
 import '../../domain/playback/AudioSourceResolver.dart';
+import '../../domain/playback/CrossfadeSettings.dart';
 import '../../domain/playback/PlaybackEngine.dart';
 import '../../domain/playback/PlaybackFailure.dart';
 import '../../domain/playback/PlaybackQueue.dart';
@@ -45,6 +46,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     _durationSub = _engine.durationStream.listen(_onDuration);
     _currentIndexSub = _engine.currentIndexStream.listen(_onEngineIndexChanged);
     _failureSub = _engine.failureStream.listen(_onEngineFailure);
+    _settingsSub = _settings.stream.listen((_) => _applyCrossfade());
+    _applyCrossfade();
   }
 
   final PlaybackEngine _engine;
@@ -58,6 +61,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   late final StreamSubscription<Duration?> _durationSub;
   late final StreamSubscription<int?> _currentIndexSub;
   late final StreamSubscription<PlaybackFailure> _failureSub;
+  late final StreamSubscription<SettingsState> _settingsSub;
+
+  /// The crossfade configuration last pushed to the engine, so a
+  /// settings change that does not affect it (a stream-quality change,
+  /// say) does not churn the engine.
+  CrossfadeSettings? _appliedCrossfade;
 
   /// Frequent enough that a restart loses at most a few seconds of
   /// position; cheap enough to run on every tick while a track plays.
@@ -213,8 +222,31 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> toggleShuffle() =>
       _mutate((queue) => queue.withShuffle(!queue.shuffleEnabled));
 
-  Future<void> setRepeatMode(RepeatMode mode) =>
-      _mutate((queue) => queue.withRepeatMode(mode));
+  Future<void> setRepeatMode(RepeatMode mode) async {
+    await _mutate((queue) => queue.withRepeatMode(mode));
+    // Repeat-one changes what a crossfade would even be fading into.
+    _applyCrossfade();
+  }
+
+  // ---- Playback preferences ----
+
+  /// Pushes the effective crossfade configuration to the engine
+  /// (ADR-0016), whenever the preference or the repeat mode changes.
+  ///
+  /// Repeat-one is the one case the preference is overridden. The engine
+  /// deliberately knows nothing about repeat — it would happily start
+  /// overlapping the *next* source in the loaded list, while repeat-one
+  /// means this queue never reaches it. Resolving that here keeps the
+  /// domain rule where the queue lives and leaves the engine contract
+  /// as narrow as ADR-0013 made it.
+  void _applyCrossfade() {
+    final effective = state.queue.repeatMode == RepeatMode.one
+        ? CrossfadeSettings.disabled
+        : _settings.state.crossfade;
+    if (effective == _appliedCrossfade) return;
+    _appliedCrossfade = effective;
+    unawaited(_engine.setCrossfade(effective));
+  }
 
   Future<void> _mutate(PlaybackQueue Function(PlaybackQueue queue) transform) =>
       _enqueue(() => _mutateNow(transform));
@@ -551,6 +583,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   @override
   Future<void> close() {
     _positionTimer?.cancel();
+    unawaited(_settingsSub.cancel());
     unawaited(_statusSub.cancel());
     unawaited(_positionSub.cancel());
     unawaited(_durationSub.cancel());
