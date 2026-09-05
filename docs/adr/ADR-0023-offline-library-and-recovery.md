@@ -117,10 +117,24 @@ is enough to make its artist and album browsable offline. The merge is in
 memory, which would be wrong for the 130k-song server library but is fine
 here — a profile's downloads are bounded by what the user chose to keep.
 
+The same source answers a **single** artist / album / playlist header
+(`artist(id)`, `album(id)`, `playlist(id)`) and a scoped track or album
+window (`albumTracks`, `artistAlbums`). `CachedMusicLibraryRepository` and
+`CachedMediaMetadataRepository` reach for these as the last step of the
+cache-fallback chain — after the metadata cache misses, before returning
+the failure — so an artist found only through a downloaded track opens
+instead of dead-ending on a wifi error. What the downloads cannot supply
+is reported, not hidden: when the caller knows the real total (a cached
+album's `trackCount`, a cached discography's count, a playlist's snapshot
+length) the shortfall rides back as `offlineUnavailableReason` entries in
+the page's `unavailable` list, and `PagedCollectionView` collapses them
+into one "N songs / albums not available offline" line — the count is
+honest, a row per never-downloaded title would not be.
+
 Normal offline browsing is unchanged: the metadata cache still serves the
 collections a user has actually browsed.
 
-Four smaller surface changes go with it:
+Smaller surface changes go with it:
 
 - A downloaded album, artist or playlist carries a small marker on its
   library tile/row and detail header (`DownloadedMarker`, off
@@ -134,11 +148,13 @@ Four smaller surface changes go with it:
   greyed out and non-interactive in place (`TrackRow.playable`), rather
   than shown identically to a playable one. This is the per-item dimming
   the `SavedCopyNotice` era had suppressed.
-- The per-list "showing your saved copy" notice is gone. One offline line
-  sits under the shared search field for every Home/Library tab
-  (`HomeLibraryHeader`), and the search screen's "server unreachable"
-  state is one line under its field rather than a full-page error plus a
-  per-category failure line.
+- The per-list "showing your saved copy" notice is gone, and so is the
+  library page's separate "downloads only" line. One offline line sits
+  under the shared search field for every Home/Library tab
+  (`HomeLibraryHeader`); its wording switches on the "Offline library"
+  scope rather than a second banner stacking under it. The search
+  screen's "server unreachable" state is one line under its field rather
+  than a full-page error plus a per-category failure line.
 
 ### Crossing on-/offline reloads what is on screen
 
@@ -148,6 +164,16 @@ Four smaller surface changes go with it:
 `isOffline` (an unopened tab is left alone). Without it a screen already
 rendered would keep showing the server's list after the user went offline,
 or the saved copy after they came back.
+
+The offline switch and the "Downloads only" scope both change what
+`fetch` answers, and on the offline↔online transition both fire a reload
+on the same frame — the mixin's, and the library page's `showDownloadedOnly`
+call. `PagedCollectionCubit` previously dropped the second (its `_busy`
+guard bailed a `reload` that a fetch was mid-flight for, leaving the
+screen on the stale window). It now queues that reload and runs it once
+the in-flight fetch lands, discarding the window read under the
+now-superseded parameters. `MediaDetailCubit` guards the same race with a
+generation counter.
 
 ## Decision: the user can switch the whole app offline
 
@@ -231,8 +257,14 @@ download proceeds.
   list/detail/search cubit gains one too (for `OfflineReload`).
   `CONTEXT.md`'s "not a separate app mode" invariant and the arc's
   "offline-only app mode" non-goal are amended, not silently broken.
-- `SavedCopyNotice` is deleted; the shell header owns the one offline
-  line now.
+- `SavedCopyNotice` and the library page's "downloads only" line are both
+  deleted; the shell header owns the one offline line, its wording driven
+  by the "Offline library" scope.
+- `CachedMusicLibraryRepository` and `CachedMediaMetadataRepository` gain
+  a `DownloadsLibrarySource` dependency as the tail of the cache-fallback
+  chain; `CachedMediaMetadataRepository` also gains `OfflineMode` (it
+  short-circuits offline now, like the other two). No cycle —
+  `DownloadsLibrarySource` needs only the `DownloadStore`.
 - The playback pipeline, queue, crossfade and normalization learn nothing
   new: a "only on this device" track plays through the exact v0.2.0
   local-first path, and the offline library windows are ordinary `Page`s.

@@ -444,14 +444,23 @@ All notable changes to Jellyfinity are documented here.
     search that fails whole offline falls back to those downloads when
     they match, so an offline search still finds playable music rather
     than only an error.
+  - Opening one of those artists, albums or playlists offline now works
+    too, not just finding it: the detail page renders from the downloads
+    when nothing was ever saved for it. The part that is not on the
+    device is one honest "N songs not available offline" / "N albums not
+    available offline" line — the count, not a row per title the user
+    never downloaded. Playlists fill from their membership snapshot the
+    same way.
   - A "Work offline" switch in the sidebar deliberately puts the whole
     app offline — the library and search answer from the device, no
     server round-trips. With no connection it shows on and disabled. A
     new Settings choice, "Offline library", decides what offline shows:
     the whole cached library with download markers ("Show everything"),
     or only what is on the device ("Downloads only"). It applies only
-    while offline. Switching on or off reloads whatever is on screen.
-    See ADR-0023; this revisits `CONTEXT.md`'s "not a separate app mode"
+    while offline. Switching on or off reloads every list already on
+    screen, and the reloaded window reflects the mode it landed in even
+    when the switch and the scope both fired on the same frame. See
+    ADR-0023; this revisits `CONTEXT.md`'s "not a separate app mode"
     line, which is updated to match.
   - Downloaded albums and artists carry a small marker on their library
     tile or row and on their detail header.
@@ -462,9 +471,12 @@ All notable changes to Jellyfinity are documented here.
     greyed out in place instead.
   - The per-list "showing your saved copy" notice is replaced by one
     offline line under the shared search field, shown on every Home and
-    Library tab. The search screen's "can't reach the server" state is
-    likewise one line under its field rather than a full-page error and a
-    red line under every category.
+    Library tab. It is the only offline banner: its wording switches on
+    the "Offline library" scope ("showing your saved library" /
+    "showing downloaded music only") instead of the library page stacking
+    a second line of its own. The search screen's "can't reach the
+    server" state is likewise one line under its field rather than a
+    full-page error and a red line under every category.
   - Opening a downloaded album or artist online reconciles its tracks
     against the server: one the server no longer lists is marked
     `server_gone` and shown as "Only on this device" — kept and still
