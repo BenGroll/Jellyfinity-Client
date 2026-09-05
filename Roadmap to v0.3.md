@@ -186,8 +186,13 @@ server-independence behavior on Android and iOS.
 
 Movies, TV, video playback, video downloads, automatic cleanup, automatic
 playlist synchronization, smart playlists, recommendations, social sharing,
-collaboration, multi-server unified libraries, desktop/TV clients, theme
-editing, and an offline-only app mode are outside this arc.
+collaboration, multi-server unified libraries, desktop/TV clients, and theme
+editing are outside this arc.
+
+v0.2.3 adds a deliberate "Work offline" switch and an offline "Downloads only"
+library scope (ADR-0023). This is a user convenience layered over the
+availability model — a plane-mode toggle — not an offline-only build of the
+app: the server-backed experience is unchanged the moment the switch is off.
 
 ## Decisions to settle during implementation
 

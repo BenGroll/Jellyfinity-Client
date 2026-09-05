@@ -16,8 +16,11 @@ ideas only when a concrete decision requires them.
 - UX feedback, loading behavior, error handling, and perceived reliability are
   part of feature completion.
 - Music is the initial focus; movies and TV remain future first-class media.
-- Offline is an item's availability state, not a separate app mode. Downloaded
-  media is first-class local media and is not disposable cache.
+- Offline is primarily an item's availability state. A user may also switch the
+  whole app offline deliberately ("Work offline"), and choose whether that view
+  is the full cached library or downloads only (v0.2.3, ADR-0023); this is a
+  convenience over the availability model, not a rebuild of it. Downloaded media
+  is first-class local media and is not disposable cache.
 - No ads, paid tiers, unnecessary telemetry, or unnecessary cloud dependency.
 - Treat roughly 130k songs, 500 movies, and 4k episodes as normal scale. Use
   pagination, lazy/virtualized lists, server-side filtering, indexed storage,

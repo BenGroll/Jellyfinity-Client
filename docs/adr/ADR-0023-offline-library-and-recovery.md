@@ -24,6 +24,13 @@ the existing screens offline; how a server-side deletion is reflected
 without destroying local media; and how a probe for free space fits the
 existing seam conventions.
 
+A sixth was added during implementation, at the project owner's request:
+a deliberate "Work offline" switch and a preference for how much library
+that shows. `CONTEXT.md` had said "offline is an item's availability
+state, not a separate app mode"; this ADR revisits that (the
+availability model stays — this is a convenience on top of it) and
+`CONTEXT.md` and the roadmap non-goals are updated to match.
+
 ## Decision: a download belongs to one profile
 
 Every row in `track_downloads`, `download_owners` and
@@ -104,6 +111,42 @@ Normal offline browsing is unchanged: the metadata cache still serves the
 collections a user has actually browsed. The filter is how the full
 downloaded set is found offline.
 
+Three smaller surface changes go with it. A downloaded album, artist or
+playlist now carries a small marker on its library tile/row and detail
+header (`DownloadedMarker`, off `DownloadCatalog.statusFor`). A downloaded
+track plays from a tap even where its row reads "unavailable" — the
+library and search track rows, and the Downloads screen's own song rows,
+now gate playback on `catalog.isDownloaded(id)` as well as remote
+availability, since playback already resolves local-first. And the search
+screen's "server unreachable" state is one line under the field, not a
+full-page error plus four per-category failure lines — an offline search
+still shows whatever downloaded results match beneath it.
+
+## Decision: the user can switch the whole app offline
+
+`OfflineMode` (domain seam) exposes one `OfflineStatus` —
+`isManual || !isConnected` — behind `PersistedOfflineMode`, which reads
+`NetworkCondition` for the connection and `KeyValueStore` for the switch,
+the same replaceable-seam shape as the storage probe. `OfflineCubit`
+makes it a bloc for the sidebar switch and the offline banners; the
+cached music and playlist repositories read the seam directly and, when
+it is active, skip the server and answer from the same cache-fallback
+path a real timeout takes (a synthetic `RecoverableFailure`, so nothing
+downstream needs a new code path).
+
+With no connection the switch is shown on and disabled — the app is
+already offline, honestly labelled. The switch never deletes anything and
+never touches the server; turning it off restores the exact pre-v0.2.3
+behaviour.
+
+The `SettingsCubit` `offlineLibraryScope` preference
+(`unlimited` / `limited`) decides what offline shows: the whole cached
+library with markers, or only downloads. It is consulted **only while
+offline** — online, the library is always the full one — and it is
+enforced in the presentation layer (the library page and the search view
+force the existing "Downloaded" filter and hide its chip), so no
+repository or cubit contract learns about it.
+
 ## Decision: a server-side deletion is a state, not a removal
 
 `track_downloads` gains a `server_gone` flag. It is set **only** when the
@@ -154,6 +197,12 @@ download proceeds.
 - `disk_space_plus` is a new dependency, behind `DownloadStorageProbe`.
 - `DownloadsCubit` now depends on `SessionCubit` and `DownloadStorageProbe`
   and owns a third `StreamSubscription` it cancels on close.
+- `OfflineMode` is a new domain seam with a `NetworkCondition` +
+  `KeyValueStore` implementation; `OfflineCubit` joins the
+  `JellyfinityApp`-level providers. The cached music and playlist
+  repositories gain an `OfflineMode` dependency. `CONTEXT.md`'s
+  "not a separate app mode" invariant and the arc's "offline-only app
+  mode" non-goal are amended, not silently broken.
 - The playback pipeline, queue, crossfade and normalization learn nothing
   new: a "only on this device" track plays through the exact v0.2.0
   local-first path, and the offline library windows are ordinary `Page`s.
