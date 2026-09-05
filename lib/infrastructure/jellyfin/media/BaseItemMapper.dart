@@ -1,8 +1,10 @@
 import '../../../core/result/partial.dart';
 import '../../../domain/media/media.dart';
+import '../../../domain/playback/Lyrics.dart';
 import '../../../domain/playback/TrackSourceInfo.dart';
 import 'base_item_dto.dart';
 import 'ItemsResponseDto.dart';
+import 'LyricsDto.dart';
 
 /// Translates Jellyfin's items into Jellyfinity's media entities.
 ///
@@ -220,6 +222,47 @@ class BaseItemMapper {
       if (stream.type == 'Audio') return stream;
     }
     return null;
+  }
+
+  /// A track's lyrics (v0.1.5), or `null` when there is no usable line —
+  /// same discipline as every other `to*` method, so an empty/blank
+  /// response reads as "no lyrics" rather than an empty [Lyrics].
+  Lyrics? toLyrics(LyricsDto dto) {
+    final raw = dto.lyrics;
+    if (raw == null || raw.isEmpty) return null;
+
+    final lines = <LyricLine>[];
+    for (final line in raw) {
+      final text = _name(line.text);
+      if (text == null) continue;
+      lines.add(LyricLine(text: text, start: _lyricStart(line.start)));
+    }
+    if (lines.isEmpty) return null;
+
+    return Lyrics(lines: lines, isSynchronized: _isReliablySynchronized(lines));
+  }
+
+  /// Ticks to a line's start position, distinct from [_duration]: a lyric
+  /// line legitimately starts at position zero (the first line of the
+  /// track), whereas zero/negative is "unknown" for a duration field.
+  Duration? _lyricStart(int? ticks) {
+    if (ticks == null || ticks < 0) return null;
+    return Duration(microseconds: ticks ~/ _microsecondsPerTick);
+  }
+
+  /// Synchronized scrolling is only trustworthy when every line carries a
+  /// timestamp and they never run backwards — anything less is the
+  /// "half-working synchronization" the roadmap rules out, so the caller
+  /// falls back to plain lyrics instead.
+  bool _isReliablySynchronized(List<LyricLine> lines) {
+    Duration? previous;
+    for (final line in lines) {
+      final start = line.start;
+      if (start == null) return false;
+      if (previous != null && start < previous) return false;
+      previous = start;
+    }
+    return true;
   }
 
   /// The user's position in an item. Absent user data means "never

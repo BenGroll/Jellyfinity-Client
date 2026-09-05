@@ -11,6 +11,8 @@ import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart';
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart';
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/Lyrics.dart';
+import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart';
 import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
@@ -21,6 +23,7 @@ import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
+import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart';
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart';
 
 import 'settings_fakes.dart';
@@ -313,5 +316,27 @@ void registerTrackSourceInfoCubit({TrackSourceInfoResolver? resolver}) {
   getIt.registerFactory<TrackSourceInfoCubit>(
     () => TrackSourceInfoCubit(effectiveResolver),
   );
+  addTearDown(getIt.reset);
+}
+
+/// A [LyricsResolver] whose answer a test controls — defaults to "no
+/// lyrics" (`Ok(null)`), the empty state the Lyrics view (v0.1.5) falls
+/// back to when a test doesn't care about it.
+class FakeLyricsResolver implements LyricsResolver {
+  Result<Lyrics?> Function(MediaId id) answer = (_) => const Result.ok(null);
+
+  @override
+  Future<Result<Lyrics?>> resolve(MediaId id) async => answer(id);
+}
+
+/// Registers a fake [LyricsCubit] factory into the real `getIt`, the same
+/// way [registerTrackSourceInfoCubit] does — `LyricsPage` is a root route
+/// the router builds with no constructor args, reading `LyricsCubit`
+/// straight from `getIt`. [pumpApp] calls it by default; pass [resolver] to
+/// control what the Lyrics view shows.
+void registerLyricsCubit({LyricsResolver? resolver}) {
+  final getIt = GetIt.instance;
+  final effectiveResolver = resolver ?? FakeLyricsResolver();
+  getIt.registerFactory<LyricsCubit>(() => LyricsCubit(effectiveResolver));
   addTearDown(getIt.reset);
 }

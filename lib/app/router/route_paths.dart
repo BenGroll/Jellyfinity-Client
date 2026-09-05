@@ -53,6 +53,9 @@ abstract final class RoutePaths {
   /// The queue screen, a child of [nowPlaying].
   static const nowPlayingQueue = 'queue';
 
+  /// The lyrics screen (v0.1.5), a child of [nowPlaying].
+  static const nowPlayingLyrics = 'lyrics';
+
   /// Fallback for an unmatched location.
   static const notFound = '/404';
 
@@ -75,5 +78,6 @@ abstract final class RouteNames {
   static const settings = 'settings';
   static const nowPlaying = 'nowPlaying';
   static const nowPlayingQueue = 'nowPlayingQueue';
+  static const nowPlayingLyrics = 'nowPlayingLyrics';
   static const notFound = 'notFound';
 }

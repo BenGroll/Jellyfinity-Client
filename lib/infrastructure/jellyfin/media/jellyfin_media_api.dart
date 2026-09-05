@@ -13,6 +13,7 @@ import '../identity/JellyfinSessionContext.dart';
 import 'base_item_dto.dart';
 import 'BaseItemMapper.dart';
 import 'ItemsResponseDto.dart';
+import 'LyricsDto.dart';
 
 /// Builds a [JellyfinHttpClient] for a base URL. Injected so tests can
 /// supply a client wired to a fake `dio` adapter (the pattern
@@ -99,6 +100,9 @@ class JellyfinMediaApi {
 
   static String playlistItemsPath(String playlistId) =>
       '/Playlists/$playlistId/Items';
+
+  /// A track's lyrics (v0.1.5). 404 when the track has none.
+  static String lyricsPath(String itemId) => '/Audio/$itemId/Lyrics';
 
   /// Jellyfin 10.10 replaced `/Users/{userId}/PlayedItems/{itemId}` with
   /// this user-implicit form; the minimum supported server is 10.11.6.
@@ -245,6 +249,38 @@ class JellyfinMediaApi {
       final items = dto.items;
       return (items == null || items.isEmpty) ? null : items.first;
     });
+  }
+
+  /// The lyrics Jellyfin has stored for [itemId], or `Ok(null)` when there
+  /// are none.
+  ///
+  /// Jellyfin answers both "no lyrics file" and "no such item" with a 404,
+  /// which [TransportErrorMapper] normalizes to [UnavailableFailure]; here
+  /// that specific failure is folded into `Ok(null)` instead of propagated,
+  /// since either way there is nothing to show and the roadmap treats a
+  /// missing lyrics file as an empty state rather than an error. Any other
+  /// failure (unauthorized, offline, ...) still propagates as `Err`.
+  Future<Result<LyricsDto?>> lyrics(
+    String itemId, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    final response = await active.client.getJson<LyricsDto>(
+      lyricsPath(itemId),
+      parse: LyricsDto.fromJson,
+      cancelToken: cancelToken,
+    );
+    return switch (response) {
+      Ok<LyricsDto>(:final value) => Result.ok(value),
+      Err<LyricsDto>(failure: final f) when f is UnavailableFailure =>
+        const Result.ok(null),
+      Err<LyricsDto>(:final failure) => Result.err(failure),
+    };
   }
 
   /// Sets or clears Jellyfin's played flag for an item.
