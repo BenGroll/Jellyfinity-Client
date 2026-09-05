@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../features/auth/presentation/accounts/accounts_page.dart';
 import '../../features/auth/presentation/login/login_page.dart';
 import '../../features/auth/presentation/server_setup/server_setup_page.dart';
+import '../../features/downloads/presentation/DownloadsPage.dart';
 import '../../features/home/presentation/HomePage.dart';
 import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
@@ -101,6 +102,11 @@ class AppRouter {
           path: RoutePaths.settings,
           name: RouteNames.settings,
           builder: (context, state) => const SettingsPage(),
+        ),
+        GoRoute(
+          path: RoutePaths.downloads,
+          name: RouteNames.downloads,
+          builder: (context, state) => const DownloadsPage(),
         ),
         GoRoute(
           path: RoutePaths.nowPlaying,

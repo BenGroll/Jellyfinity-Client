@@ -6,6 +6,8 @@
 /// adds up to ([DownloadCatalog]), where the finished file can be played
 /// from ([LocalAudioSource]), a downloaded playlist's ordered membership
 /// snapshot ([PlaylistDownloadMember], [PlaylistDownloadChange], v0.2.1),
+/// the network the device is on for the Wi-Fi-only preference
+/// ([NetworkCondition], [NetworkState], v0.2.2),
 /// and the two seams underneath — durable records ([DownloadStore]) and
 /// the transfer mechanism itself ([DownloadEngine]).
 ///
@@ -21,5 +23,6 @@ export 'DownloadEngine.dart';
 export 'DownloadOwner.dart';
 export 'DownloadStore.dart';
 export 'LocalAudioSource.dart';
+export 'NetworkCondition.dart';
 export 'PlaylistDownload.dart';
 export 'TrackDownload.dart';

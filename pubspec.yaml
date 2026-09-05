@@ -60,6 +60,10 @@ dependencies:
   # seam.
   just_audio: ^0.10.6
   audio_service: ^0.18.19
+  # Network-type detection for the Wi-Fi-only download preference
+  # (v0.2.2, ADR-0022). Read only through the NetworkCondition domain
+  # seam — ConnectivityNetworkCondition is the one class that imports it.
+  connectivity_plus: ^7.3.1
 
 dev_dependencies:
   flutter_test:

@@ -31,6 +31,7 @@ import 'package:jellyfinity/domain/downloads/DownloadEngine.dart' as _i768;
 import 'package:jellyfinity/domain/downloads/downloads.dart' as _i306;
 import 'package:jellyfinity/domain/downloads/DownloadStore.dart' as _i853;
 import 'package:jellyfinity/domain/downloads/LocalAudioSource.dart' as _i186;
+import 'package:jellyfinity/domain/downloads/NetworkCondition.dart' as _i1047;
 import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
 import 'package:jellyfinity/domain/media/FavoritesRepository.dart' as _i685;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
@@ -73,6 +74,8 @@ import 'package:jellyfinity/features/playback/presentation/now_playing_details_c
     as _i29;
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart'
     as _i766;
+import 'package:jellyfinity/infrastructure/downloads/ConnectivityNetworkCondition.dart'
+    as _i116;
 import 'package:jellyfinity/infrastructure/downloads/DownloadStorage.dart'
     as _i855;
 import 'package:jellyfinity/infrastructure/downloads/DriftDownloadStore.dart'
@@ -164,6 +167,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i866.CredentialStore>(
       () => _i834.SecureCredentialStore(gh<_i558.FlutterSecureStorage>()),
     );
+    gh.lazySingleton<_i1047.NetworkCondition>(
+      () => _i116.ConnectivityNetworkCondition.create(),
+    );
     gh.lazySingleton<_i768.DownloadEngine>(
       () => _i161.HttpDownloadEngine.create(gh<_i855.DownloadStorage>()),
     );
@@ -178,15 +184,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i617.KeyValueStore>(
       () => _i617.DriftKeyValueStore(gh<_i242.AppDatabase>()),
-    );
-    gh.factory<_i230.SettingsCubit>(
-      () => _i230.SettingsCubit(
-        gh<_i617.KeyValueStore>(),
-        gh<_i883.ShellNavigationMode>(),
-        gh<_i731.StreamQuality>(),
-        gh<_i119.CrossfadeSettings>(),
-        gh<_i122.NormalizationSettings>(),
-      ),
     );
     gh.lazySingleton<_i186.LocalAudioSource>(
       () => _i212.StoredAudioSource(
@@ -209,6 +206,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i584.DeviceIdentityStore>(),
       ),
       preResolve: true,
+    );
+    gh.lazySingleton<_i230.SettingsCubit>(
+      () => _i230.SettingsCubit(
+        gh<_i617.KeyValueStore>(),
+        gh<_i883.ShellNavigationMode>(),
+        gh<_i731.StreamQuality>(),
+        gh<_i731.StreamQuality>(
+          instanceName: 'settings.initialDownloadQuality',
+        ),
+        gh<bool>(instanceName: 'settings.initialDownloadsWifiOnly'),
+        gh<_i119.CrossfadeSettings>(),
+        gh<_i122.NormalizationSettings>(),
+      ),
     );
     gh.lazySingleton<_i756.AccountStore>(
       () => _i243.DriftAccountStore(
@@ -364,9 +374,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i45.DownloadsCubit(
         gh<_i306.DownloadStore>(),
         gh<_i306.DownloadEngine>(),
-        gh<_i922.AudioSourceResolver>(),
+        gh<_i922.AudioSourceResolver>(
+          instanceName: 'remoteAudioSourceResolver',
+        ),
         gh<_i260.MusicLibraryRepository>(),
         gh<_i597.PlaylistRepository>(),
+        gh<_i230.SettingsCubit>(),
+        gh<_i306.NetworkCondition>(),
       ),
     );
     gh.factory<_i824.ArtistStatsCubit>(

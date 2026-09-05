@@ -74,6 +74,12 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
   List<Album> albumList = [];
   List<Track> trackList = [];
 
+  /// Per-album and per-artist track lists, consulted before [trackList]
+  /// when a scoped `tracks` read names one — lets a test give an album
+  /// and an artist different track sets in the same case.
+  final Map<String, List<Track>> tracksByAlbum = {};
+  final Map<String, List<Track>> tracksByArtist = {};
+
   List<UnavailableItem> unavailable = const [];
   PageSource source = PageSource.server;
 
@@ -121,7 +127,12 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
   }) async {
     calls.add((method: 'tracks', page: page, searchTerm: searchTerm));
     await _pause();
-    return _answer(trackList, page, searchTerm, (t) => t.name);
+    final scoped = albumId != null
+        ? tracksByAlbum[albumId.itemId]
+        : artistId != null
+        ? tracksByArtist[artistId.itemId]
+        : null;
+    return _answer(scoped ?? trackList, page, searchTerm, (t) => t.name);
   }
 
   @override

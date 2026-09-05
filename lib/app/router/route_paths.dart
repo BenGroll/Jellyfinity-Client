@@ -46,6 +46,10 @@ abstract final class RoutePaths {
   /// App preferences, reached from the sidebar.
   static const settings = '/settings';
 
+  /// Everything the user has downloaded — active work, finished
+  /// collections, failures — reached from the sidebar (v0.2.2).
+  static const downloads = '/downloads';
+
   /// The full player screen. A root route, not nested under a shell
   /// branch: it is reachable from any tab and covers the bottom nav.
   static const nowPlaying = '/now-playing';
@@ -76,6 +80,7 @@ abstract final class RouteNames {
   static const libraryPlaylist = 'libraryPlaylist';
   static const accounts = 'accounts';
   static const settings = 'settings';
+  static const downloads = 'downloads';
   static const nowPlaying = 'nowPlaying';
   static const nowPlayingQueue = 'nowPlayingQueue';
   static const nowPlayingLyrics = 'nowPlayingLyrics';

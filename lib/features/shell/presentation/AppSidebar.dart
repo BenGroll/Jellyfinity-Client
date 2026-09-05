@@ -60,6 +60,28 @@ class AppSidebar extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: Icon(
+                Icons.download_done_rounded,
+                color: t.colors.textSecondary,
+              ),
+              title: Text(
+                'Downloads',
+                style: t.typography.bodyLarge.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+              ),
+              subtitle: Text(
+                'Offline music, progress, and storage use',
+                style: t.typography.caption.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.pushNamed(RouteNames.downloads);
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.tune_rounded, color: t.colors.textSecondary),
               title: Text(
                 'Settings',

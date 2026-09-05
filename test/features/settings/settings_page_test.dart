@@ -49,12 +49,14 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
+    // The streaming-quality dropdown is the first of the two
+    // StreamQuality dropdowns on the screen (the second is the v0.2.2
+    // download-quality one).
+    final streamingDropdown = find.byType(DropdownButton<StreamQuality>).first;
+
     // Starts on Lossless — the default quality (StreamQuality.original).
     expect(
-      find.descendant(
-        of: find.byType(DropdownButton<StreamQuality>),
-        matching: find.text('Lossless'),
-      ),
+      find.descendant(of: streamingDropdown, matching: find.text('Lossless')),
       findsOneWidget,
     );
     expect(
@@ -65,7 +67,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byType(DropdownButton<StreamQuality>));
+    await tester.tap(streamingDropdown);
     await tester.pumpAndSettle();
     // Two "High" texts now exist: the closed field and the open menu
     // item: The menu entry is the last one added to the tree.
@@ -73,10 +75,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.descendant(
-        of: find.byType(DropdownButton<StreamQuality>),
-        matching: find.text('High'),
-      ),
+      find.descendant(of: streamingDropdown, matching: find.text('High')),
       findsOneWidget,
     );
     expect(
@@ -195,5 +194,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(settings.state.normalization.enabled, isTrue);
+  });
+
+  testWidgets('turning on Wi-Fi-only downloads updates the setting (v0.2.2)', (
+    tester,
+  ) async {
+    final scope = TestSessionScope();
+    final settings = fakeSettingsCubit();
+    await pumpApp(tester, scope: scope, settings: settings);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.menu_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    final wifiSwitch = find.widgetWithText(
+      SwitchListTile,
+      'Download on Wi-Fi only',
+    );
+    await tester.scrollUntilVisible(wifiSwitch, 200);
+    await tester.pumpAndSettle();
+
+    expect(settings.state.downloadsWifiOnly, isFalse);
+
+    await tester.tap(wifiSwitch);
+    await tester.pumpAndSettle();
+
+    expect(settings.state.downloadsWifiOnly, isTrue);
   });
 }

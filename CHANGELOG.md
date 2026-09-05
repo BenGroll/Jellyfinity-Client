@@ -384,3 +384,39 @@ All notable changes to Jellyfinity are documented here.
     the server is unreachable and the metadata cache has been evicted,
     so a downloaded playlist still plays in order offline. A downloaded
     member plays through the unchanged v0.2.0 local-first path.
+- Added artist downloads, download quality, and a Downloads screen
+  (ADR-0022, v0.2.2), the third release in the offline-music arc:
+  - `DownloadOwnerKind.artist` joins `track`, `album` and `playlist`
+    with no change to the owner model. `downloadArtist` pages the
+    artist's tracks one window at a time and requests each window as it
+    arrives — a prolific artist is never loaded into memory — reusing any
+    track a download already holds. `removeArtist` drops only the artist
+    claim; a file another target keeps stays. No membership snapshot: an
+    artist's order comes from release date and disc/track number, the
+    same as an album's.
+  - A download-quality preference, persisted independently of the
+    streaming quality (`SettingsCubit`, default original/lossless). It
+    applies to new and retried downloads and never re-fetches or rewrites
+    a file already on the device. `SettingsCubit` became a
+    `lazySingleton` so `PlaybackCubit` and `DownloadsCubit` read the same
+    instance the settings screen writes to.
+  - A Wi-Fi-only download preference (opt-in, default off). When it is on
+    and the connection is metered or absent, a queued download moves to a
+    new `DownloadState.waitingForNetwork` — a clearly paused request, not
+    a failure — and resumes on its own when Wi-Fi returns or the
+    preference is turned off. `connectivity_plus` sits behind a narrow
+    `NetworkCondition` seam. Enforcement is foreground only, disclosed in
+    the settings screen and ADR-0022, the same limit as the foreground
+    download engine.
+  - A Downloads screen reached from the sidebar: aggregate storage in
+    use, an in-progress/needs-attention list with per-item retry, resume,
+    cancel and remove, the downloaded albums/artists/playlists as
+    tappable rows, and standalone songs. It holds no state of its own —
+    every figure is derived from `DownloadsCubit`'s catalog, which gains
+    `overallStatus`, `storageInUse`, `collectionOwners` and
+    `standaloneTrackDownloads`.
+  - `DownloadsCubit` now resolves the *remote* audio source under its
+    named registration rather than the bare contract, so a retried
+    download is re-fetched from the server at the current quality instead
+    of resolving to the partial local file.
+  - Added the `ACCESS_NETWORK_STATE` Android permission.

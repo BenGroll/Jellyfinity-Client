@@ -272,4 +272,91 @@ void main() {
       );
     });
   });
+
+  group('DownloadCatalog management view (v0.2.2)', () {
+    final artist = DownloadOwner.artist(_id('ar-1'));
+
+    test('an artist collection aggregates like any other owner', () {
+      final catalog = _catalog([
+        _record('a', state: DownloadState.completed, owner: artist),
+        _record('b', state: DownloadState.failed, owner: artist),
+      ]);
+
+      final status = catalog.statusFor(artist);
+      expect(status.total, 2);
+      expect(status.completed, 1);
+      expect(status.failed, 1);
+      expect(status.needsAttention, isTrue);
+    });
+
+    test('counts waiting-for-network downloads as active, not attention', () {
+      final catalog = _catalog([
+        _record('a', state: DownloadState.waitingForNetwork, owner: artist),
+      ]);
+
+      final status = catalog.statusFor(artist);
+      expect(status.waitingForNetwork, 1);
+      expect(status.isActive, isTrue);
+      expect(status.needsAttention, isFalse);
+    });
+
+    test('sums storage from completed files only', () {
+      final catalog = _catalog([
+        _record(
+          'a',
+          state: DownloadState.completed,
+          owner: artist,
+          totalBytes: 3_000_000,
+        ),
+        _record(
+          'b',
+          state: DownloadState.completed,
+          owner: artist,
+          totalBytes: 2_000_000,
+        ),
+        _record(
+          'c',
+          state: DownloadState.downloading,
+          owner: artist,
+          receivedBytes: 500_000,
+          totalBytes: 4_000_000,
+        ),
+      ]);
+
+      expect(catalog.storageInUse, 5_000_000);
+      expect(catalog.statusFor(artist).storageInUse, 5_000_000);
+    });
+
+    test('lists each album, artist and playlist collection once', () {
+      final catalog = DownloadCatalog(
+        downloads: {
+          _id('t1'): TrackDownload(
+            id: _id('t1'),
+            title: 't1',
+            state: DownloadState.completed,
+            owners: {album, artist},
+            requestedAt: DateTime.utc(2026),
+          ),
+          _id('t2'): _record(
+            't2',
+            state: DownloadState.completed,
+            owner: DownloadOwner.track(_id('t2')),
+          ),
+        },
+        playlistSnapshots: {
+          _id('pl-1'): [(position: 0, trackId: _id('t1'))],
+        },
+        isLoaded: true,
+      );
+
+      expect(catalog.collectionOwners.toSet(), {
+        album,
+        artist,
+        DownloadOwner.playlist(_id('pl-1')),
+      });
+      // t2 is only ever wanted by itself — a standalone song, not a
+      // collection.
+      expect(catalog.standaloneTrackDownloads.map((r) => r.id.itemId), ['t2']);
+    });
+  });
 }
