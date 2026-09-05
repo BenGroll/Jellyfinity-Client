@@ -27,9 +27,9 @@ class MediaPlaybackActionsRow extends StatelessWidget {
   /// rather than in the app bar. `null` for Playlist, which has none.
   final Widget? favorite;
 
-  /// Album's download button (v0.2.0), normally an
-  /// `AlbumDownloadButton`, shown beside Shuffle. `null` for Playlist,
-  /// whose downloads are v0.2.1's.
+  /// The header's download button, shown beside Shuffle — an
+  /// `AlbumDownloadButton` (v0.2.0) or a `PlaylistDownloadButton`
+  /// (v0.2.1). `null` where a header has no whole-collection download.
   final Widget? download;
 
   @override

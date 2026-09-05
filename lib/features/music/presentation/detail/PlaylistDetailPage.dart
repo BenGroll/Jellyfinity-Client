@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../design/design.dart';
+import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
@@ -53,14 +55,47 @@ class PlaylistDetailPage extends StatelessWidget {
   }
 }
 
-class _PlaylistDetailView extends StatelessWidget {
+class _PlaylistDetailView extends StatefulWidget {
   const _PlaylistDetailView();
+
+  @override
+  State<_PlaylistDetailView> createState() => _PlaylistDetailViewState();
+}
+
+class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
+  /// Reconcile-on-open runs at most once per visit (v0.2.1): opening a
+  /// downloaded playlist online is one of the two triggers `ROADMAP.md`
+  /// names for reconciling its membership against the server.
+  bool _reconciled = false;
+
+  void _maybeReconcile() {
+    if (_reconciled) return;
+
+    final tracks = context.read<PlaylistTracksCubit>().state;
+    if (!tracks.isReady || tracks.isCached) return;
+
+    final catalog = context.read<DownloadsCubit>().state;
+    final playlist = context.read<PlaylistDetailCubit>().state.item;
+    if (playlist == null || !catalog.isPlaylistDownloaded(playlist.id)) return;
+
+    _reconciled = true;
+    final messenger = ScaffoldMessenger.of(context);
+    context.read<DownloadsCubit>().reconcilePlaylist(playlist.id).then((
+      change,
+    ) {
+      if (!mounted || change.isEmpty) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(describePlaylistDownloadChange(change))),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return BlocBuilder<PlaylistDetailCubit, MediaDetailState<Playlist>>(
+    return BlocConsumer<PlaylistDetailCubit, MediaDetailState<Playlist>>(
+      listener: (context, header) => _maybeReconcile(),
       builder: (context, header) {
         return AppScaffold(
           padded: false,
@@ -69,7 +104,8 @@ class _PlaylistDetailView extends StatelessWidget {
             onPressed: () => context.pop(),
           ),
           title: header.item?.name,
-          body: BlocBuilder<PlaylistTracksCubit, PagedCollectionState<Track>>(
+          body: BlocConsumer<PlaylistTracksCubit, PagedCollectionState<Track>>(
+            listener: (context, state) => _maybeReconcile(),
             builder: (context, state) {
               final cubit = context.read<PlaylistTracksCubit>();
               return PagedCollectionView<Track>(
@@ -186,8 +222,25 @@ class _PlaylistHeader extends StatelessWidget {
             style: t.typography.caption.copyWith(color: t.colors.textSecondary),
           ),
         ],
+        Builder(
+          builder: (context) {
+            final catalog = context.watch<DownloadsCubit>().state;
+            if (!catalog.isPlaylistDownloaded(playlist.id)) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: EdgeInsets.only(top: t.spacing.xxs),
+              child: CollectionDownloadSummary(
+                status: catalog.statusFor(DownloadOwner.playlist(playlist.id)),
+              ),
+            );
+          },
+        ),
         SizedBox(height: t.spacing.md),
-        MediaPlaybackActionsRow(tracks: tracks),
+        MediaPlaybackActionsRow(
+          tracks: tracks,
+          download: PlaylistDownloadButton(playlist: playlist),
+        ),
         SizedBox(height: t.spacing.md),
       ],
     );

@@ -1,6 +1,10 @@
 import 'package:injectable/injectable.dart';
 
+import '../../core/result/partial.dart';
 import '../../core/result/result.dart';
+import '../../domain/downloads/DownloadStore.dart';
+import '../../domain/downloads/PlaylistDownload.dart';
+import '../../domain/downloads/TrackDownload.dart';
 import '../../domain/media/media.dart';
 import '../jellyfin/identity/JellyfinSessionContext.dart';
 import '../jellyfin/media/JellyfinPlaylistRepository.dart';
@@ -16,13 +20,29 @@ import 'cache_fallback.dart';
 /// library: the cache stores each playlist's order, including the entries
 /// Jellyfinity could not map, so the list offline is the list the user
 /// built.
+///
+/// When even that cache has been evicted, a *downloaded* playlist
+/// (v0.2.1) still answers from its durable membership snapshot — the
+/// order is the one recorded at download time, without the unmappable
+/// entries the metadata cache would have kept.
 @LazySingleton(as: PlaylistRepository)
 class CachedPlaylistRepository implements PlaylistRepository {
-  CachedPlaylistRepository(this._remote, this._cache, this._context);
+  CachedPlaylistRepository(
+    this._remote,
+    this._cache,
+    this._context,
+    this._downloads,
+  );
 
   final JellyfinPlaylistRepository _remote;
   final MediaCacheStore _cache;
   final JellyfinSessionContext _context;
+
+  /// The last resort when the server is unreachable and the metadata
+  /// cache has been evicted: a downloaded playlist's snapshot is durable
+  /// local media (v0.2.1), so its members still play offline even when
+  /// nothing else remembers the list.
+  final DownloadStore _downloads;
 
   @override
   Future<Result<Page<Playlist>>> playlists({
@@ -59,8 +79,42 @@ class CachedPlaylistRepository implements PlaylistRepository {
         return result;
       case Err<Page<Track>>(:final failure):
         if (!canServeFromCache(failure)) return result;
-        return await _saved<Track>(key, page) ?? result;
+        return await _saved<Track>(key, page) ??
+            await _downloaded(playlistId, page) ??
+            result;
     }
+  }
+
+  /// A window of [playlistId]'s downloaded snapshot, or `null` when the
+  /// playlist has not been downloaded. Marked [PageSource.cache] like any
+  /// other offline answer; a member whose record has gone is skipped.
+  Future<Result<Page<Track>>?> _downloaded(
+    MediaId playlistId,
+    PageRequest page,
+  ) async {
+    final membersResult = await _downloads.playlistMembers(playlistId);
+    if (membersResult is! Ok<List<PlaylistDownloadMember>>) return null;
+    final members = membersResult.value;
+    if (members.isEmpty) return null;
+
+    final start = page.startIndex.clamp(0, members.length);
+    final end = (start + page.limit).clamp(0, members.length);
+    final tracks = <Track>[];
+    for (final member in members.sublist(start, end)) {
+      final record = await _downloads.find(member.trackId);
+      if (record case Ok<TrackDownload?>(:final value?)) {
+        tracks.add(value.toTrack());
+      }
+    }
+
+    return Result.ok(
+      Page<Track>(
+        content: Partial(available: tracks),
+        startIndex: start,
+        totalCount: members.length,
+        source: PageSource.cache,
+      ),
+    );
   }
 
   /// A write, not a read: nothing here to cache or fall back to. When the

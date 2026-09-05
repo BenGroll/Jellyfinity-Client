@@ -5,6 +5,7 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinPlaylistReposi
 import 'package:jellyfinity/infrastructure/media/CachedPlaylistRepository.dart';
 import 'package:jellyfinity/infrastructure/persistence/media/MediaCollectionKey.dart';
 
+import '../../support/download_fakes.dart';
 import '../../support/FakeDioAdapter.dart';
 import '../../support/FakeSessionContext.dart';
 import '../../support/media_fakes.dart';
@@ -23,13 +24,15 @@ FakeDioAdapter _answering(List<Map<String, dynamic>> items) =>
 
 CachedPlaylistRepository _repository(
   FakeDioAdapter adapter,
-  RecordingMediaCacheStore cache,
-) {
+  RecordingMediaCacheStore cache, {
+  InMemoryDownloadStore? downloads,
+}) {
   final context = FakeSessionContext();
   return CachedPlaylistRepository(
     JellyfinPlaylistRepository(testMediaApi(adapter, context: context)),
     cache,
     context,
+    downloads ?? InMemoryDownloadStore(),
   );
 }
 
@@ -86,4 +89,38 @@ void main() {
 
     expect(result.isErr, isTrue);
   });
+
+  test(
+    'falls back to the download snapshot when the metadata cache is gone',
+    () async {
+      final downloads = InMemoryDownloadStore();
+      // Two members downloaded; nothing was ever saved to the metadata
+      // cache (it was evicted, or the playlist was downloaded from a
+      // screen that never cached its track window).
+      for (final id in ['t1', 't2']) {
+        downloads.records[MediaId(
+          serverId: 'server-1',
+          itemId: id,
+        )] = downloadRecord(
+          MediaId(serverId: 'server-1', itemId: id),
+          title: id == 't1' ? 'So What' : 'Blue in Green',
+          state: DownloadState.completed,
+        );
+      }
+      await downloads.savePlaylistMembers(_playlistId, [
+        (position: 0, trackId: MediaId(serverId: 'server-1', itemId: 't1')),
+        (position: 1, trackId: MediaId(serverId: 'server-1', itemId: 't2')),
+      ]);
+
+      final result = await _repository(
+        _offline(),
+        RecordingMediaCacheStore(),
+        downloads: downloads,
+      ).tracks(_playlistId);
+
+      final page = result.valueOrNull!;
+      expect(page.items.map((t) => t.name), ['So What', 'Blue in Green']);
+      expect(page.source, PageSource.cache);
+    },
+  );
 }

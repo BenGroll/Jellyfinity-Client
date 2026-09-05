@@ -35,13 +35,14 @@ part 'AppDatabase.g.dart';
     QueueEntries,
     TrackDownloads,
     DownloadOwners,
+    PlaylistDownloadMembers,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,6 +51,7 @@ class AppDatabase extends _$AppDatabase {
       await m.createIndex(_savedAccountsServerIdIndex);
       await m.createIndex(_savedServersBaseUrlIndex);
       await m.createIndex(_downloadOwnersOwnerIndex);
+      await m.createIndex(_playlistDownloadMembersPlaylistIndex);
     },
     onUpgrade: (m, from, to) async {
       // v2 (v0.0.8): the media metadata cache. Purely additive — three
@@ -73,6 +75,13 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(trackDownloads);
         await m.createTable(downloadOwners);
         await m.createIndex(_downloadOwnersOwnerIndex);
+      }
+      // v5 (v0.2.1): playlist download membership snapshots. One new
+      // table, still additive — an upgrading install has every track and
+      // album download it had, and simply no playlist snapshots yet.
+      if (from < 5) {
+        await m.createTable(playlistDownloadMembers);
+        await m.createIndex(_playlistDownloadMembersPlaylistIndex);
       }
     },
     beforeOpen: (details) async {
@@ -99,5 +108,14 @@ class AppDatabase extends _$AppDatabase {
     'idx_saved_servers_base_url',
     'CREATE INDEX IF NOT EXISTS idx_saved_servers_base_url '
         'ON saved_servers (base_url)',
+  );
+
+  /// Reading a downloaded playlist's snapshot — for offline playback and
+  /// for reconciling it against the server — always starts from the
+  /// playlist id, ordered by position.
+  static final Index _playlistDownloadMembersPlaylistIndex = Index(
+    'idx_playlist_download_members_playlist',
+    'CREATE INDEX IF NOT EXISTS idx_playlist_download_members_playlist '
+        'ON playlist_download_members (server_id, playlist_item_id, position)',
   );
 }

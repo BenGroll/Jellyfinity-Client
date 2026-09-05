@@ -204,6 +204,16 @@ class FakePlaylistRepository implements PlaylistRepository {
   List<UnavailableItem> unavailable = const [];
   Failure? failure;
 
+  /// The source every returned window reports — flip to
+  /// [PageSource.cache] to stand in for an offline read served from the
+  /// saved copy.
+  PageSource source = PageSource.server;
+
+  /// Per-playlist track lists, consulted before [trackList] when the
+  /// requested playlist has an entry — lets one test drive several
+  /// playlists at once.
+  final Map<String, List<Track>> tracksByPlaylist = {};
+
   @override
   Future<Result<Page<Playlist>>> playlists({
     PageRequest page = const PageRequest.first(),
@@ -211,7 +221,7 @@ class FakePlaylistRepository implements PlaylistRepository {
   }) async {
     final failed = failure;
     if (failed != null) return Result.err(failed);
-    return Result.ok(windowOf(playlistList, page));
+    return Result.ok(windowOf(playlistList, page, source: source));
   }
 
   @override
@@ -221,7 +231,10 @@ class FakePlaylistRepository implements PlaylistRepository {
   }) async {
     final failed = failure;
     if (failed != null) return Result.err(failed);
-    return Result.ok(windowOf(trackList, page, unavailable: unavailable));
+    final list = tracksByPlaylist[playlistId.itemId] ?? trackList;
+    return Result.ok(
+      windowOf(list, page, unavailable: unavailable, source: source),
+    );
   }
 
   /// Every `addTracks` call, in order, for a test to assert against.

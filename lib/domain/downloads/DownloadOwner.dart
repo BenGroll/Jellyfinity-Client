@@ -14,7 +14,14 @@ enum DownloadOwnerKind {
   track,
 
   /// An album the track belongs to was downloaded.
-  album;
+  album,
+
+  /// A playlist the track is a member of was downloaded (v0.2.1). The
+  /// playlist's ordered membership at download time is kept separately
+  /// as a snapshot — see `DownloadStore.playlistMembers` — so a later
+  /// server-side edit reconciles against it rather than silently
+  /// rewriting what the user chose to keep.
+  playlist;
 
   static DownloadOwnerKind? tryParse(String? raw) {
     for (final kind in values) {
@@ -29,8 +36,8 @@ enum DownloadOwnerKind {
 /// Owners are the v0.2.0 form of the reference counting `ROADMAP.md`
 /// makes explicit in v0.2.2: the count is the size of a download's owner
 /// set, and "remove this album" means "drop the album owner", not
-/// "delete the file". Later download targets (a playlist, an artist)
-/// become new [DownloadOwnerKind] values and need no change here.
+/// "delete the file". v0.2.1 adds [DownloadOwnerKind.playlist] with no
+/// change here; an artist owner (v0.2.2) is the same shape again.
 class DownloadOwner extends Equatable {
   const DownloadOwner({required this.kind, required this.id});
 
@@ -42,10 +49,15 @@ class DownloadOwner extends Equatable {
   const DownloadOwner.album(MediaId id)
     : this(kind: DownloadOwnerKind.album, id: id);
 
+  /// The track is kept because [id]'s playlist was downloaded (v0.2.1).
+  const DownloadOwner.playlist(MediaId id)
+    : this(kind: DownloadOwnerKind.playlist, id: id);
+
   final DownloadOwnerKind kind;
 
   /// The item that wants the file kept — the track itself for
-  /// [DownloadOwnerKind.track], the album for [DownloadOwnerKind.album].
+  /// [DownloadOwnerKind.track], the album for [DownloadOwnerKind.album],
+  /// the playlist for [DownloadOwnerKind.playlist].
   final MediaId id;
 
   @override

@@ -320,11 +320,12 @@ class DownloadOwners extends Table {
   /// The downloaded track's item id.
   TextColumn get itemId => text()();
 
-  /// `DownloadOwnerKind.name` — `track` or `album` today.
+  /// `DownloadOwnerKind.name` — `track`, `album` or (v0.2.1) `playlist`.
   TextColumn get ownerKind => text()();
 
   /// The owning item's id on the same server (the track's own id for a
-  /// `track` owner, the album's for an `album` owner).
+  /// `track` owner, the album's for an `album` owner, the playlist's for
+  /// a `playlist` owner).
   TextColumn get ownerItemId => text()();
 
   @override
@@ -334,4 +335,44 @@ class DownloadOwners extends Table {
     ownerKind,
     ownerItemId,
   };
+}
+
+/// The ordered membership snapshot of a downloaded playlist (v0.2.1,
+/// ADR-0021), schema v5.
+///
+/// [DownloadOwners] already records *why* a file is kept — a `playlist`
+/// owner row per member track is reference counting, the same as an
+/// `album` owner. What it cannot carry is *order*: a playlist's
+/// arrangement is the user's own and the server's, not derivable from
+/// track metadata the way an album's disc/track order is. So order lives
+/// here, in its own table — the same reason [CachedCollectionEntries]
+/// exists rather than re-sorting the cache.
+///
+/// One row per downloadable member. A playlist entry that is not a track,
+/// or one the server could not describe, has nothing to download and no
+/// row here; [position] therefore counts the downloadable members in
+/// playlist order, not the raw playlist index. The browse view keeps the
+/// full numbering.
+///
+/// Not a database foreign key onto [TrackDownloads] or [DownloadOwners],
+/// for the same reason none of the other download tables cross-reference:
+/// a removal has to delete files as well as rows, so it is orchestrated
+/// in one place.
+@DataClassName('PlaylistDownloadMemberRow')
+class PlaylistDownloadMembers extends Table {
+  TextColumn get serverId => text()();
+
+  /// The downloaded playlist's own item id.
+  TextColumn get playlistItemId => text()();
+
+  /// The member's index among the playlist's downloadable tracks, in the
+  /// playlist's own order.
+  IntColumn get position => integer()();
+
+  /// The track at that position — a [TrackDownloads] row key on the same
+  /// server.
+  TextColumn get trackItemId => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {serverId, playlistItemId, position};
 }
