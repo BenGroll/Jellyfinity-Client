@@ -321,3 +321,36 @@ All notable changes to Jellyfinity are documented here.
     gaplessly advanced on its own, and starting the overlap anyway played
     the same source twice at once (ADR-0016). The preload lead is also
     widened from 5 s to 10 s so this is hit less often.
+- Added downloaded tracks and albums (ADR-0020, v0.2.0), the first
+  release in the offline-music arc:
+  - New `lib/domain/downloads/` vocabulary: `TrackDownload` (a
+    denormalized snapshot, the download counterpart to `QueueEntry`),
+    `DownloadOwner`/`DownloadOwnerKind` (why a file is kept — a set,
+    since the same track can be wanted on its own and via its album),
+    `DownloadState`/`DownloadFailureReason`, `DownloadCatalog` (what a
+    collection's downloads add up to, with failures named rather than
+    averaged away), and the `DownloadStore`/`DownloadEngine` seams.
+  - Schema v4 adds `track_downloads` and `download_owners` — ordered,
+    migratable, additive per ADR-0010's policy.
+  - `HttpDownloadEngine`: a foreground `dio`-based engine with HTTP
+    Range resume, cancellation, atomic completion (rename on finish),
+    and partial-file cleanup, behind a replaceable `DownloadEngine`
+    seam — the roadmap's documented-foreground-only interim, since an
+    Android+iOS resume/cancellation proof of a background-transfer
+    dependency was not possible in this environment (ADR-0020).
+    `DownloadStorage` keeps audio under application support, not a
+    disposable cache — downloaded media is first-class local media.
+  - `DownloadsCubit` runs downloads one at a time, oldest request
+    first; resumes any download a fresh process finds still marked
+    "downloading" from its partial bytes on disk; and supports pause,
+    retry, retry-all, and remove (dropping one owner, or every claim).
+  - Playback prefers a completed download over a stream via
+    `LocalFirstAudioSourceResolver`, a decorator over the existing
+    `AudioSourceResolver` — the queue, crossfade, and normalization
+    pipeline are unchanged; only the resolved address differs.
+  - Track rows and album headers gain a download control that both
+    shows the state and is the action for it (download / stop / resume
+    / remove-with-confirmation / retry), plus an album-wide aggregate
+    summary.
+  - `InsufficientStorageFailure` joins the core `Failure` hierarchy
+    (ADR-0004) as its own distinct, user-actionable outcome.

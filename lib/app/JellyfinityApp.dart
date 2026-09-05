@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../design/design.dart';
+import 'downloads/DownloadsCubit.dart';
 import 'navigation/MediaScopeCubit.dart';
 import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
@@ -18,7 +19,9 @@ import 'settings/SettingsCubit.dart';
 /// state: the shell's mini-player, Now Playing and the queue screen all
 /// need it regardless of which tab is active. [SettingsCubit] and
 /// [MediaScopeCubit] join it for the same reason (ADR-0014): the shared
-/// header and sidebar read them from every tab.
+/// header and sidebar read them from every tab, and [DownloadsCubit]
+/// for the same reason again (ADR-0020): a track row, an album header
+/// and the queue all show the same download state.
 ///
 /// Jellyfinity is dark-first (the "premium streaming app" intent in
 /// `PHILOSOPHY.md`); a light theme is provided and a future settings
@@ -31,6 +34,7 @@ class JellyfinityApp extends StatelessWidget {
     required this.playback,
     required this.settings,
     required this.mediaScope,
+    required this.downloads,
   });
 
   final GoRouter router;
@@ -38,6 +42,7 @@ class JellyfinityApp extends StatelessWidget {
   final PlaybackCubit playback;
   final SettingsCubit settings;
   final MediaScopeCubit mediaScope;
+  final DownloadsCubit downloads;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +52,7 @@ class JellyfinityApp extends StatelessWidget {
         BlocProvider<PlaybackCubit>.value(value: playback),
         BlocProvider<SettingsCubit>.value(value: settings),
         BlocProvider<MediaScopeCubit>.value(value: mediaScope),
+        BlocProvider<DownloadsCubit>.value(value: downloads),
       ],
       child: MaterialApp.router(
         title: 'Jellyfinity',

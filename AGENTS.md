@@ -5,7 +5,7 @@ Read this file first. It defines the complete context-loading workflow.
 ## Minimal context workflow
 
 1. Read `CONTEXT.md` (the stable product and engineering constraints).
-2. Find the requested version in `ROADMAP.md`.
+2. Find the requested version in `ROADMAP.md` if the version is between two minor versions there are fitting roadmap files for that (e.g. version 0.1.5 would be in "Roadmap to v0.2.md" etc. Use them if you are finding something that fits).
 3. Read only that version's linked specification. Do not read an entire roadmap.
 4. Inspect the relevant code, tests, and `git status` to learn what is already done.
 5. Read only ADRs directly related to the files or decisions in scope. Use

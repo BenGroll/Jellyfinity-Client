@@ -3,12 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
+import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
+import '../widgets/download_controls.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/MediaPlaybackActionsRow.dart';
@@ -120,6 +123,12 @@ class _AlbumDetailView extends StatelessWidget {
                       track.availability == MediaAvailability.remoteUnavailable
                       ? null
                       : () => context.read<PlaybackCubit>().addToQueue(track),
+                  // A track the server could not describe has nothing to
+                  // fetch, so it gets no download control either.
+                  downloadAction:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : TrackDownloadButton(track: track),
                 ),
               );
             },
@@ -161,6 +170,10 @@ class _AlbumHeader extends StatelessWidget {
       return const MediaHeaderSkeleton();
     }
 
+    final downloadStatus = context.watch<DownloadsCubit>().state.statusFor(
+      DownloadOwner.album(album.id),
+    );
+
     final details = joinDetails([
       album.productionYear?.toString(),
       formatTrackCount(album.trackCount),
@@ -190,9 +203,14 @@ class _AlbumHeader extends StatelessWidget {
             style: t.typography.caption.copyWith(color: t.colors.textSecondary),
           ),
         ],
+        if (!downloadStatus.isEmpty) ...[
+          SizedBox(height: t.spacing.xxs),
+          CollectionDownloadSummary(status: downloadStatus),
+        ],
         SizedBox(height: t.spacing.md),
         MediaPlaybackActionsRow(
           tracks: tracks,
+          download: AlbumDownloadButton(album: album),
           favorite: FavoriteButton(
             isFavorite: album.isFavorite,
             onChanged: (favorite) async {

@@ -14,7 +14,12 @@ import 'PlaylistPickerSheet.dart';
 /// to back the button without a second fetch" contract the old Play
 /// button already relied on.
 class MediaPlaybackActionsRow extends StatelessWidget {
-  const MediaPlaybackActionsRow({super.key, required this.tracks, this.favorite});
+  const MediaPlaybackActionsRow({
+    super.key,
+    required this.tracks,
+    this.favorite,
+    this.download,
+  });
 
   final List<Track> tracks;
 
@@ -22,30 +27,43 @@ class MediaPlaybackActionsRow extends StatelessWidget {
   /// rather than in the app bar. `null` for Playlist, which has none.
   final Widget? favorite;
 
+  /// Album's download button (v0.2.0), normally an
+  /// `AlbumDownloadButton`, shown beside Shuffle. `null` for Playlist,
+  /// whose downloads are v0.2.1's.
+  final Widget? download;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final hasTracks = tracks.isNotEmpty;
 
-    // Shuffle and (favorite +) overflow sit in equal-width `Expanded`
-    // slots on either side of Play, so Play stays centered no matter
-    // which side carries an extra icon.
+    // Two equal-width `Expanded` slots on either side of Play, so Play
+    // stays centered. Download joins Shuffle on the left rather than
+    // piling a third icon onto the right (v0.2.0): three icons on one
+    // side and one on the other overflowed a phone-width header, and
+    // read lopsided even where it fit.
     return Row(
       children: [
         Expanded(
           child: Align(
             alignment: Alignment.centerRight,
-            child: IconButton(
-              icon: const Icon(Icons.shuffle_rounded),
-              tooltip: 'Shuffle',
-              color: t.colors.textPrimary,
-              onPressed: hasTracks
-                  ? () => context.read<PlaybackCubit>().playShuffled(tracks)
-                  : null,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ?download,
+                IconButton(
+                  icon: const Icon(Icons.shuffle_rounded),
+                  tooltip: 'Shuffle',
+                  color: t.colors.textPrimary,
+                  onPressed: hasTracks
+                      ? () => context.read<PlaybackCubit>().playShuffled(tracks)
+                      : null,
+                ),
+              ],
             ),
           ),
         ),
-        SizedBox(width: t.spacing.lg),
+        SizedBox(width: t.spacing.md),
         IconButton(
           iconSize: 56,
           icon: const Icon(Icons.play_circle_filled_rounded),
@@ -56,14 +74,14 @@ class MediaPlaybackActionsRow extends StatelessWidget {
                     context.read<PlaybackCubit>().playNow(tracks, startIndex: 0)
               : null,
         ),
-        SizedBox(width: t.spacing.lg),
+        SizedBox(width: t.spacing.md),
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (favorite != null) ...[favorite!, SizedBox(width: t.spacing.xs)],
+                ?favorite,
                 IconButton(
                   icon: const Icon(Icons.more_vert_rounded),
                   tooltip: 'More',

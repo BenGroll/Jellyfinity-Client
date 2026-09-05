@@ -106,6 +106,7 @@ class TrackRow extends StatelessWidget {
     this.markUnavailable = MusicRowStyle.markUnavailable,
     this.onPlayNext,
     this.onAddToQueue,
+    this.downloadAction,
   });
 
   final Track track;
@@ -127,6 +128,12 @@ class TrackRow extends StatelessWidget {
 
   /// Appends [track] to the end of the queue.
   final VoidCallback? onAddToQueue;
+
+  /// The row's download control (v0.2.0), normally a
+  /// `TrackDownloadButton`. `null` — the default — leaves the row exactly
+  /// as it was, for the same reason [onPlayNext] is optional: a list
+  /// shown without download context simply does not offer the action.
+  final Widget? downloadAction;
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +167,7 @@ class TrackRow extends StatelessWidget {
         formatArtists(track.artists),
         if (showArtwork) track.albumName,
       ]),
-      trailing: (duration == null && !showMenu)
+      trailing: (duration == null && !showMenu && downloadAction == null)
           ? null
           : Row(
               mainAxisSize: MainAxisSize.min,
@@ -172,6 +179,7 @@ class TrackRow extends StatelessWidget {
                       color: t.colors.textSecondary,
                     ),
                   ),
+                ?downloadAction,
                 if (showMenu)
                   _TrackOverflowButton(
                     onPlayNext: onPlayNext,

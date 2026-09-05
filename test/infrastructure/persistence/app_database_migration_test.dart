@@ -7,6 +7,7 @@ import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart
 
 import '../../support/drift_schemas/schema.dart';
 import '../../support/drift_schemas/schema_v1.dart' as v1;
+import '../../support/drift_schemas/schema_v3.dart' as v3;
 
 /// The forward-only migration policy ADR-0010 committed to: a schema
 /// change never drops the database, and the step from v(N-1) to vN is
@@ -61,4 +62,40 @@ void main() {
 
     await db.close();
   });
+
+  test('upgrades a v3 database to the v4 downloads schema', () async {
+    final schema = await verifier.schemaAt(3);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 4);
+
+    // Additive again (v0.2.0): an install that upgrades starts with
+    // nothing downloaded rather than losing what it had.
+    expect(await db.select(db.trackDownloads).get(), isEmpty);
+    expect(await db.select(db.downloadOwners).get(), isEmpty);
+
+    await db.close();
+  });
+
+  test(
+    'an upgrade to v4 keeps the queue an install was already holding',
+    () async {
+      final schema = await verifier.schemaAt(3);
+
+      final old = v3.DatabaseAtV3(schema.newConnection());
+      await old.customStatement(
+        'INSERT INTO queue_entries (position, server_id, item_id, title) '
+        "VALUES (0, 'server-1', 'track-1', 'So What')",
+      );
+      await old.close();
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 4);
+
+      final entries = await db.select(db.queueEntries).get();
+      expect(entries.single.title, 'So What');
+
+      await db.close();
+    },
+  );
 }
