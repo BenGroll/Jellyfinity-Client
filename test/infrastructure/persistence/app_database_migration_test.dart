@@ -8,6 +8,7 @@ import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart
 import '../../support/drift_schemas/schema.dart';
 import '../../support/drift_schemas/schema_v1.dart' as v1;
 import '../../support/drift_schemas/schema_v3.dart' as v3;
+import '../../support/drift_schemas/schema_v4.dart' as v4;
 
 /// The forward-only migration policy ADR-0010 committed to: a schema
 /// change never drops the database, and the step from v(N-1) to vN is
@@ -94,6 +95,52 @@ void main() {
 
       final entries = await db.select(db.queueEntries).get();
       expect(entries.single.title, 'So What');
+
+      await db.close();
+    },
+  );
+
+  test(
+    'upgrades a v4 database to the v5 playlist-download-members schema',
+    () async {
+      final schema = await verifier.schemaAt(4);
+      final db = AppDatabase(schema.newConnection());
+
+      await verifier.migrateAndValidate(db, 5);
+
+      // Additive again (v0.2.1): the snapshot table exists and starts
+      // empty; an upgrading install keeps every track and album download
+      // it had and simply has no playlist snapshots yet.
+      expect(await db.select(db.playlistDownloadMembers).get(), isEmpty);
+
+      await db.close();
+    },
+  );
+
+  test(
+    'an upgrade to v5 keeps the downloads an install was already holding',
+    () async {
+      final schema = await verifier.schemaAt(4);
+
+      final old = v4.DatabaseAtV4(schema.newConnection());
+      await old.customStatement(
+        'INSERT INTO track_downloads '
+        '(server_id, item_id, state, title, requested_at) '
+        "VALUES ('server-1', 'track-1', 'completed', 'So What', 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO download_owners '
+        '(server_id, item_id, owner_kind, owner_item_id) '
+        "VALUES ('server-1', 'track-1', 'track', 'track-1')",
+      );
+      await old.close();
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 5);
+
+      final downloads = await db.select(db.trackDownloads).get();
+      expect(downloads.single.title, 'So What');
+      expect(await db.select(db.downloadOwners).get(), hasLength(1));
 
       await db.close();
     },

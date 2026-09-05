@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../media/MediaId.dart';
 import 'download_state.dart';
 import 'DownloadOwner.dart';
+import 'PlaylistDownload.dart';
 import 'TrackDownload.dart';
 
 /// What one collection's worth of downloads adds up to.
@@ -74,12 +75,21 @@ class CollectionDownloadStatus extends Equatable {
 /// owner (an album header) without any screen having to hold its own
 /// copy or run its own query.
 class DownloadCatalog extends Equatable {
-  const DownloadCatalog({this.downloads = const {}, this.isLoaded = false});
+  const DownloadCatalog({
+    this.downloads = const {},
+    this.playlistSnapshots = const {},
+    this.isLoaded = false,
+  });
 
   static const DownloadCatalog empty = DownloadCatalog();
 
   /// Every record, keyed by the track it belongs to.
   final Map<MediaId, TrackDownload> downloads;
+
+  /// The ordered membership snapshot of every downloaded playlist
+  /// (v0.2.1), keyed by playlist id. A playlist absent here has not been
+  /// downloaded; its presence — even with an empty list — means it has.
+  final Map<MediaId, List<PlaylistDownloadMember>> playlistSnapshots;
 
   /// Whether the stored records have been read yet. Before that, a
   /// screen shows nothing rather than briefly claiming nothing is
@@ -99,6 +109,23 @@ class DownloadCatalog extends Equatable {
   /// Every record [owner] asked for.
   Iterable<TrackDownload> ownedBy(DownloadOwner owner) =>
       downloads.values.where((download) => download.owners.contains(owner));
+
+  /// Whether [playlistId] has been downloaded — a snapshot exists for it,
+  /// whatever state its members are in.
+  bool isPlaylistDownloaded(MediaId playlistId) =>
+      playlistSnapshots.containsKey(playlistId);
+
+  /// The downloaded tracks of [playlistId], in the order the snapshot
+  /// recorded — what plays when the playlist is opened offline. A member
+  /// whose record has since gone is skipped rather than left as a hole.
+  List<TrackDownload> playlistDownloadsInOrder(MediaId playlistId) {
+    final snapshot = playlistSnapshots[playlistId];
+    if (snapshot == null) return const [];
+    return [
+      for (final member in snapshot)
+        if (downloads[member.trackId] case final TrackDownload record) record,
+    ];
+  }
 
   /// What [owner]'s downloads add up to.
   CollectionDownloadStatus statusFor(DownloadOwner owner) {
@@ -156,12 +183,14 @@ class DownloadCatalog extends Equatable {
 
   DownloadCatalog copyWith({
     Map<MediaId, TrackDownload>? downloads,
+    Map<MediaId, List<PlaylistDownloadMember>>? playlistSnapshots,
     bool? isLoaded,
   }) => DownloadCatalog(
     downloads: downloads ?? this.downloads,
+    playlistSnapshots: playlistSnapshots ?? this.playlistSnapshots,
     isLoaded: isLoaded ?? this.isLoaded,
   );
 
   @override
-  List<Object?> get props => [downloads, isLoaded];
+  List<Object?> get props => [downloads, playlistSnapshots, isLoaded];
 }

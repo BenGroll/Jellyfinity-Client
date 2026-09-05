@@ -4884,11 +4884,12 @@ class DownloadOwnerRow extends DataClass
   /// The downloaded track's item id.
   final String itemId;
 
-  /// `DownloadOwnerKind.name` — `track` or `album` today.
+  /// `DownloadOwnerKind.name` — `track`, `album` or (v0.2.1) `playlist`.
   final String ownerKind;
 
   /// The owning item's id on the same server (the track's own id for a
-  /// `track` owner, the album's for an `album` owner).
+  /// `track` owner, the album's for an `album` owner, the playlist's for
+  /// a `playlist` owner).
   final String ownerItemId;
   const DownloadOwnerRow({
     required this.serverId,
@@ -5072,6 +5073,352 @@ class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
   }
 }
 
+class $PlaylistDownloadMembersTable extends PlaylistDownloadMembers
+    with TableInfo<$PlaylistDownloadMembersTable, PlaylistDownloadMemberRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlaylistDownloadMembersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _playlistItemIdMeta = const VerificationMeta(
+    'playlistItemId',
+  );
+  @override
+  late final GeneratedColumn<String> playlistItemId = GeneratedColumn<String>(
+    'playlist_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackItemIdMeta = const VerificationMeta(
+    'trackItemId',
+  );
+  @override
+  late final GeneratedColumn<String> trackItemId = GeneratedColumn<String>(
+    'track_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    playlistItemId,
+    position,
+    trackItemId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'playlist_download_members';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlaylistDownloadMemberRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('playlist_item_id')) {
+      context.handle(
+        _playlistItemIdMeta,
+        playlistItemId.isAcceptableOrUnknown(
+          data['playlist_item_id']!,
+          _playlistItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_playlistItemIdMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('track_item_id')) {
+      context.handle(
+        _trackItemIdMeta,
+        trackItemId.isAcceptableOrUnknown(
+          data['track_item_id']!,
+          _trackItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_trackItemIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, playlistItemId, position};
+  @override
+  PlaylistDownloadMemberRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlaylistDownloadMemberRow(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      playlistItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}playlist_item_id'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      trackItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_item_id'],
+      )!,
+    );
+  }
+
+  @override
+  $PlaylistDownloadMembersTable createAlias(String alias) {
+    return $PlaylistDownloadMembersTable(attachedDatabase, alias);
+  }
+}
+
+class PlaylistDownloadMemberRow extends DataClass
+    implements Insertable<PlaylistDownloadMemberRow> {
+  final String serverId;
+
+  /// The downloaded playlist's own item id.
+  final String playlistItemId;
+
+  /// The member's index among the playlist's downloadable tracks, in the
+  /// playlist's own order.
+  final int position;
+
+  /// The track at that position — a [TrackDownloads] row key on the same
+  /// server.
+  final String trackItemId;
+  const PlaylistDownloadMemberRow({
+    required this.serverId,
+    required this.playlistItemId,
+    required this.position,
+    required this.trackItemId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['playlist_item_id'] = Variable<String>(playlistItemId);
+    map['position'] = Variable<int>(position);
+    map['track_item_id'] = Variable<String>(trackItemId);
+    return map;
+  }
+
+  PlaylistDownloadMembersCompanion toCompanion(bool nullToAbsent) {
+    return PlaylistDownloadMembersCompanion(
+      serverId: Value(serverId),
+      playlistItemId: Value(playlistItemId),
+      position: Value(position),
+      trackItemId: Value(trackItemId),
+    );
+  }
+
+  factory PlaylistDownloadMemberRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlaylistDownloadMemberRow(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      playlistItemId: serializer.fromJson<String>(json['playlistItemId']),
+      position: serializer.fromJson<int>(json['position']),
+      trackItemId: serializer.fromJson<String>(json['trackItemId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'playlistItemId': serializer.toJson<String>(playlistItemId),
+      'position': serializer.toJson<int>(position),
+      'trackItemId': serializer.toJson<String>(trackItemId),
+    };
+  }
+
+  PlaylistDownloadMemberRow copyWith({
+    String? serverId,
+    String? playlistItemId,
+    int? position,
+    String? trackItemId,
+  }) => PlaylistDownloadMemberRow(
+    serverId: serverId ?? this.serverId,
+    playlistItemId: playlistItemId ?? this.playlistItemId,
+    position: position ?? this.position,
+    trackItemId: trackItemId ?? this.trackItemId,
+  );
+  PlaylistDownloadMemberRow copyWithCompanion(
+    PlaylistDownloadMembersCompanion data,
+  ) {
+    return PlaylistDownloadMemberRow(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      playlistItemId: data.playlistItemId.present
+          ? data.playlistItemId.value
+          : this.playlistItemId,
+      position: data.position.present ? data.position.value : this.position,
+      trackItemId: data.trackItemId.present
+          ? data.trackItemId.value
+          : this.trackItemId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlaylistDownloadMemberRow(')
+          ..write('serverId: $serverId, ')
+          ..write('playlistItemId: $playlistItemId, ')
+          ..write('position: $position, ')
+          ..write('trackItemId: $trackItemId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(serverId, playlistItemId, position, trackItemId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlaylistDownloadMemberRow &&
+          other.serverId == this.serverId &&
+          other.playlistItemId == this.playlistItemId &&
+          other.position == this.position &&
+          other.trackItemId == this.trackItemId);
+}
+
+class PlaylistDownloadMembersCompanion
+    extends UpdateCompanion<PlaylistDownloadMemberRow> {
+  final Value<String> serverId;
+  final Value<String> playlistItemId;
+  final Value<int> position;
+  final Value<String> trackItemId;
+  final Value<int> rowid;
+  const PlaylistDownloadMembersCompanion({
+    this.serverId = const Value.absent(),
+    this.playlistItemId = const Value.absent(),
+    this.position = const Value.absent(),
+    this.trackItemId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlaylistDownloadMembersCompanion.insert({
+    required String serverId,
+    required String playlistItemId,
+    required int position,
+    required String trackItemId,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       playlistItemId = Value(playlistItemId),
+       position = Value(position),
+       trackItemId = Value(trackItemId);
+  static Insertable<PlaylistDownloadMemberRow> custom({
+    Expression<String>? serverId,
+    Expression<String>? playlistItemId,
+    Expression<int>? position,
+    Expression<String>? trackItemId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (playlistItemId != null) 'playlist_item_id': playlistItemId,
+      if (position != null) 'position': position,
+      if (trackItemId != null) 'track_item_id': trackItemId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlaylistDownloadMembersCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? playlistItemId,
+    Value<int>? position,
+    Value<String>? trackItemId,
+    Value<int>? rowid,
+  }) {
+    return PlaylistDownloadMembersCompanion(
+      serverId: serverId ?? this.serverId,
+      playlistItemId: playlistItemId ?? this.playlistItemId,
+      position: position ?? this.position,
+      trackItemId: trackItemId ?? this.trackItemId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (playlistItemId.present) {
+      map['playlist_item_id'] = Variable<String>(playlistItemId.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (trackItemId.present) {
+      map['track_item_id'] = Variable<String>(trackItemId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlaylistDownloadMembersCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('playlistItemId: $playlistItemId, ')
+          ..write('position: $position, ')
+          ..write('trackItemId: $trackItemId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5090,6 +5437,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $QueueEntriesTable queueEntries = $QueueEntriesTable(this);
   late final $TrackDownloadsTable trackDownloads = $TrackDownloadsTable(this);
   late final $DownloadOwnersTable downloadOwners = $DownloadOwnersTable(this);
+  late final $PlaylistDownloadMembersTable playlistDownloadMembers =
+      $PlaylistDownloadMembersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5104,6 +5453,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     queueEntries,
     trackDownloads,
     downloadOwners,
+    playlistDownloadMembers,
   ];
 }
 
@@ -7610,6 +7960,210 @@ typedef $$DownloadOwnersTableProcessedTableManager =
       DownloadOwnerRow,
       PrefetchHooks Function()
     >;
+typedef $$PlaylistDownloadMembersTableCreateCompanionBuilder =
+    PlaylistDownloadMembersCompanion Function({
+      required String serverId,
+      required String playlistItemId,
+      required int position,
+      required String trackItemId,
+      Value<int> rowid,
+    });
+typedef $$PlaylistDownloadMembersTableUpdateCompanionBuilder =
+    PlaylistDownloadMembersCompanion Function({
+      Value<String> serverId,
+      Value<String> playlistItemId,
+      Value<int> position,
+      Value<String> trackItemId,
+      Value<int> rowid,
+    });
+
+class $$PlaylistDownloadMembersTableFilterComposer
+    extends Composer<_$AppDatabase, $PlaylistDownloadMembersTable> {
+  $$PlaylistDownloadMembersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get playlistItemId => $composableBuilder(
+    column: $table.playlistItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackItemId => $composableBuilder(
+    column: $table.trackItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PlaylistDownloadMembersTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlaylistDownloadMembersTable> {
+  $$PlaylistDownloadMembersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get playlistItemId => $composableBuilder(
+    column: $table.playlistItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackItemId => $composableBuilder(
+    column: $table.trackItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PlaylistDownloadMembersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlaylistDownloadMembersTable> {
+  $$PlaylistDownloadMembersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get playlistItemId => $composableBuilder(
+    column: $table.playlistItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get trackItemId => $composableBuilder(
+    column: $table.trackItemId,
+    builder: (column) => column,
+  );
+}
+
+class $$PlaylistDownloadMembersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlaylistDownloadMembersTable,
+          PlaylistDownloadMemberRow,
+          $$PlaylistDownloadMembersTableFilterComposer,
+          $$PlaylistDownloadMembersTableOrderingComposer,
+          $$PlaylistDownloadMembersTableAnnotationComposer,
+          $$PlaylistDownloadMembersTableCreateCompanionBuilder,
+          $$PlaylistDownloadMembersTableUpdateCompanionBuilder,
+          (
+            PlaylistDownloadMemberRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PlaylistDownloadMembersTable,
+              PlaylistDownloadMemberRow
+            >,
+          ),
+          PlaylistDownloadMemberRow,
+          PrefetchHooks Function()
+        > {
+  $$PlaylistDownloadMembersTableTableManager(
+    _$AppDatabase db,
+    $PlaylistDownloadMembersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlaylistDownloadMembersTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PlaylistDownloadMembersTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PlaylistDownloadMembersTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> playlistItemId = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String> trackItemId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlaylistDownloadMembersCompanion(
+                serverId: serverId,
+                playlistItemId: playlistItemId,
+                position: position,
+                trackItemId: trackItemId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String playlistItemId,
+                required int position,
+                required String trackItemId,
+                Value<int> rowid = const Value.absent(),
+              }) => PlaylistDownloadMembersCompanion.insert(
+                serverId: serverId,
+                playlistItemId: playlistItemId,
+                position: position,
+                trackItemId: trackItemId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PlaylistDownloadMembersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlaylistDownloadMembersTable,
+      PlaylistDownloadMemberRow,
+      $$PlaylistDownloadMembersTableFilterComposer,
+      $$PlaylistDownloadMembersTableOrderingComposer,
+      $$PlaylistDownloadMembersTableAnnotationComposer,
+      $$PlaylistDownloadMembersTableCreateCompanionBuilder,
+      $$PlaylistDownloadMembersTableUpdateCompanionBuilder,
+      (
+        PlaylistDownloadMemberRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PlaylistDownloadMembersTable,
+          PlaylistDownloadMemberRow
+        >,
+      ),
+      PlaylistDownloadMemberRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7635,4 +8189,9 @@ class $AppDatabaseManager {
       $$TrackDownloadsTableTableManager(_db, _db.trackDownloads);
   $$DownloadOwnersTableTableManager get downloadOwners =>
       $$DownloadOwnersTableTableManager(_db, _db.downloadOwners);
+  $$PlaylistDownloadMembersTableTableManager get playlistDownloadMembers =>
+      $$PlaylistDownloadMembersTableTableManager(
+        _db,
+        _db.playlistDownloadMembers,
+      );
 }

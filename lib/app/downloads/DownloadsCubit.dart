@@ -11,6 +11,8 @@ import '../../domain/media/Album.dart';
 import '../../domain/media/MediaId.dart';
 import '../../domain/media/MusicLibraryRepository.dart';
 import '../../domain/media/page.dart';
+import '../../domain/media/Playlist.dart';
+import '../../domain/media/PlaylistRepository.dart';
 import '../../domain/media/Track.dart';
 import '../../domain/playback/AudioSourceResolver.dart';
 import '../../domain/playback/stream_quality.dart';
@@ -42,8 +44,13 @@ import '../../domain/playback/stream_quality.dart';
 /// preference is v0.2.2's.
 @lazySingleton
 class DownloadsCubit extends Cubit<DownloadCatalog> {
-  DownloadsCubit(this._store, this._engine, this._remote, this._library)
-    : super(DownloadCatalog.empty);
+  DownloadsCubit(
+    this._store,
+    this._engine,
+    this._remote,
+    this._library,
+    this._playlists,
+  ) : super(DownloadCatalog.empty);
 
   final DownloadStore _store;
   final DownloadEngine _engine;
@@ -53,6 +60,7 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   final AudioSourceResolver _remote;
 
   final MusicLibraryRepository _library;
+  final PlaylistRepository _playlists;
 
   /// The track being transferred right now, if any.
   MediaId? _active;
@@ -71,6 +79,11 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   static DownloadOwner albumOwner(MediaId albumId) =>
       DownloadOwner.album(albumId);
 
+  /// A record's playlist, for the aggregate a playlist header shows
+  /// (v0.2.1).
+  static DownloadOwner playlistOwner(MediaId playlistId) =>
+      DownloadOwner.playlist(playlistId);
+
   // ---- Cold start ----
 
   /// Reads the stored records and picks up where the last run left off.
@@ -88,6 +101,12 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       return;
     }
 
+    final snapshots = await _store.allPlaylistMembers();
+    final playlistSnapshots =
+        snapshots is Ok<Map<MediaId, List<PlaylistDownloadMember>>>
+        ? snapshots.value
+        : const <MediaId, List<PlaylistDownloadMember>>{};
+
     final downloads = <MediaId, TrackDownload>{};
     final interrupted = <TrackDownload>[];
     for (final record in (stored as Ok<List<TrackDownload>>).value) {
@@ -104,7 +123,13 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       }
     }
 
-    emit(DownloadCatalog(downloads: downloads, isLoaded: true));
+    emit(
+      DownloadCatalog(
+        downloads: downloads,
+        playlistSnapshots: playlistSnapshots,
+        isLoaded: true,
+      ),
+    );
     for (final record in interrupted) {
       await _store.save(record);
     }
@@ -136,6 +161,145 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       owner: DownloadOwner.album(album.id),
     );
     return const Result.ok(null);
+  }
+
+  /// Keeps [playlist] on this device as a membership snapshot (v0.2.1).
+  ///
+  /// Reads the playlist's entries a page at a time and requests each page
+  /// as it arrives rather than accumulating the whole list first, then
+  /// records the order it saw in a durable snapshot separate from the
+  /// per-track owner rows. An already downloaded track is reused — it
+  /// gains a playlist owner and its file is not fetched again. A page
+  /// that fails after the first one succeeded leaves a partial snapshot
+  /// that a later online open reconciles and completes, rather than
+  /// failing the whole request.
+  Future<Result<void>> downloadPlaylist(Playlist playlist) async {
+    final owner = DownloadOwner.playlist(playlist.id);
+    final members = <PlaylistDownloadMember>[];
+    var request = const PageRequest.first();
+    var readAnything = false;
+    Failure? readFailure;
+
+    while (true) {
+      final page = await _playlists.tracks(playlist.id, page: request);
+      if (page case Err<Page<Track>>(:final failure)) {
+        readFailure = failure;
+        break;
+      }
+      readAnything = true;
+      final window = (page as Ok<Page<Track>>).value;
+      if (window.items.isNotEmpty) {
+        for (final track in window.items) {
+          members.add((position: members.length, trackId: track.id));
+        }
+        await _request(window.items, owner: owner);
+      }
+      if (window.consumed == 0) break;
+      final next = window.nextRequest();
+      if (next == null) break;
+      request = next;
+    }
+
+    if (!readAnything) {
+      return Result.err(
+        readFailure ?? const UnavailableFailure('That playlist is not there.'),
+      );
+    }
+
+    await _store.savePlaylistMembers(playlist.id, members);
+    _emitSnapshot(playlist.id, members);
+    _pump();
+    return const Result.ok(null);
+  }
+
+  /// Gives up a playlist's claim on every track it asked for and forgets
+  /// its snapshot (v0.2.1).
+  ///
+  /// A track the user also downloaded on its own, or that another
+  /// downloaded playlist still lists, keeps its file — the playlist was
+  /// only ever one of the reasons it was there.
+  Future<void> removePlaylist(MediaId playlistId) async {
+    final owner = DownloadOwner.playlist(playlistId);
+    for (final record in state.ownedBy(owner).toList()) {
+      await _release(record.id, owner);
+    }
+    await _store.deletePlaylistMembers(playlistId);
+    final snapshots = Map<MediaId, List<PlaylistDownloadMember>>.of(
+      state.playlistSnapshots,
+    )..remove(playlistId);
+    emit(state.copyWith(playlistSnapshots: snapshots));
+  }
+
+  /// Reconciles a downloaded playlist against the server (v0.2.1).
+  ///
+  /// `ROADMAP.md` v0.2.1: on a user-requested refresh and when the
+  /// playlist is opened online, queue new members, drop the claim on
+  /// members the server no longer lists (keeping a file another download
+  /// still owns), and report what changed. A playlist that is not
+  /// downloaded, or a read that only the cache could answer, is left
+  /// alone — there is no reconciling against a server that did not speak.
+  Future<PlaylistDownloadChange> reconcilePlaylist(MediaId playlistId) async {
+    final snapshot = state.playlistSnapshots[playlistId];
+    if (snapshot == null) return PlaylistDownloadChange.none;
+
+    final owner = DownloadOwner.playlist(playlistId);
+    final current = <Track>[];
+    var request = const PageRequest.first();
+    while (true) {
+      final page = await _playlists.tracks(playlistId, page: request);
+      if (page case Err<Page<Track>>()) return PlaylistDownloadChange.none;
+      final window = (page as Ok<Page<Track>>).value;
+      // A cached window is not the server answering; reconciling against
+      // it would treat a stale copy as authoritative.
+      if (window.isCached) return PlaylistDownloadChange.none;
+      current.addAll(window.items);
+      if (window.consumed == 0) break;
+      final next = window.nextRequest();
+      if (next == null) break;
+      request = next;
+    }
+
+    final currentIds = {for (final track in current) track.id};
+    final snapshotIds = {for (final member in snapshot) member.trackId};
+
+    final added = [
+      for (final track in current)
+        if (!snapshotIds.contains(track.id)) track,
+    ];
+    final removed = [
+      for (final member in snapshot)
+        if (!currentIds.contains(member.trackId)) member.trackId,
+    ];
+
+    if (added.isNotEmpty) await _request(added, owner: owner);
+
+    var removedButKept = 0;
+    for (final id in removed) {
+      await _release(id, owner);
+      if (state[id] != null) removedButKept++;
+    }
+
+    final members = <PlaylistDownloadMember>[
+      for (var i = 0; i < current.length; i++)
+        (position: i, trackId: current[i].id),
+    ];
+    await _store.savePlaylistMembers(playlistId, members);
+    _emitSnapshot(playlistId, members);
+    if (added.isNotEmpty) _pump();
+
+    return PlaylistDownloadChange(
+      added: added.length,
+      removed: removed.length,
+      removedButKept: removedButKept,
+    );
+  }
+
+  void _emitSnapshot(MediaId playlistId, List<PlaylistDownloadMember> members) {
+    emit(
+      state.copyWith(
+        playlistSnapshots: {...state.playlistSnapshots, playlistId: members},
+      ),
+    );
   }
 
   Future<void> _request(

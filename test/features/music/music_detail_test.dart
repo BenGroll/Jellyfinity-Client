@@ -11,6 +11,7 @@ import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dar
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_skeletons.dart';
 
+import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
 import '../../support/pump_app.dart';
 
@@ -155,5 +156,43 @@ void main() {
 
     expect(find.byType(ErrorStateView), findsWidgets);
     expect(find.text('Try again'), findsWidgets);
+  });
+
+  testWidgets('downloads a whole playlist from its header (v0.2.1)', (
+    tester,
+  ) async {
+    final playlists = FakePlaylistRepository()
+      ..trackList = [
+        testTrack('t1', name: 'So What'),
+        testTrack('t2', name: 'Blue in Green'),
+      ];
+    final metadata = FakeMediaMetadataRepository()
+      ..items = [testPlaylist('pl1', name: 'Late Night')];
+    final store = InMemoryDownloadStore();
+    final downloads = fakeDownloadsCubit(
+      store: store,
+      engine: FakeDownloadEngine(),
+      playlists: playlists,
+    );
+    await downloads.restore();
+
+    await pumpThemed(
+      tester,
+      PlaylistDetailPage(
+        playlistId: mediaId('pl1'),
+        detail: PlaylistDetailCubit(metadata),
+        tracks: PlaylistTracksCubit(playlists),
+      ),
+      downloads: downloads,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Download playlist'));
+    await tester.pumpAndSettle();
+
+    expect(downloads.state.isPlaylistDownloaded(mediaId('pl1')), isTrue);
+    expect(store.playlistSnapshots[mediaId('pl1')], hasLength(2));
+    // The header now shows the honest aggregate summary.
+    expect(find.textContaining('Downloaded'), findsWidgets);
   });
 }

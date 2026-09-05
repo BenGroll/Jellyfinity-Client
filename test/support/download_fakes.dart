@@ -8,7 +8,9 @@ import 'package:jellyfinity/domain/media/MediaId.dart';
 export 'package:jellyfinity/domain/downloads/downloads.dart'
     show DownloadFailureReason, DownloadOwner, DownloadState, TrackDownload;
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart';
-import 'music_fakes.dart' show FakeMusicLibraryRepository;
+import 'package:jellyfinity/domain/media/PlaylistRepository.dart';
+import 'music_fakes.dart'
+    show FakeMusicLibraryRepository, FakePlaylistRepository;
 import 'playback_fakes.dart' show FakeAudioSourceResolver;
 
 /// A [DownloadsCubit] wired entirely to fakes, for tests that only need
@@ -18,16 +20,21 @@ DownloadsCubit fakeDownloadsCubit({
   FakeDownloadEngine? engine,
   FakeAudioSourceResolver? resolver,
   MusicLibraryRepository? library,
+  PlaylistRepository? playlists,
 }) => DownloadsCubit(
   store ?? InMemoryDownloadStore(),
   engine ?? FakeDownloadEngine(),
   resolver ?? FakeAudioSourceResolver(),
   library ?? FakeMusicLibraryRepository(),
+  playlists ?? FakePlaylistRepository(),
 );
 
 /// A [DownloadStore] with no database behind it.
 class InMemoryDownloadStore implements DownloadStore {
   final Map<MediaId, TrackDownload> records = {};
+
+  /// Playlist membership snapshots, keyed by playlist id (v0.2.1).
+  final Map<MediaId, List<PlaylistDownloadMember>> playlistSnapshots = {};
 
   /// Set to make every write fail, for the "storage is broken" paths.
   Failure? writeFailure;
@@ -62,6 +69,38 @@ class InMemoryDownloadStore implements DownloadStore {
         for (final record in records.values)
           if (record.owners.contains(owner)) record.id,
       ]);
+
+  @override
+  Future<Result<void>> savePlaylistMembers(
+    MediaId playlistId,
+    List<PlaylistDownloadMember> members,
+  ) async {
+    if (writeFailure case final failure?) return Result.err(failure);
+    if (members.isEmpty) {
+      playlistSnapshots.remove(playlistId);
+    } else {
+      playlistSnapshots[playlistId] = List.of(members);
+    }
+    return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<List<PlaylistDownloadMember>>> playlistMembers(
+    MediaId playlistId,
+  ) async => Result.ok(playlistSnapshots[playlistId] ?? const []);
+
+  @override
+  Future<Result<Map<MediaId, List<PlaylistDownloadMember>>>>
+  allPlaylistMembers() async => Result.ok({
+    for (final entry in playlistSnapshots.entries)
+      entry.key: List.of(entry.value),
+  });
+
+  @override
+  Future<Result<void>> deletePlaylistMembers(MediaId playlistId) async {
+    playlistSnapshots.remove(playlistId);
+    return const Result.ok(null);
+  }
 }
 
 /// A [DownloadEngine] a test drives directly: it records what it was

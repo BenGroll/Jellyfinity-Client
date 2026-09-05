@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
+import 'package:jellyfinity/domain/media/media.dart';
 
 import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
@@ -13,6 +14,7 @@ void main() {
   late FakeDownloadEngine engine;
   late FakeAudioSourceResolver resolver;
   late FakeMusicLibraryRepository library;
+  late FakePlaylistRepository playlists;
   late DownloadsCubit cubit;
 
   setUp(() {
@@ -20,11 +22,13 @@ void main() {
     engine = FakeDownloadEngine();
     resolver = FakeAudioSourceResolver();
     library = FakeMusicLibraryRepository();
+    playlists = FakePlaylistRepository();
     cubit = fakeDownloadsCubit(
       store: store,
       engine: engine,
       resolver: resolver,
       library: library,
+      playlists: playlists,
     );
   });
 
@@ -365,5 +369,198 @@ void main() {
         expect(engine.fetched, isEmpty);
       },
     );
+
+    test('a downloaded playlist\'s snapshot is restored', () async {
+      final t1 = testTrack('t1');
+      final t2 = testTrack('t2');
+      store.records[t1.id] = downloadRecord(
+        t1.id,
+        state: DownloadState.completed,
+        owners: {DownloadOwner.playlist(mediaId('pl-1'))},
+      );
+      store.records[t2.id] = downloadRecord(
+        t2.id,
+        state: DownloadState.completed,
+        owners: {DownloadOwner.playlist(mediaId('pl-1'))},
+      );
+      store.playlistSnapshots[mediaId('pl-1')] = [
+        (position: 0, trackId: t1.id),
+        (position: 1, trackId: t2.id),
+      ];
+
+      await cubit.restore();
+      await pumpEventQueue();
+
+      expect(cubit.state.isPlaylistDownloaded(mediaId('pl-1')), isTrue);
+      expect(
+        cubit.state
+            .playlistDownloadsInOrder(mediaId('pl-1'))
+            .map((r) => r.id.itemId),
+        ['t1', 't2'],
+      );
+    });
+  });
+
+  group('requesting a playlist (v0.2.1)', () {
+    test(
+      'queues every member in playlist order and records a snapshot',
+      () async {
+        playlists.trackList = [
+          testTrack('t1'),
+          testTrack('t2'),
+          testTrack('t3'),
+        ];
+
+        final result = await cubit.downloadPlaylist(testPlaylist('pl-1'));
+        await pumpEventQueue();
+
+        expect(result.isOk, isTrue);
+        expect(engine.fetched, [mediaId('t1'), mediaId('t2'), mediaId('t3')]);
+        expect(
+          cubit.state
+              .playlistDownloadsInOrder(mediaId('pl-1'))
+              .map((r) => r.id.itemId),
+          ['t1', 't2', 't3'],
+        );
+        expect(store.playlistSnapshots[mediaId('pl-1')], hasLength(3));
+      },
+    );
+
+    test('reuses a track already downloaded on its own', () async {
+      final shared = testTrack('t1');
+      playlists.trackList = [shared, testTrack('t2')];
+
+      await cubit.downloadTrack(shared);
+      await pumpEventQueue();
+      await cubit.downloadPlaylist(testPlaylist('pl-1'));
+      await pumpEventQueue();
+
+      // t1 fetched once, for the standalone request; the playlist only
+      // adds a reason to keep it.
+      expect(engine.fetched, [mediaId('t1'), mediaId('t2')]);
+      expect(cubit.state[shared.id]?.owners, {
+        DownloadOwner.track(shared.id),
+        DownloadOwner.playlist(mediaId('pl-1')),
+      });
+    });
+
+    test('reports a failure when the playlist could not be read', () async {
+      playlists.failure = const UnavailableFailure('no such playlist');
+
+      final result = await cubit.downloadPlaylist(testPlaylist('pl-1'));
+
+      expect(result.isErr, isTrue);
+      expect(cubit.state.isPlaylistDownloaded(mediaId('pl-1')), isFalse);
+    });
+  });
+
+  group('removing a playlist (v0.2.1)', () {
+    test('drops the file when nothing else wants it', () async {
+      playlists.trackList = [testTrack('t1'), testTrack('t2')];
+      await cubit.downloadPlaylist(testPlaylist('pl-1'));
+      await pumpEventQueue();
+
+      await cubit.removePlaylist(mediaId('pl-1'));
+
+      expect(cubit.state[mediaId('t1')], isNull);
+      expect(engine.discarded.toSet(), {mediaId('t1'), mediaId('t2')});
+      expect(cubit.state.isPlaylistDownloaded(mediaId('pl-1')), isFalse);
+      expect(store.playlistSnapshots[mediaId('pl-1')], isNull);
+    });
+
+    test('keeps a member another playlist still lists', () async {
+      final shared = testTrack('t1');
+      playlists.tracksByPlaylist['pl-1'] = [shared, testTrack('t2')];
+      playlists.tracksByPlaylist['pl-2'] = [shared];
+
+      await cubit.downloadPlaylist(testPlaylist('pl-1'));
+      await pumpEventQueue();
+      await cubit.downloadPlaylist(testPlaylist('pl-2'));
+      await pumpEventQueue();
+
+      await cubit.removePlaylist(mediaId('pl-1'));
+
+      expect(cubit.state[shared.id]?.state, DownloadState.completed);
+      expect(cubit.state[shared.id]?.owners, {
+        DownloadOwner.playlist(mediaId('pl-2')),
+      });
+      expect(cubit.state[mediaId('t2')], isNull);
+    });
+  });
+
+  group('reconciling a playlist (v0.2.1)', () {
+    test('queues a track added to the playlist on the server', () async {
+      playlists.tracksByPlaylist['pl-1'] = [testTrack('t1')];
+      await cubit.downloadPlaylist(testPlaylist('pl-1'));
+      await pumpEventQueue();
+
+      playlists.tracksByPlaylist['pl-1'] = [testTrack('t1'), testTrack('t2')];
+      final change = await cubit.reconcilePlaylist(mediaId('pl-1'));
+      await pumpEventQueue();
+
+      expect(change.added, 1);
+      expect(change.removed, 0);
+      expect(cubit.state.isDownloaded(mediaId('t2')), isTrue);
+      expect(
+        cubit.state
+            .playlistDownloadsInOrder(mediaId('pl-1'))
+            .map((r) => r.id.itemId),
+        ['t1', 't2'],
+      );
+    });
+
+    test('drops the claim on a track removed from the playlist', () async {
+      playlists.tracksByPlaylist['pl-1'] = [testTrack('t1'), testTrack('t2')];
+      await cubit.downloadPlaylist(testPlaylist('pl-1'));
+      await pumpEventQueue();
+
+      playlists.tracksByPlaylist['pl-1'] = [testTrack('t1')];
+      final change = await cubit.reconcilePlaylist(mediaId('pl-1'));
+      await pumpEventQueue();
+
+      expect(change.removed, 1);
+      expect(change.removedButKept, 0);
+      expect(cubit.state[mediaId('t2')], isNull);
+      expect(engine.discarded, contains(mediaId('t2')));
+    });
+
+    test(
+      'keeps a removed member the user also downloaded on its own',
+      () async {
+        final shared = testTrack('t2');
+        playlists.tracksByPlaylist['pl-1'] = [testTrack('t1'), shared];
+        await cubit.downloadPlaylist(testPlaylist('pl-1'));
+        await cubit.downloadTrack(shared);
+        await pumpEventQueue();
+
+        playlists.tracksByPlaylist['pl-1'] = [testTrack('t1')];
+        final change = await cubit.reconcilePlaylist(mediaId('pl-1'));
+        await pumpEventQueue();
+
+        expect(change.removed, 1);
+        expect(change.removedButKept, 1);
+        expect(cubit.state[shared.id]?.owners, {
+          DownloadOwner.track(shared.id),
+        });
+      },
+    );
+
+    test('does nothing for a playlist that is not downloaded', () async {
+      final change = await cubit.reconcilePlaylist(mediaId('pl-1'));
+      expect(change.isEmpty, isTrue);
+    });
+
+    test('does not reconcile against a cache-served read', () async {
+      playlists.tracksByPlaylist['pl-1'] = [testTrack('t1')];
+      await cubit.downloadPlaylist(testPlaylist('pl-1'));
+      await pumpEventQueue();
+
+      playlists.tracksByPlaylist['pl-1'] = [testTrack('t1'), testTrack('t2')];
+      playlists.source = PageSource.cache;
+      final change = await cubit.reconcilePlaylist(mediaId('pl-1'));
+
+      expect(change.isEmpty, isTrue);
+      expect(cubit.state.stateOf(mediaId('t2')), isNull);
+    });
   });
 }

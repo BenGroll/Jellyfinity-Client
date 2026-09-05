@@ -204,4 +204,72 @@ void main() {
       expect(catalog.stateOf(_id('missing')), isNull);
     });
   });
+
+  group('DownloadCatalog playlist snapshots (v0.2.1)', () {
+    final playlist = DownloadOwner.playlist(_id('pl-1'));
+
+    test('a playlist with a snapshot is downloaded, even when empty', () {
+      final catalog = DownloadCatalog(
+        downloads: const {},
+        playlistSnapshots: {_id('pl-1'): const []},
+        isLoaded: true,
+      );
+
+      expect(catalog.isPlaylistDownloaded(_id('pl-1')), isTrue);
+      expect(catalog.isPlaylistDownloaded(_id('pl-2')), isFalse);
+    });
+
+    test('returns the downloaded members in the snapshot order', () {
+      final catalog = DownloadCatalog(
+        downloads: {
+          _id('t1'): _record(
+            't1',
+            state: DownloadState.completed,
+            owner: playlist,
+          ),
+          _id('t2'): _record(
+            't2',
+            state: DownloadState.completed,
+            owner: playlist,
+          ),
+        },
+        playlistSnapshots: {
+          _id('pl-1'): [
+            (position: 0, trackId: _id('t2')),
+            (position: 1, trackId: _id('t1')),
+          ],
+        },
+        isLoaded: true,
+      );
+
+      expect(
+        catalog.playlistDownloadsInOrder(_id('pl-1')).map((r) => r.id.itemId),
+        ['t2', 't1'],
+      );
+    });
+
+    test('skips a member whose record has gone rather than leaving a hole', () {
+      final catalog = DownloadCatalog(
+        downloads: {
+          _id('t1'): _record(
+            't1',
+            state: DownloadState.completed,
+            owner: playlist,
+          ),
+        },
+        playlistSnapshots: {
+          _id('pl-1'): [
+            (position: 0, trackId: _id('t1')),
+            (position: 1, trackId: _id('gone')),
+          ],
+        },
+        isLoaded: true,
+      );
+
+      expect(
+        catalog.playlistDownloadsInOrder(_id('pl-1')).map((r) => r.id.itemId),
+        ['t1'],
+      );
+    });
+  });
 }

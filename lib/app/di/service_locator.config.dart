@@ -37,6 +37,7 @@ import 'package:jellyfinity/domain/media/media.dart' as _i747;
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart' as _i260;
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
     as _i474;
+import 'package:jellyfinity/domain/media/PlaylistRepository.dart' as _i597;
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart' as _i119;
 import 'package:jellyfinity/domain/playback/LyricsResolver.dart' as _i392;
@@ -309,6 +310,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i516.JellyfinPlaylistRepository>(),
         gh<_i1018.MediaCacheStore>(),
         gh<_i346.JellyfinSessionContext>(),
+        gh<_i853.DownloadStore>(),
       ),
     );
     gh.lazySingleton<_i392.LyricsResolver>(
@@ -358,6 +360,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.lazySingleton<_i45.DownloadsCubit>(
+      () => _i45.DownloadsCubit(
+        gh<_i306.DownloadStore>(),
+        gh<_i306.DownloadEngine>(),
+        gh<_i922.AudioSourceResolver>(),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i597.PlaylistRepository>(),
+      ),
+    );
     gh.factory<_i824.ArtistStatsCubit>(
       () => _i824.ArtistStatsCubit(gh<_i260.MusicLibraryRepository>()),
     );
@@ -372,14 +383,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i29.NowPlayingDetailsCubit>(
       () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
-    );
-    gh.lazySingleton<_i45.DownloadsCubit>(
-      () => _i45.DownloadsCubit(
-        gh<_i306.DownloadStore>(),
-        gh<_i306.DownloadEngine>(),
-        gh<_i922.AudioSourceResolver>(),
-        gh<_i260.MusicLibraryRepository>(),
-      ),
     );
     gh.factory<_i213.ArtistDetailCubit>(
       () => _i213.ArtistDetailCubit(gh<_i747.MusicLibraryRepository>()),

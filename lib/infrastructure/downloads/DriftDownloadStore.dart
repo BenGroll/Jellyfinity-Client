@@ -8,6 +8,7 @@ import '../../core/result/result.dart';
 import '../../domain/downloads/download_state.dart';
 import '../../domain/downloads/DownloadOwner.dart';
 import '../../domain/downloads/DownloadStore.dart';
+import '../../domain/downloads/PlaylistDownload.dart';
 import '../../domain/downloads/TrackDownload.dart';
 import '../../domain/media/artist.dart';
 import '../../domain/media/MediaId.dart';
@@ -172,6 +173,121 @@ class DriftDownloadStore implements DownloadStore {
       );
     }
   }
+
+  @override
+  Future<Result<void>> savePlaylistMembers(
+    MediaId playlistId,
+    List<PlaylistDownloadMember> members,
+  ) async {
+    try {
+      await _db.transaction(() async {
+        await _clearPlaylistMembers(playlistId);
+        for (final member in members) {
+          await _db
+              .into(_db.playlistDownloadMembers)
+              .insert(
+                PlaylistDownloadMembersCompanion.insert(
+                  serverId: playlistId.serverId,
+                  playlistItemId: playlistId.itemId,
+                  position: member.position,
+                  trackItemId: member.trackId.itemId,
+                ),
+              );
+        }
+      });
+      return const Result.ok(null);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          'Could not save that playlist download.',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<List<PlaylistDownloadMember>>> playlistMembers(
+    MediaId playlistId,
+  ) async {
+    try {
+      final rows =
+          await (_db.select(_db.playlistDownloadMembers)
+                ..where(
+                  (t) =>
+                      t.serverId.equals(playlistId.serverId) &
+                      t.playlistItemId.equals(playlistId.itemId),
+                )
+                ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+              .get();
+      return Result.ok([for (final row in rows) _toMember(row)]);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          'Could not read that playlist download.',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<Map<MediaId, List<PlaylistDownloadMember>>>>
+  allPlaylistMembers() async {
+    try {
+      final rows = await (_db.select(
+        _db.playlistDownloadMembers,
+      )..orderBy([(t) => OrderingTerm.asc(t.position)])).get();
+      final byPlaylist = <MediaId, List<PlaylistDownloadMember>>{};
+      for (final row in rows) {
+        final playlistId = MediaId(
+          serverId: row.serverId,
+          itemId: row.playlistItemId,
+        );
+        byPlaylist.putIfAbsent(playlistId, () => []).add(_toMember(row));
+      }
+      return Result.ok(byPlaylist);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          'Could not read your playlist downloads.',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void>> deletePlaylistMembers(MediaId playlistId) async {
+    try {
+      await _clearPlaylistMembers(playlistId);
+      return const Result.ok(null);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          'Could not remove that playlist download.',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearPlaylistMembers(MediaId playlistId) =>
+      (_db.delete(_db.playlistDownloadMembers)..where(
+            (t) =>
+                t.serverId.equals(playlistId.serverId) &
+                t.playlistItemId.equals(playlistId.itemId),
+          ))
+          .go();
+
+  PlaylistDownloadMember _toMember(PlaylistDownloadMemberRow row) => (
+    position: row.position,
+    trackId: MediaId(serverId: row.serverId, itemId: row.trackItemId),
+  );
 
   Future<Set<DownloadOwner>> _ownersOf(MediaId id) async {
     final rows =

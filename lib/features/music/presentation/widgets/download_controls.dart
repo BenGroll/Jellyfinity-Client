@@ -5,6 +5,7 @@ import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/Album.dart';
+import '../../../../domain/media/Playlist.dart';
 import '../../../../domain/media/Track.dart';
 
 /// The download affordance on one track row (v0.2.0).
@@ -222,6 +223,166 @@ class AlbumDownloadButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The download affordance on a playlist header (v0.2.1).
+///
+/// The playlist counterpart to [AlbumDownloadButton]. It differs in two
+/// ways that matter: "is it downloaded" is answered by whether a
+/// membership snapshot exists, not by whether any track is (an empty or
+/// all-unavailable playlist is still downloaded), and its menu offers a
+/// "Check for changes" action — the user-requested reconcile
+/// `ROADMAP.md` v0.2.1 asks for, which queues tracks added on the server
+/// and drops the claim on ones removed.
+class PlaylistDownloadButton extends StatelessWidget {
+  const PlaylistDownloadButton({super.key, required this.playlist});
+
+  final Playlist playlist;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final catalog = context.watch<DownloadsCubit>().state;
+    final downloads = context.read<DownloadsCubit>();
+    final status = catalog.statusFor(DownloadOwner.playlist(playlist.id));
+    final isDownloaded = catalog.isPlaylistDownloaded(playlist.id);
+
+    if (!catalog.isLoaded) {
+      return const SizedBox(width: 40, height: 40);
+    }
+
+    if (!isDownloaded) {
+      return _IconAction(
+        icon: Icons.download_outlined,
+        tooltip: 'Download playlist',
+        color: t.colors.textPrimary,
+        onPressed: () => _download(context, downloads),
+      );
+    }
+
+    if (status.isActive) {
+      return _ProgressAction(
+        progress: status.progress,
+        tooltip: 'Downloading playlist — tap for options',
+        onPressed: () => _openMenu(context, downloads, status),
+      );
+    }
+
+    return _IconAction(
+      icon: status.needsAttention
+          ? Icons.error_outline_rounded
+          : Icons.check_circle_rounded,
+      tooltip: status.needsAttention
+          ? '${status.completed} of ${status.total} downloaded'
+          : 'Playlist downloaded',
+      color: status.needsAttention ? t.colors.danger : t.colors.accent,
+      onPressed: () => _openMenu(context, downloads, status),
+    );
+  }
+
+  Future<void> _download(BuildContext context, DownloadsCubit downloads) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await downloads.downloadPlaylist(playlist);
+    if (result.failureOrNull case final failure?) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not download "${playlist.name}". ${failure.message}',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _checkForChanges(
+    BuildContext context,
+    DownloadsCubit downloads,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final change = await downloads.reconcilePlaylist(playlist.id);
+    messenger.showSnackBar(
+      SnackBar(content: Text(describePlaylistDownloadChange(change))),
+    );
+  }
+
+  void _openMenu(
+    BuildContext context,
+    DownloadsCubit downloads,
+    CollectionDownloadStatus status,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.info_outline_rounded),
+              title: Text(describeCollectionDownload(status)),
+              dense: true,
+            ),
+            if (status.needsAttention)
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded),
+                title: const Text('Try the rest again'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  downloads.retryAll(DownloadOwner.playlist(playlist.id));
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.sync_rounded),
+              title: const Text('Check for changes'),
+              subtitle: const Text(
+                'Download tracks added to this playlist, drop ones removed',
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _checkForChanges(context, downloads);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Remove download'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                confirmRemoveDownload(
+                  context,
+                  title: 'Remove "${playlist.name}"?',
+                  message:
+                      'Frees up ${status.completed} downloaded '
+                      '${status.completed == 1 ? 'track' : 'tracks'} on this '
+                      'device. Songs you downloaded on their own, or that '
+                      'another downloaded playlist keeps, stay — and nothing '
+                      'changes on your server.',
+                  onConfirm: () => downloads.removePlaylist(playlist.id),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One line describing what a playlist reconcile changed (v0.2.1).
+String describePlaylistDownloadChange(PlaylistDownloadChange change) {
+  if (change.isEmpty) return 'This playlist download is up to date';
+  final parts = <String>[];
+  if (change.added > 0) {
+    parts.add(
+      '${change.added} new ${change.added == 1 ? 'track' : 'tracks'} '
+      'downloading',
+    );
+  }
+  if (change.removed > 0) {
+    final kept = change.removedButKept > 0
+        ? ' (${change.removedButKept} kept for another download)'
+        : '';
+    parts.add('${change.removed} removed from the playlist$kept');
+  }
+  return parts.join(' · ');
 }
 
 /// The line an album header shows under its facts while any of it is
