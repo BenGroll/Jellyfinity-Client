@@ -8,6 +8,7 @@ import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
 import 'playback_fakes.dart';
@@ -23,7 +24,8 @@ import 'settings_fakes.dart';
 /// on one of them directly; otherwise fake-backed cubits are built so the
 /// shell (mini-player, header, sidebar) has something to read. Pass
 /// [trackSourceInfoResolver] to control what Now Playing's source-quality
-/// hint (ADR-0015) shows; otherwise it stays hidden.
+/// hint (ADR-0015) shows; otherwise it stays hidden. Pass [lyricsResolver] to
+/// control what the Lyrics view (v0.1.5) shows; otherwise it has none.
 ///
 /// [restore] defaults to `true` (the ordinary post-sign-in-restore state
 /// every other test wants); pass `false` for a test that specifically
@@ -42,6 +44,7 @@ Future<TestSessionScope> pumpApp(
   SettingsCubit? settings,
   MediaScopeCubit? mediaScope,
   TrackSourceInfoResolver? trackSourceInfoResolver,
+  LyricsResolver? lyricsResolver,
   bool restore = true,
 }) async {
   // The default flutter_test surface (800x600, wider than tall) has too
@@ -72,6 +75,10 @@ Future<TestSessionScope> pumpApp(
   // unconditionally rather than only by tests that specifically care
   // about it (mirrors registerMusicCubits for the music detail cubits).
   registerTrackSourceInfoCubit(resolver: trackSourceInfoResolver);
+  // LyricsPage is the same shape — a root route reading LyricsCubit
+  // straight from getIt, reachable from every pumpApp test via Now
+  // Playing's lyrics button.
+  registerLyricsCubit(resolver: lyricsResolver);
   await tester.pumpWidget(
     JellyfinityApp(
       router: effectiveRouter.config,

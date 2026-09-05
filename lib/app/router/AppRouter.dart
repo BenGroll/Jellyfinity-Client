@@ -13,6 +13,7 @@ import '../../features/music/presentation/library/LibraryPage.dart';
 import '../../features/music/presentation/search/music_search_cubit.dart';
 import '../../features/music/presentation/search/SearchCategoryPage.dart';
 import '../../features/onboarding/presentation/WelcomePage.dart';
+import '../../features/playback/presentation/LyricsPage.dart';
 import '../../features/playback/presentation/NowPlayingPage.dart';
 import '../../features/playback/presentation/QueuePage.dart';
 import '../../features/settings/presentation/SettingsPage.dart';
@@ -110,6 +111,11 @@ class AppRouter {
               path: RoutePaths.nowPlayingQueue,
               name: RouteNames.nowPlayingQueue,
               builder: (context, state) => const QueuePage(),
+            ),
+            GoRoute(
+              path: RoutePaths.nowPlayingLyrics,
+              name: RouteNames.nowPlayingLyrics,
+              builder: (context, state) => const LyricsPage(),
             ),
           ],
         ),

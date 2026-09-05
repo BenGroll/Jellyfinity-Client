@@ -3,10 +3,13 @@ import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/base_item_dto.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/BaseItemMapper.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/ItemsResponseDto.dart';
+import 'package:jellyfinity/infrastructure/jellyfin/media/LyricsDto.dart';
 
 const _mapper = BaseItemMapper('server-1');
 
 BaseItemDto _dto(Map<String, dynamic> json) => BaseItemDto.fromJson(json);
+
+LyricsDto _lyricsDto(Map<String, dynamic> json) => LyricsDto.fromJson(json);
 
 /// One minute in Jellyfin's 100-nanosecond ticks.
 const int _minuteInTicks = 600000000;
@@ -469,6 +472,100 @@ void main() {
       });
 
       expect(_mapper.toTrackSourceInfo(album), isNull);
+    });
+  });
+
+  group('toLyrics (v0.1.5)', () {
+    test('maps plain lines with no timing', () {
+      final dto = _lyricsDto({
+        'Lyrics': [
+          {'Text': 'First line'},
+          {'Text': 'Second line'},
+        ],
+      });
+
+      final lyrics = _mapper.toLyrics(dto)!;
+
+      expect(lyrics.isSynchronized, isFalse);
+      expect(lyrics.lines.map((l) => l.text), ['First line', 'Second line']);
+      expect(lyrics.lines.every((l) => l.start == null), isTrue);
+    });
+
+    test('is synchronized when every line has non-decreasing timing', () {
+      final dto = _lyricsDto({
+        'Lyrics': [
+          {'Text': 'First line', 'Start': 0},
+          {'Text': 'Second line', 'Start': _minuteInTicks},
+        ],
+      });
+
+      final lyrics = _mapper.toLyrics(dto)!;
+
+      expect(lyrics.isSynchronized, isTrue);
+      expect(lyrics.lines[0].start, Duration.zero);
+      expect(lyrics.lines[1].start, const Duration(minutes: 1));
+    });
+
+    test('treats a start of zero as timed, not missing', () {
+      final dto = _lyricsDto({
+        'Lyrics': [
+          {'Text': 'First line', 'Start': 0},
+        ],
+      });
+
+      expect(_mapper.toLyrics(dto)!.lines.single.start, Duration.zero);
+    });
+
+    test('falls back to plain when one line has no timing', () {
+      final dto = _lyricsDto({
+        'Lyrics': [
+          {'Text': 'First line', 'Start': 0},
+          {'Text': 'Second line'},
+        ],
+      });
+
+      expect(_mapper.toLyrics(dto)!.isSynchronized, isFalse);
+    });
+
+    test('falls back to plain when timing runs backwards', () {
+      final dto = _lyricsDto({
+        'Lyrics': [
+          {'Text': 'First line', 'Start': _minuteInTicks},
+          {'Text': 'Second line', 'Start': 0},
+        ],
+      });
+
+      expect(_mapper.toLyrics(dto)!.isSynchronized, isFalse);
+    });
+
+    test('drops blank lines rather than showing an empty gap', () {
+      final dto = _lyricsDto({
+        'Lyrics': [
+          {'Text': 'First line'},
+          {'Text': '   '},
+          {'Text': 'Second line'},
+        ],
+      });
+
+      expect(_mapper.toLyrics(dto)!.lines.map((l) => l.text), [
+        'First line',
+        'Second line',
+      ]);
+    });
+
+    test('is null when there are no usable lines', () {
+      expect(_mapper.toLyrics(_lyricsDto({'Lyrics': []})), isNull);
+      expect(_mapper.toLyrics(_lyricsDto({})), isNull);
+      expect(
+        _mapper.toLyrics(
+          _lyricsDto({
+            'Lyrics': [
+              {'Text': ''},
+            ],
+          }),
+        ),
+        isNull,
+      );
     });
   });
 }

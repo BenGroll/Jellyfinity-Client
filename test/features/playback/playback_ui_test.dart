@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/domain/playback/Lyrics.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
+import 'package:jellyfinity/features/playback/presentation/LyricsPage.dart';
 import 'package:jellyfinity/features/playback/presentation/QueuePage.dart';
 
 import '../../support/playback_fakes.dart';
@@ -263,6 +266,155 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('kbps'), findsNothing);
+
+      await playback.togglePlayPause();
+    });
+  });
+
+  group('lyrics (v0.1.5)', () {
+    testWidgets('shows plain lyrics with no timing', (tester) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final resolver = FakeLyricsResolver()
+        ..answer = (_) => const Result.ok(
+          Lyrics(
+            lines: [
+              LyricLine(text: 'First line'),
+              LyricLine(text: 'Second line'),
+            ],
+            isSynchronized: false,
+          ),
+        );
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        lyricsResolver: resolver,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LyricsPage), findsOneWidget);
+      expect(find.text('First line'), findsOneWidget);
+      expect(find.text('Second line'), findsOneWidget);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('shows the empty state for a track with no lyrics', (
+      tester,
+    ) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final scope = await pumpApp(tester, playback: playback);
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No lyrics available'), findsOneWidget);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('shows a retryable error and recovers', (tester) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      var attempt = 0;
+      final resolver = FakeLyricsResolver()
+        ..answer = (_) {
+          attempt += 1;
+          if (attempt == 1) {
+            return const Result.err(
+              RecoverableFailure('The server took too long to respond.'),
+            );
+          }
+          return const Result.ok(
+            Lyrics(
+              lines: [LyricLine(text: 'First line')],
+              isSynchronized: false,
+            ),
+          );
+        };
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        lyricsResolver: resolver,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Try again'), findsOneWidget);
+
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('First line'), findsOneWidget);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('highlights the current line for synchronized lyrics', (
+      tester,
+    ) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final resolver = FakeLyricsResolver()
+        ..answer = (_) => const Result.ok(
+          Lyrics(
+            lines: [
+              LyricLine(text: 'Line A', start: Duration.zero),
+              LyricLine(text: 'Line B', start: Duration(seconds: 5)),
+            ],
+            isSynchronized: true,
+          ),
+        );
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        lyricsResolver: resolver,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.lyrics_outlined));
+      await tester.pumpAndSettle();
+
+      Color colorOf(String text) =>
+          tester.widget<Text>(find.text(text)).style!.color!;
+
+      expect(colorOf('Line A'), isNot(colorOf('Line B')));
+      final firstActiveColor = colorOf('Line A');
+
+      await playback.seek(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      expect(colorOf('Line B'), firstActiveColor);
+      expect(colorOf('Line A'), isNot(firstActiveColor));
 
       await playback.togglePlayPause();
     });

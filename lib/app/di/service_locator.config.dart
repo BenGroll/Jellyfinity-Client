@@ -30,6 +30,7 @@ import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
     as _i474;
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
 import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart' as _i119;
+import 'package:jellyfinity/domain/playback/LyricsResolver.dart' as _i392;
 import 'package:jellyfinity/domain/playback/NormalizationSettings.dart'
     as _i122;
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart' as _i717;
@@ -54,6 +55,8 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
     as _i169;
+import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart'
+    as _i148;
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart'
     as _i766;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
@@ -72,6 +75,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinArtworkResolve
     as _i1022;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinAudioSourceResolver.dart'
     as _i860;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinLyricsResolver.dart'
+    as _i417;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMediaMetadataRepository.dart'
     as _i830;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMusicLibraryRepository.dart'
@@ -259,6 +264,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.lazySingleton<_i392.LyricsResolver>(
+      () => _i417.JellyfinLyricsResolver(gh<_i963.JellyfinMediaApi>()),
+    );
     gh.lazySingleton<_i747.PlaybackProgressRepository>(
       () =>
           _i36.JellyfinPlaybackProgressRepository(gh<_i963.JellyfinMediaApi>()),
@@ -280,6 +288,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i830.JellyfinMediaMetadataRepository>(),
         gh<_i1018.MediaCacheStore>(),
       ),
+    );
+    gh.factory<_i148.LyricsCubit>(
+      () => _i148.LyricsCubit(gh<_i392.LyricsResolver>()),
     );
     gh.factory<_i618.PlaylistsCubit>(
       () => _i618.PlaylistsCubit(gh<_i747.PlaylistRepository>()),

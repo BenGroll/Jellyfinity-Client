@@ -37,6 +37,13 @@ class NowPlayingPage extends StatelessWidget {
           ),
           actions: [
             IconButton(
+              icon: const Icon(Icons.lyrics_outlined),
+              tooltip: 'Lyrics',
+              onPressed: entry == null
+                  ? null
+                  : () => context.pushNamed(RouteNames.nowPlayingLyrics),
+            ),
+            IconButton(
               icon: const Icon(Icons.queue_music_rounded),
               onPressed: state.hasQueue
                   ? () => context.pushNamed(RouteNames.nowPlayingQueue)
