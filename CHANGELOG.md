@@ -262,3 +262,38 @@ All notable changes to Jellyfinity are documented here.
   track itself is gone) is treated as the empty state the roadmap asks
   for, not an error; the Lyrics view otherwise shows a loading skeleton or
   a retryable failure like every other on-demand detail screen.
+- Added an interface refresh (ADR-0019, v0.1.6) across Settings, Home,
+  Artist, Album, Now Playing, Queue, and Playlist:
+  - Settings' streaming-quality picker is a dropdown, with the selected
+    tier's description shown beneath it, instead of one radio row per tier.
+  - Home's search field is a fully rounded pill; the media-type pills are
+    smaller.
+  - The Artist page shows the artist's backdrop image and overview above
+    its discography, alongside its album/song counts and total playtime
+    (`ArtistStats`, computed live), plus a favorite toggle.
+  - The Album page replaces its single Play button with a centered Play, a
+    Shuffle button, and an overflow menu (Add to playlist, Add to queue)
+    that act on the whole album; its artist credit is now a link; it gets
+    a favorite toggle. The Playlist page gets the identical treatment.
+    Add to playlist uses a new minimal `PlaylistRepository.addTracks`
+    write seam — the rest of v0.1.2's playlist-curation writes (create,
+    rename, delete, reorder, remove) remain unimplemented.
+  - Now Playing's artist and album lines are links (resolved on demand,
+    same as ADR-0015's track-source lookup); its background is a heavily
+    blurred, scaled copy of the current artwork; the source-format line is
+    now a stacked container/bitrate label with a Lossless-or-transcode
+    badge; its app bar gains the same track overflow menu (Play Next / Add
+    to Queue) library rows already have, and a favorite toggle. Opening an
+    artist/album link closes the player first — a `go_router` limitation
+    pushing a shell-nested route directly from Now Playing's root route,
+    documented in ADR-0019.
+  - The Queue's clear action is a plain "X" with a confirmation prompt
+    instead of one-tap clearing; it shows the queue's remaining runtime at
+    the top; each row gets a drag handle so reordering starts there
+    instead of anywhere on the row.
+  - Favorite state and the artist stats are read live from the server only
+    — never added to the offline cache — and hide themselves on a cached/
+    offline screen rather than showing a stale or guessed answer; showing
+    who created a playlist was investigated and dropped, since neither
+    Jellyfin's item response nor its dedicated Playlists endpoint exposes
+    an owner.

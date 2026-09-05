@@ -104,6 +104,70 @@ documented, and missing metadata has defined behavior.
 **Done when:** Available lyrics render clearly and absence is handled clearly;
 half-working synchronization must not ship.
 
+## v0.1.6 — Interface Refresh
+
+**Goal:** Polish the screens shipped in v0.1.1–v0.1.5 — Settings, Home,
+Artist, Album, Now Playing, Queue, and Playlist — before v0.2.0 starts a new
+arc. Primarily visual/interaction work; the small amount of new data it
+needs (favorite state, an artist's counts and banner) is scoped to stay
+that way.
+
+**Research first:**
+
+- Jellyfin's `UserItemDataDto.IsFavorite` and the `POST`/`DELETE
+  UserFavoriteItems/{itemId}` endpoints back a real favorite toggle; no
+  minimum-version change needed.
+- Jellyfin's `BaseItemDto` has no playlist owner/creator field, and neither
+  does the dedicated `GET /Playlists/{id}` response (`Shares`, `OpenAccess`,
+  `ItemIds` only). Showing who made a playlist is not implementable against
+  the API Jellyfinity uses and is dropped from this version rather than
+  guessed at.
+- An artist's album/song counts and total playtime are not a single field:
+  they need their own `ArtistIds`-scoped queries (album count, song count,
+  and a bounded sum of `RunTimeTicks`), separate from browsing the artist's
+  discography.
+
+**Required:**
+
+- Settings: the streaming-quality picker becomes a dropdown, with the
+  selected tier's description shown beneath it instead of one radio row per
+  tier.
+- Home: the search field gets a fully rounded (pill) shape; the media-type
+  pills shrink.
+- Artist page: show the backdrop image and overview (both already fetched
+  fields) above the discography; add album count, song count, and total
+  playtime alongside them; add a favorite toggle.
+- Album page: the artist credit becomes a link to that artist's page; the
+  single Play action becomes a centered Play button, a Shuffle button, and
+  an overflow menu (Add to playlist, Add to queue) that act on the whole
+  album; add a favorite toggle.
+- Now Playing: artist and album become links; the background renders a
+  heavily blurred, scaled copy of the current artwork instead of a flat
+  fill; the source-format line becomes a stacked container/bitrate label on
+  the left with a Lossless-or-transcode-target badge on the right; the
+  existing track overflow menu (Play Next / Add to Queue) is reachable from
+  the app bar; add a favorite toggle.
+- Queue: the clear action becomes an explicit icon with a confirmation
+  prompt; the queue's remaining total runtime is shown at the top; each row
+  gets a drag handle so reordering starts from the handle rather than
+  anywhere on the row.
+- Playlist page: the same Play/Shuffle/overflow treatment as Album
+  (including Add to playlist and Add to queue for the whole playlist).
+- Add-to-playlist needs a minimal write seam that v0.1.2 has not built yet:
+  `PlaylistRepository.addTracks` plus the Jellyfin `POST
+  /Playlists/{id}/Items` call behind it. Nothing else from v0.1.2 (create,
+  rename, delete, reorder, remove) is in scope here.
+- Favorite state and the artist aggregate stats are read live from the
+  server and are not added to the offline cache schema; both are hidden
+  when a screen is showing its saved/cached copy rather than shown stale or
+  guessed.
+
+**Done when:** All seven screens above reflect their listed changes, a
+favorite can be toggled from Artist/Album/Now Playing and persists to the
+server, an album or playlist can be shuffled, added to another playlist, or
+queued in one action, and the queue can be reordered from its handle with
+its remaining runtime visible.
+
 ## Non-goals for v0.1.1–v0.1.5
 
 Offline downloads, movies, TV, unified multi-server libraries, social or
