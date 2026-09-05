@@ -29,6 +29,7 @@ import 'package:jellyfinity/domain/media/media.dart' as _i747;
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
     as _i474;
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
+import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart' as _i119;
 import 'package:jellyfinity/domain/playback/PlaybackEngine.dart' as _i717;
 import 'package:jellyfinity/domain/playback/QueueRepository.dart' as _i642;
 import 'package:jellyfinity/domain/playback/stream_quality.dart' as _i731;
@@ -159,6 +160,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i617.KeyValueStore>(),
         gh<_i883.ShellNavigationMode>(),
         gh<_i731.StreamQuality>(),
+        gh<_i119.CrossfadeSettings>(),
       ),
     );
     gh.lazySingleton<_i756.AccountStore>(

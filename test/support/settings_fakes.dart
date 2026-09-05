@@ -1,6 +1,7 @@
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
+import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 
@@ -62,7 +63,8 @@ class InMemoryKeyValueStore implements KeyValueStore {
 SettingsCubit fakeSettingsCubit({
   ShellNavigationMode mode = ShellNavigationMode.mediaPills,
   StreamQuality quality = StreamQuality.original,
-}) => SettingsCubit(InMemoryKeyValueStore(), mode, quality);
+  CrossfadeSettings crossfade = CrossfadeSettings.disabled,
+}) => SettingsCubit(InMemoryKeyValueStore(), mode, quality, crossfade);
 
 /// A [MediaScopeCubit] with its default seeded state (Music only).
 MediaScopeCubit fakeMediaScopeCubit() => MediaScopeCubit();

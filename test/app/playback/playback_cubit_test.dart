@@ -6,6 +6,7 @@ import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/Track.dart';
+import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
 import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
@@ -311,7 +312,12 @@ void main() {
       await cubit.restore();
 
       expect(cubit.state.queue.isEmpty, isTrue);
-      expect(engine.calls, isEmpty);
+      // Construction configures crossfade on the engine (ADR-0016);
+      // restore itself must not load, play or otherwise touch it.
+      expect(
+        engine.calls.where((c) => !c.startsWith('setCrossfade')),
+        isEmpty,
+      );
     });
   });
 
@@ -420,6 +426,96 @@ void main() {
         MediaAvailability.remoteUnavailable,
       );
       expect(cubit.state.queue.currentIndex, 1);
+    });
+  });
+
+  group('crossfade configuration seam (ADR-0016)', () {
+    List<String> crossfadeCalls() =>
+        engine.calls.where((c) => c.startsWith('setCrossfade')).toList();
+
+    test('the engine is configured from the saved preference at '
+        'construction, before anything is queued', () async {
+      final saved = fakeSettingsCubit(
+        crossfade: const CrossfadeSettings(
+          enabled: true,
+          duration: Duration(seconds: 7),
+        ),
+      );
+      addTearDown(saved.close);
+      final savedEngine = FakePlaybackEngine();
+      addTearDown(savedEngine.disposeForTest);
+      final savedCubit = PlaybackCubit(
+        savedEngine,
+        queueRepository,
+        resolver,
+        progress,
+        saved,
+      );
+      addTearDown(savedCubit.close);
+      await _pump();
+
+      expect(savedEngine.crossfade.enabled, isTrue);
+      expect(savedEngine.crossfade.duration, const Duration(seconds: 7));
+    });
+
+    test('a preference change reaches the engine', () async {
+      await settings.setCrossfadeEnabled(true);
+      await _pump();
+
+      expect(engine.crossfade.enabled, isTrue);
+      expect(engine.crossfade.duration, CrossfadeSettings.defaultDuration);
+
+      await settings.setCrossfadeDuration(const Duration(seconds: 9));
+      await _pump();
+
+      expect(engine.crossfade.duration, const Duration(seconds: 9));
+
+      await settings.setCrossfadeEnabled(false);
+      await _pump();
+
+      expect(engine.crossfade.enabled, isFalse);
+    });
+
+    test('an unrelated settings change does not reconfigure the engine',
+        () async {
+      final before = crossfadeCalls().length;
+
+      await settings.setStreamQuality(StreamQuality.high);
+      await _pump();
+
+      expect(crossfadeCalls(), hasLength(before));
+    });
+
+    test('repeat-one suppresses crossfade, and leaving it restores the '
+        'preference', () async {
+      await settings.setCrossfadeEnabled(true);
+      await _pump();
+      expect(engine.crossfade.enabled, isTrue);
+
+      // The engine would otherwise start overlapping the next source in
+      // the loaded list — which repeat-one never reaches.
+      await cubit.setRepeatMode(RepeatMode.one);
+      await _pump();
+      expect(engine.crossfade.enabled, isFalse);
+
+      await cubit.setRepeatMode(RepeatMode.all);
+      await _pump();
+      expect(engine.crossfade.enabled, isTrue);
+      expect(engine.crossfade.duration, CrossfadeSettings.defaultDuration);
+    });
+
+    test('a preference change made during repeat-one is applied when '
+        'repeat-one ends, not while it is on', () async {
+      await cubit.setRepeatMode(RepeatMode.one);
+      await _pump();
+
+      await settings.setCrossfadeEnabled(true);
+      await _pump();
+      expect(engine.crossfade.enabled, isFalse);
+
+      await cubit.setRepeatMode(RepeatMode.off);
+      await _pump();
+      expect(engine.crossfade.enabled, isTrue);
     });
   });
 }
