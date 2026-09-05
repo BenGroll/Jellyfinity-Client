@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/PlaylistDetailPage.dart';
@@ -13,6 +14,8 @@ import 'package:jellyfinity/features/music/presentation/widgets/music_skeletons.
 
 import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
+import '../../support/offline_fakes.dart';
+import '../../support/playback_fakes.dart';
 import '../../support/pump_app.dart';
 
 Future<void> _pumpAlbum(
@@ -24,8 +27,12 @@ Future<void> _pumpAlbum(
     tester,
     AlbumDetailPage(
       albumId: mediaId('al1'),
-      detail: AlbumDetailCubit(music),
-      tracks: SongsCubit(music, FakeDownloadsLibrarySource()),
+      detail: AlbumDetailCubit(music, FakeOfflineMode()),
+      tracks: SongsCubit(
+        music,
+        FakeDownloadsLibrarySource(),
+        FakeOfflineMode(),
+      ),
     ),
   );
 }
@@ -132,8 +139,8 @@ void main() {
       tester,
       PlaylistDetailPage(
         playlistId: mediaId('pl1'),
-        detail: PlaylistDetailCubit(metadata),
-        tracks: PlaylistTracksCubit(playlists),
+        detail: PlaylistDetailCubit(metadata, FakeOfflineMode()),
+        tracks: PlaylistTracksCubit(playlists, FakeOfflineMode()),
       ),
     );
     await tester.pumpAndSettle();
@@ -180,8 +187,8 @@ void main() {
       tester,
       PlaylistDetailPage(
         playlistId: mediaId('pl1'),
-        detail: PlaylistDetailCubit(metadata),
-        tracks: PlaylistTracksCubit(playlists),
+        detail: PlaylistDetailCubit(metadata, FakeOfflineMode()),
+        tracks: PlaylistTracksCubit(playlists, FakeOfflineMode()),
       ),
       downloads: downloads,
     );
@@ -195,4 +202,85 @@ void main() {
     // The header now shows the honest aggregate summary.
     expect(find.textContaining('Downloaded'), findsWidgets);
   });
+
+  testWidgets(
+    'a partly-downloaded album offline shows one "not available" line '
+    '(v0.2.3)',
+    (tester) async {
+      final music = FakeMusicLibraryRepository()
+        ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+        ..trackList = [testTrack('t1', name: 'So What', trackNumber: 1)]
+        ..unavailable = const [
+          UnavailableItem(id: 'g0', reason: offlineUnavailableReason),
+          UnavailableItem(id: 'g1', reason: offlineUnavailableReason),
+          UnavailableItem(id: 'g2', reason: offlineUnavailableReason),
+        ];
+
+      await _pumpAlbum(tester, music);
+      await tester.pumpAndSettle();
+
+      expect(find.text('So What'), findsOneWidget);
+      expect(find.text('3 songs not available offline'), findsOneWidget);
+      // Collapsed into the one line, not three rows.
+      expect(find.byType(UnavailableRow), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a downloaded track plays from the album view even when the server '
+    'calls it unavailable (v0.2.3)',
+    (tester) async {
+      final music = FakeMusicLibraryRepository()
+        ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+        ..trackList = [
+          testTrack(
+            't1',
+            name: 'So What',
+            trackNumber: 1,
+            availability: MediaAvailability.remoteUnavailable,
+          ),
+        ];
+
+      final store = InMemoryDownloadStore();
+      final engine = FakeDownloadEngine()
+        ..stored[mediaId('t1')] = Uri.file('/downloads/t1');
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.completed,
+        owners: {DownloadOwner.album(mediaId('al1'))},
+        totalBytes: 1000,
+      );
+      final downloads = fakeDownloadsCubit(store: store, engine: engine);
+      addTearDown(downloads.close);
+      await downloads.restore();
+
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+
+      await pumpThemed(
+        tester,
+        AlbumDetailPage(
+          albumId: mediaId('al1'),
+          detail: AlbumDetailCubit(music, FakeOfflineMode()),
+          tracks: SongsCubit(
+            music,
+            FakeDownloadsLibrarySource(),
+            FakeOfflineMode(),
+          ),
+        ),
+        downloads: downloads,
+        playback: playback,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      expect(playback.state.currentEntry?.title, 'So What');
+
+      await playback.togglePlayPause();
+      await tester.pumpAndSettle();
+    },
+  );
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
+import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/features/auth/presentation/accounts/accounts_page.dart';
 import 'package:jellyfinity/features/settings/presentation/SettingsPage.dart';
 
+import '../../support/offline_fakes.dart';
 import '../../support/pump_app.dart';
 import '../../support/settings_fakes.dart';
 import '../../support/session_fakes.dart';
@@ -33,6 +35,59 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(ChoiceChip, 'Music'), findsNothing);
+  });
+
+  testWidgets('one offline line sits under the search on every tab (v0.2.3)', (
+    tester,
+  ) async {
+    final scope = TestSessionScope();
+    final s = await pumpApp(
+      tester,
+      scope: scope,
+      offline: fakeOfflineCubit(manual: true),
+    );
+    await s.signIn();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Offline — showing your saved library'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'the one offline line switches to downloads-only on that scope (v0.2.3)',
+    (tester) async {
+      final scope = TestSessionScope();
+      final s = await pumpApp(
+        tester,
+        scope: scope,
+        offline: fakeOfflineCubit(manual: true),
+        settings: fakeSettingsCubit(
+          offlineLibraryScope: OfflineLibraryScope.limited,
+        ),
+      );
+      await s.signIn();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Offline — showing downloaded music only'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Offline — showing your saved library'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('no offline line while online', (tester) async {
+    final scope = TestSessionScope();
+    final s = await pumpApp(tester, scope: scope);
+    await s.signIn();
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('offline'), findsNothing);
   });
 
   testWidgets('the menu button opens the sidebar', (tester) async {

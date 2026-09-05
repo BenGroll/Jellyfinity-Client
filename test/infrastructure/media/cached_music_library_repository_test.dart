@@ -3,11 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMusicLibraryRepository.dart';
+import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
 import 'package:jellyfinity/infrastructure/media/CachedMusicLibraryRepository.dart';
 import 'package:jellyfinity/infrastructure/persistence/media/MediaCollectionKey.dart';
 
+import '../../support/download_fakes.dart';
 import '../../support/FakeDioAdapter.dart';
 import '../../support/FakeSessionContext.dart';
+import '../../support/offline_fakes.dart';
 import '../../support/media_fakes.dart';
 
 const _artistId = MediaId(serverId: 'server-1', itemId: 'artist-1');
@@ -29,7 +32,12 @@ FakeDioAdapter _answering(List<Map<String, dynamic>> items, {int? total}) =>
     );
 
 ({CachedMusicLibraryRepository repository, RecordingMediaCacheStore cache})
-_repository(FakeDioAdapter adapter, {RecordingMediaCacheStore? cache}) {
+_repository(
+  FakeDioAdapter adapter, {
+  RecordingMediaCacheStore? cache,
+  FakeOfflineMode? offline,
+  DownloadsLibrarySource? downloads,
+}) {
   final context = FakeSessionContext();
   final store = cache ?? RecordingMediaCacheStore();
   return (
@@ -37,6 +45,8 @@ _repository(FakeDioAdapter adapter, {RecordingMediaCacheStore? cache}) {
       JellyfinMusicLibraryRepository(testMediaApi(adapter, context: context)),
       store,
       context,
+      offline ?? FakeOfflineMode(),
+      downloads ?? DownloadsLibrarySource(InMemoryDownloadStore()),
     ),
     cache: store,
   );
@@ -166,10 +176,118 @@ void main() {
       ),
       cache,
       context,
+      FakeOfflineMode(),
+      DownloadsLibrarySource(InMemoryDownloadStore()),
     );
 
     final result = await repository.albums();
 
     expect(result.failureOrNull, isA<UnauthorizedFailure>());
+  });
+
+  group('working offline (v0.2.3)', () {
+    test('a read answers from the saved copy without touching the server', () async {
+      final cache = RecordingMediaCacheStore();
+      // Prime the cache while online.
+      await _repository(_answering([_albumRow]), cache: cache).repository.albums();
+
+      // A server that would throw if it were ever called.
+      final offline = FakeOfflineMode(manual: true);
+      final repository = _repository(
+        _offline(),
+        cache: cache,
+        offline: offline,
+      ).repository;
+
+      final result = await repository.albums();
+
+      final page = result.valueOrNull!;
+      expect(page.items.single.name, 'Kind of Blue');
+      expect(page.source, PageSource.cache);
+      expect(
+        page.items.single.availability,
+        MediaAvailability.remoteUnavailable,
+      );
+    });
+
+    test(
+      'an artist never browsed still opens from a downloaded track (v0.2.3)',
+      () async {
+        const artistId = MediaId(serverId: 'server-1', itemId: 'artist-9');
+        const albumId = MediaId(serverId: 'server-1', itemId: 'album-9');
+        final store = InMemoryDownloadStore();
+        store.records[const MediaId(serverId: 'server-1', itemId: 't1')] =
+            TrackDownload(
+              id: const MediaId(serverId: 'server-1', itemId: 't1'),
+              title: 'So What',
+              state: DownloadState.completed,
+              owners: {
+                const DownloadOwner.track(
+                  MediaId(serverId: 'server-1', itemId: 't1'),
+                ),
+              },
+              requestedAt: DateTime.utc(2026),
+              albumId: albumId,
+              albumName: 'Kind of Blue',
+              artists: [const ArtistRef(name: 'Miles Davis', id: artistId)],
+            );
+
+        final repository = _repository(
+          _offline(),
+          offline: FakeOfflineMode(manual: true),
+          downloads: DownloadsLibrarySource(store),
+        ).repository;
+
+        // Nothing cached — the header and the discography come from the
+        // one downloaded track, not a wifi error.
+        expect(
+          (await repository.artist(artistId)).valueOrNull!.name,
+          'Miles Davis',
+        );
+        final albums = (await repository.albums(artistId: artistId)).valueOrNull!;
+        expect(albums.items.single.name, 'Kind of Blue');
+        expect(albums.source, PageSource.cache);
+
+        final tracks = (await repository.tracks(albumId: albumId)).valueOrNull!;
+        expect(tracks.items.single.name, 'So What');
+      },
+    );
+
+    test('a single item read also comes from the cache', () async {
+      final cache = RecordingMediaCacheStore();
+      await _repository(
+        _answering([_albumRow]),
+        cache: cache,
+      ).repository.album(_albumId);
+
+      final repository = _repository(
+        _offline(),
+        cache: cache,
+        offline: FakeOfflineMode(manual: true),
+      ).repository;
+
+      final result = await repository.album(_albumId);
+
+      expect(result.valueOrNull!.name, 'Kind of Blue');
+    });
+
+    test('coming back online, the server is consulted again', () async {
+      final cache = RecordingMediaCacheStore();
+      final offline = FakeOfflineMode(manual: true);
+      final repository = _repository(
+        _answering([_albumRow]),
+        cache: cache,
+        offline: offline,
+      ).repository;
+
+      await repository.albums();
+      expect(cache.savedPages, isEmpty); // never reached the server
+
+      await offline.setManual(false);
+      final result = await repository.albums();
+
+      expect(result.valueOrNull!.source, PageSource.server);
+      expect(cache.savedPages, [MediaCollectionKey.albums]);
+    });
   });
 }

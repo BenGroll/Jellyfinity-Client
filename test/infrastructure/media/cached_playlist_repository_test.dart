@@ -9,6 +9,7 @@ import '../../support/download_fakes.dart';
 import '../../support/FakeDioAdapter.dart';
 import '../../support/FakeSessionContext.dart';
 import '../../support/media_fakes.dart';
+import '../../support/offline_fakes.dart';
 
 const _playlistId = MediaId(serverId: 'server-1', itemId: 'pl-1');
 
@@ -33,6 +34,7 @@ CachedPlaylistRepository _repository(
     cache,
     context,
     downloads ?? InMemoryDownloadStore(),
+    FakeOfflineMode(),
   );
 }
 

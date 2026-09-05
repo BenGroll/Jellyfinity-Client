@@ -1,7 +1,10 @@
 import 'package:injectable/injectable.dart';
 
+import '../../core/result/failure.dart';
 import '../../core/result/result.dart';
+import '../../domain/connectivity/OfflineMode.dart';
 import '../../domain/media/media.dart';
+import '../downloads/DownloadsLibrarySource.dart';
 import '../jellyfin/identity/JellyfinSessionContext.dart';
 import '../jellyfin/media/JellyfinMusicLibraryRepository.dart';
 import '../persistence/media/media_cache_store.dart';
@@ -40,11 +43,36 @@ import 'cache_fallback.dart';
 /// the server rather than quietly searching a fraction of the library.
 @LazySingleton(as: MusicLibraryRepository)
 class CachedMusicLibraryRepository implements MusicLibraryRepository {
-  CachedMusicLibraryRepository(this._remote, this._cache, this._context);
+  CachedMusicLibraryRepository(
+    this._remote,
+    this._cache,
+    this._context,
+    this._offline,
+    this._downloads,
+  );
 
   final JellyfinMusicLibraryRepository _remote;
   final MediaCacheStore _cache;
   final JellyfinSessionContext _context;
+
+  /// When Jellyfinity is working offline (v0.2.3), a read never leaves the
+  /// device: it goes straight to the same saved-copy fallback an
+  /// unreachable server would take, without the network round-trip and
+  /// timeout first.
+  final OfflineMode _offline;
+
+  /// The last resort behind the metadata cache (v0.2.3): an artist or
+  /// album the user never browsed online has nothing saved, but a single
+  /// downloaded track of it is enough to reconstruct the header and the
+  /// part of the track/album list that plays offline. The rest is
+  /// reported unavailable, not hidden.
+  final DownloadsLibrarySource _downloads;
+
+  /// The failure a read is short-circuited with while offline — a
+  /// [RecoverableFailure] so [canServeFromCache] serves the local copy,
+  /// exactly as it does for a real timeout.
+  static Result<T> _offlineFailure<T>() =>
+      const Result.err(RecoverableFailure('You are offline.'));
 
   @override
   Future<Result<Page<Artist>>> artists({
@@ -76,6 +104,9 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
         artistId: artistId,
         searchTerm: searchTerm,
       ),
+      downloadsFallback: artistId == null
+          ? null
+          : () => _artistAlbumsOffline(artistId, page),
     );
   }
 
@@ -104,6 +135,9 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
         artistId: artistId,
         searchTerm: searchTerm,
       ),
+      downloadsFallback: albumId == null
+          ? null
+          : () => _albumTracksOffline(albumId, page),
     );
   }
 
@@ -127,9 +161,12 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     required String? searchTerm,
     required String collectionKey,
     required Future<Result<Page<T>>> Function() read,
+    Future<Result<Page<T>>> Function()? downloadsFallback,
   }) async {
     final isSearch = searchTerm != null && searchTerm.trim().isNotEmpty;
-    final result = await read();
+    final result = _offline.status.isOffline
+        ? _offlineFailure<Page<T>>()
+        : await read();
 
     switch (result) {
       case Ok<Page<T>>(:final value):
@@ -138,9 +175,17 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
       case Err<Page<T>>(:final failure):
         if (isSearch || !canServeFromCache(failure)) return result;
         final serverId = _context.serverId;
-        if (serverId == null) return result;
-        final saved = await _cache.readPage<T>(serverId, collectionKey, page);
-        return saved == null ? result : Result.ok(saved);
+        if (serverId != null) {
+          final saved = await _cache.readPage<T>(serverId, collectionKey, page);
+          if (saved != null) return Result.ok(saved);
+        }
+        // Nothing was ever browsed here, but a downloaded track of it can
+        // still stand in for the part that plays offline (v0.2.3).
+        if (downloadsFallback != null) {
+          final derived = await downloadsFallback();
+          if (derived.isOk) return derived;
+        }
+        return result;
     }
   }
 
@@ -148,7 +193,7 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     MediaId id,
     Future<Result<T>> Function() read,
   ) async {
-    final result = await read();
+    final result = _offline.status.isOffline ? _offlineFailure<T>() : await read();
 
     switch (result) {
       case Ok<T>(:final value):
@@ -157,7 +202,57 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
       case Err<T>(:final failure):
         if (!canServeFromCache(failure)) return result;
         final saved = await _cache.readItem(id);
-        return saved is T ? Result.ok(saved) : result;
+        if (saved is T) return Result.ok(saved);
+        return await _itemFromDownloads<T>(id) ?? result;
     }
+  }
+
+  /// An artist or album header reconstructed from the profile's downloads
+  /// when nothing was saved for it (v0.2.3). `null` for any other type, or
+  /// when the profile has nothing downloaded for [id].
+  Future<Result<T>?> _itemFromDownloads<T extends MediaItem>(MediaId id) async {
+    Result<MediaItem>? derived;
+    if (T == Artist) {
+      derived = await _downloads.artist(id);
+    } else if (T == Album) {
+      derived = await _downloads.album(id);
+    }
+    if (derived case Ok<MediaItem>(:final value) when value is T) {
+      return Result.ok(value);
+    }
+    return null;
+  }
+
+  Future<Result<Page<Track>>> _albumTracksOffline(
+    MediaId albumId,
+    PageRequest page,
+  ) async {
+    final cached = await _cache.readItem(albumId);
+    return _downloads.albumTracks(
+      albumId,
+      page: page,
+      knownTrackCount: cached is Album ? cached.trackCount : null,
+    );
+  }
+
+  Future<Result<Page<Album>>> _artistAlbumsOffline(
+    MediaId artistId,
+    PageRequest page,
+  ) async {
+    final serverId = _context.serverId;
+    int? knownAlbumCount;
+    if (serverId != null) {
+      final window = await _cache.readPage<Album>(
+        serverId,
+        MediaCollectionKey.albumsOfArtist(artistId.itemId),
+        const PageRequest.first(),
+      );
+      knownAlbumCount = window?.totalCount;
+    }
+    return _downloads.artistAlbums(
+      artistId,
+      page: page,
+      knownAlbumCount: knownAlbumCount,
+    );
   }
 }

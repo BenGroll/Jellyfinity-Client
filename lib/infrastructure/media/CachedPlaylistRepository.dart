@@ -1,7 +1,10 @@
 import 'package:injectable/injectable.dart';
 
+import '../../core/result/failure.dart';
 import '../../core/result/partial.dart';
 import '../../core/result/result.dart';
+import '../../domain/connectivity/OfflineMode.dart';
+import '../../domain/downloads/download_state.dart';
 import '../../domain/downloads/DownloadStore.dart';
 import '../../domain/downloads/PlaylistDownload.dart';
 import '../../domain/downloads/TrackDownload.dart';
@@ -32,11 +35,20 @@ class CachedPlaylistRepository implements PlaylistRepository {
     this._cache,
     this._context,
     this._downloads,
+    this._offline,
   );
 
   final JellyfinPlaylistRepository _remote;
   final MediaCacheStore _cache;
   final JellyfinSessionContext _context;
+
+  /// Working offline (v0.2.3): a read answers from the saved copy — or, for
+  /// a downloaded playlist, its durable snapshot — without reaching for a
+  /// server that will not answer.
+  final OfflineMode _offline;
+
+  static Result<T> _offlineFailure<T>() =>
+      const Result.err(RecoverableFailure('You are offline.'));
 
   /// The last resort when the server is unreachable and the metadata
   /// cache has been evicted: a downloaded playlist's snapshot is durable
@@ -50,7 +62,9 @@ class CachedPlaylistRepository implements PlaylistRepository {
     String? searchTerm,
   }) async {
     final isSearch = searchTerm != null && searchTerm.trim().isNotEmpty;
-    final result = await _remote.playlists(page: page, searchTerm: searchTerm);
+    final result = _offline.status.isOffline
+        ? _offlineFailure<Page<Playlist>>()
+        : await _remote.playlists(page: page, searchTerm: searchTerm);
 
     switch (result) {
       case Ok<Page<Playlist>>(:final value):
@@ -71,7 +85,9 @@ class CachedPlaylistRepository implements PlaylistRepository {
     PageRequest page = const PageRequest.first(),
   }) async {
     final key = MediaCollectionKey.tracksOfPlaylist(playlistId.itemId);
-    final result = await _remote.tracks(playlistId, page: page);
+    final result = _offline.status.isOffline
+        ? _offlineFailure<Page<Track>>()
+        : await _remote.tracks(playlistId, page: page);
 
     switch (result) {
       case Ok<Page<Track>>(:final value):
@@ -102,14 +118,29 @@ class CachedPlaylistRepository implements PlaylistRepository {
     final tracks = <Track>[];
     for (final member in members.sublist(start, end)) {
       final record = await _downloads.find(member.trackId);
-      if (record case Ok<TrackDownload?>(:final value?)) {
+      if (record case Ok<TrackDownload?>(:final value?)
+          when value.state == DownloadState.completed) {
         tracks.add(value.toTrack());
       }
     }
 
+    // A member of this window whose file never finished downloading is
+    // part of the playlist the user built but cannot play offline — shown
+    // as "N not available offline" rather than dropped (v0.2.3).
+    final missing = (end - start) - tracks.length;
+
     return Result.ok(
       Page<Track>(
-        content: Partial(available: tracks),
+        content: Partial(
+          available: tracks,
+          unavailable: [
+            for (var i = 0; i < missing; i++)
+              UnavailableItem(
+                id: 'offline-gap-$i',
+                reason: offlineUnavailableReason,
+              ),
+          ],
+        ),
         startIndex: start,
         totalCount: members.length,
         source: PageSource.cache,

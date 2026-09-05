@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
+import '../domain/connectivity/OfflineLibraryScope.dart';
 import '../domain/media/ArtworkResolver.dart';
 import '../domain/playback/CrossfadeSettings.dart';
 import '../domain/playback/NormalizationSettings.dart';
@@ -79,6 +80,12 @@ Future<void> bootstrap({required Widget Function() builder}) async {
     startingDownloadsWifiOnly,
     instanceName: initialDownloadsWifiOnly,
   );
+
+  // The offline-library-scope preference (v0.2.3). Enum, so registered
+  // directly like ShellNavigationMode above.
+  final initialOfflineLibraryScope =
+      await SettingsCubit.loadInitialOfflineLibraryScope(getIt<KeyValueStore>());
+  getIt.registerSingleton<OfflineLibraryScope>(initialOfflineLibraryScope);
 
   // Crossfade (ADR-0016) is read here too, so the engine is configured
   // before the restored queue is primed rather than after — a saved

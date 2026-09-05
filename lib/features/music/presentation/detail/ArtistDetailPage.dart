@@ -157,6 +157,7 @@ class _ArtistDetailView extends StatelessWidget {
                 },
                 onRetry: cubit.reload,
                 onRetryLoadMore: cubit.retryLoadMore,
+                offlineGapNoun: 'album',
                 itemBuilder: (context, album, _) => AlbumTile(
                   album: album,
                   markUnavailable: !state.isCached,

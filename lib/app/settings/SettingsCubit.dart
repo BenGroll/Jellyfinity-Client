@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../domain/connectivity/OfflineLibraryScope.dart';
 import '../../domain/playback/CrossfadeSettings.dart';
 import '../../domain/playback/NormalizationSettings.dart';
 import '../../domain/playback/stream_quality.dart';
@@ -21,12 +22,18 @@ class SettingsState extends Equatable {
     required this.streamQuality,
     required this.downloadQuality,
     required this.downloadsWifiOnly,
+    required this.offlineLibraryScope,
     required this.crossfade,
     required this.normalization,
   });
 
   final ShellNavigationMode navigationMode;
   final StreamQuality streamQuality;
+
+  /// How much of the library to show while offline (v0.2.3) — the whole
+  /// cached library with download markers, or only what is on the device.
+  /// Only takes effect when [OfflineMode] reports offline.
+  final OfflineLibraryScope offlineLibraryScope;
 
   /// The quality new and retried downloads are fetched at (v0.2.2),
   /// persisted independently of [streamQuality]: a listener can stream
@@ -47,6 +54,7 @@ class SettingsState extends Equatable {
     StreamQuality? streamQuality,
     StreamQuality? downloadQuality,
     bool? downloadsWifiOnly,
+    OfflineLibraryScope? offlineLibraryScope,
     CrossfadeSettings? crossfade,
     NormalizationSettings? normalization,
   }) => SettingsState(
@@ -54,6 +62,7 @@ class SettingsState extends Equatable {
     streamQuality: streamQuality ?? this.streamQuality,
     downloadQuality: downloadQuality ?? this.downloadQuality,
     downloadsWifiOnly: downloadsWifiOnly ?? this.downloadsWifiOnly,
+    offlineLibraryScope: offlineLibraryScope ?? this.offlineLibraryScope,
     crossfade: crossfade ?? this.crossfade,
     normalization: normalization ?? this.normalization,
   );
@@ -64,6 +73,7 @@ class SettingsState extends Equatable {
     streamQuality,
     downloadQuality,
     downloadsWifiOnly,
+    offlineLibraryScope,
     crossfade,
     normalization,
   ];
@@ -91,6 +101,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     StreamQuality initialStreamQuality,
     @Named(initialDownloadQuality) StreamQuality startingDownloadQuality,
     @Named(initialDownloadsWifiOnly) bool startingDownloadsWifiOnly,
+    OfflineLibraryScope initialOfflineLibraryScope,
     CrossfadeSettings initialCrossfade,
     NormalizationSettings initialNormalization,
   ) : super(
@@ -99,6 +110,7 @@ class SettingsCubit extends Cubit<SettingsState> {
           streamQuality: initialStreamQuality,
           downloadQuality: startingDownloadQuality,
           downloadsWifiOnly: startingDownloadsWifiOnly,
+          offlineLibraryScope: initialOfflineLibraryScope,
           crossfade: initialCrossfade,
           normalization: initialNormalization,
         ),
@@ -110,6 +122,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   static const _streamQualityKey = 'settings.streamQuality';
   static const _downloadQualityKey = 'settings.downloadQuality';
   static const _downloadsWifiOnlyKey = 'settings.downloadsWifiOnly';
+  static const _offlineLibraryScopeKey = 'settings.offlineLibraryScope';
   static const _crossfadeEnabledKey = 'settings.crossfadeEnabled';
   static const _crossfadeSecondsKey = 'settings.crossfadeSeconds';
   static const _normalizationEnabledKey = 'settings.normalizationEnabled';
@@ -143,6 +156,16 @@ class SettingsCubit extends Cubit<SettingsState> {
   /// download until the user asks it to.
   static Future<bool> loadInitialDownloadsWifiOnly(KeyValueStore store) async {
     return await store.getBool(_downloadsWifiOnlyKey) ?? false;
+  }
+
+  /// Reads the offline-library-scope preference (v0.2.3). A missing value
+  /// degrades to [OfflineLibraryScope.unlimited] — the pre-v0.2.3
+  /// behaviour, which never hides library the user could reach.
+  static Future<OfflineLibraryScope> loadInitialOfflineLibraryScope(
+    KeyValueStore store,
+  ) async {
+    final raw = await store.getString(_offlineLibraryScopeKey);
+    return OfflineLibraryScope.tryParse(raw) ?? OfflineLibraryScope.fallback;
   }
 
   /// Reads the crossfade preference (ADR-0016). Enabled state and
@@ -200,6 +223,14 @@ class SettingsCubit extends Cubit<SettingsState> {
     if (wifiOnly == state.downloadsWifiOnly) return;
     await _store.setBool(_downloadsWifiOnlyKey, wifiOnly);
     emit(state.copyWith(downloadsWifiOnly: wifiOnly));
+  }
+
+  /// Sets how much library to show offline (v0.2.3). Takes effect the next
+  /// time a library or search screen loads while offline.
+  Future<void> setOfflineLibraryScope(OfflineLibraryScope scope) async {
+    if (scope == state.offlineLibraryScope) return;
+    await _store.setString(_offlineLibraryScopeKey, scope.name);
+    emit(state.copyWith(offlineLibraryScope: scope));
   }
 
   Future<void> setCrossfadeEnabled(bool enabled) async {

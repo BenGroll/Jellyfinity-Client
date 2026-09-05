@@ -4,9 +4,11 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/ArtistStats.dart';
 import '../../../../domain/media/MediaId.dart';
 import '../../../../domain/media/MusicLibraryRepository.dart';
+import '../offline_reload.dart';
 
 /// An artist's album/song counts and total playtime for the artist page
 /// header (v0.1.6).
@@ -30,12 +32,26 @@ class ArtistStatsState extends Equatable {
 }
 
 @injectable
-class ArtistStatsCubit extends Cubit<ArtistStatsState> {
-  ArtistStatsCubit(this._music) : super(const ArtistStatsState());
+class ArtistStatsCubit extends Cubit<ArtistStatsState>
+    with OfflineReload<ArtistStatsState> {
+  ArtistStatsCubit(this._music, OfflineMode offlineMode)
+    : super(const ArtistStatsState()) {
+    bindOfflineReload(offlineMode);
+  }
 
   final MusicLibraryRepository _music;
 
   MediaId? _id;
+
+  /// Stats are live-only; coming back online is the chance to fill the row
+  /// that was hidden while offline.
+  @override
+  void onOfflineChanged() {
+    final id = _id;
+    if (id == null) return;
+    _id = null;
+    open(id);
+  }
 
   Future<void> open(MediaId id) async {
     if (id == _id) return;

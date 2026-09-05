@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/result/result.dart';
+import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/media.dart';
 import '../../../../infrastructure/downloads/DownloadsLibrarySource.dart';
 import 'paged_collection_cubit.dart';
@@ -29,7 +30,12 @@ mixin DownloadedFilter<T extends MediaItem> on PagedCollectionCubit<T> {
 @injectable
 class ArtistsCubit extends PagedCollectionCubit<Artist>
     with DownloadedFilter<Artist> {
-  ArtistsCubit(this._music, this.downloadsSource, {@ignoreParam super.pageSize});
+  ArtistsCubit(
+    this._music,
+    this.downloadsSource,
+    OfflineMode offlineMode, {
+    @ignoreParam super.pageSize,
+  }) : super(offlineMode: offlineMode);
 
   final MusicLibraryRepository _music;
 
@@ -55,7 +61,12 @@ class ArtistsCubit extends PagedCollectionCubit<Artist>
 @injectable
 class AlbumsCubit extends PagedCollectionCubit<Album>
     with DownloadedFilter<Album> {
-  AlbumsCubit(this._music, this.downloadsSource, {@ignoreParam super.pageSize});
+  AlbumsCubit(
+    this._music,
+    this.downloadsSource,
+    OfflineMode offlineMode, {
+    @ignoreParam super.pageSize,
+  }) : super(offlineMode: offlineMode);
 
   final MusicLibraryRepository _music;
 
@@ -70,7 +81,11 @@ class AlbumsCubit extends PagedCollectionCubit<Album>
   Future<Result<Page<Album>>> fetch(PageRequest request) =>
       downloadedOnly && artistId == null
       ? downloadsSource.albums(page: request, searchTerm: searchTerm)
-      : _music.albums(page: request, artistId: artistId, searchTerm: searchTerm);
+      : _music.albums(
+          page: request,
+          artistId: artistId,
+          searchTerm: searchTerm,
+        );
 
   Future<void> forArtist(MediaId id) {
     artistId = id;
@@ -88,7 +103,12 @@ class AlbumsCubit extends PagedCollectionCubit<Album>
 @injectable
 class SongsCubit extends PagedCollectionCubit<Track>
     with DownloadedFilter<Track> {
-  SongsCubit(this._music, this.downloadsSource, {@ignoreParam super.pageSize});
+  SongsCubit(
+    this._music,
+    this.downloadsSource,
+    OfflineMode offlineMode, {
+    @ignoreParam super.pageSize,
+  }) : super(offlineMode: offlineMode);
 
   final MusicLibraryRepository _music;
 
@@ -132,9 +152,10 @@ class PlaylistsCubit extends PagedCollectionCubit<Playlist>
     with DownloadedFilter<Playlist> {
   PlaylistsCubit(
     this._playlists,
-    this.downloadsSource, {
+    this.downloadsSource,
+    OfflineMode offlineMode, {
     @ignoreParam super.pageSize,
-  });
+  }) : super(offlineMode: offlineMode);
 
   final PlaylistRepository _playlists;
 
@@ -157,7 +178,11 @@ class PlaylistsCubit extends PagedCollectionCubit<Playlist>
 /// One playlist's entries, in the order the user arranged them.
 @injectable
 class PlaylistTracksCubit extends PagedCollectionCubit<Track> {
-  PlaylistTracksCubit(this._playlists, {@ignoreParam super.pageSize});
+  PlaylistTracksCubit(
+    this._playlists,
+    OfflineMode offlineMode, {
+    @ignoreParam super.pageSize,
+  }) : super(offlineMode: offlineMode);
 
   final PlaylistRepository _playlists;
 

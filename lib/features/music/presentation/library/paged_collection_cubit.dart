@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/partial.dart';
 import '../../../../core/result/result.dart';
+import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/media.dart';
+import '../offline_reload.dart';
 
 /// Where a collection screen is in its life.
 ///
@@ -146,16 +150,48 @@ class PagedCollectionState<T extends MediaItem> extends Equatable {
 ///   so paging cannot stall on a row the server keeps sending;
 /// - overlapping requests are ignored rather than interleaved.
 abstract class PagedCollectionCubit<T extends MediaItem>
-    extends Cubit<PagedCollectionState<T>> {
-  PagedCollectionCubit({this.pageSize = PageRequest.defaultLimit})
-    : super(PagedCollectionState<T>());
+    extends Cubit<PagedCollectionState<T>>
+    with OfflineReload<PagedCollectionState<T>> {
+  PagedCollectionCubit({
+    this.pageSize = PageRequest.defaultLimit,
+    OfflineMode? offlineMode,
+  }) : super(PagedCollectionState<T>()) {
+    bindOfflineReload(offlineMode);
+  }
 
   /// How many items to ask for at a time. Screens showing a handful of
   /// results (search sections) pass something much smaller.
   final int pageSize;
 
+  /// Going on- or offline changes what every window would answer with, so
+  /// re-read from the start — but only a list that has actually loaded,
+  /// never a tab the user has not opened yet.
+  @override
+  void onOfflineChanged() {
+    if (state.status != CollectionStatus.initial) reload();
+  }
+
   PageRequest? _next;
   bool _busy = false;
+
+  /// Drained right after a fetch clears [_busy]: if a reload was asked for
+  /// mid-flight, run it now and tell the caller to stop emitting the
+  /// window it just fetched (which was read under parameters that have
+  /// since changed).
+  bool _drainedQueuedReload() {
+    if (!_reloadQueued) return false;
+    _reloadQueued = false;
+    unawaited(reload());
+    return true;
+  }
+
+  /// A [reload] arrived while a fetch was in flight. Rather than blank the
+  /// screen to a skeleton that a bailed `_loadFirst` would never fill, or
+  /// let a stale in-flight window win, the current fetch finishes and then
+  /// reloads once more with whatever parameters now hold — the offline
+  /// switch and the "Downloads only" scope both change `fetch` mid-flight
+  /// and both can fire on the same frame (v0.2.3).
+  bool _reloadQueued = false;
 
   /// One window of this collection. The only thing a subclass must write.
   Future<Result<Page<T>>> fetch(PageRequest request);
@@ -173,6 +209,11 @@ abstract class PagedCollectionCubit<T extends MediaItem>
   /// itself changed (a new search term, a different artist).
   Future<void> reload() async {
     if (isClosed) return;
+    if (_busy) {
+      // Let the in-flight fetch land, then start over — see [_reloadQueued].
+      _reloadQueued = true;
+      return;
+    }
     _next = null;
     emit(PagedCollectionState<T>());
     await _loadFirst();
@@ -187,6 +228,7 @@ abstract class PagedCollectionCubit<T extends MediaItem>
     final result = await fetch(PageRequest(startIndex: 0, limit: pageSize));
     _busy = false;
     if (isClosed) return;
+    if (_drainedQueuedReload()) return;
 
     switch (result) {
       case Ok<Page<T>>(:final value):
@@ -210,6 +252,7 @@ abstract class PagedCollectionCubit<T extends MediaItem>
     final result = await fetch(request);
     _busy = false;
     if (isClosed) return;
+    if (_drainedQueuedReload()) return;
 
     switch (result) {
       case Ok<Page<T>>(:final value):
@@ -244,6 +287,7 @@ abstract class PagedCollectionCubit<T extends MediaItem>
     final result = await fetch(PageRequest(startIndex: 0, limit: pageSize));
     _busy = false;
     if (isClosed) return;
+    if (_drainedQueuedReload()) return;
 
     switch (result) {
       case Ok<Page<T>>(:final value):

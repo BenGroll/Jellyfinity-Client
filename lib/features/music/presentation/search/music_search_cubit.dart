@@ -6,8 +6,10 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/media.dart';
 import '../../../../infrastructure/downloads/DownloadsLibrarySource.dart';
+import '../offline_reload.dart';
 
 /// Which kind of music a set of results is.
 ///
@@ -129,12 +131,27 @@ class MusicSearchState extends Equatable {
 /// moved on is discarded — otherwise a slow answer to "mil" overwrites a
 /// fast answer to "miles".
 @injectable
-class MusicSearchCubit extends Cubit<MusicSearchState> {
-  MusicSearchCubit(this._music, this._playlists, this._downloads)
-    : super(const MusicSearchState());
+class MusicSearchCubit extends Cubit<MusicSearchState>
+    with OfflineReload<MusicSearchState> {
+  MusicSearchCubit(
+    this._music,
+    this._playlists,
+    this._downloads, [
+    OfflineMode? offlineMode,
+  ]) : super(const MusicSearchState()) {
+    bindOfflineReload(offlineMode);
+  }
 
   final MusicLibraryRepository _music;
   final PlaylistRepository _playlists;
+
+  /// Crossing on-/offline re-runs whatever is typed, so results switch
+  /// between the server and the downloads without the user resubmitting.
+  @override
+  void onOfflineChanged() {
+    final term = state.query.trim();
+    if (term.isNotEmpty) _run(term);
+  }
 
   /// The signed-in profile's downloads (v0.2.3): what the "Downloaded"
   /// filter searches directly, and what a search falls back to when the

@@ -10,6 +10,8 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
 
+import 'offline_fakes.dart';
+
 const String testServerId = 'server-1';
 
 MediaId mediaId(String itemId) =>
@@ -347,6 +349,46 @@ class FakeDownloadsLibrarySource implements DownloadsLibrarySource {
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
   }) async => Result.ok(_page(playlistList, searchTerm));
+
+  @override
+  Future<Result<Artist>> artist(MediaId id) async {
+    for (final artist in artistList) {
+      if (artist.id == id) return Result.ok(artist);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Album>> album(MediaId id) async {
+    for (final album in albumList) {
+      if (album.id == id) return Result.ok(album);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Playlist>> playlist(MediaId id) async {
+    for (final playlist in playlistList) {
+      if (playlist.id == id) return Result.ok(playlist);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Page<Track>>> albumTracks(
+    MediaId albumId, {
+    PageRequest page = const PageRequest.first(),
+    int? knownTrackCount,
+  }) async => Result.ok(
+    _page(trackList.where((t) => t.albumId == albumId).toList(), null),
+  );
+
+  @override
+  Future<Result<Page<Album>>> artistAlbums(
+    MediaId artistId, {
+    PageRequest page = const PageRequest.first(),
+    int? knownAlbumCount,
+  }) async => Result.ok(_page(albumList, null));
 }
 
 /// Mirrors `registerAuthCubits`; call it before pumping.
@@ -356,31 +398,50 @@ void registerMusicCubits({
   FakeMediaMetadataRepository? metadata,
   FakeFavoritesRepository? favorites,
   FakeDownloadsLibrarySource? downloads,
+  FakeOfflineMode? offline,
 }) {
   final getIt = GetIt.instance;
   final playlistRepository = playlists ?? FakePlaylistRepository();
   final metadataRepository = metadata ?? FakeMediaMetadataRepository();
   final favoritesRepository = favorites ?? FakeFavoritesRepository();
   final downloadsSource = downloads ?? FakeDownloadsLibrarySource();
+  final offlineMode = offline ?? FakeOfflineMode();
 
   getIt
-    ..registerFactory<ArtistsCubit>(() => ArtistsCubit(music, downloadsSource))
-    ..registerFactory<AlbumsCubit>(() => AlbumsCubit(music, downloadsSource))
-    ..registerFactory<SongsCubit>(() => SongsCubit(music, downloadsSource))
+    ..registerFactory<ArtistsCubit>(
+      () => ArtistsCubit(music, downloadsSource, offlineMode),
+    )
+    ..registerFactory<AlbumsCubit>(
+      () => AlbumsCubit(music, downloadsSource, offlineMode),
+    )
+    ..registerFactory<SongsCubit>(
+      () => SongsCubit(music, downloadsSource, offlineMode),
+    )
     ..registerFactory<PlaylistsCubit>(
-      () => PlaylistsCubit(playlistRepository, downloadsSource),
+      () => PlaylistsCubit(playlistRepository, downloadsSource, offlineMode),
     )
     ..registerFactory<PlaylistTracksCubit>(
-      () => PlaylistTracksCubit(playlistRepository),
+      () => PlaylistTracksCubit(playlistRepository, offlineMode),
     )
-    ..registerFactory<ArtistDetailCubit>(() => ArtistDetailCubit(music))
-    ..registerFactory<ArtistStatsCubit>(() => ArtistStatsCubit(music))
-    ..registerFactory<AlbumDetailCubit>(() => AlbumDetailCubit(music))
+    ..registerFactory<ArtistDetailCubit>(
+      () => ArtistDetailCubit(music, offlineMode),
+    )
+    ..registerFactory<ArtistStatsCubit>(
+      () => ArtistStatsCubit(music, offlineMode),
+    )
+    ..registerFactory<AlbumDetailCubit>(
+      () => AlbumDetailCubit(music, offlineMode),
+    )
     ..registerFactory<PlaylistDetailCubit>(
-      () => PlaylistDetailCubit(metadataRepository),
+      () => PlaylistDetailCubit(metadataRepository, offlineMode),
     )
     ..registerFactory<MusicSearchCubit>(
-      () => MusicSearchCubit(music, playlistRepository, downloadsSource),
+      () => MusicSearchCubit(
+        music,
+        playlistRepository,
+        downloadsSource,
+        offlineMode,
+      ),
     )
     ..registerSingleton<PlaylistRepository>(playlistRepository)
     ..registerSingleton<FavoritesRepository>(favoritesRepository);

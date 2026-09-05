@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../app/connectivity/OfflineCubit.dart';
 import '../../../app/navigation/MediaScopeCubit.dart';
 import '../../../app/settings/SettingsCubit.dart';
 import '../../../app/settings/ShellNavigationMode.dart';
 import '../../../design/design.dart';
+import '../../../domain/connectivity/OfflineLibraryScope.dart';
+import '../../../domain/connectivity/OfflineMode.dart';
 
 /// The chrome shared by every tab of [AppShell]: a menu button that opens
 /// [AppSidebar], and a search field that is always reachable at the top of
@@ -79,8 +82,72 @@ class HomeLibraryHeader extends StatelessWidget {
             ],
           ),
         ),
+        const _OfflineHeaderBanner(),
         if (mode == ShellNavigationMode.mediaPills) const _MediaPillRow(),
       ],
+    );
+  }
+}
+
+/// One line under the search field, shown on every Home/Library tab while
+/// the app is offline (v0.2.3). The single place the offline state is
+/// announced for browsing — it replaces both the per-list "saved copy"
+/// notice and the library's separate "downloads only" line, switching its
+/// wording on the "Offline library" scope instead of stacking a second
+/// banner.
+class _OfflineHeaderBanner extends StatelessWidget {
+  const _OfflineHeaderBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final scope = context.select<SettingsCubit, OfflineLibraryScope>(
+      (cubit) => cubit.state.offlineLibraryScope,
+    );
+
+    return BlocBuilder<OfflineCubit, OfflineStatus>(
+      builder: (context, status) {
+        if (!status.isOffline) return const SizedBox.shrink();
+        final limited = scope == OfflineLibraryScope.limited;
+        return Container(
+          width: double.infinity,
+          margin: EdgeInsets.fromLTRB(
+            t.spacing.md,
+            t.spacing.xxs,
+            t.spacing.md,
+            t.spacing.xs,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spacing.sm,
+            vertical: t.spacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: t.colors.surfaceSunken,
+            borderRadius: t.radii.smBorder,
+            border: Border.all(color: t.colors.border),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 16,
+                color: t.colors.textSecondary,
+              ),
+              SizedBox(width: t.spacing.xs),
+              Expanded(
+                child: Text(
+                  limited
+                      ? 'Offline — showing downloaded music only'
+                      : 'Offline — showing your saved library',
+                  style: t.typography.caption.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

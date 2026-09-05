@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/connectivity/OfflineCubit.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/app/JellyfinityApp.dart';
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart';
@@ -13,6 +14,7 @@ import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
 import 'download_fakes.dart';
+import 'offline_fakes.dart';
 import 'playback_fakes.dart';
 import 'session_fakes.dart';
 import 'settings_fakes.dart';
@@ -49,6 +51,7 @@ Future<TestSessionScope> pumpApp(
   SettingsCubit? settings,
   MediaScopeCubit? mediaScope,
   DownloadsCubit? downloads,
+  OfflineCubit? offline,
   TrackSourceInfoResolver? trackSourceInfoResolver,
   LyricsResolver? lyricsResolver,
   bool restore = true,
@@ -77,6 +80,8 @@ Future<TestSessionScope> pumpApp(
   addTearDown(mediaScopeCubit.close);
   final downloadsCubit = downloads ?? fakeDownloadsCubit();
   addTearDown(downloadsCubit.close);
+  final offlineCubit = offline ?? fakeOfflineCubit();
+  addTearDown(offlineCubit.close);
   // NowPlayingPage is a root route the router builds with no constructor
   // args, reading TrackSourceInfoCubit straight from getIt — reachable
   // from every pumpApp test via the mini-player, so this is registered
@@ -99,6 +104,7 @@ Future<TestSessionScope> pumpApp(
       settings: settingsCubit,
       mediaScope: mediaScopeCubit,
       downloads: downloadsCubit,
+      offline: offlineCubit,
     ),
   );
   if (restore) {
@@ -121,16 +127,28 @@ Future<void> pumpThemed(
   Widget child, {
   SessionCubit? session,
   DownloadsCubit? downloads,
+  OfflineCubit? offline,
+  SettingsCubit? settings,
+  PlaybackCubit? playback,
 }) async {
   final s = session ?? TestSessionScope().cubit;
   addTearDown(s.close);
   final downloadsCubit = downloads ?? fakeDownloadsCubit();
   addTearDown(downloadsCubit.close);
+  final offlineCubit = offline ?? fakeOfflineCubit();
+  addTearDown(offlineCubit.close);
+  final settingsCubit = settings ?? fakeSettingsCubit();
+  addTearDown(settingsCubit.close);
+  final playbackCubit = playback ?? fakePlaybackCubit();
+  addTearDown(playbackCubit.close);
   await tester.pumpWidget(
     MultiBlocProvider(
       providers: [
         BlocProvider<SessionCubit>.value(value: s),
         BlocProvider<DownloadsCubit>.value(value: downloadsCubit),
+        BlocProvider<OfflineCubit>.value(value: offlineCubit),
+        BlocProvider<SettingsCubit>.value(value: settingsCubit),
+        BlocProvider<PlaybackCubit>.value(value: playbackCubit),
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),

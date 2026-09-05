@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/connectivity/OfflineCubit.dart';
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/settings/SettingsCubit.dart';
 import '../../../../design/design.dart';
+import '../../../../domain/connectivity/OfflineLibraryScope.dart';
 import '../../../../domain/media/media.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
@@ -34,14 +38,41 @@ class InlineMusicSearch extends StatelessWidget {
   }
 }
 
-class _InlineSearchView extends StatelessWidget {
+class _InlineSearchView extends StatefulWidget {
   const _InlineSearchView({this.onClose});
 
   final VoidCallback? onClose;
 
   @override
+  State<_InlineSearchView> createState() => _InlineSearchViewState();
+}
+
+class _InlineSearchViewState extends State<_InlineSearchView> {
+  /// The user's explicit choice on the "Downloaded" chip.
+  bool _chipSelected = false;
+  bool? _applied;
+
+  void _sync(bool effective) {
+    if (_applied == effective) return;
+    _applied = effective;
+    context.read<MusicSearchCubit>().showDownloadedOnly(effective);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+
+    // Offline + "Downloads only" scope: the search runs against downloads
+    // and the chip has nothing to toggle (v0.2.3).
+    final offline = context.watch<OfflineCubit>().state.isOffline;
+    final limited =
+        context.watch<SettingsCubit>().state.offlineLibraryScope ==
+        OfflineLibraryScope.limited;
+    final lockedToDownloads = offline && limited;
+    final effective = _chipSelected || lockedToDownloads;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sync(effective);
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,22 +84,86 @@ class _InlineSearchView extends StatelessWidget {
             t.spacing.md,
             t.spacing.sm,
           ),
-          child: _SearchField(onClose: onClose),
+          child: _SearchField(onClose: widget.onClose),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(
-            t.spacing.md,
-            0,
-            t.spacing.md,
-            t.spacing.sm,
-          ),
-          child: const Align(
-            alignment: Alignment.centerLeft,
-            child: _DownloadedSearchChip(),
-          ),
+          padding: EdgeInsets.fromLTRB(t.spacing.md, 0, t.spacing.md, 0),
+          child: const _SearchStatusLine(),
         ),
-        Expanded(child: _SearchResults(onNavigate: onClose)),
+        if (!lockedToDownloads)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              t.spacing.md,
+              t.spacing.xs,
+              t.spacing.md,
+              t.spacing.sm,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _DownloadedSearchChip(
+                selected: _chipSelected,
+                onChanged: (value) => setState(() => _chipSelected = value),
+              ),
+            ),
+          )
+        else
+          SizedBox(height: t.spacing.sm),
+        Expanded(child: _SearchResults(onNavigate: widget.onClose)),
       ],
+    );
+  }
+}
+
+/// One slim line under the search field explaining why results might be
+/// incomplete (v0.2.3) — the server is unreachable, or the app is
+/// deliberately offline. Replaces the full-page "Search needs the server"
+/// error and the per-category failure text: one honest line, not five.
+class _SearchStatusLine extends StatelessWidget {
+  const _SearchStatusLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final offline = context.watch<OfflineCubit>().state.isOffline;
+
+    return BlocBuilder<MusicSearchCubit, MusicSearchState>(
+      builder: (context, state) {
+        final searched = state.status == MusicSearchStatus.results;
+        final serverMissed =
+            state.hasFailure || state.wholeSearchFailure != null;
+        final downloadedOnly = context.read<MusicSearchCubit>().downloadedOnly;
+
+        String? message;
+        if (offline || downloadedOnly) {
+          message = 'Searching music on this device';
+        } else if (searched && serverMissed) {
+          message = "Can't reach the server — showing downloaded music";
+        }
+        if (message == null) return const SizedBox.shrink();
+
+        return Padding(
+          padding: EdgeInsets.only(top: t.spacing.xs, bottom: t.spacing.xxs),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 14,
+                color: t.colors.textSecondary,
+              ),
+              SizedBox(width: t.spacing.xs),
+              Flexible(
+                child: Text(
+                  message,
+                  style: t.typography.caption.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -151,6 +246,8 @@ class _SearchResults extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
+    final catalog = context.watch<DownloadsCubit>().state;
+
     return BlocBuilder<MusicSearchCubit, MusicSearchState>(
       builder: (context, state) {
         if (state.status == MusicSearchStatus.idle) {
@@ -176,12 +273,16 @@ class _SearchResults extends StatelessWidget {
           );
         }
 
-        final whole = state.wholeSearchFailure;
-        if (whole != null) {
-          return ErrorStateView.forFailure(
-            whole,
-            title: 'Search needs the server',
-            onRetry: context.read<MusicSearchCubit>().submit,
+        // The server could not be reached and nothing downloaded matched
+        // either. Said once, quietly, in the status line above — here it
+        // is just an empty result, not a full-page error (v0.2.3).
+        if (state.wholeSearchFailure != null) {
+          return EmptyStateView(
+            title: 'No matches on this device',
+            message:
+                'Nothing downloaded matches "${state.query}". Connect to '
+                'the server to search your whole library.',
+            icon: Icons.search_off_rounded,
           );
         }
 
@@ -238,25 +339,31 @@ class _SearchResults extends StatelessWidget {
               query: state.query,
               section: state.songs,
               onNavigate: onNavigate,
-              rowBuilder: (context, track) => TrackRow(
-                track: track,
+              rowBuilder: (context, track) {
                 // Playing a track starts the mini-player but does not
-                // navigate away, so search stays open — no onNavigate.
-                onTap: track.availability == MediaAvailability.remoteUnavailable
-                    ? null
-                    : () => context.read<PlaybackCubit>().playNow(
-                        state.songs.items,
-                        startIndex: state.songs.items.indexOf(track),
-                      ),
-                onPlayNext:
-                    track.availability == MediaAvailability.remoteUnavailable
-                    ? null
-                    : () => context.read<PlaybackCubit>().playNext(track),
-                onAddToQueue:
-                    track.availability == MediaAvailability.remoteUnavailable
-                    ? null
-                    : () => context.read<PlaybackCubit>().addToQueue(track),
-              ),
+                // navigate away, so search stays open — no onNavigate. A
+                // download the server dropped still plays from its file
+                // (v0.2.3).
+                final playable =
+                    track.availability != MediaAvailability.remoteUnavailable ||
+                    catalog.isDownloaded(track.id);
+                return TrackRow(
+                  track: track,
+                  playable: playable,
+                  onTap: playable
+                      ? () => context.read<PlaybackCubit>().playNow(
+                          state.songs.items,
+                          startIndex: state.songs.items.indexOf(track),
+                        )
+                      : null,
+                  onPlayNext: playable
+                      ? () => context.read<PlaybackCubit>().playNext(track)
+                      : null,
+                  onAddToQueue: playable
+                      ? () => context.read<PlaybackCubit>().addToQueue(track)
+                      : null,
+                );
+              },
             ),
             _Section<Playlist>(
               category: SearchCategory.playlists,
@@ -284,16 +391,17 @@ class _SearchResults extends StatelessWidget {
 /// The "Downloaded" filter on the search screen (v0.2.3): searches only
 /// the signed-in profile's downloads. Also the fallback a normal search
 /// lands on automatically when the server cannot be reached — this chip
-/// just makes it a deliberate choice too.
-class _DownloadedSearchChip extends StatefulWidget {
-  const _DownloadedSearchChip();
+/// just makes it a deliberate choice too. Its selected state is owned by
+/// [_InlineSearchViewState], which also forces it on while offline with
+/// the "Downloads only" scope.
+class _DownloadedSearchChip extends StatelessWidget {
+  const _DownloadedSearchChip({
+    required this.selected,
+    required this.onChanged,
+  });
 
-  @override
-  State<_DownloadedSearchChip> createState() => _DownloadedSearchChipState();
-}
-
-class _DownloadedSearchChipState extends State<_DownloadedSearchChip> {
-  bool _selected = false;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -303,14 +411,11 @@ class _DownloadedSearchChipState extends State<_DownloadedSearchChip> {
       avatar: Icon(
         Icons.download_done_rounded,
         size: 18,
-        color: _selected ? t.colors.accent : t.colors.textSecondary,
+        color: selected ? t.colors.accent : t.colors.textSecondary,
       ),
-      selected: _selected,
+      selected: selected,
       tooltip: 'Search only music kept on this device',
-      onSelected: (value) {
-        setState(() => _selected = value);
-        context.read<MusicSearchCubit>().showDownloadedOnly(value);
-      },
+      onSelected: onChanged,
     );
   }
 }
@@ -337,9 +442,11 @@ class _Section<T extends MediaItem> extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    if (section.isEmpty && section.failure == null) {
-      return const SizedBox.shrink();
-    }
+    // A category with nothing to show renders nothing — including one that
+    // failed. The status line under the search field is where an
+    // unreachable server is explained, not four red lines between the
+    // headings (v0.2.3).
+    if (section.items.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -369,16 +476,7 @@ class _Section<T extends MediaItem> extends StatelessWidget {
               ),
           ],
         ),
-        if (section.failure != null)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: t.spacing.xs),
-            child: Text(
-              section.failure!.message,
-              style: t.typography.caption.copyWith(color: t.colors.danger),
-            ),
-          )
-        else
-          for (final item in section.items) rowBuilder(context, item),
+        for (final item in section.items) rowBuilder(context, item),
       ],
     );
   }

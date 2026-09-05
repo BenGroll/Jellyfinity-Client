@@ -437,11 +437,46 @@ All notable changes to Jellyfinity are documented here.
     and refreshed on an online open. A downloaded playlist shows its real
     name instead of a generic label, and a collection renders offline
     before its tracks have been browsed.
-  - A "Downloaded" filter on the library tabs and search reads the
-    profile's downloads through `DownloadsLibrarySource` as ordinary
-    library windows. A music search that fails whole offline falls back
-    to those downloads when they match, so an offline search still finds
-    playable music rather than only an error.
+  - The library and search fall back to the profile's downloads through
+    `DownloadsLibrarySource`, read as ordinary library windows. Artists
+    and albums are browsable offline from a single downloaded track of
+    theirs, not only from a whole-artist or whole-album download. A music
+    search that fails whole offline falls back to those downloads when
+    they match, so an offline search still finds playable music rather
+    than only an error.
+  - Opening one of those artists, albums or playlists offline now works
+    too, not just finding it: the detail page renders from the downloads
+    when nothing was ever saved for it. The part that is not on the
+    device is one honest "N songs not available offline" / "N albums not
+    available offline" line — the count, not a row per title the user
+    never downloaded. Playlists fill from their membership snapshot the
+    same way.
+  - A "Work offline" switch in the sidebar deliberately puts the whole
+    app offline — the library and search answer from the device, no
+    server round-trips. With no connection it shows on and disabled. A
+    new Settings choice, "Offline library", decides what offline shows:
+    the whole cached library with download markers ("Show everything"),
+    or only what is on the device ("Downloads only"). It applies only
+    while offline. Switching on or off reloads every list already on
+    screen, and the reloaded window reflects the mode it landed in even
+    when the switch and the scope both fired on the same frame. See
+    ADR-0023; this revisits `CONTEXT.md`'s "not a separate app mode"
+    line, which is updated to match.
+  - Downloaded albums and artists carry a small marker on their library
+    tile or row and on their detail header.
+  - A downloaded song plays from a single tap — on the Downloads screen's
+    own song list, and in the library, album, playlist and search views
+    even where the row is marked unavailable because the server dropped
+    it or cannot be reached. A song that genuinely cannot play offline is
+    greyed out in place instead.
+  - The per-list "showing your saved copy" notice is replaced by one
+    offline line under the shared search field, shown on every Home and
+    Library tab. It is the only offline banner: its wording switches on
+    the "Offline library" scope ("showing your saved library" /
+    "showing downloaded music only") instead of the library page stacking
+    a second line of its own. The search screen's "can't reach the
+    server" state is likewise one line under its field rather than a
+    full-page error and a red line under every category.
   - Opening a downloaded album or artist online reconciles its tracks
     against the server: one the server no longer lists is marked
     `server_gone` and shown as "Only on this device" — kept and still

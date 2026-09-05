@@ -9,9 +9,9 @@ import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_skeletons.dart';
-import 'package:jellyfinity/features/music/presentation/widgets/paged_collection_view.dart';
 
 import '../../support/music_fakes.dart';
+import '../../support/offline_fakes.dart';
 import '../../support/pump_app.dart';
 
 /// Pumps the Music section with cubits over [music].
@@ -22,13 +22,34 @@ Future<void> _pumpMusic(
   int pageSize = PageRequest.defaultLimit,
 }) async {
   final playlistRepository = playlists ?? FakePlaylistRepository();
+  final offline = FakeOfflineMode();
   await pumpThemed(
     tester,
     LibraryPage(
-      artists: ArtistsCubit(music, FakeDownloadsLibrarySource(), pageSize: pageSize),
-      albums: AlbumsCubit(music, FakeDownloadsLibrarySource(), pageSize: pageSize),
-      songs: SongsCubit(music, FakeDownloadsLibrarySource(), pageSize: pageSize),
-      playlists: PlaylistsCubit(playlistRepository, FakeDownloadsLibrarySource(), pageSize: pageSize),
+      artists: ArtistsCubit(
+        music,
+        FakeDownloadsLibrarySource(),
+        offline,
+        pageSize: pageSize,
+      ),
+      albums: AlbumsCubit(
+        music,
+        FakeDownloadsLibrarySource(),
+        offline,
+        pageSize: pageSize,
+      ),
+      songs: SongsCubit(
+        music,
+        FakeDownloadsLibrarySource(),
+        offline,
+        pageSize: pageSize,
+      ),
+      playlists: PlaylistsCubit(
+        playlistRepository,
+        FakeDownloadsLibrarySource(),
+        offline,
+        pageSize: pageSize,
+      ),
     ),
   );
 }
@@ -96,9 +117,12 @@ void main() {
     expect(find.text('Miles Davis'), findsOneWidget);
   });
 
-  testWidgets('says out loud when it is showing the saved copy', (
+  testWidgets('renders a saved-copy list as content, not an error (v0.2.3)', (
     tester,
   ) async {
+    // The per-list "saved copy" notice was removed in v0.2.3 — the shell
+    // header carries one offline line for every tab instead. The list
+    // itself just shows its items.
     final music = FakeMusicLibraryRepository()
       ..artistList = [testArtist('a1', name: 'Miles Davis')]
       ..source = PageSource.cache;
@@ -106,8 +130,8 @@ void main() {
     await _pumpMusic(tester, music);
     await tester.pumpAndSettle();
 
-    expect(find.byType(SavedCopyNotice), findsOneWidget);
     expect(find.text('Miles Davis'), findsOneWidget);
+    expect(find.byType(ErrorStateView), findsNothing);
   });
 
   testWidgets('keeps the songs it could read and marks the one it could not', (
