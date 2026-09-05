@@ -420,3 +420,42 @@ All notable changes to Jellyfinity are documented here.
     download is re-fetched from the server at the current quality instead
     of resolving to the partial local file.
   - Added the `ACCESS_NETWORK_STATE` Android permission.
+- Added the offline library and recovery release (ADR-0023, v0.2.3), the
+  fourth in the offline-music arc — downloaded music you can find and
+  trust when the server is away or has changed:
+  - Downloads are now per-profile. Schema v6 adds an `account_key` to the
+    primary key of `track_downloads`, `download_owners` and
+    `playlist_download_members`; `DriftDownloadStore` scopes every read
+    and write to the signed-in Jellyfin user, so two profiles on one
+    server keep separate collections and neither sees, plays or removes
+    the other's. `DownloadsCubit` rebuilds its catalog on a profile
+    switch or sign-out. Downloads made before v0.2.3 are claimed by the
+    first profile to sign in after the upgrade — the old single-bucket
+    behaviour, carried forward, not lost.
+  - The new `downloaded_collections` table stores a downloaded album's,
+    artist's or playlist's name and artwork, recorded at download time
+    and refreshed on an online open. A downloaded playlist shows its real
+    name instead of a generic label, and a collection renders offline
+    before its tracks have been browsed.
+  - A "Downloaded" filter on the library tabs and search reads the
+    profile's downloads through `DownloadsLibrarySource` as ordinary
+    library windows. A music search that fails whole offline falls back
+    to those downloads when they match, so an offline search still finds
+    playable music rather than only an error.
+  - Opening a downloaded album or artist online reconciles its tracks
+    against the server: one the server no longer lists is marked
+    `server_gone` and shown as "Only on this device" — kept and still
+    playable — not as a remote failure or by vanishing; one that
+    reappears loses the mark. A playlist reconcile marks a
+    removed-but-kept member the same way. Nothing local is ever deleted
+    as a side effect of a sign-in, refresh or server removal.
+  - `restore` verifies each completed download still has its file and
+    re-queues any whose file has vanished, so a database/file mismatch
+    can no longer leave a phantom "downloaded" track that plays silence.
+  - A low-storage warning before a large download: `DownloadStorageProbe`
+    (over `disk_space_plus`, behind a replaceable seam) backs
+    `DownloadsCubit.storageWarning`, and the album, artist and playlist
+    download controls ask the user to confirm past it. Advisory only —
+    no automatic cleanup, and a platform that will not report free space
+    never blocks a download.
+  - `disk_space_plus` is a new dependency.
