@@ -945,4 +945,87 @@ void main() {
       expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
     });
   });
+
+  group('server-deleted downloads (v0.2.3)', () {
+    test('reconcileCollectionPresence marks a dropped track "only on device"', () async {
+      final album = DownloadOwner.album(mediaId('al-1'));
+      for (final id in ['t1', 't2']) {
+        store.records[mediaId(id)] = downloadRecord(
+          mediaId(id),
+          state: DownloadState.completed,
+          owners: {album},
+        );
+      }
+      store.collectionsMap[album] = DownloadedCollection(
+        owner: album,
+        name: 'Kind of Blue',
+      );
+      await cubit.restore();
+      await pumpEventQueue();
+
+      // The server now lists only t1.
+      await cubit.reconcileCollectionPresence(album, {mediaId('t1')});
+
+      expect(cubit.state[mediaId('t1')]!.serverGone, isFalse);
+      expect(cubit.state[mediaId('t2')]!.serverGone, isTrue);
+      expect(
+        cubit.state[mediaId('t2')]!.toTrack().availability,
+        MediaAvailability.localOnly,
+      );
+
+      // t2 comes back — the mark is cleared.
+      await cubit.reconcileCollectionPresence(album, {
+        mediaId('t1'),
+        mediaId('t2'),
+      });
+      expect(cubit.state[mediaId('t2')]!.serverGone, isFalse);
+    });
+
+    test('a playlist reconcile marks a removed-but-kept member', () async {
+      final playlistOwner = DownloadOwner.playlist(mediaId('pl-1'));
+      final albumOwner = DownloadOwner.album(mediaId('al-1'));
+      // t1 is kept by both the playlist and an album.
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        state: DownloadState.completed,
+        owners: {playlistOwner, albumOwner},
+      );
+      store.playlistSnapshots[mediaId('pl-1')] = [
+        (position: 0, trackId: mediaId('t1')),
+      ];
+      await cubit.restore();
+      await pumpEventQueue();
+
+      // The server's playlist no longer lists t1.
+      playlists.tracksByPlaylist['pl-1'] = [];
+      await cubit.reconcilePlaylist(mediaId('pl-1'));
+      await pumpEventQueue();
+
+      // The file stays (the album still wants it) and is now local-only.
+      expect(cubit.state[mediaId('t1')], isNotNull);
+      expect(cubit.state[mediaId('t1')]!.serverGone, isTrue);
+    });
+  });
+
+  group('storage warning (v0.2.3)', () {
+    test('warns when free space is under the threshold', () async {
+      final storage = FakeStorageProbe(available: 100 * 1024 * 1024);
+      final scoped = fakeDownloadsCubit(storage: storage);
+      addTearDown(scoped.close);
+
+      final warning = await scoped.storageWarning();
+      expect(warning, isNotNull);
+      expect(warning!.availableBytes, 100 * 1024 * 1024);
+    });
+
+    test('does not warn when space is fine', () async {
+      expect(await cubit.storageWarning(), isNull);
+    });
+
+    test('does not warn when the platform will not report free space', () async {
+      final scoped = fakeDownloadsCubit(storage: FakeStorageProbe(available: null));
+      addTearDown(scoped.close);
+      expect(await scoped.storageWarning(), isNull);
+    });
+  });
 }

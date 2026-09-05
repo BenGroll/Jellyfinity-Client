@@ -13,6 +13,8 @@ export 'package:jellyfinity/domain/downloads/downloads.dart'
         DownloadOwner,
         DownloadOwnerKind,
         DownloadState,
+        DownloadStorageProbe,
+        DownloadStorageWarning,
         NetworkCondition,
         NetworkState,
         TrackDownload;
@@ -40,6 +42,7 @@ DownloadsCubit fakeDownloadsCubit({
   SettingsCubit? settings,
   FakeNetworkCondition? network,
   SessionCubit? session,
+  FakeStorageProbe? storage,
 }) => DownloadsCubit(
   store ?? InMemoryDownloadStore(),
   engine ?? FakeDownloadEngine(),
@@ -49,7 +52,20 @@ DownloadsCubit fakeDownloadsCubit({
   settings ?? fakeSettingsCubit(),
   network ?? FakeNetworkCondition(),
   session ?? fakeSessionCubit(signedIn: fakeAuthSession()),
+  storage ?? FakeStorageProbe(),
 );
+
+/// A [DownloadStorageProbe] a test controls. Defaults to "plenty of
+/// room"; set [availableBytes] to `null` for "platform won't say" or a
+/// small number to trigger the low-storage warning.
+class FakeStorageProbe implements DownloadStorageProbe {
+  FakeStorageProbe({this.available = 8 * 1024 * 1024 * 1024});
+
+  int? available;
+
+  @override
+  Future<int?> availableBytes() async => available;
+}
 
 /// A [NetworkCondition] a test drives: set [state] and push changes.
 class FakeNetworkCondition implements NetworkCondition {

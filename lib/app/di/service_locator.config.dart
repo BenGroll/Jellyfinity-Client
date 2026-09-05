@@ -29,6 +29,7 @@ import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/downloads/DownloadEngine.dart' as _i768;
 import 'package:jellyfinity/domain/downloads/downloads.dart' as _i306;
+import 'package:jellyfinity/domain/downloads/DownloadStorageProbe.dart' as _i21;
 import 'package:jellyfinity/domain/downloads/DownloadStore.dart' as _i853;
 import 'package:jellyfinity/domain/downloads/LocalAudioSource.dart' as _i186;
 import 'package:jellyfinity/domain/downloads/NetworkCondition.dart' as _i1047;
@@ -76,6 +77,10 @@ import 'package:jellyfinity/features/playback/presentation/track_source_info_cub
     as _i766;
 import 'package:jellyfinity/infrastructure/downloads/ConnectivityNetworkCondition.dart'
     as _i116;
+import 'package:jellyfinity/infrastructure/downloads/DiskSpaceStorageProbe.dart'
+    as _i983;
+import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart'
+    as _i720;
 import 'package:jellyfinity/infrastructure/downloads/DownloadStorage.dart'
     as _i855;
 import 'package:jellyfinity/infrastructure/downloads/DriftDownloadStore.dart'
@@ -164,6 +169,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => secureStorageModule.secureStorage(),
     );
     gh.lazySingleton<_i612.Logger>(() => _i1033.ConsoleLogger());
+    gh.lazySingleton<_i21.DownloadStorageProbe>(
+      () => _i983.DiskSpaceStorageProbe.create(),
+    );
     gh.lazySingleton<_i866.CredentialStore>(
       () => _i834.SecureCredentialStore(gh<_i558.FlutterSecureStorage>()),
     );
@@ -340,8 +348,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i148.LyricsCubit>(
       () => _i148.LyricsCubit(gh<_i392.LyricsResolver>()),
     );
-    gh.factory<_i618.PlaylistsCubit>(
-      () => _i618.PlaylistsCubit(gh<_i747.PlaylistRepository>()),
+    gh.lazySingleton<_i720.DownloadsLibrarySource>(
+      () => _i720.DownloadsLibrarySource(gh<_i853.DownloadStore>()),
     );
     gh.factory<_i618.PlaylistTracksCubit>(
       () => _i618.PlaylistTracksCubit(gh<_i747.PlaylistRepository>()),
@@ -356,6 +364,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.factory<_i169.MusicSearchCubit>(
+      () => _i169.MusicSearchCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
+      ),
+    );
     gh.lazySingleton<_i922.AudioSourceResolver>(
       () => _i620.LocalFirstAudioSourceResolver(
         gh<_i922.AudioSourceResolver>(
@@ -364,27 +379,31 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i186.LocalAudioSource>(),
       ),
     );
-    gh.lazySingleton<_i45.DownloadsCubit>(
-      () => _i45.DownloadsCubit(
-        gh<_i306.DownloadStore>(),
-        gh<_i306.DownloadEngine>(),
-        gh<_i922.AudioSourceResolver>(
-          instanceName: 'remoteAudioSourceResolver',
-        ),
-        gh<_i260.MusicLibraryRepository>(),
-        gh<_i597.PlaylistRepository>(),
-        gh<_i230.SettingsCubit>(),
-        gh<_i306.NetworkCondition>(),
-        gh<_i809.SessionCubit>(),
+    gh.factory<_i618.PlaylistsCubit>(
+      () => _i618.PlaylistsCubit(
+        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
       ),
     );
     gh.factory<_i824.ArtistStatsCubit>(
       () => _i824.ArtistStatsCubit(gh<_i260.MusicLibraryRepository>()),
     );
-    gh.factory<_i169.MusicSearchCubit>(
-      () => _i169.MusicSearchCubit(
+    gh.factory<_i618.ArtistsCubit>(
+      () => _i618.ArtistsCubit(
         gh<_i747.MusicLibraryRepository>(),
-        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
+      ),
+    );
+    gh.factory<_i618.AlbumsCubit>(
+      () => _i618.AlbumsCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
+      ),
+    );
+    gh.factory<_i618.SongsCubit>(
+      () => _i618.SongsCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
       ),
     );
     gh.factory<_i213.PlaylistDetailCubit>(
@@ -408,14 +427,20 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i213.AlbumDetailCubit>(
       () => _i213.AlbumDetailCubit(gh<_i747.MusicLibraryRepository>()),
     );
-    gh.factory<_i618.ArtistsCubit>(
-      () => _i618.ArtistsCubit(gh<_i747.MusicLibraryRepository>()),
-    );
-    gh.factory<_i618.AlbumsCubit>(
-      () => _i618.AlbumsCubit(gh<_i747.MusicLibraryRepository>()),
-    );
-    gh.factory<_i618.SongsCubit>(
-      () => _i618.SongsCubit(gh<_i747.MusicLibraryRepository>()),
+    gh.lazySingleton<_i45.DownloadsCubit>(
+      () => _i45.DownloadsCubit(
+        gh<_i306.DownloadStore>(),
+        gh<_i306.DownloadEngine>(),
+        gh<_i922.AudioSourceResolver>(
+          instanceName: 'remoteAudioSourceResolver',
+        ),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i597.PlaylistRepository>(),
+        gh<_i230.SettingsCubit>(),
+        gh<_i306.NetworkCondition>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i306.DownloadStorageProbe>(),
+      ),
     );
     return this;
   }

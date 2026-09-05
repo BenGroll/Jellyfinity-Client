@@ -165,6 +165,8 @@ class AlbumDownloadButton extends StatelessWidget {
   }
 
   Future<void> _download(BuildContext context, DownloadsCubit downloads) async {
+    if (!await confirmStorageForDownload(context, downloads)) return;
+    if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final result = await downloads.downloadAlbum(album);
     if (result.failureOrNull case final failure?) {
@@ -296,6 +298,8 @@ class PlaylistDownloadButton extends StatelessWidget {
   }
 
   Future<void> _download(BuildContext context, DownloadsCubit downloads) async {
+    if (!await confirmStorageForDownload(context, downloads)) return;
+    if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final result = await downloads.downloadPlaylist(playlist);
     if (result.failureOrNull case final failure?) {
@@ -475,6 +479,8 @@ class ArtistDownloadButton extends StatelessWidget {
   }
 
   Future<void> _download(BuildContext context, DownloadsCubit downloads) async {
+    if (!await confirmStorageForDownload(context, downloads)) return;
+    if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final result = await downloads.downloadArtist(artist);
     if (result.failureOrNull case final failure?) {
@@ -644,6 +650,43 @@ String describeCollectionDownload(CollectionDownloadStatus status) {
     parts.add('${status.failed} failed');
   }
   return parts.join(' · ');
+}
+
+/// Whether a download should go ahead given how much room is left
+/// (v0.2.3).
+///
+/// `true` when storage is fine, or when the platform will not report
+/// free space (a download is never blocked on a number nobody has), or
+/// when the user chose to continue past the low-storage warning. `false`
+/// only when they were warned and declined. The warning is advisory —
+/// `ROADMAP.md` v0.2.3 adds no automatic cleanup.
+Future<bool> confirmStorageForDownload(
+  BuildContext context,
+  DownloadsCubit downloads,
+) async {
+  final warning = await downloads.storageWarning();
+  if (warning == null || !context.mounted) return true;
+  final proceed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Storage is running low'),
+      content: Text(
+        'Only ${formatDownloadSize(warning.availableBytes)} left on this '
+        'device. A large download may not finish. Download anyway?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Download anyway'),
+        ),
+      ],
+    ),
+  );
+  return proceed ?? false;
 }
 
 /// Asks before deleting anything from the device.

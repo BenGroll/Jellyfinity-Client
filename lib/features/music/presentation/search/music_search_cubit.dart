@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/result.dart';
 import '../../../../domain/media/media.dart';
+import '../../../../infrastructure/downloads/DownloadsLibrarySource.dart';
 
 /// Which kind of music a set of results is.
 ///
@@ -129,11 +130,29 @@ class MusicSearchState extends Equatable {
 /// fast answer to "miles".
 @injectable
 class MusicSearchCubit extends Cubit<MusicSearchState> {
-  MusicSearchCubit(this._music, this._playlists)
+  MusicSearchCubit(this._music, this._playlists, this._downloads)
     : super(const MusicSearchState());
 
   final MusicLibraryRepository _music;
   final PlaylistRepository _playlists;
+
+  /// The signed-in profile's downloads (v0.2.3): what the "Downloaded"
+  /// filter searches directly, and what a search falls back to when the
+  /// server cannot be reached — so an offline search still finds the
+  /// music that can actually play.
+  final DownloadsLibrarySource _downloads;
+
+  bool _downloadedOnly = false;
+  bool get downloadedOnly => _downloadedOnly;
+
+  /// Turns the "Downloaded" filter on or off and re-runs the current
+  /// query.
+  Future<void> showDownloadedOnly(bool value) async {
+    if (value == _downloadedOnly) return;
+    _downloadedOnly = value;
+    final term = state.query.trim();
+    if (term.isNotEmpty) await _run(term);
+  }
 
   /// Long enough to skip the letters of a word being typed, short enough
   /// that results feel like they are keeping up.
@@ -180,12 +199,25 @@ class MusicSearchCubit extends Cubit<MusicSearchState> {
     final generation = ++_generation;
     const window = PageRequest(startIndex: 0, limit: previewLimit);
 
-    final results = await Future.wait([
-      _music.artists(page: window, searchTerm: term),
-      _music.albums(page: window, searchTerm: term),
-      _music.tracks(page: window, searchTerm: term),
-      _playlists.playlists(page: window, searchTerm: term),
-    ]);
+    var results = _downloadedOnly
+        ? await _searchDownloads(window, term)
+        : await _searchServer(window, term);
+
+    // Offline, a music search would otherwise fail whole: fall back to
+    // the downloads so the listener still finds what they can play
+    // (v0.2.3). Only when every category failed — a partial failure is a
+    // real, if incomplete, answer — and only when the downloads actually
+    // match something, so an offline search with no local hits still
+    // says "search needs the server" rather than a misleading "no
+    // matches".
+    if (!_downloadedOnly && results.every((r) => r is Err)) {
+      final local = await _searchDownloads(window, term);
+      final hasLocalHits = local.any(
+        (result) =>
+            result is Ok<Page<MediaItem>> && result.value.items.isNotEmpty,
+      );
+      if (hasLocalHits) results = local;
+    }
 
     // The user kept typing while these were in flight.
     if (isClosed || generation != _generation) return;
@@ -201,6 +233,26 @@ class MusicSearchCubit extends Cubit<MusicSearchState> {
       ),
     );
   }
+
+  Future<List<Result<Page<MediaItem>>>> _searchServer(
+    PageRequest window,
+    String term,
+  ) => Future.wait<Result<Page<MediaItem>>>([
+    _music.artists(page: window, searchTerm: term),
+    _music.albums(page: window, searchTerm: term),
+    _music.tracks(page: window, searchTerm: term),
+    _playlists.playlists(page: window, searchTerm: term),
+  ]);
+
+  Future<List<Result<Page<MediaItem>>>> _searchDownloads(
+    PageRequest window,
+    String term,
+  ) => Future.wait<Result<Page<MediaItem>>>([
+    _downloads.artists(page: window, searchTerm: term),
+    _downloads.albums(page: window, searchTerm: term),
+    _downloads.tracks(page: window, searchTerm: term),
+    _downloads.playlists(page: window, searchTerm: term),
+  ]);
 
   SearchSection<T> _section<T extends MediaItem>(Result<Page<T>> result) {
     return switch (result) {

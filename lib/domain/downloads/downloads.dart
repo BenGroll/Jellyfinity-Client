@@ -24,6 +24,7 @@ export 'DownloadCatalog.dart';
 export 'DownloadedCollection.dart';
 export 'DownloadEngine.dart';
 export 'DownloadOwner.dart';
+export 'DownloadStorageProbe.dart';
 export 'DownloadStore.dart';
 export 'LocalAudioSource.dart';
 export 'NetworkCondition.dart';

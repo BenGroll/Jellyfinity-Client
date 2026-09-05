@@ -66,6 +66,7 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     this._settings,
     this._network,
     this._session,
+    this._storage,
   ) : super(DownloadCatalog.empty) {
     // A held-back download should resume the moment Wi-Fi returns or the
     // user relaxes the policy, without them reopening the app.
@@ -90,6 +91,13 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   final SettingsCubit _settings;
   final NetworkCondition _network;
   final SessionCubit _session;
+  final DownloadStorageProbe _storage;
+
+  /// Warn a listener before a download when the device has less than this
+  /// much room left (v0.2.3). A round, conservative figure — enough for a
+  /// handful of lossless albums — not a computed estimate of what a
+  /// specific request needs.
+  static const int lowStorageThresholdBytes = 500 * 1024 * 1024;
 
   late final StreamSubscription<NetworkState> _networkSub;
   late final StreamSubscription<SettingsState> _settingsSub;
@@ -479,7 +487,21 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     var removedButKept = 0;
     for (final id in removed) {
       await _release(id, owner);
-      if (state[id] != null) removedButKept++;
+      // A member the server dropped but another download still keeps is
+      // now "only on this device" (v0.2.3) — kept and playable, honestly
+      // labelled rather than shown as a remote failure.
+      if (state[id] case final TrackDownload kept) {
+        removedButKept++;
+        if (!kept.serverGone) {
+          await _write(kept.copyWith(serverGone: true));
+        }
+      }
+    }
+    // A member the server lists again loses the mark.
+    for (final id in currentIds) {
+      if (state[id] case final TrackDownload record when record.serverGone) {
+        await _write(record.copyWith(serverGone: false));
+      }
     }
 
     final members = <PlaylistDownloadMember>[
@@ -495,6 +517,58 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       removed: removed.length,
       removedButKept: removedButKept,
     );
+  }
+
+  /// Reconciles a downloaded artist against the server (v0.2.3).
+  ///
+  /// Called when a downloaded artist page is opened online. Unlike an
+  /// album, the artist screen does not load a flat track list, so this
+  /// pages the artist's tracks itself — one window at a time, the same
+  /// bounded read `downloadArtist` uses — and hands the ids to
+  /// [reconcileCollectionPresence]. A cache-served or failed read is left
+  /// alone: there is nothing to reconcile against a server that did not
+  /// answer.
+  Future<void> reconcileArtist(MediaId artistId) async {
+    final owner = DownloadOwner.artist(artistId);
+    if (state.statusFor(owner).isEmpty) return;
+
+    final present = <MediaId>{};
+    var request = const PageRequest.first();
+    while (true) {
+      final page = await _library.tracks(page: request, artistId: artistId);
+      if (page case Err<Page<Track>>()) return;
+      final window = (page as Ok<Page<Track>>).value;
+      if (window.isCached) return;
+      present.addAll(window.items.map((track) => track.id));
+      if (window.consumed == 0) break;
+      final next = window.nextRequest();
+      if (next == null) break;
+      request = next;
+    }
+
+    await reconcileCollectionPresence(owner, present);
+  }
+
+  /// Reconciles which of a downloaded album's or artist's tracks the
+  /// server still lists (v0.2.3).
+  ///
+  /// Called when a downloaded collection is opened online: [present] is
+  /// the set of track ids the server just returned (a cache-served list
+  /// must not be passed — there is nothing to reconcile against a server
+  /// that did not speak). A downloaded track the server no longer lists
+  /// is marked "only on this device" — kept, still playable, shown as
+  /// such rather than as a remote failure or by vanishing; one that
+  /// reappears loses the mark. Nothing is ever deleted.
+  Future<void> reconcileCollectionPresence(
+    DownloadOwner owner,
+    Set<MediaId> present,
+  ) async {
+    for (final record in state.ownedBy(owner).toList()) {
+      final gone = !present.contains(record.id);
+      if (record.serverGone != gone) {
+        await _write(record.copyWith(serverGone: gone));
+      }
+    }
   }
 
   void _emitSnapshot(MediaId playlistId, List<PlaylistDownloadMember> members) {
@@ -655,6 +729,24 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       ..remove(id);
     emit(state.copyWith(downloads: downloads));
     _pump();
+  }
+
+  // ---- Storage warning (v0.2.3) ----
+
+  /// A [DownloadStorageWarning] when the device is running low on room,
+  /// or `null` when there is plenty — or when the platform will not say,
+  /// in which case a download is never blocked on a number nobody has.
+  ///
+  /// The download controls call this before a large request and, on a
+  /// warning, ask the user to confirm. There is no automatic cleanup in
+  /// this release, so a confirmed download still proceeds.
+  Future<DownloadStorageWarning?> storageWarning() async {
+    final available = await _storage.availableBytes();
+    if (available == null || available >= lowStorageThresholdBytes) return null;
+    return DownloadStorageWarning(
+      availableBytes: available,
+      thresholdBytes: lowStorageThresholdBytes,
+    );
   }
 
   // ---- Network policy (v0.2.2) ----

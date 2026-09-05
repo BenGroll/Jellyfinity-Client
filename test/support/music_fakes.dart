@@ -8,6 +8,7 @@ import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubi
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
+import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
 
 const String testServerId = 'server-1';
 
@@ -297,23 +298,78 @@ class FakeMediaMetadataRepository implements MediaMetadataRepository {
 /// Registers the music cubits against fake repositories, for tests that
 /// pump real music screens through the router.
 ///
+/// A [DownloadsLibrarySource] that answers from lists a test sets, so the
+/// "Downloaded" filter and the offline-search fallback can be exercised
+/// without a real download store.
+class FakeDownloadsLibrarySource implements DownloadsLibrarySource {
+  List<Artist> artistList = [];
+  List<Album> albumList = [];
+  List<Track> trackList = [];
+  List<Playlist> playlistList = [];
+
+  Page<T> _page<T extends MediaItem>(List<T> all, String? term) {
+    final matches = term == null || term.trim().isEmpty
+        ? all
+        : all
+              .where(
+                (item) =>
+                    item.name.toLowerCase().contains(term.trim().toLowerCase()),
+              )
+              .toList();
+    return Page<T>(
+      content: Partial(available: matches),
+      startIndex: 0,
+      totalCount: matches.length,
+      source: PageSource.cache,
+    );
+  }
+
+  @override
+  Future<Result<Page<Artist>>> artists({
+    PageRequest page = const PageRequest.first(),
+    String? searchTerm,
+  }) async => Result.ok(_page(artistList, searchTerm));
+
+  @override
+  Future<Result<Page<Album>>> albums({
+    PageRequest page = const PageRequest.first(),
+    String? searchTerm,
+  }) async => Result.ok(_page(albumList, searchTerm));
+
+  @override
+  Future<Result<Page<Track>>> tracks({
+    PageRequest page = const PageRequest.first(),
+    String? searchTerm,
+  }) async => Result.ok(_page(trackList, searchTerm));
+
+  @override
+  Future<Result<Page<Playlist>>> playlists({
+    PageRequest page = const PageRequest.first(),
+    String? searchTerm,
+  }) async => Result.ok(_page(playlistList, searchTerm));
+}
+
 /// Mirrors `registerAuthCubits`; call it before pumping.
 void registerMusicCubits({
   required FakeMusicLibraryRepository music,
   FakePlaylistRepository? playlists,
   FakeMediaMetadataRepository? metadata,
   FakeFavoritesRepository? favorites,
+  FakeDownloadsLibrarySource? downloads,
 }) {
   final getIt = GetIt.instance;
   final playlistRepository = playlists ?? FakePlaylistRepository();
   final metadataRepository = metadata ?? FakeMediaMetadataRepository();
   final favoritesRepository = favorites ?? FakeFavoritesRepository();
+  final downloadsSource = downloads ?? FakeDownloadsLibrarySource();
 
   getIt
-    ..registerFactory<ArtistsCubit>(() => ArtistsCubit(music))
-    ..registerFactory<AlbumsCubit>(() => AlbumsCubit(music))
-    ..registerFactory<SongsCubit>(() => SongsCubit(music))
-    ..registerFactory<PlaylistsCubit>(() => PlaylistsCubit(playlistRepository))
+    ..registerFactory<ArtistsCubit>(() => ArtistsCubit(music, downloadsSource))
+    ..registerFactory<AlbumsCubit>(() => AlbumsCubit(music, downloadsSource))
+    ..registerFactory<SongsCubit>(() => SongsCubit(music, downloadsSource))
+    ..registerFactory<PlaylistsCubit>(
+      () => PlaylistsCubit(playlistRepository, downloadsSource),
+    )
     ..registerFactory<PlaylistTracksCubit>(
       () => PlaylistTracksCubit(playlistRepository),
     )
@@ -324,7 +380,7 @@ void registerMusicCubits({
       () => PlaylistDetailCubit(metadataRepository),
     )
     ..registerFactory<MusicSearchCubit>(
-      () => MusicSearchCubit(music, playlistRepository),
+      () => MusicSearchCubit(music, playlistRepository, downloadsSource),
     )
     ..registerSingleton<PlaylistRepository>(playlistRepository)
     ..registerSingleton<FavoritesRepository>(favoritesRepository);
