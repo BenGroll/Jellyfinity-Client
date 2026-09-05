@@ -4,6 +4,7 @@ import '../../core/result/failure.dart';
 import '../../core/result/partial.dart';
 import '../../core/result/result.dart';
 import '../../domain/connectivity/OfflineMode.dart';
+import '../../domain/downloads/download_state.dart';
 import '../../domain/downloads/DownloadStore.dart';
 import '../../domain/downloads/PlaylistDownload.dart';
 import '../../domain/downloads/TrackDownload.dart';
@@ -117,14 +118,29 @@ class CachedPlaylistRepository implements PlaylistRepository {
     final tracks = <Track>[];
     for (final member in members.sublist(start, end)) {
       final record = await _downloads.find(member.trackId);
-      if (record case Ok<TrackDownload?>(:final value?)) {
+      if (record case Ok<TrackDownload?>(:final value?)
+          when value.state == DownloadState.completed) {
         tracks.add(value.toTrack());
       }
     }
 
+    // A member of this window whose file never finished downloading is
+    // part of the playlist the user built but cannot play offline — shown
+    // as "N not available offline" rather than dropped (v0.2.3).
+    final missing = (end - start) - tracks.length;
+
     return Result.ok(
       Page<Track>(
-        content: Partial(available: tracks),
+        content: Partial(
+          available: tracks,
+          unavailable: [
+            for (var i = 0; i < missing; i++)
+              UnavailableItem(
+                id: 'offline-gap-$i',
+                reason: offlineUnavailableReason,
+              ),
+          ],
+        ),
         startIndex: start,
         totalCount: members.length,
         source: PageSource.cache,

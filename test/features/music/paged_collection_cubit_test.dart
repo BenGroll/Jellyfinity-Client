@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
@@ -271,6 +273,32 @@ void main() {
 
     expect(music.calls, hasLength(2));
   });
+
+  test(
+    'a reload asked for mid-fetch wins over the window in flight (v0.2.3)',
+    () async {
+      // The offline switch and the "Downloads only" scope can both fire a
+      // reload on the same frame; the second must not be dropped for the
+      // first still being busy.
+      final music = FakeMusicLibraryRepository()
+        ..trackList = _library(10)
+        ..responseDelay = const Duration(milliseconds: 30);
+      final downloads = FakeDownloadsLibrarySource()
+        ..trackList = [testTrack('d1', name: 'Kept Song')];
+      final cubit = _songs(music, downloads: downloads);
+      await cubit.load();
+
+      // A slow server reload starts...
+      unawaited(cubit.reload());
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      // ...and the scope flips to downloads-only while it is in flight.
+      await cubit.showDownloadedOnly(true);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      expect(cubit.downloadedOnly, isTrue);
+      expect(cubit.state.items.single.name, 'Kept Song');
+    },
+  );
 
   test('crossing offline leaves an unopened tab alone (v0.2.3)', () async {
     final music = FakeMusicLibraryRepository()..trackList = _library(10);

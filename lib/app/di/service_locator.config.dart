@@ -347,12 +347,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i685.FavoritesRepository>(
       () => _i545.JellyfinFavoritesRepository(gh<_i963.JellyfinMediaApi>()),
     );
-    gh.lazySingleton<_i747.MediaMetadataRepository>(
-      () => _i912.CachedMediaMetadataRepository(
-        gh<_i830.JellyfinMediaMetadataRepository>(),
-        gh<_i1018.MediaCacheStore>(),
-      ),
-    );
     gh.factory<_i148.LyricsCubit>(
       () => _i148.LyricsCubit(gh<_i392.LyricsResolver>()),
     );
@@ -368,6 +362,14 @@ extension GetItInjectableX on _i174.GetIt {
           instanceName: 'remoteAudioSourceResolver',
         ),
         gh<_i186.LocalAudioSource>(),
+      ),
+    );
+    gh.lazySingleton<_i747.MediaMetadataRepository>(
+      () => _i912.CachedMediaMetadataRepository(
+        gh<_i830.JellyfinMediaMetadataRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i797.OfflineMode>(),
+        gh<_i720.DownloadsLibrarySource>(),
       ),
     );
     gh.factory<_i213.PlaylistDetailCubit>(
@@ -391,6 +393,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1018.MediaCacheStore>(),
         gh<_i346.JellyfinSessionContext>(),
         gh<_i797.OfflineMode>(),
+        gh<_i720.DownloadsLibrarySource>(),
       ),
     );
     gh.factory<_i213.ArtistDetailCubit>(

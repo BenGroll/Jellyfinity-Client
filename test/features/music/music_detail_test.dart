@@ -204,6 +204,29 @@ void main() {
   });
 
   testWidgets(
+    'a partly-downloaded album offline shows one "not available" line '
+    '(v0.2.3)',
+    (tester) async {
+      final music = FakeMusicLibraryRepository()
+        ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+        ..trackList = [testTrack('t1', name: 'So What', trackNumber: 1)]
+        ..unavailable = const [
+          UnavailableItem(id: 'g0', reason: offlineUnavailableReason),
+          UnavailableItem(id: 'g1', reason: offlineUnavailableReason),
+          UnavailableItem(id: 'g2', reason: offlineUnavailableReason),
+        ];
+
+      await _pumpAlbum(tester, music);
+      await tester.pumpAndSettle();
+
+      expect(find.text('So What'), findsOneWidget);
+      expect(find.text('3 songs not available offline'), findsOneWidget);
+      // Collapsed into the one line, not three rows.
+      expect(find.byType(UnavailableRow), findsNothing);
+    },
+  );
+
+  testWidgets(
     'a downloaded track plays from the album view even when the server '
     'calls it unavailable (v0.2.3)',
     (tester) async {

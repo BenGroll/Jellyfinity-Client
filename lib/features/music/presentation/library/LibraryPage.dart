@@ -111,19 +111,6 @@ class _LibraryViewState extends State<_LibraryView> {
       length: 4,
       child: Column(
         children: [
-          if (forced)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  t.spacing.md,
-                  t.spacing.xs,
-                  t.spacing.md,
-                  t.spacing.xs,
-                ),
-                child: const _OfflineScopeNotice(),
-              ),
-            ),
           TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
@@ -406,28 +393,3 @@ class _PlaylistsTabState extends State<PlaylistsTab>
   }
 }
 
-/// Shown in place of the "Downloaded" chip when the library is locked to
-/// downloads because the app is offline and the "Downloads only" scope is
-/// set (v0.2.3). A plain, non-actionable line — the switch back is in the
-/// sidebar (come online) or Settings (change the scope).
-class _OfflineScopeNotice extends StatelessWidget {
-  const _OfflineScopeNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.cloud_off_rounded, size: 16, color: t.colors.textSecondary),
-        SizedBox(width: t.spacing.xs),
-        Flexible(
-          child: Text(
-            'Offline — showing downloaded music only',
-            style: t.typography.caption.copyWith(color: t.colors.textSecondary),
-          ),
-        ),
-      ],
-    );
-  }
-}

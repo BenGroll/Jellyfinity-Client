@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart';
+import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/features/auth/presentation/accounts/accounts_page.dart';
 import 'package:jellyfinity/features/settings/presentation/SettingsPage.dart';
 
@@ -48,8 +49,37 @@ void main() {
     await s.signIn();
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Working offline'), findsOneWidget);
+    expect(
+      find.text('Offline — showing your saved library'),
+      findsOneWidget,
+    );
   });
+
+  testWidgets(
+    'the one offline line switches to downloads-only on that scope (v0.2.3)',
+    (tester) async {
+      final scope = TestSessionScope();
+      final s = await pumpApp(
+        tester,
+        scope: scope,
+        offline: fakeOfflineCubit(manual: true),
+        settings: fakeSettingsCubit(
+          offlineLibraryScope: OfflineLibraryScope.limited,
+        ),
+      );
+      await s.signIn();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Offline — showing downloaded music only'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Offline — showing your saved library'),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('no offline line while online', (tester) async {
     final scope = TestSessionScope();

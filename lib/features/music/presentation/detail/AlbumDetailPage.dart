@@ -104,6 +104,7 @@ class _AlbumDetailView extends StatelessWidget {
                 },
                 onRetry: cubit.reload,
                 onRetryLoadMore: cubit.retryLoadMore,
+                offlineGapNoun: 'song',
                 // A track the server could not describe keeps its place
                 // in the running order, clearly marked.
                 unavailableBuilder: (context, item) =>

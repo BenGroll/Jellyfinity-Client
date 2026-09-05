@@ -349,6 +349,46 @@ class FakeDownloadsLibrarySource implements DownloadsLibrarySource {
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
   }) async => Result.ok(_page(playlistList, searchTerm));
+
+  @override
+  Future<Result<Artist>> artist(MediaId id) async {
+    for (final artist in artistList) {
+      if (artist.id == id) return Result.ok(artist);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Album>> album(MediaId id) async {
+    for (final album in albumList) {
+      if (album.id == id) return Result.ok(album);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Playlist>> playlist(MediaId id) async {
+    for (final playlist in playlistList) {
+      if (playlist.id == id) return Result.ok(playlist);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Page<Track>>> albumTracks(
+    MediaId albumId, {
+    PageRequest page = const PageRequest.first(),
+    int? knownTrackCount,
+  }) async => Result.ok(
+    _page(trackList.where((t) => t.albumId == albumId).toList(), null),
+  );
+
+  @override
+  Future<Result<Page<Album>>> artistAlbums(
+    MediaId artistId, {
+    PageRequest page = const PageRequest.first(),
+    int? knownAlbumCount,
+  }) async => Result.ok(_page(albumList, null));
 }
 
 /// Mirrors `registerAuthCubits`; call it before pumping.

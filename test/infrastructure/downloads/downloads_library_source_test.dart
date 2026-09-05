@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/domain/media/artist.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
@@ -126,6 +127,67 @@ void main() {
       expect(artists.items, hasLength(1));
     },
   );
+
+  test('one downloaded track makes its album openable offline (v0.2.3)', () async {
+    store.records[mediaId('t1')] = TrackDownload(
+      id: mediaId('t1'),
+      title: 'So What',
+      state: DownloadState.completed,
+      owners: {DownloadOwner.track(mediaId('t1'))},
+      requestedAt: DateTime.utc(2026),
+      albumId: mediaId('al-9'),
+      albumName: 'Kind of Blue',
+      trackNumber: 1,
+    );
+
+    final album = (await source.album(mediaId('al-9'))).valueOrNull!;
+    expect(album.name, 'Kind of Blue');
+
+    final tracks = (await source.albumTracks(
+      mediaId('al-9'),
+      knownTrackCount: 5,
+    )).valueOrNull!;
+    expect(tracks.items.single.name, 'So What');
+    // Four tracks the user never downloaded — one honest count, not four
+    // rows.
+    expect(
+      tracks.unavailable.where((u) => u.reason == offlineUnavailableReason),
+      hasLength(4),
+    );
+    expect(tracks.hasMore, isFalse);
+  });
+
+  test('an album with nothing downloaded is not on this device (v0.2.3)', () async {
+    expect((await source.album(mediaId('al-9'))).isErr, isTrue);
+    expect((await source.artist(mediaId('ar-1'))).isErr, isTrue);
+  });
+
+  test('one downloaded track makes its artist openable offline (v0.2.3)', () async {
+    store.records[mediaId('t1')] = TrackDownload(
+      id: mediaId('t1'),
+      title: 'So What',
+      state: DownloadState.completed,
+      owners: {DownloadOwner.track(mediaId('t1'))},
+      requestedAt: DateTime.utc(2026),
+      albumId: mediaId('al-9'),
+      albumName: 'Kind of Blue',
+      artists: [ArtistRef(name: 'Miles Davis', id: mediaId('ar-1'))],
+    );
+
+    expect(
+      (await source.artist(mediaId('ar-1'))).valueOrNull!.name,
+      'Miles Davis',
+    );
+    final albums = (await source.artistAlbums(
+      mediaId('ar-1'),
+      knownAlbumCount: 3,
+    )).valueOrNull!;
+    expect(albums.items.single.name, 'Kind of Blue');
+    expect(
+      albums.unavailable.where((u) => u.reason == offlineUnavailableReason),
+      hasLength(2),
+    );
+  });
 
   test(
     'a still-downloading track does not make its album browsable yet',

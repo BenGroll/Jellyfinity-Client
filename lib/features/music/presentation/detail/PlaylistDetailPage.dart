@@ -132,6 +132,7 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
                 },
                 onRetry: cubit.reload,
                 onRetryLoadMore: cubit.retryLoadMore,
+                offlineGapNoun: 'song',
                 unavailableBuilder: (context, item) =>
                     UnavailableRow(item: item),
                 itemBuilder: (context, track, index) {

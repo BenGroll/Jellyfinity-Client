@@ -6,6 +6,7 @@ import '../../../app/navigation/MediaScopeCubit.dart';
 import '../../../app/settings/SettingsCubit.dart';
 import '../../../app/settings/ShellNavigationMode.dart';
 import '../../../design/design.dart';
+import '../../../domain/connectivity/OfflineLibraryScope.dart';
 import '../../../domain/connectivity/OfflineMode.dart';
 
 /// The chrome shared by every tab of [AppShell]: a menu button that opens
@@ -90,18 +91,24 @@ class HomeLibraryHeader extends StatelessWidget {
 
 /// One line under the search field, shown on every Home/Library tab while
 /// the app is offline (v0.2.3). The single place the offline state is
-/// announced for browsing — the per-list "saved copy" notice it replaces
-/// said the same thing once per tab.
+/// announced for browsing — it replaces both the per-list "saved copy"
+/// notice and the library's separate "downloads only" line, switching its
+/// wording on the "Offline library" scope instead of stacking a second
+/// banner.
 class _OfflineHeaderBanner extends StatelessWidget {
   const _OfflineHeaderBanner();
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final scope = context.select<SettingsCubit, OfflineLibraryScope>(
+      (cubit) => cubit.state.offlineLibraryScope,
+    );
 
     return BlocBuilder<OfflineCubit, OfflineStatus>(
       builder: (context, status) {
         if (!status.isOffline) return const SizedBox.shrink();
+        final limited = scope == OfflineLibraryScope.limited;
         return Container(
           width: double.infinity,
           margin: EdgeInsets.fromLTRB(
@@ -129,10 +136,9 @@ class _OfflineHeaderBanner extends StatelessWidget {
               SizedBox(width: t.spacing.xs),
               Expanded(
                 child: Text(
-                  status.isForcedByConnection
-                      ? 'Offline — showing what is saved on this device.'
-                      : "Working offline — showing this device's saved "
-                            'library. Turn it off in the menu.',
+                  limited
+                      ? 'Offline — showing downloaded music only'
+                      : 'Offline — showing your saved library',
                   style: t.typography.caption.copyWith(
                     color: t.colors.textSecondary,
                   ),

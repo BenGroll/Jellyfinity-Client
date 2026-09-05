@@ -24,6 +24,15 @@ class Partial<T> extends Equatable {
   List<Object?> get props => [available, unavailable];
 }
 
+/// The [UnavailableItem.reason] a source uses for a collection member that
+/// exists but is not on this device (v0.2.3).
+///
+/// A screen showing a partially-downloaded album or artist offline renders
+/// every entry carrying this reason as one "N not available offline" line,
+/// rather than a row each — the count is the honest fact, the individual
+/// rows are not (their titles were never downloaded).
+const String offlineUnavailableReason = 'Not available offline';
+
 /// Describes one item that could not be resolved as part of a [Partial]
 /// result.
 class UnavailableItem extends Equatable {

@@ -39,6 +39,7 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
     this.emptyIcon = Icons.library_music_outlined,
     this.gridDelegate,
     this.unavailableBuilder,
+    this.offlineGapNoun = 'item',
     this.headerSlivers = const [],
     this.padding,
   });
@@ -66,6 +67,12 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
   /// right for a grid of covers, wrong for a numbered track list.
   final Widget Function(BuildContext context, UnavailableItem item)?
   unavailableBuilder;
+
+  /// The word for one collection member in the "N not available offline"
+  /// line (v0.2.3) — "song" on an album, "album" on an artist. Entries a
+  /// source tagged [offlineUnavailableReason] are always collapsed into
+  /// that one line, whatever [unavailableBuilder] is.
+  final String offlineGapNoun;
 
   /// Slivers pinned above the collection: a detail header, a filter row.
   final List<Widget> headerSlivers;
@@ -152,25 +159,42 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
   }
 
   List<Widget> _unavailable(BuildContext context, EdgeInsetsGeometry insets) {
+    // Members that exist but are not on this device collapse into one
+    // honest count, never a row each (v0.2.3).
+    final offlineGap = state.unavailable
+        .where((item) => item.reason == offlineUnavailableReason)
+        .length;
+    final rest = state.unavailable
+        .where((item) => item.reason != offlineUnavailableReason)
+        .toList();
+
+    final slivers = <Widget>[
+      if (offlineGap > 0)
+        SliverToBoxAdapter(
+          child: _OfflineGapSummary(count: offlineGap, noun: offlineGapNoun),
+        ),
+    ];
+    if (rest.isEmpty) return slivers;
+
     final builder = unavailableBuilder;
     if (builder == null) {
-      return [
-        SliverToBoxAdapter(
-          child: _UnavailableSummary(count: state.unavailable.length),
-        ),
-      ];
+      slivers.add(
+        SliverToBoxAdapter(child: _UnavailableSummary(count: rest.length)),
+      );
+      return slivers;
     }
-    return [
+    slivers.add(
       SliverPadding(
         padding: insets,
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) => builder(context, state.unavailable[index]),
-            childCount: state.unavailable.length,
+            (context, index) => builder(context, rest[index]),
+            childCount: rest.length,
           ),
         ),
       ),
-    ];
+    );
+    return slivers;
   }
 
   /// Asks for the next window a screenful before it is needed, from
@@ -236,6 +260,48 @@ class _Footer extends StatelessWidget {
           const AppSkeleton(height: 14),
           SizedBox(height: t.spacing.xs),
           const AppSkeleton(height: 14),
+        ],
+      ),
+    );
+  }
+}
+
+/// "3 songs not available offline" (v0.2.3) — the tail of a
+/// partially-downloaded album or artist opened with the server switched
+/// off. One line for the whole shortfall: the count is the honest fact,
+/// the individual titles were never on the device to list.
+class _OfflineGapSummary extends StatelessWidget {
+  const _OfflineGapSummary({required this.count, required this.noun});
+
+  final int count;
+  final String noun;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: t.spacing.md,
+        vertical: t.spacing.sm,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.cloud_off_rounded,
+            size: 16,
+            color: t.colors.textSecondary,
+          ),
+          SizedBox(width: t.spacing.sm),
+          Expanded(
+            child: Text(
+              count == 1
+                  ? '1 $noun not available offline'
+                  : '$count ${noun}s not available offline',
+              style: t.typography.caption.copyWith(
+                color: t.colors.textSecondary,
+              ),
+            ),
+          ),
         ],
       ),
     );

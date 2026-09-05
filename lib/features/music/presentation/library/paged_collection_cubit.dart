@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -172,6 +174,25 @@ abstract class PagedCollectionCubit<T extends MediaItem>
   PageRequest? _next;
   bool _busy = false;
 
+  /// Drained right after a fetch clears [_busy]: if a reload was asked for
+  /// mid-flight, run it now and tell the caller to stop emitting the
+  /// window it just fetched (which was read under parameters that have
+  /// since changed).
+  bool _drainedQueuedReload() {
+    if (!_reloadQueued) return false;
+    _reloadQueued = false;
+    unawaited(reload());
+    return true;
+  }
+
+  /// A [reload] arrived while a fetch was in flight. Rather than blank the
+  /// screen to a skeleton that a bailed `_loadFirst` would never fill, or
+  /// let a stale in-flight window win, the current fetch finishes and then
+  /// reloads once more with whatever parameters now hold — the offline
+  /// switch and the "Downloads only" scope both change `fetch` mid-flight
+  /// and both can fire on the same frame (v0.2.3).
+  bool _reloadQueued = false;
+
   /// One window of this collection. The only thing a subclass must write.
   Future<Result<Page<T>>> fetch(PageRequest request);
 
@@ -188,6 +209,11 @@ abstract class PagedCollectionCubit<T extends MediaItem>
   /// itself changed (a new search term, a different artist).
   Future<void> reload() async {
     if (isClosed) return;
+    if (_busy) {
+      // Let the in-flight fetch land, then start over — see [_reloadQueued].
+      _reloadQueued = true;
+      return;
+    }
     _next = null;
     emit(PagedCollectionState<T>());
     await _loadFirst();
@@ -202,6 +228,7 @@ abstract class PagedCollectionCubit<T extends MediaItem>
     final result = await fetch(PageRequest(startIndex: 0, limit: pageSize));
     _busy = false;
     if (isClosed) return;
+    if (_drainedQueuedReload()) return;
 
     switch (result) {
       case Ok<Page<T>>(:final value):
@@ -225,6 +252,7 @@ abstract class PagedCollectionCubit<T extends MediaItem>
     final result = await fetch(request);
     _busy = false;
     if (isClosed) return;
+    if (_drainedQueuedReload()) return;
 
     switch (result) {
       case Ok<Page<T>>(:final value):
@@ -259,6 +287,7 @@ abstract class PagedCollectionCubit<T extends MediaItem>
     final result = await fetch(PageRequest(startIndex: 0, limit: pageSize));
     _busy = false;
     if (isClosed) return;
+    if (_drainedQueuedReload()) return;
 
     switch (result) {
       case Ok<Page<T>>(:final value):

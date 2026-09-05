@@ -45,6 +45,11 @@ abstract class MediaDetailCubit<T extends MediaItem>
 
   MediaId? _id;
 
+  /// Bumped on every [open]; a slow read whose generation is stale — the
+  /// offline switch flipped and re-opened underneath it — drops its
+  /// result instead of overwriting the newer one (v0.2.3).
+  int _generation = 0;
+
   /// Going on- or offline re-reads the item, once one has been opened —
   /// the server's live copy or the saved one.
   @override
@@ -55,11 +60,12 @@ abstract class MediaDetailCubit<T extends MediaItem>
   /// Loads [id], or reloads if it is the same one.
   Future<void> open(MediaId id) async {
     _id = id;
+    final generation = ++_generation;
     if (isClosed) return;
     emit(MediaDetailState<T>(isLoading: true));
 
     final result = await read(id);
-    if (isClosed) return;
+    if (isClosed || generation != _generation) return;
 
     switch (result) {
       case Ok<T>(:final value):

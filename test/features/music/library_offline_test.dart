@@ -66,10 +66,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Offline — showing downloaded music only'),
-        findsOneWidget,
-      );
+      // The offline line lives in the shared header now, not the library
+      // page — see home_library_header_test.
 
       await tester.tap(find.text('Songs'));
       await tester.pumpAndSettle();
