@@ -5,6 +5,8 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/downloads/downloads.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
+export 'package:jellyfinity/domain/downloads/downloads.dart'
+    show DownloadFailureReason, DownloadOwner, DownloadState, TrackDownload;
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart';
 import 'music_fakes.dart' show FakeMusicLibraryRepository;
 import 'playback_fakes.dart' show FakeAudioSourceResolver;
@@ -127,3 +129,25 @@ class FakeDownloadEngine implements DownloadEngine {
   @override
   Future<int> partialByteCount(MediaId id) async => partials[id] ?? 0;
 }
+
+/// A minimal [TrackDownload] for tests that only care about its id and
+/// state — the download system's counterpart to `testTrack`.
+TrackDownload downloadRecord(
+  MediaId id, {
+  String? title,
+  required DownloadState state,
+  Set<DownloadOwner>? owners,
+  DateTime? requestedAt,
+  int receivedBytes = 0,
+  int? totalBytes,
+  DownloadFailureReason? failureReason,
+}) => TrackDownload(
+  id: id,
+  title: title ?? 'Track ${id.itemId}',
+  state: state,
+  owners: owners ?? {DownloadOwner.track(id)},
+  requestedAt: requestedAt ?? DateTime.utc(2026, 1, 1),
+  receivedBytes: receivedBytes,
+  totalBytes: totalBytes,
+  failureReason: failureReason,
+);

@@ -230,7 +230,10 @@ class DriftDownloadStore implements DownloadStore {
       title: row.title,
       state: state,
       owners: owners,
-      requestedAt: DateTime.fromMicrosecondsSinceEpoch(row.requestedAt),
+      requestedAt: DateTime.fromMicrosecondsSinceEpoch(
+        row.requestedAt,
+        isUtc: true,
+      ),
       artists: _decodeArtists(row.artistsJson, row.serverId),
       albumId: row.albumItemId == null
           ? null
