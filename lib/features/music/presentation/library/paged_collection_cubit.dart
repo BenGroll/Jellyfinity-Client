@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/partial.dart';
 import '../../../../core/result/result.dart';
+import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/media.dart';
+import '../offline_reload.dart';
 
 /// Where a collection screen is in its life.
 ///
@@ -146,13 +148,26 @@ class PagedCollectionState<T extends MediaItem> extends Equatable {
 ///   so paging cannot stall on a row the server keeps sending;
 /// - overlapping requests are ignored rather than interleaved.
 abstract class PagedCollectionCubit<T extends MediaItem>
-    extends Cubit<PagedCollectionState<T>> {
-  PagedCollectionCubit({this.pageSize = PageRequest.defaultLimit})
-    : super(PagedCollectionState<T>());
+    extends Cubit<PagedCollectionState<T>>
+    with OfflineReload<PagedCollectionState<T>> {
+  PagedCollectionCubit({
+    this.pageSize = PageRequest.defaultLimit,
+    OfflineMode? offlineMode,
+  }) : super(PagedCollectionState<T>()) {
+    bindOfflineReload(offlineMode);
+  }
 
   /// How many items to ask for at a time. Screens showing a handful of
   /// results (search sections) pass something much smaller.
   final int pageSize;
+
+  /// Going on- or offline changes what every window would answer with, so
+  /// re-read from the start — but only a list that has actually loaded,
+  /// never a tab the user has not opened yet.
+  @override
+  void onOfflineChanged() {
+    if (state.status != CollectionStatus.initial) reload();
+  }
 
   PageRequest? _next;
   bool _busy = false;

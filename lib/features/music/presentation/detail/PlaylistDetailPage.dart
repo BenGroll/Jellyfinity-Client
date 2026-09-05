@@ -108,6 +108,7 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
             listener: (context, state) => _maybeReconcile(),
             builder: (context, state) {
               final cubit = context.read<PlaylistTracksCubit>();
+              final catalog = context.watch<DownloadsCubit>().state;
               return PagedCollectionView<Track>(
                 state: state,
                 headerSlivers: [
@@ -133,31 +134,36 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
                 onRetryLoadMore: cubit.retryLoadMore,
                 unavailableBuilder: (context, item) =>
                     UnavailableRow(item: item),
-                itemBuilder: (context, track, index) => TrackRow(
-                  track: track,
-                  showArtwork: false,
-                  position: index + 1,
-                  markUnavailable: !state.isCached,
-                  onTap:
-                      track.availability == MediaAvailability.remoteUnavailable
-                      ? null
-                      : () => context.read<PlaybackCubit>().playNow(
-                          state.items,
-                          startIndex: index,
-                        ),
-                  onPlayNext:
-                      track.availability == MediaAvailability.remoteUnavailable
-                      ? null
-                      : () => context.read<PlaybackCubit>().playNext(track),
-                  onAddToQueue:
-                      track.availability == MediaAvailability.remoteUnavailable
-                      ? null
-                      : () => context.read<PlaybackCubit>().addToQueue(track),
-                  downloadAction:
-                      track.availability == MediaAvailability.remoteUnavailable
-                      ? null
-                      : TrackDownloadButton(track: track),
-                ),
+                itemBuilder: (context, track, index) {
+                  final playable =
+                      track.availability !=
+                          MediaAvailability.remoteUnavailable ||
+                      catalog.isDownloaded(track.id);
+                  return TrackRow(
+                    track: track,
+                    showArtwork: false,
+                    position: index + 1,
+                    markUnavailable: !state.isCached,
+                    playable: playable,
+                    onTap: playable
+                        ? () => context.read<PlaybackCubit>().playNow(
+                            state.items,
+                            startIndex: index,
+                          )
+                        : null,
+                    onPlayNext: playable
+                        ? () => context.read<PlaybackCubit>().playNext(track)
+                        : null,
+                    onAddToQueue: playable
+                        ? () => context.read<PlaybackCubit>().addToQueue(track)
+                        : null,
+                    downloadAction:
+                        track.availability ==
+                            MediaAvailability.remoteUnavailable
+                        ? null
+                        : TrackDownloadButton(track: track),
+                  );
+                },
               );
             },
           ),

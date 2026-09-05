@@ -370,6 +370,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i186.LocalAudioSource>(),
       ),
     );
+    gh.factory<_i213.PlaylistDetailCubit>(
+      () => _i213.PlaylistDetailCubit(
+        gh<_i747.MediaMetadataRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
     gh.lazySingleton<_i747.PlaylistRepository>(
       () => _i246.CachedPlaylistRepository(
         gh<_i516.JellyfinPlaylistRepository>(),
@@ -387,38 +393,62 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i797.OfflineMode>(),
       ),
     );
-    gh.factory<_i618.PlaylistsCubit>(
-      () => _i618.PlaylistsCubit(
-        gh<_i747.PlaylistRepository>(),
-        gh<_i720.DownloadsLibrarySource>(),
+    gh.factory<_i213.ArtistDetailCubit>(
+      () => _i213.ArtistDetailCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
-    gh.factory<_i824.ArtistStatsCubit>(
-      () => _i824.ArtistStatsCubit(gh<_i260.MusicLibraryRepository>()),
+    gh.factory<_i213.AlbumDetailCubit>(
+      () => _i213.AlbumDetailCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
     );
     gh.factory<_i618.ArtistsCubit>(
       () => _i618.ArtistsCubit(
         gh<_i747.MusicLibraryRepository>(),
         gh<_i720.DownloadsLibrarySource>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
     gh.factory<_i618.AlbumsCubit>(
       () => _i618.AlbumsCubit(
         gh<_i747.MusicLibraryRepository>(),
         gh<_i720.DownloadsLibrarySource>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
     gh.factory<_i618.SongsCubit>(
       () => _i618.SongsCubit(
         gh<_i747.MusicLibraryRepository>(),
         gh<_i720.DownloadsLibrarySource>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
-    gh.factory<_i213.PlaylistDetailCubit>(
-      () => _i213.PlaylistDetailCubit(gh<_i747.MediaMetadataRepository>()),
+    gh.factory<_i618.PlaylistTracksCubit>(
+      () => _i618.PlaylistTracksCubit(
+        gh<_i747.PlaylistRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
     );
     gh.factory<_i29.NowPlayingDetailsCubit>(
       () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
+    );
+    gh.factory<_i169.MusicSearchCubit>(
+      () => _i169.MusicSearchCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.factory<_i618.PlaylistsCubit>(
+      () => _i618.PlaylistsCubit(
+        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
+        gh<_i797.OfflineMode>(),
+      ),
     );
     gh.lazySingleton<_i126.PlaybackCubit>(
       () => _i126.PlaybackCubit(
@@ -429,11 +459,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i230.SettingsCubit>(),
       ),
     );
-    gh.factory<_i213.ArtistDetailCubit>(
-      () => _i213.ArtistDetailCubit(gh<_i747.MusicLibraryRepository>()),
-    );
-    gh.factory<_i213.AlbumDetailCubit>(
-      () => _i213.AlbumDetailCubit(gh<_i747.MusicLibraryRepository>()),
+    gh.factory<_i824.ArtistStatsCubit>(
+      () => _i824.ArtistStatsCubit(
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
     );
     gh.lazySingleton<_i45.DownloadsCubit>(
       () => _i45.DownloadsCubit(
@@ -448,16 +478,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.NetworkCondition>(),
         gh<_i809.SessionCubit>(),
         gh<_i306.DownloadStorageProbe>(),
-      ),
-    );
-    gh.factory<_i618.PlaylistTracksCubit>(
-      () => _i618.PlaylistTracksCubit(gh<_i747.PlaylistRepository>()),
-    );
-    gh.factory<_i169.MusicSearchCubit>(
-      () => _i169.MusicSearchCubit(
-        gh<_i747.MusicLibraryRepository>(),
-        gh<_i747.PlaylistRepository>(),
-        gh<_i720.DownloadsLibrarySource>(),
       ),
     );
     return this;

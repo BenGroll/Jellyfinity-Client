@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/connectivity/OfflineCubit.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/domain/media/media.dart';
@@ -23,15 +24,20 @@ Future<void> _pumpLibrary(
   OfflineLibraryScope scope = OfflineLibraryScope.unlimited,
   DownloadsCubit? downloadsCubit,
 }) async {
+  final offlineMode = FakeOfflineMode(manual: offline);
   await pumpThemed(
     tester,
     LibraryPage(
-      artists: ArtistsCubit(music, downloads),
-      albums: AlbumsCubit(music, downloads),
-      songs: SongsCubit(music, downloads),
-      playlists: PlaylistsCubit(FakePlaylistRepository(), downloads),
+      artists: ArtistsCubit(music, downloads, offlineMode),
+      albums: AlbumsCubit(music, downloads, offlineMode),
+      songs: SongsCubit(music, downloads, offlineMode),
+      playlists: PlaylistsCubit(
+        FakePlaylistRepository(),
+        downloads,
+        offlineMode,
+      ),
     ),
-    offline: fakeOfflineCubit(manual: offline),
+    offline: OfflineCubit(offlineMode),
     settings: fakeSettingsCubit(offlineLibraryScope: scope),
     downloads: downloadsCubit,
   );
@@ -64,7 +70,6 @@ void main() {
         find.text('Offline — showing downloaded music only'),
         findsOneWidget,
       );
-      expect(find.widgetWithText(FilterChip, 'Downloaded'), findsNothing);
 
       await tester.tap(find.text('Songs'));
       await tester.pumpAndSettle();
@@ -89,7 +94,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilterChip, 'Downloaded'), findsOneWidget);
+    expect(find.textContaining('Offline'), findsNothing);
 
     await tester.tap(find.text('Songs'));
     await tester.pumpAndSettle();

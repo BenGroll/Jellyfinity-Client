@@ -116,6 +116,7 @@ class TrackRow extends StatelessWidget {
     this.showArtwork = true,
     this.position,
     this.markUnavailable = MusicRowStyle.markUnavailable,
+    this.playable = true,
     this.onPlayNext,
     this.onAddToQueue,
     this.downloadAction,
@@ -124,6 +125,14 @@ class TrackRow extends StatelessWidget {
   final Track track;
   final VoidCallback? onTap;
   final bool showArtwork;
+
+  /// Whether this track can actually be played right now — its file is on
+  /// the device, or the server is reachable (v0.2.3). `false` greys the
+  /// row out and blocks its tap: offline, a song that was only ever
+  /// streamed is on screen but not playable, and saying so in place beats
+  /// a tap that does nothing. Callers that cannot play the track pass
+  /// `onTap: null` alongside this.
+  final bool playable;
 
   /// See [MusicRowStyle.markUnavailable].
   final bool markUnavailable;
@@ -153,52 +162,59 @@ class TrackRow extends StatelessWidget {
     final duration = track.duration;
     final showMenu = onPlayNext != null || onAddToQueue != null;
 
-    return _MusicRow(
-      onTap: onTap,
-      availability: track.availability,
-      markUnavailable: markUnavailable,
-      leading: showArtwork
-          ? MediaArtwork(
-              image: track.image,
-              kind: MediaKind.track,
-              size: rowArtworkSize,
-            )
-          : SizedBox(
-              width: rowArtworkSize,
-              child: Center(
-                child: Text(
-                  '${position ?? track.trackNumber ?? ''}',
-                  style: t.typography.bodyMedium.copyWith(
-                    color: t.colors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-      title: track.name,
-      subtitle: joinDetails([
-        formatArtists(track.artists),
-        if (showArtwork) track.albumName,
-      ]),
-      trailing: (duration == null && !showMenu && downloadAction == null)
-          ? null
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (duration != null)
-                  Text(
-                    formatDuration(duration),
-                    style: t.typography.caption.copyWith(
+    return UnavailableContent(
+      // Greyed out and non-interactive when it cannot play — the offline
+      // "show everything" case (v0.2.3), and the long-standing missing
+      // track in an otherwise fine album.
+      isUnavailable: !playable,
+      reason: 'Not playable right now',
+      child: _MusicRow(
+        onTap: onTap,
+        availability: track.availability,
+        markUnavailable: markUnavailable,
+        leading: showArtwork
+            ? MediaArtwork(
+                image: track.image,
+                kind: MediaKind.track,
+                size: rowArtworkSize,
+              )
+            : SizedBox(
+                width: rowArtworkSize,
+                child: Center(
+                  child: Text(
+                    '${position ?? track.trackNumber ?? ''}',
+                    style: t.typography.bodyMedium.copyWith(
                       color: t.colors.textSecondary,
                     ),
                   ),
-                ?downloadAction,
-                if (showMenu)
-                  _TrackOverflowButton(
-                    onPlayNext: onPlayNext,
-                    onAddToQueue: onAddToQueue,
-                  ),
-              ],
-            ),
+                ),
+              ),
+        title: track.name,
+        subtitle: joinDetails([
+          formatArtists(track.artists),
+          if (showArtwork) track.albumName,
+        ]),
+        trailing: (duration == null && !showMenu && downloadAction == null)
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (duration != null)
+                    Text(
+                      formatDuration(duration),
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.textSecondary,
+                      ),
+                    ),
+                  ?downloadAction,
+                  if (showMenu)
+                    _TrackOverflowButton(
+                      onPlayNext: onPlayNext,
+                      onAddToQueue: onAddToQueue,
+                    ),
+                ],
+              ),
+      ),
     );
   }
 }

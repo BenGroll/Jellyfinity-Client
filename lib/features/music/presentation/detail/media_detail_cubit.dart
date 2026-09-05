@@ -4,7 +4,9 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/result/failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/media.dart';
+import '../offline_reload.dart';
 
 /// The header of a detail screen: one item, or why there isn't one.
 ///
@@ -33,12 +35,22 @@ class MediaDetailState<T extends MediaItem> extends Equatable {
 
 /// Loads one media item for a detail screen.
 abstract class MediaDetailCubit<T extends MediaItem>
-    extends Cubit<MediaDetailState<T>> {
-  MediaDetailCubit() : super(MediaDetailState<T>());
+    extends Cubit<MediaDetailState<T>>
+    with OfflineReload<MediaDetailState<T>> {
+  MediaDetailCubit({OfflineMode? offlineMode}) : super(MediaDetailState<T>()) {
+    bindOfflineReload(offlineMode);
+  }
 
   Future<Result<T>> read(MediaId id);
 
   MediaId? _id;
+
+  /// Going on- or offline re-reads the item, once one has been opened —
+  /// the server's live copy or the saved one.
+  @override
+  void onOfflineChanged() {
+    if (_id != null) retry();
+  }
 
   /// Loads [id], or reloads if it is the same one.
   Future<void> open(MediaId id) async {
@@ -66,7 +78,8 @@ abstract class MediaDetailCubit<T extends MediaItem>
 /// The artist a detail screen is about.
 @injectable
 class ArtistDetailCubit extends MediaDetailCubit<Artist> {
-  ArtistDetailCubit(this._music);
+  ArtistDetailCubit(this._music, OfflineMode offlineMode)
+    : super(offlineMode: offlineMode);
 
   final MusicLibraryRepository _music;
 
@@ -78,7 +91,8 @@ class ArtistDetailCubit extends MediaDetailCubit<Artist> {
 /// in separately so the header can render first.
 @injectable
 class AlbumDetailCubit extends MediaDetailCubit<Album> {
-  AlbumDetailCubit(this._music);
+  AlbumDetailCubit(this._music, OfflineMode offlineMode)
+    : super(offlineMode: offlineMode);
 
   final MusicLibraryRepository _music;
 
@@ -93,7 +107,8 @@ class AlbumDetailCubit extends MediaDetailCubit<Album> {
 /// header needs nothing more than that.
 @injectable
 class PlaylistDetailCubit extends MediaDetailCubit<Playlist> {
-  PlaylistDetailCubit(this._metadata);
+  PlaylistDetailCubit(this._metadata, OfflineMode offlineMode)
+    : super(offlineMode: offlineMode);
 
   final MediaMetadataRepository _metadata;
 

@@ -129,9 +129,9 @@ class _SearchStatusLine extends StatelessWidget {
     return BlocBuilder<MusicSearchCubit, MusicSearchState>(
       builder: (context, state) {
         final searched = state.status == MusicSearchStatus.results;
-        final serverMissed = state.hasFailure || state.wholeSearchFailure != null;
-        final downloadedOnly =
-            context.read<MusicSearchCubit>().downloadedOnly;
+        final serverMissed =
+            state.hasFailure || state.wholeSearchFailure != null;
+        final downloadedOnly = context.read<MusicSearchCubit>().downloadedOnly;
 
         String? message;
         if (offline || downloadedOnly) {
@@ -345,11 +345,11 @@ class _SearchResults extends StatelessWidget {
                 // download the server dropped still plays from its file
                 // (v0.2.3).
                 final playable =
-                    track.availability !=
-                        MediaAvailability.remoteUnavailable ||
+                    track.availability != MediaAvailability.remoteUnavailable ||
                     catalog.isDownloaded(track.id);
                 return TrackRow(
                   track: track,
+                  playable: playable,
                   onTap: playable
                       ? () => context.read<PlaybackCubit>().playNow(
                           state.songs.items,

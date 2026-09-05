@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../app/connectivity/OfflineCubit.dart';
 import '../../../app/navigation/MediaScopeCubit.dart';
 import '../../../app/settings/SettingsCubit.dart';
 import '../../../app/settings/ShellNavigationMode.dart';
 import '../../../design/design.dart';
+import '../../../domain/connectivity/OfflineMode.dart';
 
 /// The chrome shared by every tab of [AppShell]: a menu button that opens
 /// [AppSidebar], and a search field that is always reachable at the top of
@@ -79,8 +81,67 @@ class HomeLibraryHeader extends StatelessWidget {
             ],
           ),
         ),
+        const _OfflineHeaderBanner(),
         if (mode == ShellNavigationMode.mediaPills) const _MediaPillRow(),
       ],
+    );
+  }
+}
+
+/// One line under the search field, shown on every Home/Library tab while
+/// the app is offline (v0.2.3). The single place the offline state is
+/// announced for browsing — the per-list "saved copy" notice it replaces
+/// said the same thing once per tab.
+class _OfflineHeaderBanner extends StatelessWidget {
+  const _OfflineHeaderBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return BlocBuilder<OfflineCubit, OfflineStatus>(
+      builder: (context, status) {
+        if (!status.isOffline) return const SizedBox.shrink();
+        return Container(
+          width: double.infinity,
+          margin: EdgeInsets.fromLTRB(
+            t.spacing.md,
+            t.spacing.xxs,
+            t.spacing.md,
+            t.spacing.xs,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spacing.sm,
+            vertical: t.spacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: t.colors.surfaceSunken,
+            borderRadius: t.radii.smBorder,
+            border: Border.all(color: t.colors.border),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 16,
+                color: t.colors.textSecondary,
+              ),
+              SizedBox(width: t.spacing.xs),
+              Expanded(
+                child: Text(
+                  status.isForcedByConnection
+                      ? 'Offline — showing what is saved on this device.'
+                      : "Working offline — showing this device's saved "
+                            'library. Turn it off in the menu.',
+                  style: t.typography.caption.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

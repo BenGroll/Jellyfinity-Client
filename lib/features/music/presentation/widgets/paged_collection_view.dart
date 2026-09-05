@@ -90,22 +90,7 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
         // Always scrollable, so pull-to-refresh works on a screen holding
         // an error or an empty state too.
         physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          ...headerSlivers,
-          if (state.isCached)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  t.spacing.md,
-                  t.spacing.sm,
-                  t.spacing.md,
-                  t.spacing.sm,
-                ),
-                child: const SavedCopyNotice(),
-              ),
-            ),
-          ..._content(context, insets),
-        ],
+        slivers: [...headerSlivers, ..._content(context, insets)],
       ),
     );
   }
@@ -195,54 +180,6 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
     if (!state.hasMore || state.isLoadingMore) return;
     if (index < state.items.length - prefetchThreshold) return;
     WidgetsBinding.instance.addPostFrameCallback((_) => onLoadMore());
-  }
-}
-
-/// Says, above the content, that this is Jellyfinity's saved copy.
-///
-/// The alternative — showing saved data silently — is the thing
-/// `PHILOSOPHY.md` §2 rules out: the user would have no way to tell an
-/// out-of-date library from a current one.
-class SavedCopyNotice extends StatelessWidget {
-  const SavedCopyNotice({super.key, this.message});
-
-  final String? message;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: t.spacing.sm,
-        vertical: t.spacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: t.colors.surfaceSunken,
-        borderRadius: t.radii.smBorder,
-        border: Border.all(color: t.colors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.cloud_off_rounded,
-            size: 16,
-            color: t.colors.textSecondary,
-          ),
-          SizedBox(width: t.spacing.xs),
-          Expanded(
-            child: Text(
-              message ??
-                  'Showing your saved copy — Jellyfinity could not reach '
-                      'the server.',
-              style: t.typography.caption.copyWith(
-                color: t.colors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

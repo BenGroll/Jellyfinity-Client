@@ -74,73 +74,56 @@ class _LibraryView extends StatefulWidget {
 }
 
 class _LibraryViewState extends State<_LibraryView> {
-  /// The user's explicit choice on the "Downloaded" chip. The library may
-  /// still be downloaded-only without it — see [_forcedByOffline].
-  bool _chipSelected = false;
-
   /// The last value pushed to the four collection cubits, so a rebuild
   /// that does not change it does not reload them.
   bool? _applied;
 
   /// Downloaded-only because the app is offline and the user set the
-  /// "Downloads only" offline-library scope.
+  /// "Downloads only" offline-library scope. Online, or with the default
+  /// scope, the library is always the full one; a manual "just downloads"
+  /// filter comes back with sort/filter in a later release.
   bool _forcedByOffline(BuildContext context) {
     final offline = context.watch<OfflineCubit>().state.isOffline;
     final scope = context.watch<SettingsCubit>().state.offlineLibraryScope;
     return offline && scope == OfflineLibraryScope.limited;
   }
 
-  void _sync(BuildContext context, {required bool effective}) {
-    if (_applied == effective) return;
-    _applied = effective;
-    context.read<ArtistsCubit>().showDownloadedOnly(effective);
-    context.read<AlbumsCubit>().showDownloadedOnly(effective);
-    context.read<SongsCubit>().showDownloadedOnly(effective);
-    context.read<PlaylistsCubit>().showDownloadedOnly(effective);
+  void _sync(BuildContext context, {required bool downloadedOnly}) {
+    if (_applied == downloadedOnly) return;
+    _applied = downloadedOnly;
+    context.read<ArtistsCubit>().showDownloadedOnly(downloadedOnly);
+    context.read<AlbumsCubit>().showDownloadedOnly(downloadedOnly);
+    context.read<SongsCubit>().showDownloadedOnly(downloadedOnly);
+    context.read<PlaylistsCubit>().showDownloadedOnly(downloadedOnly);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final forced = _forcedByOffline(context);
-    final effective = _chipSelected || forced;
     // Applying the scope is a side effect; run it after this frame so it
     // never reloads a cubit mid-build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _sync(context, effective: effective);
+      if (mounted) _sync(context, downloadedOnly: forced);
     });
 
     return DefaultTabController(
       length: 4,
       child: Column(
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                t.spacing.md,
-                t.spacing.xs,
-                t.spacing.md,
-                t.spacing.xs,
+          if (forced)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  t.spacing.md,
+                  t.spacing.xs,
+                  t.spacing.md,
+                  t.spacing.xs,
+                ),
+                child: const _OfflineScopeNotice(),
               ),
-              child: forced
-                  ? const _OfflineScopeNotice()
-                  : FilterChip(
-                      label: const Text('Downloaded'),
-                      avatar: Icon(
-                        Icons.download_done_rounded,
-                        size: 18,
-                        color: _chipSelected
-                            ? t.colors.accent
-                            : t.colors.textSecondary,
-                      ),
-                      selected: _chipSelected,
-                      onSelected: (value) =>
-                          setState(() => _chipSelected = value),
-                      tooltip: 'Show only music kept on this device',
-                    ),
             ),
-          ),
           TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
@@ -342,6 +325,7 @@ class _SongsTabState extends State<SongsTab>
             return TrackRow(
               track: track,
               markUnavailable: !state.isCached,
+              playable: playable,
               onTap: playable
                   ? () => context.read<PlaybackCubit>().playNow(
                       state.items,
