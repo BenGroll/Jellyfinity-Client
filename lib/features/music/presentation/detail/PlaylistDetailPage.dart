@@ -9,6 +9,7 @@ import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
 import '../widgets/MediaArtwork.dart';
+import '../widgets/MediaPlaybackActionsRow.dart';
 import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
@@ -181,14 +182,7 @@ class _PlaylistHeader extends StatelessWidget {
           ),
         ],
         SizedBox(height: t.spacing.md),
-        if (tracks.isNotEmpty)
-          AppButton(
-            label: 'Play',
-            icon: Icons.play_arrow_rounded,
-            variant: AppButtonVariant.secondary,
-            onPressed: () =>
-                context.read<PlaybackCubit>().playNow(tracks, startIndex: 0),
-          ),
+        MediaPlaybackActionsRow(tracks: tracks),
         SizedBox(height: t.spacing.md),
       ],
     );

@@ -67,6 +67,9 @@ class BaseItemMapper {
     return Artist(
       id: id,
       name: name,
+      overview: _name(dto.overview),
+      banner: _backdropImage(dto, id),
+      isFavorite: dto.userData?.isFavorite ?? false,
       availability: _availability(dto),
       image: _primaryImage(dto, id),
     );
@@ -84,6 +87,7 @@ class BaseItemMapper {
       productionYear: dto.productionYear,
       duration: _duration(dto.runTimeTicks),
       trackCount: dto.childCount,
+      isFavorite: dto.userData?.isFavorite ?? false,
       availability: _availability(dto),
       image: _primaryImage(dto, id),
     );
@@ -104,6 +108,7 @@ class BaseItemMapper {
       discNumber: dto.parentIndexNumber,
       duration: _duration(dto.runTimeTicks),
       normalizationGain: dto.normalizationGain,
+      isFavorite: dto.userData?.isFavorite ?? false,
       availability: _availability(dto),
       image: _primaryImage(dto, id),
     );
@@ -374,6 +379,17 @@ class BaseItemMapper {
     }
 
     return null;
+  }
+
+  /// An artist's own wide background image, for the artist page header
+  /// (v0.1.6). Unlike [_primaryImage] this never falls back to another
+  /// item's art — a missing backdrop means no banner, not a borrowed one.
+  MediaImage? _backdropImage(BaseItemDto dto, MediaId id) {
+    final tags = dto.backdropImageTags;
+    if (tags == null || tags.isEmpty) return null;
+    final tag = tags.first;
+    if (tag.isEmpty) return null;
+    return MediaImage(itemId: id, kind: MediaImageKind.backdrop, tag: tag);
   }
 
   List<ArtistRef> _albumArtists(BaseItemDto dto) =>

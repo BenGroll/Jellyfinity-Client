@@ -91,7 +91,14 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   /// the first seconds of the overlap buffering a network stream. The
   /// standby deck is loaded this far ahead of the fade point instead,
   /// and left paused until the overlap actually begins.
-  static const Duration _preloadLead = Duration(seconds: 5);
+  ///
+  /// Generous on purpose: preparing a source means opening a fresh
+  /// network stream (more so for one Jellyfin has to transcode, which
+  /// first spins up a remux/encode on the server), which can easily take
+  /// longer than the old 5 s lead — and a preparation still in flight
+  /// when the outgoing source reaches its natural end is exactly the
+  /// race `_startCrossfade`'s post-`_prepare` index check now guards.
+  static const Duration _preloadLead = Duration(seconds: 10);
 
   /// Ramp resolution. Fine enough to be inaudible as steps, coarse
   /// enough not to flood the platform channel.
@@ -99,6 +106,22 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
 
   Timer? _rampTimer;
   bool _crossfading = false;
+
+  /// True while [updateSources] is moving/inserting/removing sources on
+  /// the *active* deck to match a new play order (e.g. a shuffle toggle).
+  ///
+  /// `just_audio`'s `currentIndexStream` reports intermediate, transient
+  /// indices as each individual move/insert/remove lands — each of which
+  /// used to re-level the active deck's volume via [_onCurrentIndexChanged]
+  /// against [_sources], which is not updated until the whole batch
+  /// finishes. That mismatch could momentarily resolve to a different (or
+  /// out-of-range, gain-less) source and jump the volume up before
+  /// settling back once the batch's own final [_applyCurrentVolume] call
+  /// ran — audible as a brief, spurious spike on every reorder. Suppressing
+  /// both the volume and now-playing-metadata side effects until the batch
+  /// completes avoids that; [_currentIndexController] still forwards every
+  /// event, since `PlaybackCubit` already ignores them mid-batch itself.
+  bool _isRestructuring = false;
 
   /// The index the standby deck has been (or is being) loaded with.
   int? _preparedIndex;
@@ -180,29 +203,37 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     final workingKeys = [...oldKeys];
     final workingSources = [..._sources];
 
-    for (var index = workingKeys.length - 1; index >= 0; index--) {
-      if (!desiredKeys.contains(workingKeys[index])) {
-        await _player.removeAudioSourceAt(index);
-        workingKeys.removeAt(index);
-        workingSources.removeAt(index);
+    _isRestructuring = true;
+    try {
+      for (var index = workingKeys.length - 1; index >= 0; index--) {
+        if (!desiredKeys.contains(workingKeys[index])) {
+          await _player.removeAudioSourceAt(index);
+          workingKeys.removeAt(index);
+          workingSources.removeAt(index);
+        }
       }
-    }
 
-    for (var index = 0; index < desiredKeys.length; index++) {
-      final key = desiredKeys[index];
-      if (index < workingKeys.length && workingKeys[index] == key) continue;
-      final existing = workingKeys.indexOf(key, index);
-      if (existing >= 0) {
-        await _player.moveAudioSource(existing, index);
-        final movedKey = workingKeys.removeAt(existing);
-        final movedSource = workingSources.removeAt(existing);
-        workingKeys.insert(index, movedKey);
-        workingSources.insert(index, movedSource);
-      } else {
-        await _player.insertAudioSource(index, _toAudioSource(sources[index]));
-        workingKeys.insert(index, key);
-        workingSources.insert(index, sources[index]);
+      for (var index = 0; index < desiredKeys.length; index++) {
+        final key = desiredKeys[index];
+        if (index < workingKeys.length && workingKeys[index] == key) continue;
+        final existing = workingKeys.indexOf(key, index);
+        if (existing >= 0) {
+          await _player.moveAudioSource(existing, index);
+          final movedKey = workingKeys.removeAt(existing);
+          final movedSource = workingSources.removeAt(existing);
+          workingKeys.insert(index, movedKey);
+          workingSources.insert(index, movedSource);
+        } else {
+          await _player.insertAudioSource(
+            index,
+            _toAudioSource(sources[index]),
+          );
+          workingKeys.insert(index, key);
+          workingSources.insert(index, sources[index]);
+        }
       }
+    } finally {
+      _isRestructuring = false;
     }
 
     _sources = List.unmodifiable(sources);
@@ -417,9 +448,22 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     _crossfading = true;
 
     final outgoing = _player;
+    final outgoingIndexBeforePrepare = outgoing.currentIndex;
     await _prepare(index);
     if (_preparedIndex != index) {
       // Preparation failed; let the outgoing source finish normally.
+      _crossfading = false;
+      return;
+    }
+    // Preparing the standby deck means opening a fresh network stream,
+    // which can take longer than the outgoing source has left to play —
+    // in which case the outgoing deck (still holding its own full,
+    // untruncated list) has already gaplessly advanced into `index` on
+    // its own by the time we get here. Starting the overlap now would
+    // play that same source twice at once — heard as a stutter, not a
+    // fade — so once the natural transition has already happened, there
+    // is nothing left to do but let it stand.
+    if (outgoing.currentIndex != outgoingIndexBeforePrepare) {
       _crossfading = false;
       return;
     }
@@ -578,6 +622,11 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
 
   void _onCurrentIndexChanged(int? index) {
     _currentIndexController.add(index);
+    // Mid-restructure this index is transient and may not line up with
+    // `_sources` yet (see `_isRestructuring`'s doc comment) — the
+    // restructuring batch applies the correct metadata/volume itself once
+    // `_sources` is updated, exactly once.
+    if (_isRestructuring) return;
     if (index != null && index >= 0 && index < _sources.length) {
       mediaItem.add(_toMediaItem(_sources[index]));
     }

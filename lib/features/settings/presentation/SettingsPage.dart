@@ -69,14 +69,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
               ),
-              for (final quality in StreamQuality.values)
-                _SettingsOption(
-                  selected: state.streamQuality == quality,
-                  title: _qualityTitle(quality),
-                  description: _qualityDescription(quality),
-                  onTap: () =>
-                      context.read<SettingsCubit>().setStreamQuality(quality),
-                ),
+              _StreamQualityDropdown(selected: state.streamQuality),
               Padding(
                 padding: EdgeInsets.symmetric(vertical: t.spacing.sm),
                 child: Text(
@@ -145,24 +138,114 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  String _qualityTitle(StreamQuality quality) => switch (quality) {
-    StreamQuality.original => 'Lossless',
-    StreamQuality.high => 'High',
-    StreamQuality.medium => 'Medium',
-    StreamQuality.dataSaver => 'Data saver',
-  };
+String _qualityTitle(StreamQuality quality) => switch (quality) {
+  StreamQuality.original => 'Lossless',
+  StreamQuality.high => 'High',
+  StreamQuality.medium => 'Medium',
+  StreamQuality.dataSaver => 'Data saver',
+};
 
-  String _qualityDescription(StreamQuality quality) => switch (quality) {
-    StreamQuality.original =>
-      'The original file, exactly as stored on your server. No '
-          'transcoding, largest downloads.',
-    StreamQuality.high => 'Transcodes to AAC at 320 kbps when needed.',
-    StreamQuality.medium => 'Transcodes to AAC at 192 kbps when needed.',
-    StreamQuality.dataSaver =>
-      'Transcodes to AAC at 128 kbps when needed — smallest downloads, '
-          'best for constrained connections.',
-  };
+String _qualityDescription(StreamQuality quality) => switch (quality) {
+  StreamQuality.original =>
+    'The original file, exactly as stored on your server. No '
+        'transcoding, largest downloads.',
+  StreamQuality.high => 'Transcodes to AAC at 320 kbps when needed.',
+  StreamQuality.medium => 'Transcodes to AAC at 192 kbps when needed.',
+  StreamQuality.dataSaver =>
+    'Transcodes to AAC at 128 kbps when needed — smallest downloads, '
+        'best for constrained connections.',
+};
+
+/// A rough, one-hour-of-continuous-playback estimate shown next to each
+/// tier in the dropdown, so "smallest downloads" has a concrete number
+/// attached. Original/lossless varies by source file — FLAC commonly runs
+/// 800 kbps-1.5 Mbps — so it is quoted as a round "~1 GB/hour" rather than
+/// a false-precision figure; the transcoded tiers are computed directly
+/// from their fixed bitrate above.
+String _qualityDataUsage(StreamQuality quality) => switch (quality) {
+  StreamQuality.original => '~1 GB/hour',
+  StreamQuality.high => '~140 MB/hour',
+  StreamQuality.medium => '~85 MB/hour',
+  StreamQuality.dataSaver => '~55 MB/hour',
+};
+
+/// The streaming-quality picker: a dropdown rather than one row per tier,
+/// with the selected tier's description shown beneath it once picked
+/// (v0.1.6) — the same information the old radio list carried, in less
+/// vertical space.
+class _StreamQualityDropdown extends StatelessWidget {
+  const _StreamQualityDropdown({required this.selected});
+
+  final StreamQuality selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: t.spacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: t.spacing.sm),
+            decoration: BoxDecoration(
+              color: t.colors.surfaceSunken,
+              borderRadius: t.radii.mdBorder,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<StreamQuality>(
+                value: selected,
+                isExpanded: true,
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: t.colors.textSecondary,
+                ),
+                dropdownColor: t.colors.surfaceElevated,
+                borderRadius: t.radii.mdBorder,
+                style: t.typography.bodyLarge.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+                items: [
+                  for (final quality in StreamQuality.values)
+                    DropdownMenuItem(
+                      value: quality,
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(_qualityTitle(quality))),
+                          Text(
+                            _qualityDataUsage(quality),
+                            style: t.typography.caption.copyWith(
+                              color: t.colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: (quality) {
+                  if (quality == null) return;
+                  context.read<SettingsCubit>().setStreamQuality(quality);
+                },
+              ),
+            ),
+          ),
+          SizedBox(height: t.spacing.xxs),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: t.spacing.xs),
+            child: Text(
+              _qualityDescription(selected),
+              style: t.typography.caption.copyWith(
+                color: t.colors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// One selectable row in a radio-style settings list — shared by the

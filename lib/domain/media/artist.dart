@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import 'media_availability.dart';
 import 'MediaId.dart';
+import 'MediaImage.dart';
 import 'MediaItem.dart';
 import 'media_kind.dart';
 
@@ -10,15 +11,40 @@ class Artist extends MediaItem {
   const Artist({
     required super.id,
     required super.name,
+    this.overview,
+    this.banner,
+    this.isFavorite = false,
     super.availability = MediaAvailability.remoteOnly,
     super.image,
   });
+
+  /// The artist's biography, when the server has one. Fetched as part of
+  /// every artist read (`JellyfinMediaApi.detailFields` already asks for
+  /// `Overview`) rather than on demand.
+  final String? overview;
+
+  /// A wide background image for the artist page header, when the server
+  /// has one. `null` degrades to the flat header v0.1.0 already shipped.
+  final MediaImage? banner;
+
+  /// Whether the signed-in user has favorited this artist. Read fresh with
+  /// every fetch, never persisted to the offline cache (`ADR-0019`) — a
+  /// cached artist always reads `false` here rather than a stale answer.
+  final bool isFavorite;
 
   @override
   MediaKind get kind => MediaKind.artist;
 
   @override
-  List<Object?> get props => [id, name, availability, image];
+  List<Object?> get props => [
+    id,
+    name,
+    overview,
+    banner,
+    isFavorite,
+    availability,
+    image,
+  ];
 }
 
 /// A named artist credit on an album or track.

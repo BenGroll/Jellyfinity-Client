@@ -75,6 +75,9 @@ void main() {
 
     expect(find.text('So What'), findsOneWidget);
     expect(find.text('Blue in Green'), findsOneWidget);
+    // The taller v0.1.6 header (Shuffle/Play/overflow row) pushes the
+    // trailing unavailable row past the default test viewport.
+    await tester.scrollUntilVisible(find.byType(UnavailableRow), 300);
     expect(find.byType(UnavailableRow), findsOneWidget);
     expect(find.byType(ErrorStateView), findsNothing);
   });

@@ -6,7 +6,9 @@ import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
+import 'package:jellyfinity/domain/media/FavoritesRepository.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
+import 'package:jellyfinity/domain/media/MediaMetadataRepository.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart';
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart';
@@ -24,8 +26,11 @@ import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart';
+import 'package:jellyfinity/features/playback/presentation/now_playing_details_cubit.dart';
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart';
 
+import 'music_fakes.dart'
+    show FakeFavoritesRepository, FakeMediaMetadataRepository;
 import 'settings_fakes.dart';
 
 /// A [PlaybackCubit] wired entirely to fakes, for tests that only need
@@ -338,5 +343,34 @@ void registerLyricsCubit({LyricsResolver? resolver}) {
   final getIt = GetIt.instance;
   final effectiveResolver = resolver ?? FakeLyricsResolver();
   getIt.registerFactory<LyricsCubit>(() => LyricsCubit(effectiveResolver));
+  addTearDown(getIt.reset);
+}
+
+/// Registers a fake [NowPlayingDetailsCubit] factory, the same shape as
+/// [registerTrackSourceInfoCubit] — Now Playing (v0.1.6) reads it straight
+/// from `getIt` for the current track's favorite state and artist/album
+/// links. [pumpApp] calls it by default; pass [metadata] to control what
+/// the track/artist/album links and favorite heart show.
+void registerNowPlayingDetailsCubit({MediaMetadataRepository? metadata}) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<NowPlayingDetailsCubit>()) return;
+  final repository = metadata ?? FakeMediaMetadataRepository();
+  getIt.registerFactory<NowPlayingDetailsCubit>(
+    () => NowPlayingDetailsCubit(repository),
+  );
+  addTearDown(getIt.reset);
+}
+
+/// Registers a fake [FavoritesRepository] into `getIt`, where every
+/// favorite heart button (Artist, Album, Now Playing — v0.1.6) reads it
+/// directly. Guarded against a test that already registered one itself
+/// (`registerMusicCubits` does, for music-screen tests that also reach
+/// [pumpApp]) rather than throwing on a duplicate registration.
+void registerFavoritesRepository({FavoritesRepository? favorites}) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<FavoritesRepository>()) return;
+  getIt.registerSingleton<FavoritesRepository>(
+    favorites ?? FakeFavoritesRepository(),
+  );
   addTearDown(getIt.reset);
 }

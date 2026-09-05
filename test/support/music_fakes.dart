@@ -4,6 +4,7 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
@@ -143,6 +144,22 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
     return const Result.err(UnavailableFailure('No such album.'));
   }
 
+  /// What [artistStats] answers next; `null` (the default) fails with
+  /// [UnavailableFailure] so a test must opt in to a value.
+  ArtistStats? stats;
+  Failure? statsFailure;
+
+  @override
+  Future<Result<ArtistStats>> artistStats(MediaId artistId) async {
+    final failed = statsFailure ?? failure;
+    if (failed != null) return Result.err(failed);
+    final value = stats;
+    if (value == null) {
+      return const Result.err(UnavailableFailure('No stats set.'));
+    }
+    return Result.ok(value);
+  }
+
   /// Lets a widget test see the loading frame before the answer lands.
   Future<void> _pause() async {
     if (responseDelay > Duration.zero) {
@@ -206,6 +223,35 @@ class FakePlaylistRepository implements PlaylistRepository {
     if (failed != null) return Result.err(failed);
     return Result.ok(windowOf(trackList, page, unavailable: unavailable));
   }
+
+  /// Every `addTracks` call, in order, for a test to assert against.
+  final List<({MediaId playlistId, List<MediaId> trackIds})> addTracksCalls =
+      [];
+
+  @override
+  Future<Result<void>> addTracks(
+    MediaId playlistId,
+    List<MediaId> trackIds,
+  ) async {
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    addTracksCalls.add((playlistId: playlistId, trackIds: trackIds));
+    return const Result.ok(null);
+  }
+}
+
+/// A [FavoritesRepository] a test controls, recording every call.
+class FakeFavoritesRepository implements FavoritesRepository {
+  Failure? failure;
+  final List<({MediaId id, bool favorite})> calls = [];
+
+  @override
+  Future<Result<void>> setFavorite(MediaId id, {required bool favorite}) async {
+    calls.add((id: id, favorite: favorite));
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    return const Result.ok(null);
+  }
 }
 
 /// A [MediaMetadataRepository] that answers from a fixed set of items.
@@ -232,10 +278,12 @@ void registerMusicCubits({
   required FakeMusicLibraryRepository music,
   FakePlaylistRepository? playlists,
   FakeMediaMetadataRepository? metadata,
+  FakeFavoritesRepository? favorites,
 }) {
   final getIt = GetIt.instance;
   final playlistRepository = playlists ?? FakePlaylistRepository();
   final metadataRepository = metadata ?? FakeMediaMetadataRepository();
+  final favoritesRepository = favorites ?? FakeFavoritesRepository();
 
   getIt
     ..registerFactory<ArtistsCubit>(() => ArtistsCubit(music))
@@ -246,12 +294,15 @@ void registerMusicCubits({
       () => PlaylistTracksCubit(playlistRepository),
     )
     ..registerFactory<ArtistDetailCubit>(() => ArtistDetailCubit(music))
+    ..registerFactory<ArtistStatsCubit>(() => ArtistStatsCubit(music))
     ..registerFactory<AlbumDetailCubit>(() => AlbumDetailCubit(music))
     ..registerFactory<PlaylistDetailCubit>(
       () => PlaylistDetailCubit(metadataRepository),
     )
     ..registerFactory<MusicSearchCubit>(
       () => MusicSearchCubit(music, playlistRepository),
-    );
+    )
+    ..registerSingleton<PlaylistRepository>(playlistRepository)
+    ..registerSingleton<FavoritesRepository>(favoritesRepository);
   addTearDown(getIt.reset);
 }

@@ -204,38 +204,74 @@ class _TrackOverflowButton extends StatelessWidget {
     );
   }
 
-  void _openMenu(BuildContext context) {
-    final playNext = onPlayNext;
-    final addToQueue = onAddToQueue;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (playNext != null)
-              ListTile(
-                leading: const Icon(Icons.playlist_play_rounded),
-                title: const Text('Play Next'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  playNext();
-                },
-              ),
-            if (addToQueue != null)
-              ListTile(
-                leading: const Icon(Icons.queue_music_rounded),
-                title: const Text('Add to Queue'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  addToQueue();
-                },
-              ),
-          ],
-        ),
+  void _openMenu(BuildContext context) => showTrackActionsSheet(
+    context,
+    onPlayNext: onPlayNext,
+    onAddToQueue: onAddToQueue,
+  );
+}
+
+/// The "Play Next" / "Add to Queue" bottom sheet [TrackRow] opens from its
+/// overflow button — extracted so Now Playing's app bar (v0.1.6) can open
+/// the exact same menu for the track currently playing, instead of a
+/// second, only-slightly-different one.
+void showTrackActionsSheet(
+  BuildContext context, {
+  VoidCallback? onPlayNext,
+  VoidCallback? onAddToQueue,
+  VoidCallback? onLyrics,
+  VoidCallback? onOpenQueue,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onPlayNext != null)
+            ListTile(
+              leading: const Icon(Icons.playlist_play_rounded),
+              title: const Text('Play Next'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onPlayNext();
+              },
+            ),
+          if (onAddToQueue != null)
+            ListTile(
+              leading: const Icon(Icons.queue_music_rounded),
+              title: const Text('Add to Queue'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onAddToQueue();
+              },
+            ),
+          // Lyrics and Queue are screens Now Playing links to, rather than
+          // queue-mutating actions like the two above — folded into the
+          // same sheet (v0.1.6) so its top app bar keeps only the heart
+          // and this one overflow button.
+          if (onLyrics != null)
+            ListTile(
+              leading: const Icon(Icons.lyrics_outlined),
+              title: const Text('Lyrics'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onLyrics();
+              },
+            ),
+          if (onOpenQueue != null)
+            ListTile(
+              leading: const Icon(Icons.queue_music_rounded),
+              title: const Text('Queue'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onOpenQueue();
+              },
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// One playlist.

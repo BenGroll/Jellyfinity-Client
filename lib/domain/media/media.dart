@@ -18,8 +18,10 @@ library;
 
 export 'Album.dart';
 export 'artist.dart';
+export 'ArtistStats.dart';
 export 'ArtworkResolver.dart';
 export 'Episode.dart';
+export 'FavoritesRepository.dart';
 export 'media_availability.dart';
 export 'MediaId.dart';
 export 'MediaImage.dart';

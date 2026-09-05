@@ -25,7 +25,9 @@ import 'package:jellyfinity/app/settings/ShellNavigationMode.dart' as _i883;
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
+import 'package:jellyfinity/domain/media/FavoritesRepository.dart' as _i685;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
+import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart' as _i260;
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
     as _i474;
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart' as _i922;
@@ -49,6 +51,8 @@ import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart'
     as _i1045;
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart'
     as _i952;
+import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart'
+    as _i824;
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart'
     as _i213;
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart'
@@ -57,6 +61,8 @@ import 'package:jellyfinity/features/music/presentation/search/music_search_cubi
     as _i169;
 import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart'
     as _i148;
+import 'package:jellyfinity/features/playback/presentation/now_playing_details_cubit.dart'
+    as _i29;
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart'
     as _i766;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
@@ -75,6 +81,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinArtworkResolve
     as _i1022;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinAudioSourceResolver.dart'
     as _i860;
+import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinFavoritesRepository.dart'
+    as _i545;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinLyricsResolver.dart'
     as _i417;
 import 'package:jellyfinity/infrastructure/jellyfin/media/JellyfinMediaMetadataRepository.dart'
@@ -274,6 +282,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i621.TrackSourceInfoResolver>(
       () => _i89.JellyfinTrackSourceInfoResolver(gh<_i963.JellyfinMediaApi>()),
     );
+    gh.lazySingleton<_i685.FavoritesRepository>(
+      () => _i545.JellyfinFavoritesRepository(gh<_i963.JellyfinMediaApi>()),
+    );
     gh.lazySingleton<_i126.PlaybackCubit>(
       () => _i126.PlaybackCubit(
         gh<_i717.PlaybackEngine>(),
@@ -308,6 +319,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.factory<_i824.ArtistStatsCubit>(
+      () => _i824.ArtistStatsCubit(gh<_i260.MusicLibraryRepository>()),
+    );
     gh.factory<_i169.MusicSearchCubit>(
       () => _i169.MusicSearchCubit(
         gh<_i747.MusicLibraryRepository>(),
@@ -316,6 +330,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(gh<_i747.MediaMetadataRepository>()),
+    );
+    gh.factory<_i29.NowPlayingDetailsCubit>(
+      () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
     );
     gh.factory<_i213.ArtistDetailCubit>(
       () => _i213.ArtistDetailCubit(gh<_i747.MusicLibraryRepository>()),

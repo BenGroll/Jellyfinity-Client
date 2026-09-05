@@ -28,4 +28,11 @@ abstract class PlaylistRepository {
     MediaId playlistId, {
     PageRequest page = const PageRequest.first(),
   });
+
+  /// Appends [trackIds] to the end of [playlistId].
+  ///
+  /// The one write this contract offers today — just enough for "Add to
+  /// playlist" from an album or playlist's overflow menu (v0.1.6). Create,
+  /// rename, delete, reorder and remove remain v0.1.2's unfinished work.
+  Future<Result<void>> addTracks(MediaId playlistId, List<MediaId> trackIds);
 }

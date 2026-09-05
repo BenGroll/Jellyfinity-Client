@@ -262,3 +262,62 @@ All notable changes to Jellyfinity are documented here.
   track itself is gone) is treated as the empty state the roadmap asks
   for, not an error; the Lyrics view otherwise shows a loading skeleton or
   a retryable failure like every other on-demand detail screen.
+- Added an interface refresh (ADR-0019, v0.1.6) across Settings, Home,
+  Artist, Album, Now Playing, Queue, and Playlist:
+  - Settings' streaming-quality picker is a dropdown, with the selected
+    tier's description shown beneath it, instead of one radio row per tier.
+  - Home's search field is a fully rounded pill; the media-type pills are
+    smaller.
+  - The Artist page shows the artist's backdrop image and overview above
+    its discography, alongside its album/song counts and total playtime
+    (`ArtistStats`, computed live), plus a favorite toggle.
+  - The Album page replaces its single Play button with a centered Play, a
+    Shuffle button, and an overflow menu (Add to playlist, Add to queue)
+    that act on the whole album; its artist credit is now a link; it gets
+    a favorite toggle. The Playlist page gets the identical treatment.
+    Add to playlist uses a new minimal `PlaylistRepository.addTracks`
+    write seam — the rest of v0.1.2's playlist-curation writes (create,
+    rename, delete, reorder, remove) remain unimplemented.
+  - Now Playing's artist and album lines are links (resolved on demand,
+    same as ADR-0015's track-source lookup); its background is a heavily
+    blurred, scaled copy of the current artwork; the source-format line is
+    now a stacked container/bitrate label with a Lossless-or-transcode
+    badge; its app bar gains the same track overflow menu (Play Next / Add
+    to Queue) library rows already have, and a favorite toggle. Opening an
+    artist/album link closes the player first — a `go_router` limitation
+    pushing a shell-nested route directly from Now Playing's root route,
+    documented in ADR-0019.
+  - The Queue's clear action is a plain "X" with a confirmation prompt
+    instead of one-tap clearing; it shows the queue's remaining runtime at
+    the top; each row gets a drag handle so reordering starts there
+    instead of anywhere on the row.
+  - Favorite state and the artist stats are read live from the server only
+    — never added to the offline cache — and hide themselves on a cached/
+    offline screen rather than showing a stale or guessed answer; showing
+    who created a playlist was investigated and dropped, since neither
+    Jellyfin's item response nor its dedicated Playlists endpoint exposes
+    an owner.
+- Follow-up fixes to the v0.1.6 interface refresh, from a first testing pass:
+  - Home's media-type pills size their label and selected checkmark from
+    content rather than a fixed pixel height, so neither gets clipped.
+  - The streaming-quality dropdown shows a rough data-usage-per-hour
+    estimate for each tier alongside its name.
+  - The Album and Now Playing pages: clickable artist/album names drop
+    their underline (the accent color already reads as a link); the
+    track title, artist, and album text are larger; Now Playing's heart
+    moves next to the title and its Lyrics/Queue actions fold into the
+    overflow menu, leaving one icon in the app bar; the Album page's
+    heart moves down next to Shuffle/Play/overflow instead of the app
+    bar, with Play staying centered; Now Playing's background blur is
+    stronger.
+  - Fixed a bug where toggling shuffle (or any other queue edit) could
+    make the currently playing track briefly jump to full volume before
+    settling back — `JustAudioPlaybackEngine` was re-levelling volume off
+    of `just_audio`'s transient, mid-reorder index reports, which could
+    momentarily disagree with the not-yet-updated source list.
+  - Fixed crossfade producing an audible stutter instead of a fade: when
+    preparing the standby deck's network stream took longer than the
+    outgoing source had left to play, the outgoing deck had already
+    gaplessly advanced on its own, and starting the overlap anyway played
+    the same source twice at once (ADR-0016). The preload lead is also
+    widened from 5 s to 10 s so this is hit less often.
