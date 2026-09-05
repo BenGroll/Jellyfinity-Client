@@ -228,3 +228,15 @@ All notable changes to Jellyfinity are documented here.
   transient failure as permanent. Now Playing shows the source file's own
   format/bitrate and, when a transcode is likely, what it is being
   transcoded to.
+- Added crossfade (ADR-0016, v0.1.3), configurable from a new Crossfade
+  section in Settings: a switch plus a 1-12 second length slider,
+  persisted like the other preferences. `just_audio` has no crossfade of
+  its own and one native player cannot overlap two items of its own
+  playlist, so `JustAudioPlaybackEngine` now runs **two decks** — both
+  holding the whole source list, one active at a time — and equal-power
+  ramps between them, cueing the incoming source to position zero so the
+  overlap behaves the same for a transcoded stream as for a direct-play
+  file. With crossfade off it is one deck on the unchanged single-player
+  path, so gapless playback is preserved by construction. Repeat-one
+  suppresses crossfade, since a queue repeating one track never reaches
+  the next source the engine would otherwise fade into.

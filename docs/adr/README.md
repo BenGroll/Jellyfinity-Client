@@ -19,6 +19,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0013](ADR-0013-audio-playback-and-persistent-queue.md) | Playback and queue |
 | [0014](ADR-0014-navigation-modes-and-sidebar.md) | Navigation modes and sidebar |
 | [0015](ADR-0015-streaming-quality-and-transcoding.md) | Quality and transcoding |
+| [0016](ADR-0016-crossfade.md) | Crossfade |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

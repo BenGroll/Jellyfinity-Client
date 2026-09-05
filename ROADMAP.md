@@ -21,7 +21,7 @@ published Git tag.
 | v0.1.0 | First usable music vertical slice | Implemented | [historical spec](Proof%20Of%20Concept%20Roadmap.md#v010--first-usable-music-vertical-slice) |
 | v0.1.1 | Streaming quality and transcoding | Implemented | [spec](Roadmap%20to%20v0.2.md#v011--streaming-quality--transcoding) |
 | **v0.1.2** | **Playlist curation** | **In progress** | [spec](Roadmap%20to%20v0.2.md#v012--playlist-curation) |
-| v0.1.3 | Crossfade | Planned | [spec](Roadmap%20to%20v0.2.md#v013--crossfade) |
+| v0.1.3 | Crossfade | Implemented | [spec](Roadmap%20to%20v0.2.md#v013--crossfade) |
 | v0.1.4 | Volume normalization | Planned | [spec](Roadmap%20to%20v0.2.md#v014--volume-normalization) |
 | v0.1.5 | Lyrics | Planned | [spec](Roadmap%20to%20v0.2.md#v015--lyrics) |
 
