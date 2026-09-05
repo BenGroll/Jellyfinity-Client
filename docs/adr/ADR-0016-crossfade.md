@@ -179,8 +179,9 @@ where the end is, so there is nothing to fade towards.
 - A second `AudioPlayer` exists while crossfade is in use. Both decks
   handle audio-session interruptions independently, so a phone call
   pauses both — the correct outcome, but worth knowing.
-- Crossfade preloads the next source ~5 s early, which is a small amount
-  of network use ahead of a transition that might still be skipped.
+- Crossfade preloads the next source ~10 s early (widened from an
+  original 5 s — see below), a small amount of network use ahead of a
+  transition that might still be skipped.
 - Two transitions are deliberately *not* crossfaded: the repeat-all wrap
   from the last entry back to the first, and repeat-one's replay. Both
   are handled by `PlaybackCubit` at completion, past the point where the
@@ -188,3 +189,31 @@ where the end is, so there is nothing to fade towards.
 - Volume normalization (v0.1.4) will need to apply gain per source while
   these ramps are running; the ramp owns `setVolume` on both decks
   today, so that feature has to route through it rather than around it.
+
+### v0.1.6 fix: a stutter instead of a fade
+
+First real-world testing after this shipped found crossfade producing an
+audible stutter at transitions rather than a fade — reported as neither
+a clean cut nor a smooth overlap. The cause: `_prepare` opens a *fresh
+network stream* for the standby deck (worse yet for a source Jellyfin
+has to transcode, which first spins up server-side encoding), which can
+take longer than the outgoing source has left to play. When it does, the
+outgoing deck — still holding its own full, untruncated list — has
+already gaplessly advanced into the next source **on its own** by the
+time `_prepare` finally resolves. `_startCrossfade` used to plough ahead
+regardless: truncating the (already-advanced) outgoing deck and starting
+the standby deck on the *same* source from position zero, so the same
+audio briefly played twice at once before the ramp math dragged one copy
+down — the stutter.
+
+The fix has two parts:
+- `_startCrossfade` now records the outgoing deck's index *before*
+  awaiting `_prepare`, and re-checks it immediately after. If the
+  outgoing deck moved on its own in the meantime, the natural gapless
+  transition already happened correctly — the fix is to recognize that
+  and stand down, not to fight it.
+- `_preloadLead` widened from 5 s to 10 s, so preparation starts earlier
+  and hits this race less often to begin with (it does not eliminate the
+  race — a sufficiently slow connection can still lose it, in which case
+  gapless playback rather than a stutter is what the guard above now
+  guarantees).

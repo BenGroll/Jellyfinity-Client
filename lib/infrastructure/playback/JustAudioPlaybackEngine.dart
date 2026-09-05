@@ -91,7 +91,14 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   /// the first seconds of the overlap buffering a network stream. The
   /// standby deck is loaded this far ahead of the fade point instead,
   /// and left paused until the overlap actually begins.
-  static const Duration _preloadLead = Duration(seconds: 5);
+  ///
+  /// Generous on purpose: preparing a source means opening a fresh
+  /// network stream (more so for one Jellyfin has to transcode, which
+  /// first spins up a remux/encode on the server), which can easily take
+  /// longer than the old 5 s lead — and a preparation still in flight
+  /// when the outgoing source reaches its natural end is exactly the
+  /// race `_startCrossfade`'s post-`_prepare` index check now guards.
+  static const Duration _preloadLead = Duration(seconds: 10);
 
   /// Ramp resolution. Fine enough to be inaudible as steps, coarse
   /// enough not to flood the platform channel.
@@ -441,9 +448,22 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     _crossfading = true;
 
     final outgoing = _player;
+    final outgoingIndexBeforePrepare = outgoing.currentIndex;
     await _prepare(index);
     if (_preparedIndex != index) {
       // Preparation failed; let the outgoing source finish normally.
+      _crossfading = false;
+      return;
+    }
+    // Preparing the standby deck means opening a fresh network stream,
+    // which can take longer than the outgoing source has left to play —
+    // in which case the outgoing deck (still holding its own full,
+    // untruncated list) has already gaplessly advanced into `index` on
+    // its own by the time we get here. Starting the overlap now would
+    // play that same source twice at once — heard as a stutter, not a
+    // fade — so once the natural transition has already happened, there
+    // is nothing left to do but let it stand.
+    if (outgoing.currentIndex != outgoingIndexBeforePrepare) {
       _crossfading = false;
       return;
     }

@@ -315,3 +315,9 @@ All notable changes to Jellyfinity are documented here.
     settling back — `JustAudioPlaybackEngine` was re-levelling volume off
     of `just_audio`'s transient, mid-reorder index reports, which could
     momentarily disagree with the not-yet-updated source list.
+  - Fixed crossfade producing an audible stutter instead of a fade: when
+    preparing the standby deck's network stream took longer than the
+    outgoing source had left to play, the outgoing deck had already
+    gaplessly advanced on its own, and starting the overlap anyway played
+    the same source twice at once (ADR-0016). The preload lead is also
+    widened from 5 s to 10 s so this is hit less often.
