@@ -7,6 +7,7 @@ import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
+import '../widgets/download_controls.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
@@ -269,6 +270,10 @@ class _SongsTabState extends State<SongsTab>
                 track.availability == MediaAvailability.remoteUnavailable
                 ? null
                 : () => context.read<PlaybackCubit>().addToQueue(track),
+            downloadAction:
+                track.availability == MediaAvailability.remoteUnavailable
+                ? null
+                : TrackDownloadButton(track: track),
           ),
         );
       },

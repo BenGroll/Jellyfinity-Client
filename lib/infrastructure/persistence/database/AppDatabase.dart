@@ -33,13 +33,15 @@ part 'AppDatabase.g.dart';
     CachedCollections,
     CachedCollectionEntries,
     QueueEntries,
+    TrackDownloads,
+    DownloadOwners,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -47,6 +49,7 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await m.createIndex(_savedAccountsServerIdIndex);
       await m.createIndex(_savedServersBaseUrlIndex);
+      await m.createIndex(_downloadOwnersOwnerIndex);
     },
     onUpgrade: (m, from, to) async {
       // v2 (v0.0.8): the media metadata cache. Purely additive — three
@@ -63,6 +66,14 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await m.createTable(queueEntries);
       }
+      // v4 (v0.2.0): downloads. Additive again — the two new tables
+      // start empty, so an upgrading install keeps everything it had
+      // and simply has nothing downloaded yet.
+      if (from < 4) {
+        await m.createTable(trackDownloads);
+        await m.createTable(downloadOwners);
+        await m.createIndex(_downloadOwnersOwnerIndex);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -73,6 +84,15 @@ class AppDatabase extends _$AppDatabase {
     'idx_saved_accounts_server_id',
     'CREATE INDEX IF NOT EXISTS idx_saved_accounts_server_id '
         'ON saved_accounts (server_id)',
+  );
+
+  /// `ownedBy` — "which tracks did downloading this album ask for" — is
+  /// the one query that does not start from a track id, and it runs
+  /// every time an album header renders.
+  static final Index _downloadOwnersOwnerIndex = Index(
+    'idx_download_owners_owner',
+    'CREATE INDEX IF NOT EXISTS idx_download_owners_owner '
+        'ON download_owners (server_id, owner_kind, owner_item_id)',
   );
 
   static final Index _savedServersBaseUrlIndex = Index(

@@ -10,6 +10,7 @@ import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
+import '../widgets/download_controls.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
@@ -169,6 +170,10 @@ class _SongResults extends StatelessWidget {
                 track.availability == MediaAvailability.remoteUnavailable
                 ? null
                 : () => context.read<PlaybackCubit>().addToQueue(track),
+            downloadAction:
+                track.availability == MediaAvailability.remoteUnavailable
+                ? null
+                : TrackDownloadButton(track: track),
           ),
         );
       },

@@ -138,6 +138,7 @@ class ErrorStateView extends StatelessWidget {
         UnavailableFailure() => Icons.cloud_off_rounded,
         UnauthorizedFailure() => Icons.lock_outline_rounded,
         UnsupportedServerFailure() => Icons.report_gmailerrorred_rounded,
+        InsufficientStorageFailure() => Icons.sd_card_alert_outlined,
         UnexpectedFailure() => Icons.error_outline,
       },
     );
@@ -153,6 +154,7 @@ class ErrorStateView extends StatelessWidget {
     UnavailableFailure() => 'Currently unavailable',
     UnauthorizedFailure() => 'Sign-in needed',
     UnsupportedServerFailure() => 'Server not supported',
+    InsufficientStorageFailure() => 'Not enough storage',
     UnexpectedFailure() => 'Something went wrong',
   };
 

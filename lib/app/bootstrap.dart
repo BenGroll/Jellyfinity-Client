@@ -15,6 +15,7 @@ import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'di/service_locator.dart';
+import 'downloads/DownloadsCubit.dart';
 import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
 import 'settings/SettingsCubit.dart';
@@ -109,6 +110,12 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // mid-album and reopening it later shows where playback left off
   // without a surprise auto-play at launch.
   unawaited(getIt<PlaybackCubit>().restore());
+
+  // Reads the download records and resumes anything the last run was
+  // interrupted mid-transfer (v0.2.0). Unawaited for the same reason the
+  // two restores above are: it touches storage, not the network, and the
+  // first frame should not wait on it.
+  unawaited(getIt<DownloadsCubit>().restore());
 
   FlutterError.onError = (details) {
     logger.error(

@@ -64,6 +64,21 @@ final class UnsupportedServerFailure extends Failure {
   });
 }
 
+/// The device has no room left to store what was asked for.
+///
+/// Added by the download work (ADR-0020) for the same reason ADR-0008
+/// added [UnauthorizedFailure]: running out of space is a distinct,
+/// expected outcome with its own user answer ("free some up"), and
+/// collapsing it into [RecoverableFailure] would offer a retry that
+/// cannot succeed.
+final class InsufficientStorageFailure extends Failure {
+  const InsufficientStorageFailure(
+    super.message, {
+    super.cause,
+    super.stackTrace,
+  });
+}
+
 /// Something failed in a way that was not anticipated, such as an
 /// unhandled exception surfacing from infrastructure code.
 ///

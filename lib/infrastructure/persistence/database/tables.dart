@@ -238,3 +238,100 @@ class QueueEntries extends Table {
   @override
   Set<Column<Object>> get primaryKey => {position};
 }
+
+/// The tracks Jellyfinity has been asked to keep on this device (v0.2.0,
+/// ADR-0020), schema v4.
+///
+/// Like [QueueEntries] and for the same reason, this does not join
+/// against [CachedMediaItems]: a downloaded track has to render and be
+/// queueable with the server switched off, and the metadata cache is a
+/// cache — it can be evicted, and it is never guaranteed to have seen the
+/// track at all (a song downloaded from search results was never part of
+/// a cached collection window). So every row carries its own denormalized
+/// display fields, and a download survives the cache being cleared.
+///
+/// Keyed by `(server_id, item_id)` like every other media table: the
+/// same song on two servers is two downloads.
+@DataClassName('TrackDownloadRow')
+class TrackDownloads extends Table {
+  TextColumn get serverId => text()();
+  TextColumn get itemId => text()();
+
+  /// `DownloadState.name`.
+  TextColumn get state => text()();
+
+  /// `DownloadFailureReason.name`, set only for a failed row.
+  TextColumn get failureReason => text().nullable()();
+
+  /// Bytes on the device so far, so a resumed transfer reports honest
+  /// progress after a restart instead of starting its bar at zero.
+  IntColumn get receivedBytes => integer().withDefault(const Constant(0))();
+
+  /// The file's full size once the server has reported one; null while
+  /// that is still unknown.
+  IntColumn get totalBytes => integer().nullable()();
+
+  // --- Denormalized track metadata, mirroring QueueEntries. ---
+
+  TextColumn get title => text()();
+
+  /// Artist credits as a JSON array of `{name, id?}` objects, encoded the
+  /// same way [CachedMediaItems.artistsJson] encodes them.
+  TextColumn get artistsJson => text().nullable()();
+
+  TextColumn get albumItemId => text().nullable()();
+  TextColumn get albumName => text().nullable()();
+  IntColumn get trackNumber => integer().nullable()();
+  IntColumn get discNumber => integer().nullable()();
+  IntColumn get durationMicros => integer().nullable()();
+  RealColumn get normalizationGain => real().nullable()();
+
+  TextColumn get imageItemId => text().nullable()();
+  TextColumn get imageKind => text().nullable()();
+  TextColumn get imageTag => text().nullable()();
+  RealColumn get imageAspectRatio => real().nullable()();
+
+  /// When the download was first requested (microseconds since epoch).
+  /// This is the *order*: the engine takes pending downloads oldest
+  /// first, so a long album does not overtake a song asked for before
+  /// it. A monotonic insertion marker, like [SavedServers.addedAt].
+  IntColumn get requestedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {serverId, itemId};
+}
+
+/// Why each downloaded file is being kept: one row per reason.
+///
+/// The same song can be wanted by the song itself and by its album; in
+/// v0.2.1 and v0.2.2 a playlist and an artist join them. Removing one
+/// target deletes that target's rows and only then, if a track has no
+/// rows left, deletes the file — which is what stops "remove this album"
+/// from taking away a song the user downloaded on its own.
+///
+/// Not a database foreign key onto [TrackDownloads], for the same reason
+/// [SavedAccounts.serverId] is not one: the delete has to remove a file
+/// as well as rows, so it is orchestrated in one place rather than half
+/// here and half in a cascade the code cannot see.
+@DataClassName('DownloadOwnerRow')
+class DownloadOwners extends Table {
+  TextColumn get serverId => text()();
+
+  /// The downloaded track's item id.
+  TextColumn get itemId => text()();
+
+  /// `DownloadOwnerKind.name` — `track` or `album` today.
+  TextColumn get ownerKind => text()();
+
+  /// The owning item's id on the same server (the track's own id for a
+  /// `track` owner, the album's for an `album` owner).
+  TextColumn get ownerItemId => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+    serverId,
+    itemId,
+    ownerKind,
+    ownerItemId,
+  };
+}

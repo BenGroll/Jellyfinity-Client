@@ -18,3 +18,14 @@ abstract class AudioSourceResolver {
     StreamQuality quality = StreamQuality.original,
   });
 }
+
+/// The injectable name the *server-backed* [AudioSourceResolver] is
+/// registered under.
+///
+/// From v0.2.0 the unnamed registration belongs to
+/// `LocalFirstAudioSourceResolver`, which prefers a completed download
+/// and falls back to the server. Anything that specifically needs the
+/// server address — downloading the file in the first place — asks for
+/// this name instead, and everything that just wants to play a track
+/// keeps asking for the bare contract.
+const String remoteAudioSourceResolver = 'remoteAudioSourceResolver';

@@ -161,7 +161,10 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                           ),
                         ),
                       ),
-                      BlocBuilder<NowPlayingDetailsCubit, NowPlayingDetailsState>(
+                      BlocBuilder<
+                        NowPlayingDetailsCubit,
+                        NowPlayingDetailsState
+                      >(
                         builder: (context, details) {
                           final track = details.track;
                           if (track == null) return const SizedBox.shrink();
@@ -170,8 +173,12 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                             child: FavoriteButton(
                               isFavorite: track.isFavorite,
                               onChanged: (favorite) async {
-                                final result = await getIt<FavoritesRepository>()
-                                    .setFavorite(track.id, favorite: favorite);
+                                final result =
+                                    await getIt<FavoritesRepository>()
+                                        .setFavorite(
+                                          track.id,
+                                          favorite: favorite,
+                                        );
                                 return result.isOk;
                               },
                             ),

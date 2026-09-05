@@ -3602,6 +3602,1476 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
   }
 }
 
+class $TrackDownloadsTable extends TrackDownloads
+    with TableInfo<$TrackDownloadsTable, TrackDownloadRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TrackDownloadsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _failureReasonMeta = const VerificationMeta(
+    'failureReason',
+  );
+  @override
+  late final GeneratedColumn<String> failureReason = GeneratedColumn<String>(
+    'failure_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receivedBytesMeta = const VerificationMeta(
+    'receivedBytes',
+  );
+  @override
+  late final GeneratedColumn<int> receivedBytes = GeneratedColumn<int>(
+    'received_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalBytesMeta = const VerificationMeta(
+    'totalBytes',
+  );
+  @override
+  late final GeneratedColumn<int> totalBytes = GeneratedColumn<int>(
+    'total_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _artistsJsonMeta = const VerificationMeta(
+    'artistsJson',
+  );
+  @override
+  late final GeneratedColumn<String> artistsJson = GeneratedColumn<String>(
+    'artists_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumItemIdMeta = const VerificationMeta(
+    'albumItemId',
+  );
+  @override
+  late final GeneratedColumn<String> albumItemId = GeneratedColumn<String>(
+    'album_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumNameMeta = const VerificationMeta(
+    'albumName',
+  );
+  @override
+  late final GeneratedColumn<String> albumName = GeneratedColumn<String>(
+    'album_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _trackNumberMeta = const VerificationMeta(
+    'trackNumber',
+  );
+  @override
+  late final GeneratedColumn<int> trackNumber = GeneratedColumn<int>(
+    'track_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _discNumberMeta = const VerificationMeta(
+    'discNumber',
+  );
+  @override
+  late final GeneratedColumn<int> discNumber = GeneratedColumn<int>(
+    'disc_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMicrosMeta = const VerificationMeta(
+    'durationMicros',
+  );
+  @override
+  late final GeneratedColumn<int> durationMicros = GeneratedColumn<int>(
+    'duration_micros',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _normalizationGainMeta = const VerificationMeta(
+    'normalizationGain',
+  );
+  @override
+  late final GeneratedColumn<double> normalizationGain =
+      GeneratedColumn<double>(
+        'normalization_gain',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _imageItemIdMeta = const VerificationMeta(
+    'imageItemId',
+  );
+  @override
+  late final GeneratedColumn<String> imageItemId = GeneratedColumn<String>(
+    'image_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageKindMeta = const VerificationMeta(
+    'imageKind',
+  );
+  @override
+  late final GeneratedColumn<String> imageKind = GeneratedColumn<String>(
+    'image_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageTagMeta = const VerificationMeta(
+    'imageTag',
+  );
+  @override
+  late final GeneratedColumn<String> imageTag = GeneratedColumn<String>(
+    'image_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageAspectRatioMeta = const VerificationMeta(
+    'imageAspectRatio',
+  );
+  @override
+  late final GeneratedColumn<double> imageAspectRatio = GeneratedColumn<double>(
+    'image_aspect_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _requestedAtMeta = const VerificationMeta(
+    'requestedAt',
+  );
+  @override
+  late final GeneratedColumn<int> requestedAt = GeneratedColumn<int>(
+    'requested_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    itemId,
+    state,
+    failureReason,
+    receivedBytes,
+    totalBytes,
+    title,
+    artistsJson,
+    albumItemId,
+    albumName,
+    trackNumber,
+    discNumber,
+    durationMicros,
+    normalizationGain,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    requestedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'track_downloads';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TrackDownloadRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('failure_reason')) {
+      context.handle(
+        _failureReasonMeta,
+        failureReason.isAcceptableOrUnknown(
+          data['failure_reason']!,
+          _failureReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('received_bytes')) {
+      context.handle(
+        _receivedBytesMeta,
+        receivedBytes.isAcceptableOrUnknown(
+          data['received_bytes']!,
+          _receivedBytesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_bytes')) {
+      context.handle(
+        _totalBytesMeta,
+        totalBytes.isAcceptableOrUnknown(data['total_bytes']!, _totalBytesMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('artists_json')) {
+      context.handle(
+        _artistsJsonMeta,
+        artistsJson.isAcceptableOrUnknown(
+          data['artists_json']!,
+          _artistsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('album_item_id')) {
+      context.handle(
+        _albumItemIdMeta,
+        albumItemId.isAcceptableOrUnknown(
+          data['album_item_id']!,
+          _albumItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('album_name')) {
+      context.handle(
+        _albumNameMeta,
+        albumName.isAcceptableOrUnknown(data['album_name']!, _albumNameMeta),
+      );
+    }
+    if (data.containsKey('track_number')) {
+      context.handle(
+        _trackNumberMeta,
+        trackNumber.isAcceptableOrUnknown(
+          data['track_number']!,
+          _trackNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('disc_number')) {
+      context.handle(
+        _discNumberMeta,
+        discNumber.isAcceptableOrUnknown(data['disc_number']!, _discNumberMeta),
+      );
+    }
+    if (data.containsKey('duration_micros')) {
+      context.handle(
+        _durationMicrosMeta,
+        durationMicros.isAcceptableOrUnknown(
+          data['duration_micros']!,
+          _durationMicrosMeta,
+        ),
+      );
+    }
+    if (data.containsKey('normalization_gain')) {
+      context.handle(
+        _normalizationGainMeta,
+        normalizationGain.isAcceptableOrUnknown(
+          data['normalization_gain']!,
+          _normalizationGainMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_item_id')) {
+      context.handle(
+        _imageItemIdMeta,
+        imageItemId.isAcceptableOrUnknown(
+          data['image_item_id']!,
+          _imageItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_kind')) {
+      context.handle(
+        _imageKindMeta,
+        imageKind.isAcceptableOrUnknown(data['image_kind']!, _imageKindMeta),
+      );
+    }
+    if (data.containsKey('image_tag')) {
+      context.handle(
+        _imageTagMeta,
+        imageTag.isAcceptableOrUnknown(data['image_tag']!, _imageTagMeta),
+      );
+    }
+    if (data.containsKey('image_aspect_ratio')) {
+      context.handle(
+        _imageAspectRatioMeta,
+        imageAspectRatio.isAcceptableOrUnknown(
+          data['image_aspect_ratio']!,
+          _imageAspectRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('requested_at')) {
+      context.handle(
+        _requestedAtMeta,
+        requestedAt.isAcceptableOrUnknown(
+          data['requested_at']!,
+          _requestedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_requestedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, itemId};
+  @override
+  TrackDownloadRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TrackDownloadRow(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      failureReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}failure_reason'],
+      ),
+      receivedBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}received_bytes'],
+      )!,
+      totalBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_bytes'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      artistsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artists_json'],
+      ),
+      albumItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_item_id'],
+      ),
+      albumName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_name'],
+      ),
+      trackNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}track_number'],
+      ),
+      discNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}disc_number'],
+      ),
+      durationMicros: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_micros'],
+      ),
+      normalizationGain: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}normalization_gain'],
+      ),
+      imageItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_item_id'],
+      ),
+      imageKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_kind'],
+      ),
+      imageTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_tag'],
+      ),
+      imageAspectRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}image_aspect_ratio'],
+      ),
+      requestedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}requested_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TrackDownloadsTable createAlias(String alias) {
+    return $TrackDownloadsTable(attachedDatabase, alias);
+  }
+}
+
+class TrackDownloadRow extends DataClass
+    implements Insertable<TrackDownloadRow> {
+  final String serverId;
+  final String itemId;
+
+  /// `DownloadState.name`.
+  final String state;
+
+  /// `DownloadFailureReason.name`, set only for a failed row.
+  final String? failureReason;
+
+  /// Bytes on the device so far, so a resumed transfer reports honest
+  /// progress after a restart instead of starting its bar at zero.
+  final int receivedBytes;
+
+  /// The file's full size once the server has reported one; null while
+  /// that is still unknown.
+  final int? totalBytes;
+  final String title;
+
+  /// Artist credits as a JSON array of `{name, id?}` objects, encoded the
+  /// same way [CachedMediaItems.artistsJson] encodes them.
+  final String? artistsJson;
+  final String? albumItemId;
+  final String? albumName;
+  final int? trackNumber;
+  final int? discNumber;
+  final int? durationMicros;
+  final double? normalizationGain;
+  final String? imageItemId;
+  final String? imageKind;
+  final String? imageTag;
+  final double? imageAspectRatio;
+
+  /// When the download was first requested (microseconds since epoch).
+  /// This is the *order*: the engine takes pending downloads oldest
+  /// first, so a long album does not overtake a song asked for before
+  /// it. A monotonic insertion marker, like [SavedServers.addedAt].
+  final int requestedAt;
+  const TrackDownloadRow({
+    required this.serverId,
+    required this.itemId,
+    required this.state,
+    this.failureReason,
+    required this.receivedBytes,
+    this.totalBytes,
+    required this.title,
+    this.artistsJson,
+    this.albumItemId,
+    this.albumName,
+    this.trackNumber,
+    this.discNumber,
+    this.durationMicros,
+    this.normalizationGain,
+    this.imageItemId,
+    this.imageKind,
+    this.imageTag,
+    this.imageAspectRatio,
+    required this.requestedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['item_id'] = Variable<String>(itemId);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || failureReason != null) {
+      map['failure_reason'] = Variable<String>(failureReason);
+    }
+    map['received_bytes'] = Variable<int>(receivedBytes);
+    if (!nullToAbsent || totalBytes != null) {
+      map['total_bytes'] = Variable<int>(totalBytes);
+    }
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || artistsJson != null) {
+      map['artists_json'] = Variable<String>(artistsJson);
+    }
+    if (!nullToAbsent || albumItemId != null) {
+      map['album_item_id'] = Variable<String>(albumItemId);
+    }
+    if (!nullToAbsent || albumName != null) {
+      map['album_name'] = Variable<String>(albumName);
+    }
+    if (!nullToAbsent || trackNumber != null) {
+      map['track_number'] = Variable<int>(trackNumber);
+    }
+    if (!nullToAbsent || discNumber != null) {
+      map['disc_number'] = Variable<int>(discNumber);
+    }
+    if (!nullToAbsent || durationMicros != null) {
+      map['duration_micros'] = Variable<int>(durationMicros);
+    }
+    if (!nullToAbsent || normalizationGain != null) {
+      map['normalization_gain'] = Variable<double>(normalizationGain);
+    }
+    if (!nullToAbsent || imageItemId != null) {
+      map['image_item_id'] = Variable<String>(imageItemId);
+    }
+    if (!nullToAbsent || imageKind != null) {
+      map['image_kind'] = Variable<String>(imageKind);
+    }
+    if (!nullToAbsent || imageTag != null) {
+      map['image_tag'] = Variable<String>(imageTag);
+    }
+    if (!nullToAbsent || imageAspectRatio != null) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio);
+    }
+    map['requested_at'] = Variable<int>(requestedAt);
+    return map;
+  }
+
+  TrackDownloadsCompanion toCompanion(bool nullToAbsent) {
+    return TrackDownloadsCompanion(
+      serverId: Value(serverId),
+      itemId: Value(itemId),
+      state: Value(state),
+      failureReason: failureReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failureReason),
+      receivedBytes: Value(receivedBytes),
+      totalBytes: totalBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalBytes),
+      title: Value(title),
+      artistsJson: artistsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artistsJson),
+      albumItemId: albumItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumItemId),
+      albumName: albumName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumName),
+      trackNumber: trackNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackNumber),
+      discNumber: discNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discNumber),
+      durationMicros: durationMicros == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMicros),
+      normalizationGain: normalizationGain == null && nullToAbsent
+          ? const Value.absent()
+          : Value(normalizationGain),
+      imageItemId: imageItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageItemId),
+      imageKind: imageKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageKind),
+      imageTag: imageTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageTag),
+      imageAspectRatio: imageAspectRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAspectRatio),
+      requestedAt: Value(requestedAt),
+    );
+  }
+
+  factory TrackDownloadRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TrackDownloadRow(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      state: serializer.fromJson<String>(json['state']),
+      failureReason: serializer.fromJson<String?>(json['failureReason']),
+      receivedBytes: serializer.fromJson<int>(json['receivedBytes']),
+      totalBytes: serializer.fromJson<int?>(json['totalBytes']),
+      title: serializer.fromJson<String>(json['title']),
+      artistsJson: serializer.fromJson<String?>(json['artistsJson']),
+      albumItemId: serializer.fromJson<String?>(json['albumItemId']),
+      albumName: serializer.fromJson<String?>(json['albumName']),
+      trackNumber: serializer.fromJson<int?>(json['trackNumber']),
+      discNumber: serializer.fromJson<int?>(json['discNumber']),
+      durationMicros: serializer.fromJson<int?>(json['durationMicros']),
+      normalizationGain: serializer.fromJson<double?>(
+        json['normalizationGain'],
+      ),
+      imageItemId: serializer.fromJson<String?>(json['imageItemId']),
+      imageKind: serializer.fromJson<String?>(json['imageKind']),
+      imageTag: serializer.fromJson<String?>(json['imageTag']),
+      imageAspectRatio: serializer.fromJson<double?>(json['imageAspectRatio']),
+      requestedAt: serializer.fromJson<int>(json['requestedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'itemId': serializer.toJson<String>(itemId),
+      'state': serializer.toJson<String>(state),
+      'failureReason': serializer.toJson<String?>(failureReason),
+      'receivedBytes': serializer.toJson<int>(receivedBytes),
+      'totalBytes': serializer.toJson<int?>(totalBytes),
+      'title': serializer.toJson<String>(title),
+      'artistsJson': serializer.toJson<String?>(artistsJson),
+      'albumItemId': serializer.toJson<String?>(albumItemId),
+      'albumName': serializer.toJson<String?>(albumName),
+      'trackNumber': serializer.toJson<int?>(trackNumber),
+      'discNumber': serializer.toJson<int?>(discNumber),
+      'durationMicros': serializer.toJson<int?>(durationMicros),
+      'normalizationGain': serializer.toJson<double?>(normalizationGain),
+      'imageItemId': serializer.toJson<String?>(imageItemId),
+      'imageKind': serializer.toJson<String?>(imageKind),
+      'imageTag': serializer.toJson<String?>(imageTag),
+      'imageAspectRatio': serializer.toJson<double?>(imageAspectRatio),
+      'requestedAt': serializer.toJson<int>(requestedAt),
+    };
+  }
+
+  TrackDownloadRow copyWith({
+    String? serverId,
+    String? itemId,
+    String? state,
+    Value<String?> failureReason = const Value.absent(),
+    int? receivedBytes,
+    Value<int?> totalBytes = const Value.absent(),
+    String? title,
+    Value<String?> artistsJson = const Value.absent(),
+    Value<String?> albumItemId = const Value.absent(),
+    Value<String?> albumName = const Value.absent(),
+    Value<int?> trackNumber = const Value.absent(),
+    Value<int?> discNumber = const Value.absent(),
+    Value<int?> durationMicros = const Value.absent(),
+    Value<double?> normalizationGain = const Value.absent(),
+    Value<String?> imageItemId = const Value.absent(),
+    Value<String?> imageKind = const Value.absent(),
+    Value<String?> imageTag = const Value.absent(),
+    Value<double?> imageAspectRatio = const Value.absent(),
+    int? requestedAt,
+  }) => TrackDownloadRow(
+    serverId: serverId ?? this.serverId,
+    itemId: itemId ?? this.itemId,
+    state: state ?? this.state,
+    failureReason: failureReason.present
+        ? failureReason.value
+        : this.failureReason,
+    receivedBytes: receivedBytes ?? this.receivedBytes,
+    totalBytes: totalBytes.present ? totalBytes.value : this.totalBytes,
+    title: title ?? this.title,
+    artistsJson: artistsJson.present ? artistsJson.value : this.artistsJson,
+    albumItemId: albumItemId.present ? albumItemId.value : this.albumItemId,
+    albumName: albumName.present ? albumName.value : this.albumName,
+    trackNumber: trackNumber.present ? trackNumber.value : this.trackNumber,
+    discNumber: discNumber.present ? discNumber.value : this.discNumber,
+    durationMicros: durationMicros.present
+        ? durationMicros.value
+        : this.durationMicros,
+    normalizationGain: normalizationGain.present
+        ? normalizationGain.value
+        : this.normalizationGain,
+    imageItemId: imageItemId.present ? imageItemId.value : this.imageItemId,
+    imageKind: imageKind.present ? imageKind.value : this.imageKind,
+    imageTag: imageTag.present ? imageTag.value : this.imageTag,
+    imageAspectRatio: imageAspectRatio.present
+        ? imageAspectRatio.value
+        : this.imageAspectRatio,
+    requestedAt: requestedAt ?? this.requestedAt,
+  );
+  TrackDownloadRow copyWithCompanion(TrackDownloadsCompanion data) {
+    return TrackDownloadRow(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      state: data.state.present ? data.state.value : this.state,
+      failureReason: data.failureReason.present
+          ? data.failureReason.value
+          : this.failureReason,
+      receivedBytes: data.receivedBytes.present
+          ? data.receivedBytes.value
+          : this.receivedBytes,
+      totalBytes: data.totalBytes.present
+          ? data.totalBytes.value
+          : this.totalBytes,
+      title: data.title.present ? data.title.value : this.title,
+      artistsJson: data.artistsJson.present
+          ? data.artistsJson.value
+          : this.artistsJson,
+      albumItemId: data.albumItemId.present
+          ? data.albumItemId.value
+          : this.albumItemId,
+      albumName: data.albumName.present ? data.albumName.value : this.albumName,
+      trackNumber: data.trackNumber.present
+          ? data.trackNumber.value
+          : this.trackNumber,
+      discNumber: data.discNumber.present
+          ? data.discNumber.value
+          : this.discNumber,
+      durationMicros: data.durationMicros.present
+          ? data.durationMicros.value
+          : this.durationMicros,
+      normalizationGain: data.normalizationGain.present
+          ? data.normalizationGain.value
+          : this.normalizationGain,
+      imageItemId: data.imageItemId.present
+          ? data.imageItemId.value
+          : this.imageItemId,
+      imageKind: data.imageKind.present ? data.imageKind.value : this.imageKind,
+      imageTag: data.imageTag.present ? data.imageTag.value : this.imageTag,
+      imageAspectRatio: data.imageAspectRatio.present
+          ? data.imageAspectRatio.value
+          : this.imageAspectRatio,
+      requestedAt: data.requestedAt.present
+          ? data.requestedAt.value
+          : this.requestedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackDownloadRow(')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('state: $state, ')
+          ..write('failureReason: $failureReason, ')
+          ..write('receivedBytes: $receivedBytes, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('title: $title, ')
+          ..write('artistsJson: $artistsJson, ')
+          ..write('albumItemId: $albumItemId, ')
+          ..write('albumName: $albumName, ')
+          ..write('trackNumber: $trackNumber, ')
+          ..write('discNumber: $discNumber, ')
+          ..write('durationMicros: $durationMicros, ')
+          ..write('normalizationGain: $normalizationGain, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('requestedAt: $requestedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    serverId,
+    itemId,
+    state,
+    failureReason,
+    receivedBytes,
+    totalBytes,
+    title,
+    artistsJson,
+    albumItemId,
+    albumName,
+    trackNumber,
+    discNumber,
+    durationMicros,
+    normalizationGain,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    requestedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TrackDownloadRow &&
+          other.serverId == this.serverId &&
+          other.itemId == this.itemId &&
+          other.state == this.state &&
+          other.failureReason == this.failureReason &&
+          other.receivedBytes == this.receivedBytes &&
+          other.totalBytes == this.totalBytes &&
+          other.title == this.title &&
+          other.artistsJson == this.artistsJson &&
+          other.albumItemId == this.albumItemId &&
+          other.albumName == this.albumName &&
+          other.trackNumber == this.trackNumber &&
+          other.discNumber == this.discNumber &&
+          other.durationMicros == this.durationMicros &&
+          other.normalizationGain == this.normalizationGain &&
+          other.imageItemId == this.imageItemId &&
+          other.imageKind == this.imageKind &&
+          other.imageTag == this.imageTag &&
+          other.imageAspectRatio == this.imageAspectRatio &&
+          other.requestedAt == this.requestedAt);
+}
+
+class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
+  final Value<String> serverId;
+  final Value<String> itemId;
+  final Value<String> state;
+  final Value<String?> failureReason;
+  final Value<int> receivedBytes;
+  final Value<int?> totalBytes;
+  final Value<String> title;
+  final Value<String?> artistsJson;
+  final Value<String?> albumItemId;
+  final Value<String?> albumName;
+  final Value<int?> trackNumber;
+  final Value<int?> discNumber;
+  final Value<int?> durationMicros;
+  final Value<double?> normalizationGain;
+  final Value<String?> imageItemId;
+  final Value<String?> imageKind;
+  final Value<String?> imageTag;
+  final Value<double?> imageAspectRatio;
+  final Value<int> requestedAt;
+  final Value<int> rowid;
+  const TrackDownloadsCompanion({
+    this.serverId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.state = const Value.absent(),
+    this.failureReason = const Value.absent(),
+    this.receivedBytes = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    this.title = const Value.absent(),
+    this.artistsJson = const Value.absent(),
+    this.albumItemId = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.trackNumber = const Value.absent(),
+    this.discNumber = const Value.absent(),
+    this.durationMicros = const Value.absent(),
+    this.normalizationGain = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.requestedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TrackDownloadsCompanion.insert({
+    required String serverId,
+    required String itemId,
+    required String state,
+    this.failureReason = const Value.absent(),
+    this.receivedBytes = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    required String title,
+    this.artistsJson = const Value.absent(),
+    this.albumItemId = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.trackNumber = const Value.absent(),
+    this.discNumber = const Value.absent(),
+    this.durationMicros = const Value.absent(),
+    this.normalizationGain = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    required int requestedAt,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       itemId = Value(itemId),
+       state = Value(state),
+       title = Value(title),
+       requestedAt = Value(requestedAt);
+  static Insertable<TrackDownloadRow> custom({
+    Expression<String>? serverId,
+    Expression<String>? itemId,
+    Expression<String>? state,
+    Expression<String>? failureReason,
+    Expression<int>? receivedBytes,
+    Expression<int>? totalBytes,
+    Expression<String>? title,
+    Expression<String>? artistsJson,
+    Expression<String>? albumItemId,
+    Expression<String>? albumName,
+    Expression<int>? trackNumber,
+    Expression<int>? discNumber,
+    Expression<int>? durationMicros,
+    Expression<double>? normalizationGain,
+    Expression<String>? imageItemId,
+    Expression<String>? imageKind,
+    Expression<String>? imageTag,
+    Expression<double>? imageAspectRatio,
+    Expression<int>? requestedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (itemId != null) 'item_id': itemId,
+      if (state != null) 'state': state,
+      if (failureReason != null) 'failure_reason': failureReason,
+      if (receivedBytes != null) 'received_bytes': receivedBytes,
+      if (totalBytes != null) 'total_bytes': totalBytes,
+      if (title != null) 'title': title,
+      if (artistsJson != null) 'artists_json': artistsJson,
+      if (albumItemId != null) 'album_item_id': albumItemId,
+      if (albumName != null) 'album_name': albumName,
+      if (trackNumber != null) 'track_number': trackNumber,
+      if (discNumber != null) 'disc_number': discNumber,
+      if (durationMicros != null) 'duration_micros': durationMicros,
+      if (normalizationGain != null) 'normalization_gain': normalizationGain,
+      if (imageItemId != null) 'image_item_id': imageItemId,
+      if (imageKind != null) 'image_kind': imageKind,
+      if (imageTag != null) 'image_tag': imageTag,
+      if (imageAspectRatio != null) 'image_aspect_ratio': imageAspectRatio,
+      if (requestedAt != null) 'requested_at': requestedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TrackDownloadsCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? itemId,
+    Value<String>? state,
+    Value<String?>? failureReason,
+    Value<int>? receivedBytes,
+    Value<int?>? totalBytes,
+    Value<String>? title,
+    Value<String?>? artistsJson,
+    Value<String?>? albumItemId,
+    Value<String?>? albumName,
+    Value<int?>? trackNumber,
+    Value<int?>? discNumber,
+    Value<int?>? durationMicros,
+    Value<double?>? normalizationGain,
+    Value<String?>? imageItemId,
+    Value<String?>? imageKind,
+    Value<String?>? imageTag,
+    Value<double?>? imageAspectRatio,
+    Value<int>? requestedAt,
+    Value<int>? rowid,
+  }) {
+    return TrackDownloadsCompanion(
+      serverId: serverId ?? this.serverId,
+      itemId: itemId ?? this.itemId,
+      state: state ?? this.state,
+      failureReason: failureReason ?? this.failureReason,
+      receivedBytes: receivedBytes ?? this.receivedBytes,
+      totalBytes: totalBytes ?? this.totalBytes,
+      title: title ?? this.title,
+      artistsJson: artistsJson ?? this.artistsJson,
+      albumItemId: albumItemId ?? this.albumItemId,
+      albumName: albumName ?? this.albumName,
+      trackNumber: trackNumber ?? this.trackNumber,
+      discNumber: discNumber ?? this.discNumber,
+      durationMicros: durationMicros ?? this.durationMicros,
+      normalizationGain: normalizationGain ?? this.normalizationGain,
+      imageItemId: imageItemId ?? this.imageItemId,
+      imageKind: imageKind ?? this.imageKind,
+      imageTag: imageTag ?? this.imageTag,
+      imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
+      requestedAt: requestedAt ?? this.requestedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (failureReason.present) {
+      map['failure_reason'] = Variable<String>(failureReason.value);
+    }
+    if (receivedBytes.present) {
+      map['received_bytes'] = Variable<int>(receivedBytes.value);
+    }
+    if (totalBytes.present) {
+      map['total_bytes'] = Variable<int>(totalBytes.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (artistsJson.present) {
+      map['artists_json'] = Variable<String>(artistsJson.value);
+    }
+    if (albumItemId.present) {
+      map['album_item_id'] = Variable<String>(albumItemId.value);
+    }
+    if (albumName.present) {
+      map['album_name'] = Variable<String>(albumName.value);
+    }
+    if (trackNumber.present) {
+      map['track_number'] = Variable<int>(trackNumber.value);
+    }
+    if (discNumber.present) {
+      map['disc_number'] = Variable<int>(discNumber.value);
+    }
+    if (durationMicros.present) {
+      map['duration_micros'] = Variable<int>(durationMicros.value);
+    }
+    if (normalizationGain.present) {
+      map['normalization_gain'] = Variable<double>(normalizationGain.value);
+    }
+    if (imageItemId.present) {
+      map['image_item_id'] = Variable<String>(imageItemId.value);
+    }
+    if (imageKind.present) {
+      map['image_kind'] = Variable<String>(imageKind.value);
+    }
+    if (imageTag.present) {
+      map['image_tag'] = Variable<String>(imageTag.value);
+    }
+    if (imageAspectRatio.present) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio.value);
+    }
+    if (requestedAt.present) {
+      map['requested_at'] = Variable<int>(requestedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackDownloadsCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('state: $state, ')
+          ..write('failureReason: $failureReason, ')
+          ..write('receivedBytes: $receivedBytes, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('title: $title, ')
+          ..write('artistsJson: $artistsJson, ')
+          ..write('albumItemId: $albumItemId, ')
+          ..write('albumName: $albumName, ')
+          ..write('trackNumber: $trackNumber, ')
+          ..write('discNumber: $discNumber, ')
+          ..write('durationMicros: $durationMicros, ')
+          ..write('normalizationGain: $normalizationGain, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('requestedAt: $requestedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DownloadOwnersTable extends DownloadOwners
+    with TableInfo<$DownloadOwnersTable, DownloadOwnerRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadOwnersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerKindMeta = const VerificationMeta(
+    'ownerKind',
+  );
+  @override
+  late final GeneratedColumn<String> ownerKind = GeneratedColumn<String>(
+    'owner_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerItemIdMeta = const VerificationMeta(
+    'ownerItemId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerItemId = GeneratedColumn<String>(
+    'owner_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    itemId,
+    ownerKind,
+    ownerItemId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'download_owners';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DownloadOwnerRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('owner_kind')) {
+      context.handle(
+        _ownerKindMeta,
+        ownerKind.isAcceptableOrUnknown(data['owner_kind']!, _ownerKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerKindMeta);
+    }
+    if (data.containsKey('owner_item_id')) {
+      context.handle(
+        _ownerItemIdMeta,
+        ownerItemId.isAcceptableOrUnknown(
+          data['owner_item_id']!,
+          _ownerItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerItemIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    serverId,
+    itemId,
+    ownerKind,
+    ownerItemId,
+  };
+  @override
+  DownloadOwnerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DownloadOwnerRow(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      ownerKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_kind'],
+      )!,
+      ownerItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_item_id'],
+      )!,
+    );
+  }
+
+  @override
+  $DownloadOwnersTable createAlias(String alias) {
+    return $DownloadOwnersTable(attachedDatabase, alias);
+  }
+}
+
+class DownloadOwnerRow extends DataClass
+    implements Insertable<DownloadOwnerRow> {
+  final String serverId;
+
+  /// The downloaded track's item id.
+  final String itemId;
+
+  /// `DownloadOwnerKind.name` — `track` or `album` today.
+  final String ownerKind;
+
+  /// The owning item's id on the same server (the track's own id for a
+  /// `track` owner, the album's for an `album` owner).
+  final String ownerItemId;
+  const DownloadOwnerRow({
+    required this.serverId,
+    required this.itemId,
+    required this.ownerKind,
+    required this.ownerItemId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['item_id'] = Variable<String>(itemId);
+    map['owner_kind'] = Variable<String>(ownerKind);
+    map['owner_item_id'] = Variable<String>(ownerItemId);
+    return map;
+  }
+
+  DownloadOwnersCompanion toCompanion(bool nullToAbsent) {
+    return DownloadOwnersCompanion(
+      serverId: Value(serverId),
+      itemId: Value(itemId),
+      ownerKind: Value(ownerKind),
+      ownerItemId: Value(ownerItemId),
+    );
+  }
+
+  factory DownloadOwnerRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DownloadOwnerRow(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      ownerKind: serializer.fromJson<String>(json['ownerKind']),
+      ownerItemId: serializer.fromJson<String>(json['ownerItemId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'itemId': serializer.toJson<String>(itemId),
+      'ownerKind': serializer.toJson<String>(ownerKind),
+      'ownerItemId': serializer.toJson<String>(ownerItemId),
+    };
+  }
+
+  DownloadOwnerRow copyWith({
+    String? serverId,
+    String? itemId,
+    String? ownerKind,
+    String? ownerItemId,
+  }) => DownloadOwnerRow(
+    serverId: serverId ?? this.serverId,
+    itemId: itemId ?? this.itemId,
+    ownerKind: ownerKind ?? this.ownerKind,
+    ownerItemId: ownerItemId ?? this.ownerItemId,
+  );
+  DownloadOwnerRow copyWithCompanion(DownloadOwnersCompanion data) {
+    return DownloadOwnerRow(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      ownerKind: data.ownerKind.present ? data.ownerKind.value : this.ownerKind,
+      ownerItemId: data.ownerItemId.present
+          ? data.ownerItemId.value
+          : this.ownerItemId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadOwnerRow(')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('ownerKind: $ownerKind, ')
+          ..write('ownerItemId: $ownerItemId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(serverId, itemId, ownerKind, ownerItemId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DownloadOwnerRow &&
+          other.serverId == this.serverId &&
+          other.itemId == this.itemId &&
+          other.ownerKind == this.ownerKind &&
+          other.ownerItemId == this.ownerItemId);
+}
+
+class DownloadOwnersCompanion extends UpdateCompanion<DownloadOwnerRow> {
+  final Value<String> serverId;
+  final Value<String> itemId;
+  final Value<String> ownerKind;
+  final Value<String> ownerItemId;
+  final Value<int> rowid;
+  const DownloadOwnersCompanion({
+    this.serverId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.ownerKind = const Value.absent(),
+    this.ownerItemId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DownloadOwnersCompanion.insert({
+    required String serverId,
+    required String itemId,
+    required String ownerKind,
+    required String ownerItemId,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       itemId = Value(itemId),
+       ownerKind = Value(ownerKind),
+       ownerItemId = Value(ownerItemId);
+  static Insertable<DownloadOwnerRow> custom({
+    Expression<String>? serverId,
+    Expression<String>? itemId,
+    Expression<String>? ownerKind,
+    Expression<String>? ownerItemId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (itemId != null) 'item_id': itemId,
+      if (ownerKind != null) 'owner_kind': ownerKind,
+      if (ownerItemId != null) 'owner_item_id': ownerItemId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DownloadOwnersCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? itemId,
+    Value<String>? ownerKind,
+    Value<String>? ownerItemId,
+    Value<int>? rowid,
+  }) {
+    return DownloadOwnersCompanion(
+      serverId: serverId ?? this.serverId,
+      itemId: itemId ?? this.itemId,
+      ownerKind: ownerKind ?? this.ownerKind,
+      ownerItemId: ownerItemId ?? this.ownerItemId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (ownerKind.present) {
+      map['owner_kind'] = Variable<String>(ownerKind.value);
+    }
+    if (ownerItemId.present) {
+      map['owner_item_id'] = Variable<String>(ownerItemId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadOwnersCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('ownerKind: $ownerKind, ')
+          ..write('ownerItemId: $ownerItemId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3618,6 +5088,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CachedCollectionEntriesTable cachedCollectionEntries =
       $CachedCollectionEntriesTable(this);
   late final $QueueEntriesTable queueEntries = $QueueEntriesTable(this);
+  late final $TrackDownloadsTable trackDownloads = $TrackDownloadsTable(this);
+  late final $DownloadOwnersTable downloadOwners = $DownloadOwnersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3630,6 +5102,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     cachedCollections,
     cachedCollectionEntries,
     queueEntries,
+    trackDownloads,
+    downloadOwners,
   ];
 }
 
@@ -5451,6 +6925,691 @@ typedef $$QueueEntriesTableProcessedTableManager =
       QueueEntryRow,
       PrefetchHooks Function()
     >;
+typedef $$TrackDownloadsTableCreateCompanionBuilder =
+    TrackDownloadsCompanion Function({
+      required String serverId,
+      required String itemId,
+      required String state,
+      Value<String?> failureReason,
+      Value<int> receivedBytes,
+      Value<int?> totalBytes,
+      required String title,
+      Value<String?> artistsJson,
+      Value<String?> albumItemId,
+      Value<String?> albumName,
+      Value<int?> trackNumber,
+      Value<int?> discNumber,
+      Value<int?> durationMicros,
+      Value<double?> normalizationGain,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      required int requestedAt,
+      Value<int> rowid,
+    });
+typedef $$TrackDownloadsTableUpdateCompanionBuilder =
+    TrackDownloadsCompanion Function({
+      Value<String> serverId,
+      Value<String> itemId,
+      Value<String> state,
+      Value<String?> failureReason,
+      Value<int> receivedBytes,
+      Value<int?> totalBytes,
+      Value<String> title,
+      Value<String?> artistsJson,
+      Value<String?> albumItemId,
+      Value<String?> albumName,
+      Value<int?> trackNumber,
+      Value<int?> discNumber,
+      Value<int?> durationMicros,
+      Value<double?> normalizationGain,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<int> requestedAt,
+      Value<int> rowid,
+    });
+
+class $$TrackDownloadsTableFilterComposer
+    extends Composer<_$AppDatabase, $TrackDownloadsTable> {
+  $$TrackDownloadsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get failureReason => $composableBuilder(
+    column: $table.failureReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get receivedBytes => $composableBuilder(
+    column: $table.receivedBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get trackNumber => $composableBuilder(
+    column: $table.trackNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get discNumber => $composableBuilder(
+    column: $table.discNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get normalizationGain => $composableBuilder(
+    column: $table.normalizationGain,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get requestedAt => $composableBuilder(
+    column: $table.requestedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TrackDownloadsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TrackDownloadsTable> {
+  $$TrackDownloadsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get failureReason => $composableBuilder(
+    column: $table.failureReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get receivedBytes => $composableBuilder(
+    column: $table.receivedBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get trackNumber => $composableBuilder(
+    column: $table.trackNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get discNumber => $composableBuilder(
+    column: $table.discNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get normalizationGain => $composableBuilder(
+    column: $table.normalizationGain,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get requestedAt => $composableBuilder(
+    column: $table.requestedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TrackDownloadsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TrackDownloadsTable> {
+  $$TrackDownloadsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get failureReason => $composableBuilder(
+    column: $table.failureReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get receivedBytes => $composableBuilder(
+    column: $table.receivedBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumName =>
+      $composableBuilder(column: $table.albumName, builder: (column) => column);
+
+  GeneratedColumn<int> get trackNumber => $composableBuilder(
+    column: $table.trackNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get discNumber => $composableBuilder(
+    column: $table.discNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMicros => $composableBuilder(
+    column: $table.durationMicros,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get normalizationGain => $composableBuilder(
+    column: $table.normalizationGain,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageKind =>
+      $composableBuilder(column: $table.imageKind, builder: (column) => column);
+
+  GeneratedColumn<String> get imageTag =>
+      $composableBuilder(column: $table.imageTag, builder: (column) => column);
+
+  GeneratedColumn<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get requestedAt => $composableBuilder(
+    column: $table.requestedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$TrackDownloadsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TrackDownloadsTable,
+          TrackDownloadRow,
+          $$TrackDownloadsTableFilterComposer,
+          $$TrackDownloadsTableOrderingComposer,
+          $$TrackDownloadsTableAnnotationComposer,
+          $$TrackDownloadsTableCreateCompanionBuilder,
+          $$TrackDownloadsTableUpdateCompanionBuilder,
+          (
+            TrackDownloadRow,
+            BaseReferences<
+              _$AppDatabase,
+              $TrackDownloadsTable,
+              TrackDownloadRow
+            >,
+          ),
+          TrackDownloadRow,
+          PrefetchHooks Function()
+        > {
+  $$TrackDownloadsTableTableManager(
+    _$AppDatabase db,
+    $TrackDownloadsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TrackDownloadsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TrackDownloadsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TrackDownloadsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> failureReason = const Value.absent(),
+                Value<int> receivedBytes = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> artistsJson = const Value.absent(),
+                Value<String?> albumItemId = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int?> trackNumber = const Value.absent(),
+                Value<int?> discNumber = const Value.absent(),
+                Value<int?> durationMicros = const Value.absent(),
+                Value<double?> normalizationGain = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<int> requestedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TrackDownloadsCompanion(
+                serverId: serverId,
+                itemId: itemId,
+                state: state,
+                failureReason: failureReason,
+                receivedBytes: receivedBytes,
+                totalBytes: totalBytes,
+                title: title,
+                artistsJson: artistsJson,
+                albumItemId: albumItemId,
+                albumName: albumName,
+                trackNumber: trackNumber,
+                discNumber: discNumber,
+                durationMicros: durationMicros,
+                normalizationGain: normalizationGain,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                requestedAt: requestedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String itemId,
+                required String state,
+                Value<String?> failureReason = const Value.absent(),
+                Value<int> receivedBytes = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                required String title,
+                Value<String?> artistsJson = const Value.absent(),
+                Value<String?> albumItemId = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int?> trackNumber = const Value.absent(),
+                Value<int?> discNumber = const Value.absent(),
+                Value<int?> durationMicros = const Value.absent(),
+                Value<double?> normalizationGain = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                required int requestedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TrackDownloadsCompanion.insert(
+                serverId: serverId,
+                itemId: itemId,
+                state: state,
+                failureReason: failureReason,
+                receivedBytes: receivedBytes,
+                totalBytes: totalBytes,
+                title: title,
+                artistsJson: artistsJson,
+                albumItemId: albumItemId,
+                albumName: albumName,
+                trackNumber: trackNumber,
+                discNumber: discNumber,
+                durationMicros: durationMicros,
+                normalizationGain: normalizationGain,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                requestedAt: requestedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TrackDownloadsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TrackDownloadsTable,
+      TrackDownloadRow,
+      $$TrackDownloadsTableFilterComposer,
+      $$TrackDownloadsTableOrderingComposer,
+      $$TrackDownloadsTableAnnotationComposer,
+      $$TrackDownloadsTableCreateCompanionBuilder,
+      $$TrackDownloadsTableUpdateCompanionBuilder,
+      (
+        TrackDownloadRow,
+        BaseReferences<_$AppDatabase, $TrackDownloadsTable, TrackDownloadRow>,
+      ),
+      TrackDownloadRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DownloadOwnersTableCreateCompanionBuilder =
+    DownloadOwnersCompanion Function({
+      required String serverId,
+      required String itemId,
+      required String ownerKind,
+      required String ownerItemId,
+      Value<int> rowid,
+    });
+typedef $$DownloadOwnersTableUpdateCompanionBuilder =
+    DownloadOwnersCompanion Function({
+      Value<String> serverId,
+      Value<String> itemId,
+      Value<String> ownerKind,
+      Value<String> ownerItemId,
+      Value<int> rowid,
+    });
+
+class $$DownloadOwnersTableFilterComposer
+    extends Composer<_$AppDatabase, $DownloadOwnersTable> {
+  $$DownloadOwnersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerKind => $composableBuilder(
+    column: $table.ownerKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerItemId => $composableBuilder(
+    column: $table.ownerItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadOwnersTableOrderingComposer
+    extends Composer<_$AppDatabase, $DownloadOwnersTable> {
+  $$DownloadOwnersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerKind => $composableBuilder(
+    column: $table.ownerKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerItemId => $composableBuilder(
+    column: $table.ownerItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadOwnersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DownloadOwnersTable> {
+  $$DownloadOwnersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerKind =>
+      $composableBuilder(column: $table.ownerKind, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerItemId => $composableBuilder(
+    column: $table.ownerItemId,
+    builder: (column) => column,
+  );
+}
+
+class $$DownloadOwnersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DownloadOwnersTable,
+          DownloadOwnerRow,
+          $$DownloadOwnersTableFilterComposer,
+          $$DownloadOwnersTableOrderingComposer,
+          $$DownloadOwnersTableAnnotationComposer,
+          $$DownloadOwnersTableCreateCompanionBuilder,
+          $$DownloadOwnersTableUpdateCompanionBuilder,
+          (
+            DownloadOwnerRow,
+            BaseReferences<
+              _$AppDatabase,
+              $DownloadOwnersTable,
+              DownloadOwnerRow
+            >,
+          ),
+          DownloadOwnerRow,
+          PrefetchHooks Function()
+        > {
+  $$DownloadOwnersTableTableManager(
+    _$AppDatabase db,
+    $DownloadOwnersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadOwnersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DownloadOwnersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DownloadOwnersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> ownerKind = const Value.absent(),
+                Value<String> ownerItemId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadOwnersCompanion(
+                serverId: serverId,
+                itemId: itemId,
+                ownerKind: ownerKind,
+                ownerItemId: ownerItemId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String itemId,
+                required String ownerKind,
+                required String ownerItemId,
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadOwnersCompanion.insert(
+                serverId: serverId,
+                itemId: itemId,
+                ownerKind: ownerKind,
+                ownerItemId: ownerItemId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadOwnersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DownloadOwnersTable,
+      DownloadOwnerRow,
+      $$DownloadOwnersTableFilterComposer,
+      $$DownloadOwnersTableOrderingComposer,
+      $$DownloadOwnersTableAnnotationComposer,
+      $$DownloadOwnersTableCreateCompanionBuilder,
+      $$DownloadOwnersTableUpdateCompanionBuilder,
+      (
+        DownloadOwnerRow,
+        BaseReferences<_$AppDatabase, $DownloadOwnersTable, DownloadOwnerRow>,
+      ),
+      DownloadOwnerRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5472,4 +7631,8 @@ class $AppDatabaseManager {
       );
   $$QueueEntriesTableTableManager get queueEntries =>
       $$QueueEntriesTableTableManager(_db, _db.queueEntries);
+  $$TrackDownloadsTableTableManager get trackDownloads =>
+      $$TrackDownloadsTableTableManager(_db, _db.trackDownloads);
+  $$DownloadOwnersTableTableManager get downloadOwners =>
+      $$DownloadOwnersTableTableManager(_db, _db.downloadOwners);
 }

@@ -13,8 +13,8 @@ void main() {
     setUp(() => db = newTestDatabase());
     tearDown(() => db.close());
 
-    test('is at schema version 3', () {
-      expect(db.schemaVersion, 3);
+    test('is at schema version 4', () {
+      expect(db.schemaVersion, 4);
     });
 
     test('creates every declared table', () async {
@@ -37,6 +37,8 @@ void main() {
           'cached_collections',
           'cached_collection_entries',
           'queue_entries',
+          'track_downloads',
+          'download_owners',
         ]),
       );
     });
@@ -53,6 +55,7 @@ void main() {
 
       expect(indexes, contains('idx_saved_accounts_server_id'));
       expect(indexes, contains('idx_saved_servers_base_url'));
+      expect(indexes, contains('idx_download_owners_owner'));
     });
 
     test('enables foreign-key enforcement on open', () async {
@@ -81,6 +84,6 @@ void main() {
       second.keyValueEntries,
     )..where((t) => t.key.equals('k'))).getSingle();
     expect(row.value, 'v');
-    expect(second.schemaVersion, 3);
+    expect(second.schemaVersion, 4);
   });
 }

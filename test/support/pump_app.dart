@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/app/JellyfinityApp.dart';
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
@@ -11,6 +12,7 @@ import 'package:jellyfinity/design/design.dart';
 import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
+import 'download_fakes.dart';
 import 'playback_fakes.dart';
 import 'session_fakes.dart';
 import 'settings_fakes.dart';
@@ -25,7 +27,10 @@ import 'settings_fakes.dart';
 /// shell (mini-player, header, sidebar) has something to read. Pass
 /// [trackSourceInfoResolver] to control what Now Playing's source-quality
 /// hint (ADR-0015) shows; otherwise it stays hidden. Pass [lyricsResolver] to
-/// control what the Lyrics view (v0.1.5) shows; otherwise it has none.
+/// control what the Lyrics view (v0.1.5) shows; otherwise it has none. Pass
+/// [downloads] to drive or assert on the download system (v0.2.0);
+/// otherwise a fake-backed cubit is built so track rows and album
+/// headers have download state to read.
 ///
 /// [restore] defaults to `true` (the ordinary post-sign-in-restore state
 /// every other test wants); pass `false` for a test that specifically
@@ -43,6 +48,7 @@ Future<TestSessionScope> pumpApp(
   PlaybackCubit? playback,
   SettingsCubit? settings,
   MediaScopeCubit? mediaScope,
+  DownloadsCubit? downloads,
   TrackSourceInfoResolver? trackSourceInfoResolver,
   LyricsResolver? lyricsResolver,
   bool restore = true,
@@ -69,6 +75,8 @@ Future<TestSessionScope> pumpApp(
   addTearDown(settingsCubit.close);
   final mediaScopeCubit = mediaScope ?? fakeMediaScopeCubit();
   addTearDown(mediaScopeCubit.close);
+  final downloadsCubit = downloads ?? fakeDownloadsCubit();
+  addTearDown(downloadsCubit.close);
   // NowPlayingPage is a root route the router builds with no constructor
   // args, reading TrackSourceInfoCubit straight from getIt — reachable
   // from every pumpApp test via the mini-player, so this is registered
@@ -90,6 +98,7 @@ Future<TestSessionScope> pumpApp(
       playback: playbackCubit,
       settings: settingsCubit,
       mediaScope: mediaScopeCubit,
+      downloads: downloadsCubit,
     ),
   );
   if (restore) {
@@ -101,16 +110,28 @@ Future<TestSessionScope> pumpApp(
 
 /// Pumps a single widget inside the real [AppTheme] (dark) so
 /// `context.tokens` resolves. Use for isolated design-component tests.
+///
+/// [SessionCubit] and [DownloadsCubit] are provided unconditionally, for
+/// the same reason `JellyfinityApp` provides them at the root: they are
+/// cross-cutting app state that ordinary widgets (a track row's download
+/// control, for one) read wherever they are shown. Pass [downloads] when
+/// a test drives or asserts on download state.
 Future<void> pumpThemed(
   WidgetTester tester,
   Widget child, {
   SessionCubit? session,
+  DownloadsCubit? downloads,
 }) async {
   final s = session ?? TestSessionScope().cubit;
   addTearDown(s.close);
+  final downloadsCubit = downloads ?? fakeDownloadsCubit();
+  addTearDown(downloadsCubit.close);
   await tester.pumpWidget(
-    BlocProvider<SessionCubit>.value(
-      value: s,
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<SessionCubit>.value(value: s),
+        BlocProvider<DownloadsCubit>.value(value: downloadsCubit),
+      ],
       child: MaterialApp(
         theme: AppTheme.dark(),
         home: Scaffold(body: child),

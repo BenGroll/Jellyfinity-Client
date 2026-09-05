@@ -8,6 +8,7 @@ import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
+import '../widgets/download_controls.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/MediaPlaybackActionsRow.dart';
 import '../widgets/media_formatting.dart';
@@ -116,6 +117,10 @@ class _PlaylistDetailView extends StatelessWidget {
                       track.availability == MediaAvailability.remoteUnavailable
                       ? null
                       : () => context.read<PlaybackCubit>().addToQueue(track),
+                  downloadAction:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : TrackDownloadButton(track: track),
                 ),
               );
             },

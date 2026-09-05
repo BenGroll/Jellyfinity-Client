@@ -24,6 +24,12 @@ import '../identity/JellyfinSessionContext.dart';
 /// to a native platform player, which fetches it directly and does not
 /// go through `JellyfinHttpClient`'s interceptors, so there is no other
 /// way to authenticate the request.
+///
+/// Registered under a name rather than as *the* [AudioSourceResolver]:
+/// from v0.2.0 the resolver the application plays through is
+/// `LocalFirstAudioSourceResolver`, which prefers a completed download
+/// and falls back to this one.
+@Named(remoteAudioSourceResolver)
 @LazySingleton(as: AudioSourceResolver)
 class JellyfinAudioSourceResolver implements AudioSourceResolver {
   JellyfinAudioSourceResolver(this._context, this._authTokenProvider);
