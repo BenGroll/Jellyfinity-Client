@@ -228,3 +228,22 @@ All notable changes to Jellyfinity are documented here.
   transient failure as permanent. Now Playing shows the source file's own
   format/bitrate and, when a transcode is likely, what it is being
   transcoded to.
+- Added playlist curation (ADR-0016, v0.1.2): a new `PlaylistEditor`
+  contract (separate from the read-only `PlaylistRepository`) backs
+  create, rename, delete, add tracks, remove entries and reorder, all
+  writing straight through to Jellyfin. The Playlists tab gains New
+  Playlist and Merge actions and per-playlist Rename/Delete; every track
+  row's overflow menu gains Add to Playlist, backed by a shared picker
+  sheet (pick an existing playlist or create one on the spot); album,
+  artist and playlist headers gain a bulk Add to Playlist button that
+  copies every track of that album/artist/playlist across, paging
+  through the whole source first. Merging combines two or more playlists
+  into a brand-new one, in order, with an option to delete the sources
+  only after they have been fully copied. `PlaylistDetailPage` gains an
+  edit mode (`PlaylistEditCubit`) for `ReorderableListView`-style
+  reorder/remove over the whole playlist, loaded in full only while
+  editing; ordinary browsing stays windowed. A playlist entry is now
+  identified by its own per-entry id (`Track.playlistEntryId`, from
+  Jellyfin's `PlaylistItemId`) rather than its track id, so a track
+  present twice in the same playlist can be removed/reordered
+  independently.
