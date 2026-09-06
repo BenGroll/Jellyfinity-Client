@@ -35,6 +35,7 @@ export 'PlaybackProgress.dart';
 export 'PlaybackProgressRepository.dart';
 export 'Playlist.dart';
 export 'PlaylistRepository.dart';
+export 'PlaylistTrack.dart';
 export 'Season.dart';
 export 'Series.dart';
 export 'Track.dart';

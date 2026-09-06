@@ -21,6 +21,7 @@ class BaseItemDto {
     this.id,
     this.name,
     this.type,
+    this.playlistItemId,
     this.locationType,
     this.productionYear,
     this.indexNumber,
@@ -57,6 +58,14 @@ class BaseItemDto {
   /// `Movie`, `Series`, `Season`, `Episode`, and many more Jellyfinity
   /// does not model.
   final String? type;
+
+  /// The playlist's own handle for this row, present only when the item
+  /// was read through `/Playlists/{id}/Items`.
+  ///
+  /// Not the item's id: a playlist can list the same track three times,
+  /// and each appearance gets its own value. Jellyfin's playlist remove
+  /// and move endpoints take this, not [id].
+  final String? playlistItemId;
 
   /// `Virtual` for an item the library knows about but has no file for —
   /// a missing episode. Jellyfinity shows those as unavailable rather

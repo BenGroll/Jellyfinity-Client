@@ -149,12 +149,42 @@ class CachedPlaylistRepository implements PlaylistRepository {
     );
   }
 
-  /// A write, not a read: nothing here to cache or fall back to. When the
-  /// server cannot be reached the caller sees that failure directly,
-  /// same as any other mutation in this codebase.
+  // ---- Writes ----
+  //
+  // Writes, not reads: nothing here to cache or fall back to. When the
+  // server cannot be reached the caller sees that failure directly, same
+  // as every other mutation in this codebase — a playlist edit is an
+  // instruction to the server, and pretending one succeeded offline would
+  // be inventing state.
+  //
+  // Nor is the saved copy invalidated here. A mutation that succeeded
+  // means the server is reachable, so the caller reloads the list it just
+  // changed, and that read overwrites the cached page on its way through.
+  // Invalidating as well would only widen the window in which an offline
+  // reader sees nothing instead of something slightly stale.
+
   @override
   Future<Result<void>> addTracks(MediaId playlistId, List<MediaId> trackIds) =>
       _remote.addTracks(playlistId, trackIds);
+
+  @override
+  Future<Result<MediaId>> create(
+    String name, {
+    List<MediaId> trackIds = const [],
+  }) => _remote.create(name, trackIds: trackIds);
+
+  @override
+  Future<Result<void>> rename(MediaId playlistId, String name) =>
+      _remote.rename(playlistId, name);
+
+  @override
+  Future<Result<void>> delete(MediaId playlistId) => _remote.delete(playlistId);
+
+  @override
+  Future<Result<void>> removeEntries(
+    MediaId playlistId,
+    List<String> entryIds,
+  ) => _remote.removeEntries(playlistId, entryIds);
 
   /// The saved window, or `null` when there is nothing saved to show —
   /// in which case the caller returns the server's failure, because an

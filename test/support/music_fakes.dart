@@ -265,6 +265,57 @@ class FakePlaylistRepository implements PlaylistRepository {
     addTracksCalls.add((playlistId: playlistId, trackIds: trackIds));
     return const Result.ok(null);
   }
+
+  /// Every curation call, in order, for a test to assert against
+  /// (v0.1.2's completion).
+  final List<({String name, List<MediaId> trackIds})> createCalls = [];
+  final List<({MediaId playlistId, String name})> renameCalls = [];
+  final List<MediaId> deleteCalls = [];
+  final List<({MediaId playlistId, List<String> entryIds})> removeEntryCalls =
+      [];
+
+  /// The id [create] answers with. A test that cares where the new
+  /// playlist went sets this.
+  MediaId createdId = const MediaId(serverId: 'server-1', itemId: 'new-pl');
+
+  /// Set to fail only the writes, leaving reads working — the shape of a
+  /// server that answers queries but refuses a mutation.
+  Failure? writeFailure;
+
+  Result<T> _write<T>(T value) {
+    final failed = writeFailure ?? failure;
+    return failed != null ? Result.err(failed) : Result.ok(value);
+  }
+
+  @override
+  Future<Result<MediaId>> create(
+    String name, {
+    List<MediaId> trackIds = const [],
+  }) async {
+    createCalls.add((name: name, trackIds: trackIds));
+    return _write(createdId);
+  }
+
+  @override
+  Future<Result<void>> rename(MediaId playlistId, String name) async {
+    renameCalls.add((playlistId: playlistId, name: name));
+    return _write(null);
+  }
+
+  @override
+  Future<Result<void>> delete(MediaId playlistId) async {
+    deleteCalls.add(playlistId);
+    return _write(null);
+  }
+
+  @override
+  Future<Result<void>> removeEntries(
+    MediaId playlistId,
+    List<String> entryIds,
+  ) async {
+    removeEntryCalls.add((playlistId: playlistId, entryIds: entryIds));
+    return _write(null);
+  }
 }
 
 /// A [FavoritesRepository] a test controls, recording every call.

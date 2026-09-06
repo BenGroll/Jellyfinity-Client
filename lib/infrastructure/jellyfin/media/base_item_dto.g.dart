@@ -10,6 +10,7 @@ BaseItemDto _$BaseItemDtoFromJson(Map<String, dynamic> json) => BaseItemDto(
   id: json['Id'] as String?,
   name: json['Name'] as String?,
   type: json['Type'] as String?,
+  playlistItemId: json['PlaylistItemId'] as String?,
   locationType: json['LocationType'] as String?,
   productionYear: (json['ProductionYear'] as num?)?.toInt(),
   indexNumber: (json['IndexNumber'] as num?)?.toInt(),

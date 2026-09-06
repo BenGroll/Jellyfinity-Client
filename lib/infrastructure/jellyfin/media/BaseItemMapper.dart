@@ -114,6 +114,35 @@ class BaseItemMapper {
     );
   }
 
+  /// A track read through a playlist, carrying that playlist's handle for
+  /// the row it occupies (v0.1.2's completion).
+  ///
+  /// Falls back to a plain [Track] when the server sent no
+  /// `PlaylistItemId` — the row is still perfectly playable, it just
+  /// cannot be edited, which is the honest thing to show rather than
+  /// dropping it or offering a remove that would fail.
+  Track? toPlaylistTrack(BaseItemDto dto) {
+    final track = toTrack(dto);
+    if (track == null) return null;
+    final entryId = _name(dto.playlistItemId);
+    if (entryId == null) return track;
+    return PlaylistTrack(
+      entryId: entryId,
+      id: track.id,
+      name: track.name,
+      artists: track.artists,
+      albumId: track.albumId,
+      albumName: track.albumName,
+      trackNumber: track.trackNumber,
+      discNumber: track.discNumber,
+      duration: track.duration,
+      normalizationGain: track.normalizationGain,
+      isFavorite: track.isFavorite,
+      availability: track.availability,
+      image: track.image,
+    );
+  }
+
   Playlist? toPlaylist(BaseItemDto dto) {
     if (dto.type != playlistType) return null;
     final id = _id(dto.id);

@@ -101,6 +101,19 @@ class JellyfinMediaApi {
   static String playlistItemsPath(String playlistId) =>
       '/Playlists/$playlistId/Items';
 
+  /// Creating a playlist, and — with an id appended — renaming one
+  /// (v0.1.2's completion). Jellyfin's `UpdatePlaylist` applies only the
+  /// fields the body actually carries, so a rename that sends nothing but
+  /// `Name` leaves the membership alone.
+  static const String playlistsPath = '/Playlists';
+
+  static String playlistPath(String playlistId) => '/Playlists/$playlistId';
+
+  /// Deleting a playlist. A playlist is an ordinary library item to
+  /// Jellyfin, so it is deleted like one — which is also why this takes
+  /// the *playlist's* id and never a track's.
+  static String itemPath(String itemId) => '/Items/$itemId';
+
   /// Marking/unmarking an item as a favorite (v0.1.6). `UserFavoriteItems`
   /// is the current route; the legacy `Users/{userId}/FavoriteItems/{id}`
   /// form still works but is obsolete as of the servers Jellyfinity
@@ -350,6 +363,103 @@ class JellyfinMediaApi {
       playlistItemsPath(playlistId),
       method: 'POST',
       queryParameters: {'userId': active.userId, 'ids': itemIds.join(',')},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Creates a playlist and answers with the new playlist's item id
+  /// (v0.1.2's completion).
+  ///
+  /// `MediaType: Audio` is sent deliberately: without it Jellyfin infers
+  /// the playlist's type from whatever it is seeded with, so an empty new
+  /// playlist would come out untyped and then not appear in the music
+  /// playlist queries this app makes.
+  Future<Result<String>> createPlaylist(
+    String name,
+    List<String> itemIds, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.postJson<String>(
+      playlistsPath,
+      body: {
+        'Name': name,
+        'Ids': itemIds,
+        'UserId': active.userId,
+        'MediaType': 'Audio',
+      },
+      cancelToken: cancelToken,
+      parse: (json) => json['Id'] as String? ?? '',
+    );
+  }
+
+  /// Renames a playlist, leaving its contents alone.
+  Future<Result<void>> renamePlaylist(
+    String playlistId,
+    String name, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      playlistPath(playlistId),
+      method: 'POST',
+      body: {'Name': name},
+      queryParameters: {'userId': active.userId},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Deletes an item. Used for playlists only; nothing in Jellyfinity
+  /// deletes library media.
+  Future<Result<void>> deleteItem(
+    String itemId, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      itemPath(itemId),
+      method: 'DELETE',
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Removes rows from a playlist by their `PlaylistItemId`s.
+  ///
+  /// Entry ids, not item ids: a playlist can list the same track more
+  /// than once, and each appearance is removable on its own.
+  Future<Result<void>> removePlaylistItems(
+    String playlistId,
+    List<String> entryIds, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      playlistItemsPath(playlistId),
+      method: 'DELETE',
+      queryParameters: {
+        'userId': active.userId,
+        'entryIds': entryIds.join(','),
+      },
       cancelToken: cancelToken,
     );
   }
