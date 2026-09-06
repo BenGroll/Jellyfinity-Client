@@ -2,6 +2,46 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## v0.3.1 — Listening history
+
+The first step of the Home arc: Jellyfinity now durably records what the
+signed-in profile listened to, online and off, so later versions can show
+it. Nothing displays it yet.
+
+### Listening history (ADR-0025)
+
+- **Recorded locally, not read from the server.** Jellyfin keeps a
+  last-played date and play count, but reading a "recently played" list
+  out of it is a query against the whole library on the app's busiest
+  screen, and it cannot be read or written offline at all. History is a
+  small local table written by the player.
+- **A play is recorded once it genuinely happened** — 20 seconds of
+  playback, or half of a track whose length is known, or the track
+  finishing on its own. A song skipped after two seconds is not
+  listening. The rule composes with crossfade (ADR-0016), which ends a
+  track early by design, without a special case.
+- **Repetition collapses.** History keeps one entry per *context* — an
+  album, an artist, or a single track played on its own — so an album
+  played straight through is one thing the user did, not twelve, and
+  returning to it a week later moves that one entry back to the top.
+- **Bounded.** At most 100 context entries per profile; the
+  oldest-played is evicted when a new one would exceed that. A year of
+  listening does not make the list longer, only more churned.
+- **Per-profile, like downloads (ADR-0023).** Every row is scoped to the
+  signed-in profile; one profile's listening never appears under
+  another's, and signing out reads empty rather than exposing it.
+- **Offline is not a special case.** Recording is a purely local write,
+  so a downloaded album played on a plane is recorded exactly like a
+  streamed one.
+- The playback queue snapshot (`QueueEntry` / `queue_entries`) gained the
+  album id and artist ids it was missing, so a queued track — and a
+  history entry derived from one — can open its album or artist, not just
+  print the name. Schema v7; a pre-v7 queue row keeps its data with those
+  ids null.
+- Playlists are not yet a history context: the queue does not record what
+  a track was played *from*. That arrives with v0.3.2's "Continue
+  listening".
+
 ## v0.3.0 — Offline music hardening and playlist curation
 
 Bug fixes, lifecycle hardening and release hygiene on top of v0.2.3, plus
