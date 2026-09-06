@@ -69,6 +69,21 @@ Future<void> _seedPartial(
   await partial.writeAsBytes(bytes);
 }
 
+/// Waits for [condition] to hold, rather than for a duration guessed to
+/// be long enough. Fails the test if it never does.
+Future<void> _until(
+  Future<bool> Function() condition, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!await condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('Condition did not hold within $timeout.');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}
+
 HttpDownloadEngine _engine(DownloadStorage storage, FakeDioAdapter adapter) {
   final dio = Dio()..httpClientAdapter = adapter;
   return HttpDownloadEngine(storage, dio: dio);
@@ -255,9 +270,10 @@ void main() {
     final engine = _engine(storage, adapter);
 
     final future = engine.fetch(_id, _source);
-    // Give the stream a moment to deliver its first chunk before
-    // aborting.
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    // Abort only once the first chunk has actually reached the disk —
+    // waiting on the engine's own observable progress rather than on a
+    // fixed delay, which the full suite under load could outrun.
+    await _until(() async => await engine.partialByteCount(_id) > 0);
     await engine.abort(_id);
     gate.complete();
     await future;

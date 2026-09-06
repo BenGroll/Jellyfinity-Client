@@ -16,6 +16,7 @@ import '../widgets/download_controls.dart';
 import '../widgets/downloaded_marker.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
+import '../widgets/playlist_actions.dart';
 import '../widgets/paged_collection_view.dart';
 import 'music_collection_cubits.dart';
 import 'paged_collection_cubit.dart';
@@ -361,13 +362,33 @@ class _PlaylistsTabState extends State<PlaylistsTab>
     return BlocBuilder<PlaylistsCubit, PagedCollectionState<Playlist>>(
       builder: (context, state) {
         final cubit = context.read<PlaylistsCubit>();
+        // Creating a playlist is a write, so it needs the server. Offline
+        // the action is absent rather than present-and-doomed.
+        final offline = context.watch<OfflineCubit>().state.isOffline;
         return PagedCollectionView<Playlist>(
           key: const PageStorageKey('music.playlists'),
           state: state,
+          headerSlivers: [
+            if (!offline)
+              SliverToBoxAdapter(
+                child: _NewPlaylistTile(
+                  onCreated: (id) async {
+                    await cubit.refresh();
+                    if (!context.mounted) return;
+                    context.pushNamed(
+                      RouteNames.libraryPlaylist,
+                      pathParameters: {'id': id.key},
+                    );
+                  },
+                ),
+              ),
+          ],
           skeleton: const MusicListSkeleton(),
           emptyTitle: 'No playlists yet',
-          emptyMessage:
-              'Playlists you create on your Jellyfin server show up here.',
+          emptyMessage: offline
+              ? 'Playlists you have saved show up here.'
+              : 'Make one with "New playlist", or create one on your '
+                    'Jellyfin server.',
           emptyIcon: Icons.queue_music_outlined,
           onLoadMore: cubit.loadMore,
           onRefresh: cubit.refresh,
@@ -385,6 +406,35 @@ class _PlaylistsTabState extends State<PlaylistsTab>
             ),
           ),
         );
+      },
+    );
+  }
+}
+
+/// The "New playlist" row at the top of the Playlists tab (v0.1.2's
+/// completion).
+///
+/// A row rather than a floating button: it sits in the list it adds to,
+/// stays visible when the list is empty — which is exactly when a user
+/// most needs it — and does not float over the last playlist in a long
+/// one.
+class _NewPlaylistTile extends StatelessWidget {
+  const _NewPlaylistTile({required this.onCreated});
+
+  final Future<void> Function(MediaId id) onCreated;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return ListTile(
+      leading: Icon(Icons.add_rounded, color: t.colors.accent),
+      title: Text(
+        'New playlist',
+        style: t.typography.bodyLarge.copyWith(color: t.colors.accent),
+      ),
+      onTap: () async {
+        final created = await createPlaylist(context);
+        if (created != null) await onCreated(created.id);
       },
     );
   }

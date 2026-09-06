@@ -48,6 +48,16 @@ Track testTrack(
 Playlist testPlaylist(String id, {String? name}) =>
     Playlist(id: mediaId(id), name: name ?? 'Playlist $id', itemCount: 3);
 
+/// A track as a playlist read returns it — carrying the entry id that
+/// makes the row removable (v0.1.2's completion).
+PlaylistTrack testPlaylistTrack(String id, {String? entryId, String? name}) =>
+    PlaylistTrack(
+      entryId: entryId ?? 'entry-$id',
+      id: mediaId(id),
+      name: name ?? 'Song $id',
+      artists: const [ArtistRef(name: 'Miles Davis')],
+    );
+
 /// One window of [all], as the repositories would return it.
 Page<T> windowOf<T extends MediaItem>(
   List<T> all,

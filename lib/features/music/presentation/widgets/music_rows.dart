@@ -115,6 +115,7 @@ class TrackRow extends StatelessWidget {
     this.playable = true,
     this.onPlayNext,
     this.onAddToQueue,
+    this.onRemoveFromPlaylist,
     this.downloadAction,
   });
 
@@ -143,6 +144,12 @@ class TrackRow extends StatelessWidget {
   /// Appends [track] to the end of the queue.
   final VoidCallback? onAddToQueue;
 
+  /// Removes this row from the playlist it is being shown in (v0.1.2's
+  /// completion). `null` everywhere but a playlist's own page — and there
+  /// too when the row came from the saved copy, which carries no entry id
+  /// to remove by.
+  final VoidCallback? onRemoveFromPlaylist;
+
   /// The row's download control (v0.2.0), normally a
   /// `TrackDownloadButton`. `null` — the default — leaves the row exactly
   /// as it was, for the same reason [onPlayNext] is optional: a list
@@ -153,7 +160,10 @@ class TrackRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final duration = track.duration;
-    final showMenu = onPlayNext != null || onAddToQueue != null;
+    final showMenu =
+        onPlayNext != null ||
+        onAddToQueue != null ||
+        onRemoveFromPlaylist != null;
 
     return UnavailableContent(
       // Greyed out and non-interactive when it cannot play — the offline
@@ -203,6 +213,7 @@ class TrackRow extends StatelessWidget {
                     _TrackOverflowButton(
                       onPlayNext: onPlayNext,
                       onAddToQueue: onAddToQueue,
+                      onRemoveFromPlaylist: onRemoveFromPlaylist,
                     ),
                 ],
               ),
@@ -216,10 +227,15 @@ class TrackRow extends StatelessWidget {
 /// so it reads the same as a system share sheet instead of a desktop-style
 /// dropdown.
 class _TrackOverflowButton extends StatelessWidget {
-  const _TrackOverflowButton({this.onPlayNext, this.onAddToQueue});
+  const _TrackOverflowButton({
+    this.onPlayNext,
+    this.onAddToQueue,
+    this.onRemoveFromPlaylist,
+  });
 
   final VoidCallback? onPlayNext;
   final VoidCallback? onAddToQueue;
+  final VoidCallback? onRemoveFromPlaylist;
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +252,7 @@ class _TrackOverflowButton extends StatelessWidget {
     context,
     onPlayNext: onPlayNext,
     onAddToQueue: onAddToQueue,
+    onRemoveFromPlaylist: onRemoveFromPlaylist,
   );
 }
 
@@ -249,6 +266,7 @@ void showTrackActionsSheet(
   VoidCallback? onAddToQueue,
   VoidCallback? onLyrics,
   VoidCallback? onOpenQueue,
+  VoidCallback? onRemoveFromPlaylist,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -294,6 +312,18 @@ void showTrackActionsSheet(
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 onOpenQueue();
+              },
+            ),
+          // Last, and only on a playlist's own page (v0.1.2's
+          // completion): it is the one entry here that changes something
+          // on the server rather than the queue.
+          if (onRemoveFromPlaylist != null)
+            ListTile(
+              leading: const Icon(Icons.playlist_remove_rounded),
+              title: const Text('Remove from this playlist'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onRemoveFromPlaylist();
               },
             ),
         ],

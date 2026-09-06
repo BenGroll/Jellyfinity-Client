@@ -16,6 +16,7 @@ import '../widgets/MediaPlaybackActionsRow.dart';
 import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
+import '../widgets/playlist_actions.dart';
 import '../widgets/paged_collection_view.dart';
 import 'media_detail_cubit.dart';
 
@@ -90,6 +91,73 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
     });
   }
 
+  /// Rename and delete, behind the app bar's overflow (v0.1.2's
+  /// completion) — the two actions that change the playlist itself rather
+  /// than what is in it.
+  void _openPlaylistMenu(BuildContext context, Playlist playlist) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline_rounded),
+              title: const Text('Rename'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _rename(playlist);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Delete playlist'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _delete(playlist);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _rename(Playlist playlist) async {
+    if (!await renamePlaylist(context, playlist) || !mounted) return;
+    // The header carries the name; the track list is untouched.
+    await context.read<PlaylistDetailCubit>().retry();
+  }
+
+  Future<void> _delete(Playlist playlist) async {
+    // Captured before the await, and the plain Navigator rather than
+    // GoRouter: this page is always pushed, so popping it is a Navigator
+    // concern, and not reaching for the router keeps the screen testable
+    // without one.
+    final navigator = Navigator.of(context);
+    if (!await deletePlaylist(context, playlist) || !mounted) return;
+    // Nothing left to show. Leaving the user on the page of a playlist
+    // that no longer exists would be the one state this screen cannot
+    // render honestly.
+    await navigator.maybePop();
+  }
+
+  /// Removes one row, then reloads so the numbering closes up behind it.
+  Future<void> _removeRow(PlaylistTrack row) async {
+    final playlist = context.read<PlaylistDetailCubit>().state.item;
+    if (playlist == null) return;
+    final removed = await removeFromPlaylist(
+      context,
+      playlistId: playlist.id,
+      row: row,
+    );
+    if (!removed || !mounted) return;
+    await context.read<PlaylistTracksCubit>().refresh();
+    if (!mounted) return;
+    // The header's song count and running time both just changed.
+    await context.read<PlaylistDetailCubit>().retry();
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -104,6 +172,14 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
             onPressed: () => context.pop(),
           ),
           title: header.item?.name,
+          actions: [
+            if (header.item case final Playlist playlist)
+              IconButton(
+                icon: const Icon(Icons.more_vert_rounded),
+                tooltip: 'Playlist options',
+                onPressed: () => _openPlaylistMenu(context, playlist),
+              ),
+          ],
           body: BlocConsumer<PlaylistTracksCubit, PagedCollectionState<Track>>(
             listener: (context, state) => _maybeReconcile(),
             builder: (context, state) {
@@ -156,6 +232,13 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
                         : null,
                     onAddToQueue: playable
                         ? () => context.read<PlaybackCubit>().addToQueue(track)
+                        : null,
+                    // Only a row that came from the server carries the
+                    // entry id removal names (v0.1.2's completion). One
+                    // read from the saved copy or a download snapshot
+                    // does not, and editing needs the server anyway.
+                    onRemoveFromPlaylist: track is PlaylistTrack
+                        ? () => _removeRow(track)
                         : null,
                     downloadAction:
                         track.availability ==

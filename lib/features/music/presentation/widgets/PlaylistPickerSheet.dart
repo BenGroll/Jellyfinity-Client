@@ -8,6 +8,7 @@ import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
 import 'music_rows.dart';
 import 'music_skeletons.dart';
+import 'playlist_actions.dart';
 
 /// Lets the user pick one of their playlists — the picker behind Album and
 /// Playlist's "Add to playlist" action (v0.1.6). Resolves to the chosen
@@ -48,6 +49,28 @@ class _PlaylistPickerSheet extends StatelessWidget {
                 ),
               ),
             ),
+            // Creating from here resolves the sheet the same way picking
+            // an existing playlist does (v0.1.2's completion), so the
+            // caller adds its tracks to the new playlist without knowing
+            // it was new. The playlist is created empty rather than
+            // seeded, which keeps that one code path on the caller's side
+            // and avoids adding the same tracks twice.
+            ListTile(
+              leading: Icon(Icons.add_rounded, color: t.colors.accent),
+              title: Text(
+                'New playlist',
+                style: t.typography.bodyLarge.copyWith(color: t.colors.accent),
+              ),
+              onTap: () async {
+                final navigator = Navigator.of(context);
+                final created = await createPlaylist(context);
+                if (created == null) return;
+                navigator.pop(
+                  Playlist(id: created.id, name: created.name, itemCount: 0),
+                );
+              },
+            ),
+            Divider(height: 1, color: t.colors.border),
             Expanded(
               child:
                   BlocBuilder<PlaylistsCubit, PagedCollectionState<Playlist>>(
@@ -74,8 +97,8 @@ class _PlaylistPickerSheet extends StatelessWidget {
                         return const EmptyStateView(
                           title: 'No playlists yet',
                           message:
-                              'Create a playlist on your Jellyfin server '
-                              'first.',
+                              'Use "New playlist" above to make your first '
+                              'one.',
                           icon: Icons.queue_music_outlined,
                         );
                       }
