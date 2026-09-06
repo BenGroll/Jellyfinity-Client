@@ -20,7 +20,7 @@ published Git tag.
 | v0.0.9 | Audio playback and persistent queue | Implemented | [historical spec](Proof%20Of%20Concept%20Roadmap.md#v009--audio-playback--persistent-queue) |
 | v0.1.0 | First usable music vertical slice | Implemented | [historical spec](Proof%20Of%20Concept%20Roadmap.md#v010--first-usable-music-vertical-slice) |
 | v0.1.1 | Streaming quality and transcoding | Implemented | [spec](Roadmap%20to%20v0.2.md#v011--streaming-quality--transcoding) |
-| **v0.1.2** | **Playlist curation** | **In progress** | [spec](Roadmap%20to%20v0.2.md#v012--playlist-curation) |
+| **v0.1.2** | **Playlist curation** | **Reorder outstanding** | [spec](Roadmap%20to%20v0.2.md#v012--playlist-curation) |
 | v0.1.3 | Crossfade | Implemented | [spec](Roadmap%20to%20v0.2.md#v013--crossfade) |
 | v0.1.4 | Volume normalization | Implemented | [spec](Roadmap%20to%20v0.2.md#v014--volume-normalization) |
 | v0.1.5 | Lyrics | Implemented | [spec](Roadmap%20to%20v0.2.md#v015--lyrics) |
@@ -37,10 +37,17 @@ published Git tag.
 | v0.4.4 | Related artists and albums | Planned | [spec](Roadmap%20to%20v0.4.md#v044--related-artists-and-albums) |
 | v0.5.0 | Home completion | Planned | [spec](Roadmap%20to%20v0.4.md#v050--home-completion) |
 
+v0.1.2 is complete but for reorder. v0.3.0 shipped the rest of it and left
+reorder out deliberately: Jellyfin's move endpoint takes an absolute
+playlist index, and the page model splits unmappable entries out of the
+ordered list, so the index the UI can compute is wrong on any playlist
+holding something that is not a readable song. Doing it correctly needs a
+read model that exposes true positions — see ADR-0024.
+
 v0.3.0 has shipped its hardening half — the download lifecycle fixes,
-regression tests, CI, and release hygiene in `CHANGELOG.md` — plus the
-playlist curation v0.1.2 left unfinished, folded in here rather than given
-a version of its own. Its remaining offline deliverables are still
+regression tests, CI, and release hygiene in `CHANGELOG.md` — plus the rest
+of the playlist curation v0.1.2 left unfinished, folded in here rather than
+given a version of its own. Its remaining offline deliverables are still
 outstanding: the entry-point audit across Now Playing, the queue, the
 mini-player and inline search; batch retry and batch removal; showing
 `MediaAvailability.localOnly` as "Only on this device"; and reclaiming a

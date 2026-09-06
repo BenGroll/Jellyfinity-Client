@@ -2,12 +2,56 @@
 
 All notable changes to Jellyfinity are documented here.
 
-## v0.3.0 — Offline music hardening
+## v0.3.0 — Offline music hardening and playlist curation
 
-Bug fixes, lifecycle hardening, and release hygiene on top of v0.2.3. This
-is **not** the whole of `Roadmap to v0.3.md`'s v0.3.0 scope — the feature
+Bug fixes, lifecycle hardening and release hygiene on top of v0.2.3, plus
+the playlist curation v0.1.2 specified and never finished. This is **not**
+the whole of `Roadmap to v0.3.md`'s v0.3.0 scope — the offline feature
 deliverables it lists are still outstanding, and are named at the end of
 this entry.
+
+### Playlist curation (ADR-0024)
+
+Until now a playlist could be browsed, played and downloaded, but every
+act of making one happened on the Jellyfin web UI — the Add-to-playlist
+sheet's own empty state said so. `PlaylistRepository` had exactly one
+write, `addTracks`, added in v0.1.6 with a comment noting the rest was
+still v0.1.2's unfinished work.
+
+- Create a playlist, from a "New playlist" row at the top of the
+  Library's Playlists tab or from the Add-to-playlist sheet. Creating
+  from the sheet resolves it the same way picking an existing playlist
+  does, so the tracks land in the new playlist without the caller knowing
+  it was new.
+- Rename and delete a playlist, from a new overflow on its detail page.
+  Deleting asks first and says the songs stay in the library, then leaves
+  the page — a screen for a playlist that no longer exists is the one
+  state it cannot render honestly.
+- Remove a song from a playlist, from that row's existing overflow menu.
+- Removal is keyed on Jellyfin's `PlaylistItemId` rather than on track
+  ids, because a playlist can list the same song more than once and each
+  appearance is its own row. That handle reaches the UI as
+  `PlaylistTrack`, a subtype of `Track` rather than a nullable field on
+  it. A row read from the offline cache or a download snapshot is a plain
+  `Track` and carries no entry id, so "is this a `PlaylistTrack`" is also
+  the honest answer to "can this row be edited right now".
+- Every editing affordance is hidden when Jellyfinity is offline rather
+  than offered and doomed. Playlist writes reach the server or fail;
+  nothing is applied optimistically, for the reasons ADR-0024 records.
+- **Reorder is deliberately not included.** Jellyfin's move endpoint
+  takes an absolute index into the playlist, and the page model splits
+  unmappable entries out of the ordered list, so the only index the UI
+  can compute is wrong on any playlist holding something that is not a
+  readable song. A drag that lands the song in the right place most of
+  the time and the wrong place the rest, silently, is worse than not
+  offering it; doing it properly needs a read model that exposes true
+  positions. v0.1.2 stays open in `ROADMAP.md` because of it.
+- Made the download engine's abort test deterministic. It waited a fixed
+  20 ms for the first chunk to reach the disk, which the suite outran
+  once it grew past 750 tests; it now waits on the engine's own byte
+  count. A wall-clock race does not belong in a suite that gates CI.
+
+### Offline hardening
 
 - **A retried download no longer splices two encodings together.** A
   partial file was keyed by track alone, with no record of the address its
@@ -59,8 +103,8 @@ this entry.
   recorded without headings and is kept as one section rather than split
   on guesswork.
 
-Still outstanding from v0.3.0's specification, all of it new behaviour
-rather than repair: the entry-point audit (Now Playing, the queue and the
+Still outstanding from v0.3.0's offline specification, all of it new
+behaviour rather than repair: the entry-point audit (Now Playing, the queue and the
 mini-player carry no download or offline state, and inline search has no
 download action); batch retry and batch removal on the Downloads screen;
 rendering `MediaAvailability.localOnly` as "Only on this device", which

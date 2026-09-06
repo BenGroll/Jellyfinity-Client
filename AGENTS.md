@@ -10,7 +10,8 @@ specification.
 
 - v0.2.0–v0.2.3 (the offline-music arc) are implemented and merged.
 - v0.3.0 is **partly implemented**. Its hardening half has shipped, as has
-  the playlist curation v0.1.2 left unfinished. Its remaining offline
+  the playlist curation v0.1.2 left unfinished — bar reorder, which
+  ADR-0024 explains was left out on purpose. v0.3.0's remaining offline
   deliverables are listed in `ROADMAP.md` and are the likeliest work to be
   assigned next on this line.
 - v0.4.0 onwards (`Roadmap to v0.4.md`) is **planned, not started**. Read
