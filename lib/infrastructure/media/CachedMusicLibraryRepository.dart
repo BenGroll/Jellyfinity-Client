@@ -193,7 +193,9 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     MediaId id,
     Future<Result<T>> Function() read,
   ) async {
-    final result = _offline.status.isOffline ? _offlineFailure<T>() : await read();
+    final result = _offline.status.isOffline
+        ? _offlineFailure<T>()
+        : await read();
 
     switch (result) {
       case Ok<T>(:final value):

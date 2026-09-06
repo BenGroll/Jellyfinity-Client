@@ -48,8 +48,9 @@ class DownloadedCollection extends Equatable {
   /// This collection as an [Album]. [availability] defaults to
   /// [MediaAvailability.localAndRemote]; a caller that has learned the
   /// server no longer lists it passes [MediaAvailability.localOnly].
-  Album toAlbum({MediaAvailability availability = MediaAvailability.localAndRemote}) =>
-      Album(id: id, name: name, availability: availability, image: image);
+  Album toAlbum({
+    MediaAvailability availability = MediaAvailability.localAndRemote,
+  }) => Album(id: id, name: name, availability: availability, image: image);
 
   Artist toArtist({
     MediaAvailability availability = MediaAvailability.localAndRemote,

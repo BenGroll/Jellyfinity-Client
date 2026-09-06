@@ -49,10 +49,7 @@ void main() {
     await s.signIn();
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Offline — showing your saved library'),
-      findsOneWidget,
-    );
+    expect(find.text('Offline — showing your saved library'), findsOneWidget);
   });
 
   testWidgets(
@@ -74,10 +71,7 @@ void main() {
         find.text('Offline — showing downloaded music only'),
         findsOneWidget,
       );
-      expect(
-        find.text('Offline — showing your saved library'),
-        findsNothing,
-      );
+      expect(find.text('Offline — showing your saved library'), findsNothing);
     },
   );
 

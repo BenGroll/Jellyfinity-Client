@@ -43,10 +43,9 @@ class _ReconcileDownloadedCollectionState
     if (downloads.state.statusFor(widget.owner).isEmpty) return;
 
     _done = true;
-    downloads.reconcileCollectionPresence(
-      widget.owner,
-      {for (final track in tracks.items) track.id},
-    );
+    downloads.reconcileCollectionPresence(widget.owner, {
+      for (final track in tracks.items) track.id,
+    });
   }
 
   @override
