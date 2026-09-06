@@ -2,6 +2,24 @@
 
 Read this file first. It defines the complete context-loading workflow.
 
+## Where the repository is right now
+
+**The current line is 0.3.x.** Unless you were given a different version,
+that is the one you are working on, and `Roadmap to v0.3.md` is your
+specification.
+
+- v0.2.0–v0.2.3 (the offline-music arc) are implemented and merged.
+- v0.3.0 is **partly implemented**. Its hardening half has shipped, as has
+  the playlist curation v0.1.2 left unfinished. Its remaining offline
+  deliverables are listed in `ROADMAP.md` and are the likeliest work to be
+  assigned next on this line.
+- v0.4.0 onwards (`Roadmap to v0.4.md`) is **planned, not started**. Read
+  it only if you were assigned a 0.4.x version. Do not pull its work
+  forward into a 0.3.x change.
+
+Keep this section current when a version's status changes; it and
+`ROADMAP.md`'s status column must agree.
+
 ## Minimal context workflow
 
 1. Read `CONTEXT.md` (the stable product and engineering constraints).
