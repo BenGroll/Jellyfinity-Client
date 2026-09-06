@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/result/failure.dart';
 import '../../../core/result/result.dart';
+import '../../../domain/media/artist.dart';
 import '../../../domain/media/media_availability.dart';
 import '../../../domain/media/MediaId.dart';
 import '../../../domain/media/MediaImage.dart';
@@ -138,6 +141,8 @@ class DriftQueueRepository implements QueueRepository {
       itemId: entry.id.itemId,
       title: entry.title,
       artist: Value(entry.artist),
+      artistsJson: Value(_encodeArtists(entry.artists)),
+      albumItemId: Value(entry.albumId?.itemId),
       albumName: Value(entry.albumName),
       durationMicros: Value(entry.duration?.inMicroseconds),
       imageItemId: Value(image?.itemId.itemId),
@@ -153,6 +158,10 @@ class DriftQueueRepository implements QueueRepository {
       id: MediaId(serverId: row.serverId, itemId: row.itemId),
       title: row.title,
       artist: row.artist,
+      artists: _decodeArtists(row.artistsJson, row.serverId),
+      albumId: row.albumItemId == null
+          ? null
+          : MediaId(serverId: row.serverId, itemId: row.albumItemId!),
       albumName: row.albumName,
       duration: row.durationMicros == null
           ? null
@@ -160,6 +169,37 @@ class DriftQueueRepository implements QueueRepository {
       image: _image(row),
       availability: _availabilityFrom(row.availability),
     );
+  }
+
+  /// Encoded exactly as `MediaCacheMapper` and `DriftDownloadStore` encode
+  /// the same list, so the tables stay readable by one another's
+  /// conventions.
+  static String? _encodeArtists(List<ArtistRef> artists) {
+    if (artists.isEmpty) return null;
+    return jsonEncode([
+      for (final credit in artists)
+        <String, Object?>{'name': credit.name, 'id': credit.id?.itemId},
+    ]);
+  }
+
+  static List<ArtistRef> _decodeArtists(String? json, String serverId) {
+    if (json == null || json.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const [];
+      return [
+        for (final entry in decoded)
+          if (entry is Map<String, dynamic> && entry['name'] is String)
+            ArtistRef(
+              name: entry['name'] as String,
+              id: entry['id'] is String
+                  ? MediaId(serverId: serverId, itemId: entry['id'] as String)
+                  : null,
+            ),
+      ];
+    } on FormatException {
+      return const [];
+    }
   }
 
   MediaImage? _image(QueueEntryRow row) {

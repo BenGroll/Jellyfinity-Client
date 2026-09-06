@@ -2931,6 +2931,28 @@ class $QueueEntriesTable extends QueueEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _artistsJsonMeta = const VerificationMeta(
+    'artistsJson',
+  );
+  @override
+  late final GeneratedColumn<String> artistsJson = GeneratedColumn<String>(
+    'artists_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumItemIdMeta = const VerificationMeta(
+    'albumItemId',
+  );
+  @override
+  late final GeneratedColumn<String> albumItemId = GeneratedColumn<String>(
+    'album_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _albumNameMeta = const VerificationMeta(
     'albumName',
   );
@@ -3016,6 +3038,8 @@ class $QueueEntriesTable extends QueueEntries
     itemId,
     title,
     artist,
+    artistsJson,
+    albumItemId,
     albumName,
     durationMicros,
     imageItemId,
@@ -3070,6 +3094,24 @@ class $QueueEntriesTable extends QueueEntries
       context.handle(
         _artistMeta,
         artist.isAcceptableOrUnknown(data['artist']!, _artistMeta),
+      );
+    }
+    if (data.containsKey('artists_json')) {
+      context.handle(
+        _artistsJsonMeta,
+        artistsJson.isAcceptableOrUnknown(
+          data['artists_json']!,
+          _artistsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('album_item_id')) {
+      context.handle(
+        _albumItemIdMeta,
+        albumItemId.isAcceptableOrUnknown(
+          data['album_item_id']!,
+          _albumItemIdMeta,
+        ),
       );
     }
     if (data.containsKey('album_name')) {
@@ -3155,6 +3197,14 @@ class $QueueEntriesTable extends QueueEntries
         DriftSqlType.string,
         data['${effectivePrefix}artist'],
       ),
+      artistsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artists_json'],
+      ),
+      albumItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_item_id'],
+      ),
       albumName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}album_name'],
@@ -3201,6 +3251,16 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
 
   /// The joined artist credit line, already formatted for display.
   final String? artist;
+
+  /// The individual artist credits as a JSON array of `{name, id?}`
+  /// objects (v0.3.1), encoded the same way [CachedMediaItems.artistsJson]
+  /// is. Kept for the ids: a restored queue row has to open its artist,
+  /// not just print [artist].
+  final String? artistsJson;
+
+  /// The track's album id on the same server (v0.3.1), so a queued track
+  /// can open its album and listening history can attribute the play.
+  final String? albumItemId;
   final String? albumName;
   final int? durationMicros;
   final String? imageItemId;
@@ -3219,6 +3279,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     required this.itemId,
     required this.title,
     this.artist,
+    this.artistsJson,
+    this.albumItemId,
     this.albumName,
     this.durationMicros,
     this.imageItemId,
@@ -3236,6 +3298,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || artist != null) {
       map['artist'] = Variable<String>(artist);
+    }
+    if (!nullToAbsent || artistsJson != null) {
+      map['artists_json'] = Variable<String>(artistsJson);
+    }
+    if (!nullToAbsent || albumItemId != null) {
+      map['album_item_id'] = Variable<String>(albumItemId);
     }
     if (!nullToAbsent || albumName != null) {
       map['album_name'] = Variable<String>(albumName);
@@ -3268,6 +3336,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       artist: artist == null && nullToAbsent
           ? const Value.absent()
           : Value(artist),
+      artistsJson: artistsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artistsJson),
+      albumItemId: albumItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumItemId),
       albumName: albumName == null && nullToAbsent
           ? const Value.absent()
           : Value(albumName),
@@ -3301,6 +3375,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       itemId: serializer.fromJson<String>(json['itemId']),
       title: serializer.fromJson<String>(json['title']),
       artist: serializer.fromJson<String?>(json['artist']),
+      artistsJson: serializer.fromJson<String?>(json['artistsJson']),
+      albumItemId: serializer.fromJson<String?>(json['albumItemId']),
       albumName: serializer.fromJson<String?>(json['albumName']),
       durationMicros: serializer.fromJson<int?>(json['durationMicros']),
       imageItemId: serializer.fromJson<String?>(json['imageItemId']),
@@ -3319,6 +3395,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       'itemId': serializer.toJson<String>(itemId),
       'title': serializer.toJson<String>(title),
       'artist': serializer.toJson<String?>(artist),
+      'artistsJson': serializer.toJson<String?>(artistsJson),
+      'albumItemId': serializer.toJson<String?>(albumItemId),
       'albumName': serializer.toJson<String?>(albumName),
       'durationMicros': serializer.toJson<int?>(durationMicros),
       'imageItemId': serializer.toJson<String?>(imageItemId),
@@ -3335,6 +3413,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     String? itemId,
     String? title,
     Value<String?> artist = const Value.absent(),
+    Value<String?> artistsJson = const Value.absent(),
+    Value<String?> albumItemId = const Value.absent(),
     Value<String?> albumName = const Value.absent(),
     Value<int?> durationMicros = const Value.absent(),
     Value<String?> imageItemId = const Value.absent(),
@@ -3348,6 +3428,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     itemId: itemId ?? this.itemId,
     title: title ?? this.title,
     artist: artist.present ? artist.value : this.artist,
+    artistsJson: artistsJson.present ? artistsJson.value : this.artistsJson,
+    albumItemId: albumItemId.present ? albumItemId.value : this.albumItemId,
     albumName: albumName.present ? albumName.value : this.albumName,
     durationMicros: durationMicros.present
         ? durationMicros.value
@@ -3367,6 +3449,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
       title: data.title.present ? data.title.value : this.title,
       artist: data.artist.present ? data.artist.value : this.artist,
+      artistsJson: data.artistsJson.present
+          ? data.artistsJson.value
+          : this.artistsJson,
+      albumItemId: data.albumItemId.present
+          ? data.albumItemId.value
+          : this.albumItemId,
       albumName: data.albumName.present ? data.albumName.value : this.albumName,
       durationMicros: data.durationMicros.present
           ? data.durationMicros.value
@@ -3393,6 +3481,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
           ..write('itemId: $itemId, ')
           ..write('title: $title, ')
           ..write('artist: $artist, ')
+          ..write('artistsJson: $artistsJson, ')
+          ..write('albumItemId: $albumItemId, ')
           ..write('albumName: $albumName, ')
           ..write('durationMicros: $durationMicros, ')
           ..write('imageItemId: $imageItemId, ')
@@ -3411,6 +3501,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     itemId,
     title,
     artist,
+    artistsJson,
+    albumItemId,
     albumName,
     durationMicros,
     imageItemId,
@@ -3428,6 +3520,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
           other.itemId == this.itemId &&
           other.title == this.title &&
           other.artist == this.artist &&
+          other.artistsJson == this.artistsJson &&
+          other.albumItemId == this.albumItemId &&
           other.albumName == this.albumName &&
           other.durationMicros == this.durationMicros &&
           other.imageItemId == this.imageItemId &&
@@ -3443,6 +3537,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
   final Value<String> itemId;
   final Value<String> title;
   final Value<String?> artist;
+  final Value<String?> artistsJson;
+  final Value<String?> albumItemId;
   final Value<String?> albumName;
   final Value<int?> durationMicros;
   final Value<String?> imageItemId;
@@ -3456,6 +3552,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     this.itemId = const Value.absent(),
     this.title = const Value.absent(),
     this.artist = const Value.absent(),
+    this.artistsJson = const Value.absent(),
+    this.albumItemId = const Value.absent(),
     this.albumName = const Value.absent(),
     this.durationMicros = const Value.absent(),
     this.imageItemId = const Value.absent(),
@@ -3470,6 +3568,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     required String itemId,
     required String title,
     this.artist = const Value.absent(),
+    this.artistsJson = const Value.absent(),
+    this.albumItemId = const Value.absent(),
     this.albumName = const Value.absent(),
     this.durationMicros = const Value.absent(),
     this.imageItemId = const Value.absent(),
@@ -3486,6 +3586,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     Expression<String>? itemId,
     Expression<String>? title,
     Expression<String>? artist,
+    Expression<String>? artistsJson,
+    Expression<String>? albumItemId,
     Expression<String>? albumName,
     Expression<int>? durationMicros,
     Expression<String>? imageItemId,
@@ -3500,6 +3602,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
       if (itemId != null) 'item_id': itemId,
       if (title != null) 'title': title,
       if (artist != null) 'artist': artist,
+      if (artistsJson != null) 'artists_json': artistsJson,
+      if (albumItemId != null) 'album_item_id': albumItemId,
       if (albumName != null) 'album_name': albumName,
       if (durationMicros != null) 'duration_micros': durationMicros,
       if (imageItemId != null) 'image_item_id': imageItemId,
@@ -3516,6 +3620,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     Value<String>? itemId,
     Value<String>? title,
     Value<String?>? artist,
+    Value<String?>? artistsJson,
+    Value<String?>? albumItemId,
     Value<String?>? albumName,
     Value<int?>? durationMicros,
     Value<String?>? imageItemId,
@@ -3530,6 +3636,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
       itemId: itemId ?? this.itemId,
       title: title ?? this.title,
       artist: artist ?? this.artist,
+      artistsJson: artistsJson ?? this.artistsJson,
+      albumItemId: albumItemId ?? this.albumItemId,
       albumName: albumName ?? this.albumName,
       durationMicros: durationMicros ?? this.durationMicros,
       imageItemId: imageItemId ?? this.imageItemId,
@@ -3557,6 +3665,12 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     }
     if (artist.present) {
       map['artist'] = Variable<String>(artist.value);
+    }
+    if (artistsJson.present) {
+      map['artists_json'] = Variable<String>(artistsJson.value);
+    }
+    if (albumItemId.present) {
+      map['album_item_id'] = Variable<String>(albumItemId.value);
     }
     if (albumName.present) {
       map['album_name'] = Variable<String>(albumName.value);
@@ -3590,6 +3704,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
           ..write('itemId: $itemId, ')
           ..write('title: $title, ')
           ..write('artist: $artist, ')
+          ..write('artistsJson: $artistsJson, ')
+          ..write('albumItemId: $albumItemId, ')
           ..write('albumName: $albumName, ')
           ..write('durationMicros: $durationMicros, ')
           ..write('imageItemId: $imageItemId, ')
@@ -6337,6 +6453,829 @@ class DownloadedCollectionsCompanion
   }
 }
 
+class $ListeningHistoryEntriesTable extends ListeningHistoryEntries
+    with TableInfo<$ListeningHistoryEntriesTable, ListeningHistoryEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ListeningHistoryEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contextKindMeta = const VerificationMeta(
+    'contextKind',
+  );
+  @override
+  late final GeneratedColumn<String> contextKind = GeneratedColumn<String>(
+    'context_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contextItemIdMeta = const VerificationMeta(
+    'contextItemId',
+  );
+  @override
+  late final GeneratedColumn<String> contextItemId = GeneratedColumn<String>(
+    'context_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subtitleMeta = const VerificationMeta(
+    'subtitle',
+  );
+  @override
+  late final GeneratedColumn<String> subtitle = GeneratedColumn<String>(
+    'subtitle',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageItemIdMeta = const VerificationMeta(
+    'imageItemId',
+  );
+  @override
+  late final GeneratedColumn<String> imageItemId = GeneratedColumn<String>(
+    'image_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageKindMeta = const VerificationMeta(
+    'imageKind',
+  );
+  @override
+  late final GeneratedColumn<String> imageKind = GeneratedColumn<String>(
+    'image_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageTagMeta = const VerificationMeta(
+    'imageTag',
+  );
+  @override
+  late final GeneratedColumn<String> imageTag = GeneratedColumn<String>(
+    'image_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageAspectRatioMeta = const VerificationMeta(
+    'imageAspectRatio',
+  );
+  @override
+  late final GeneratedColumn<double> imageAspectRatio = GeneratedColumn<double>(
+    'image_aspect_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _playCountMeta = const VerificationMeta(
+    'playCount',
+  );
+  @override
+  late final GeneratedColumn<int> playCount = GeneratedColumn<int>(
+    'play_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _firstPlayedAtMsMeta = const VerificationMeta(
+    'firstPlayedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> firstPlayedAtMs = GeneratedColumn<int>(
+    'first_played_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPlayedAtMsMeta = const VerificationMeta(
+    'lastPlayedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> lastPlayedAtMs = GeneratedColumn<int>(
+    'last_played_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    accountKey,
+    serverId,
+    contextKind,
+    contextItemId,
+    name,
+    subtitle,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    playCount,
+    firstPlayedAtMs,
+    lastPlayedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'listening_history_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ListeningHistoryEntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountKeyMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('context_kind')) {
+      context.handle(
+        _contextKindMeta,
+        contextKind.isAcceptableOrUnknown(
+          data['context_kind']!,
+          _contextKindMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contextKindMeta);
+    }
+    if (data.containsKey('context_item_id')) {
+      context.handle(
+        _contextItemIdMeta,
+        contextItemId.isAcceptableOrUnknown(
+          data['context_item_id']!,
+          _contextItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contextItemIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('subtitle')) {
+      context.handle(
+        _subtitleMeta,
+        subtitle.isAcceptableOrUnknown(data['subtitle']!, _subtitleMeta),
+      );
+    }
+    if (data.containsKey('image_item_id')) {
+      context.handle(
+        _imageItemIdMeta,
+        imageItemId.isAcceptableOrUnknown(
+          data['image_item_id']!,
+          _imageItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_kind')) {
+      context.handle(
+        _imageKindMeta,
+        imageKind.isAcceptableOrUnknown(data['image_kind']!, _imageKindMeta),
+      );
+    }
+    if (data.containsKey('image_tag')) {
+      context.handle(
+        _imageTagMeta,
+        imageTag.isAcceptableOrUnknown(data['image_tag']!, _imageTagMeta),
+      );
+    }
+    if (data.containsKey('image_aspect_ratio')) {
+      context.handle(
+        _imageAspectRatioMeta,
+        imageAspectRatio.isAcceptableOrUnknown(
+          data['image_aspect_ratio']!,
+          _imageAspectRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('play_count')) {
+      context.handle(
+        _playCountMeta,
+        playCount.isAcceptableOrUnknown(data['play_count']!, _playCountMeta),
+      );
+    }
+    if (data.containsKey('first_played_at_ms')) {
+      context.handle(
+        _firstPlayedAtMsMeta,
+        firstPlayedAtMs.isAcceptableOrUnknown(
+          data['first_played_at_ms']!,
+          _firstPlayedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_firstPlayedAtMsMeta);
+    }
+    if (data.containsKey('last_played_at_ms')) {
+      context.handle(
+        _lastPlayedAtMsMeta,
+        lastPlayedAtMs.isAcceptableOrUnknown(
+          data['last_played_at_ms']!,
+          _lastPlayedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastPlayedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    accountKey,
+    serverId,
+    contextKind,
+    contextItemId,
+  };
+  @override
+  ListeningHistoryEntryRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ListeningHistoryEntryRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      contextKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}context_kind'],
+      )!,
+      contextItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}context_item_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      subtitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subtitle'],
+      ),
+      imageItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_item_id'],
+      ),
+      imageKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_kind'],
+      ),
+      imageTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_tag'],
+      ),
+      imageAspectRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}image_aspect_ratio'],
+      ),
+      playCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}play_count'],
+      )!,
+      firstPlayedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}first_played_at_ms'],
+      )!,
+      lastPlayedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_played_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $ListeningHistoryEntriesTable createAlias(String alias) {
+    return $ListeningHistoryEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class ListeningHistoryEntryRow extends DataClass
+    implements Insertable<ListeningHistoryEntryRow> {
+  /// The profile this entry belongs to — the active server's local id and
+  /// the Jellyfin user id joined with a slash, as [TrackDownloads.accountKey].
+  final String accountKey;
+  final String serverId;
+
+  /// `ListeningContextKind.name` — `album`, `artist` or `track`.
+  final String contextKind;
+
+  /// The context's id on [serverId]: an album, artist or track id.
+  final String contextItemId;
+
+  /// Display name of the context, kept so a row renders offline.
+  final String name;
+
+  /// The credit line shown under [name], when there is one.
+  final String? subtitle;
+
+  /// Artwork pointer, flattened the same way [CachedMediaItems] flattens
+  /// it. Null for an artist context — the queue snapshot it is derived
+  /// from carries album art, not the artist's.
+  final String? imageItemId;
+  final String? imageKind;
+  final String? imageTag;
+  final double? imageAspectRatio;
+
+  /// Qualifying track plays folded into this entry so far (>= 1).
+  final int playCount;
+
+  /// First and last play, milliseconds since epoch (UTC). [lastPlayedAtMs]
+  /// is the sort key for "recently played" and the eviction key.
+  final int firstPlayedAtMs;
+  final int lastPlayedAtMs;
+  const ListeningHistoryEntryRow({
+    required this.accountKey,
+    required this.serverId,
+    required this.contextKind,
+    required this.contextItemId,
+    required this.name,
+    this.subtitle,
+    this.imageItemId,
+    this.imageKind,
+    this.imageTag,
+    this.imageAspectRatio,
+    required this.playCount,
+    required this.firstPlayedAtMs,
+    required this.lastPlayedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
+    map['server_id'] = Variable<String>(serverId);
+    map['context_kind'] = Variable<String>(contextKind);
+    map['context_item_id'] = Variable<String>(contextItemId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || subtitle != null) {
+      map['subtitle'] = Variable<String>(subtitle);
+    }
+    if (!nullToAbsent || imageItemId != null) {
+      map['image_item_id'] = Variable<String>(imageItemId);
+    }
+    if (!nullToAbsent || imageKind != null) {
+      map['image_kind'] = Variable<String>(imageKind);
+    }
+    if (!nullToAbsent || imageTag != null) {
+      map['image_tag'] = Variable<String>(imageTag);
+    }
+    if (!nullToAbsent || imageAspectRatio != null) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio);
+    }
+    map['play_count'] = Variable<int>(playCount);
+    map['first_played_at_ms'] = Variable<int>(firstPlayedAtMs);
+    map['last_played_at_ms'] = Variable<int>(lastPlayedAtMs);
+    return map;
+  }
+
+  ListeningHistoryEntriesCompanion toCompanion(bool nullToAbsent) {
+    return ListeningHistoryEntriesCompanion(
+      accountKey: Value(accountKey),
+      serverId: Value(serverId),
+      contextKind: Value(contextKind),
+      contextItemId: Value(contextItemId),
+      name: Value(name),
+      subtitle: subtitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subtitle),
+      imageItemId: imageItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageItemId),
+      imageKind: imageKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageKind),
+      imageTag: imageTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageTag),
+      imageAspectRatio: imageAspectRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAspectRatio),
+      playCount: Value(playCount),
+      firstPlayedAtMs: Value(firstPlayedAtMs),
+      lastPlayedAtMs: Value(lastPlayedAtMs),
+    );
+  }
+
+  factory ListeningHistoryEntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ListeningHistoryEntryRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
+      serverId: serializer.fromJson<String>(json['serverId']),
+      contextKind: serializer.fromJson<String>(json['contextKind']),
+      contextItemId: serializer.fromJson<String>(json['contextItemId']),
+      name: serializer.fromJson<String>(json['name']),
+      subtitle: serializer.fromJson<String?>(json['subtitle']),
+      imageItemId: serializer.fromJson<String?>(json['imageItemId']),
+      imageKind: serializer.fromJson<String?>(json['imageKind']),
+      imageTag: serializer.fromJson<String?>(json['imageTag']),
+      imageAspectRatio: serializer.fromJson<double?>(json['imageAspectRatio']),
+      playCount: serializer.fromJson<int>(json['playCount']),
+      firstPlayedAtMs: serializer.fromJson<int>(json['firstPlayedAtMs']),
+      lastPlayedAtMs: serializer.fromJson<int>(json['lastPlayedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
+      'serverId': serializer.toJson<String>(serverId),
+      'contextKind': serializer.toJson<String>(contextKind),
+      'contextItemId': serializer.toJson<String>(contextItemId),
+      'name': serializer.toJson<String>(name),
+      'subtitle': serializer.toJson<String?>(subtitle),
+      'imageItemId': serializer.toJson<String?>(imageItemId),
+      'imageKind': serializer.toJson<String?>(imageKind),
+      'imageTag': serializer.toJson<String?>(imageTag),
+      'imageAspectRatio': serializer.toJson<double?>(imageAspectRatio),
+      'playCount': serializer.toJson<int>(playCount),
+      'firstPlayedAtMs': serializer.toJson<int>(firstPlayedAtMs),
+      'lastPlayedAtMs': serializer.toJson<int>(lastPlayedAtMs),
+    };
+  }
+
+  ListeningHistoryEntryRow copyWith({
+    String? accountKey,
+    String? serverId,
+    String? contextKind,
+    String? contextItemId,
+    String? name,
+    Value<String?> subtitle = const Value.absent(),
+    Value<String?> imageItemId = const Value.absent(),
+    Value<String?> imageKind = const Value.absent(),
+    Value<String?> imageTag = const Value.absent(),
+    Value<double?> imageAspectRatio = const Value.absent(),
+    int? playCount,
+    int? firstPlayedAtMs,
+    int? lastPlayedAtMs,
+  }) => ListeningHistoryEntryRow(
+    accountKey: accountKey ?? this.accountKey,
+    serverId: serverId ?? this.serverId,
+    contextKind: contextKind ?? this.contextKind,
+    contextItemId: contextItemId ?? this.contextItemId,
+    name: name ?? this.name,
+    subtitle: subtitle.present ? subtitle.value : this.subtitle,
+    imageItemId: imageItemId.present ? imageItemId.value : this.imageItemId,
+    imageKind: imageKind.present ? imageKind.value : this.imageKind,
+    imageTag: imageTag.present ? imageTag.value : this.imageTag,
+    imageAspectRatio: imageAspectRatio.present
+        ? imageAspectRatio.value
+        : this.imageAspectRatio,
+    playCount: playCount ?? this.playCount,
+    firstPlayedAtMs: firstPlayedAtMs ?? this.firstPlayedAtMs,
+    lastPlayedAtMs: lastPlayedAtMs ?? this.lastPlayedAtMs,
+  );
+  ListeningHistoryEntryRow copyWithCompanion(
+    ListeningHistoryEntriesCompanion data,
+  ) {
+    return ListeningHistoryEntryRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      contextKind: data.contextKind.present
+          ? data.contextKind.value
+          : this.contextKind,
+      contextItemId: data.contextItemId.present
+          ? data.contextItemId.value
+          : this.contextItemId,
+      name: data.name.present ? data.name.value : this.name,
+      subtitle: data.subtitle.present ? data.subtitle.value : this.subtitle,
+      imageItemId: data.imageItemId.present
+          ? data.imageItemId.value
+          : this.imageItemId,
+      imageKind: data.imageKind.present ? data.imageKind.value : this.imageKind,
+      imageTag: data.imageTag.present ? data.imageTag.value : this.imageTag,
+      imageAspectRatio: data.imageAspectRatio.present
+          ? data.imageAspectRatio.value
+          : this.imageAspectRatio,
+      playCount: data.playCount.present ? data.playCount.value : this.playCount,
+      firstPlayedAtMs: data.firstPlayedAtMs.present
+          ? data.firstPlayedAtMs.value
+          : this.firstPlayedAtMs,
+      lastPlayedAtMs: data.lastPlayedAtMs.present
+          ? data.lastPlayedAtMs.value
+          : this.lastPlayedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ListeningHistoryEntryRow(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('contextKind: $contextKind, ')
+          ..write('contextItemId: $contextItemId, ')
+          ..write('name: $name, ')
+          ..write('subtitle: $subtitle, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('playCount: $playCount, ')
+          ..write('firstPlayedAtMs: $firstPlayedAtMs, ')
+          ..write('lastPlayedAtMs: $lastPlayedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    accountKey,
+    serverId,
+    contextKind,
+    contextItemId,
+    name,
+    subtitle,
+    imageItemId,
+    imageKind,
+    imageTag,
+    imageAspectRatio,
+    playCount,
+    firstPlayedAtMs,
+    lastPlayedAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ListeningHistoryEntryRow &&
+          other.accountKey == this.accountKey &&
+          other.serverId == this.serverId &&
+          other.contextKind == this.contextKind &&
+          other.contextItemId == this.contextItemId &&
+          other.name == this.name &&
+          other.subtitle == this.subtitle &&
+          other.imageItemId == this.imageItemId &&
+          other.imageKind == this.imageKind &&
+          other.imageTag == this.imageTag &&
+          other.imageAspectRatio == this.imageAspectRatio &&
+          other.playCount == this.playCount &&
+          other.firstPlayedAtMs == this.firstPlayedAtMs &&
+          other.lastPlayedAtMs == this.lastPlayedAtMs);
+}
+
+class ListeningHistoryEntriesCompanion
+    extends UpdateCompanion<ListeningHistoryEntryRow> {
+  final Value<String> accountKey;
+  final Value<String> serverId;
+  final Value<String> contextKind;
+  final Value<String> contextItemId;
+  final Value<String> name;
+  final Value<String?> subtitle;
+  final Value<String?> imageItemId;
+  final Value<String?> imageKind;
+  final Value<String?> imageTag;
+  final Value<double?> imageAspectRatio;
+  final Value<int> playCount;
+  final Value<int> firstPlayedAtMs;
+  final Value<int> lastPlayedAtMs;
+  final Value<int> rowid;
+  const ListeningHistoryEntriesCompanion({
+    this.accountKey = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.contextKind = const Value.absent(),
+    this.contextItemId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.subtitle = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.playCount = const Value.absent(),
+    this.firstPlayedAtMs = const Value.absent(),
+    this.lastPlayedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ListeningHistoryEntriesCompanion.insert({
+    required String accountKey,
+    required String serverId,
+    required String contextKind,
+    required String contextItemId,
+    required String name,
+    this.subtitle = const Value.absent(),
+    this.imageItemId = const Value.absent(),
+    this.imageKind = const Value.absent(),
+    this.imageTag = const Value.absent(),
+    this.imageAspectRatio = const Value.absent(),
+    this.playCount = const Value.absent(),
+    required int firstPlayedAtMs,
+    required int lastPlayedAtMs,
+    this.rowid = const Value.absent(),
+  }) : accountKey = Value(accountKey),
+       serverId = Value(serverId),
+       contextKind = Value(contextKind),
+       contextItemId = Value(contextItemId),
+       name = Value(name),
+       firstPlayedAtMs = Value(firstPlayedAtMs),
+       lastPlayedAtMs = Value(lastPlayedAtMs);
+  static Insertable<ListeningHistoryEntryRow> custom({
+    Expression<String>? accountKey,
+    Expression<String>? serverId,
+    Expression<String>? contextKind,
+    Expression<String>? contextItemId,
+    Expression<String>? name,
+    Expression<String>? subtitle,
+    Expression<String>? imageItemId,
+    Expression<String>? imageKind,
+    Expression<String>? imageTag,
+    Expression<double>? imageAspectRatio,
+    Expression<int>? playCount,
+    Expression<int>? firstPlayedAtMs,
+    Expression<int>? lastPlayedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
+      if (serverId != null) 'server_id': serverId,
+      if (contextKind != null) 'context_kind': contextKind,
+      if (contextItemId != null) 'context_item_id': contextItemId,
+      if (name != null) 'name': name,
+      if (subtitle != null) 'subtitle': subtitle,
+      if (imageItemId != null) 'image_item_id': imageItemId,
+      if (imageKind != null) 'image_kind': imageKind,
+      if (imageTag != null) 'image_tag': imageTag,
+      if (imageAspectRatio != null) 'image_aspect_ratio': imageAspectRatio,
+      if (playCount != null) 'play_count': playCount,
+      if (firstPlayedAtMs != null) 'first_played_at_ms': firstPlayedAtMs,
+      if (lastPlayedAtMs != null) 'last_played_at_ms': lastPlayedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ListeningHistoryEntriesCompanion copyWith({
+    Value<String>? accountKey,
+    Value<String>? serverId,
+    Value<String>? contextKind,
+    Value<String>? contextItemId,
+    Value<String>? name,
+    Value<String?>? subtitle,
+    Value<String?>? imageItemId,
+    Value<String?>? imageKind,
+    Value<String?>? imageTag,
+    Value<double?>? imageAspectRatio,
+    Value<int>? playCount,
+    Value<int>? firstPlayedAtMs,
+    Value<int>? lastPlayedAtMs,
+    Value<int>? rowid,
+  }) {
+    return ListeningHistoryEntriesCompanion(
+      accountKey: accountKey ?? this.accountKey,
+      serverId: serverId ?? this.serverId,
+      contextKind: contextKind ?? this.contextKind,
+      contextItemId: contextItemId ?? this.contextItemId,
+      name: name ?? this.name,
+      subtitle: subtitle ?? this.subtitle,
+      imageItemId: imageItemId ?? this.imageItemId,
+      imageKind: imageKind ?? this.imageKind,
+      imageTag: imageTag ?? this.imageTag,
+      imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
+      playCount: playCount ?? this.playCount,
+      firstPlayedAtMs: firstPlayedAtMs ?? this.firstPlayedAtMs,
+      lastPlayedAtMs: lastPlayedAtMs ?? this.lastPlayedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (contextKind.present) {
+      map['context_kind'] = Variable<String>(contextKind.value);
+    }
+    if (contextItemId.present) {
+      map['context_item_id'] = Variable<String>(contextItemId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (subtitle.present) {
+      map['subtitle'] = Variable<String>(subtitle.value);
+    }
+    if (imageItemId.present) {
+      map['image_item_id'] = Variable<String>(imageItemId.value);
+    }
+    if (imageKind.present) {
+      map['image_kind'] = Variable<String>(imageKind.value);
+    }
+    if (imageTag.present) {
+      map['image_tag'] = Variable<String>(imageTag.value);
+    }
+    if (imageAspectRatio.present) {
+      map['image_aspect_ratio'] = Variable<double>(imageAspectRatio.value);
+    }
+    if (playCount.present) {
+      map['play_count'] = Variable<int>(playCount.value);
+    }
+    if (firstPlayedAtMs.present) {
+      map['first_played_at_ms'] = Variable<int>(firstPlayedAtMs.value);
+    }
+    if (lastPlayedAtMs.present) {
+      map['last_played_at_ms'] = Variable<int>(lastPlayedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ListeningHistoryEntriesCompanion(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('contextKind: $contextKind, ')
+          ..write('contextItemId: $contextItemId, ')
+          ..write('name: $name, ')
+          ..write('subtitle: $subtitle, ')
+          ..write('imageItemId: $imageItemId, ')
+          ..write('imageKind: $imageKind, ')
+          ..write('imageTag: $imageTag, ')
+          ..write('imageAspectRatio: $imageAspectRatio, ')
+          ..write('playCount: $playCount, ')
+          ..write('firstPlayedAtMs: $firstPlayedAtMs, ')
+          ..write('lastPlayedAtMs: $lastPlayedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6359,6 +7298,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PlaylistDownloadMembersTable(this);
   late final $DownloadedCollectionsTable downloadedCollections =
       $DownloadedCollectionsTable(this);
+  late final $ListeningHistoryEntriesTable listeningHistoryEntries =
+      $ListeningHistoryEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6375,6 +7316,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     downloadOwners,
     playlistDownloadMembers,
     downloadedCollections,
+    listeningHistoryEntries,
   ];
 }
 
@@ -7868,6 +8810,8 @@ typedef $$QueueEntriesTableCreateCompanionBuilder =
       required String itemId,
       required String title,
       Value<String?> artist,
+      Value<String?> artistsJson,
+      Value<String?> albumItemId,
       Value<String?> albumName,
       Value<int?> durationMicros,
       Value<String?> imageItemId,
@@ -7883,6 +8827,8 @@ typedef $$QueueEntriesTableUpdateCompanionBuilder =
       Value<String> itemId,
       Value<String> title,
       Value<String?> artist,
+      Value<String?> artistsJson,
+      Value<String?> albumItemId,
       Value<String?> albumName,
       Value<int?> durationMicros,
       Value<String?> imageItemId,
@@ -7923,6 +8869,16 @@ class $$QueueEntriesTableFilterComposer
 
   ColumnFilters<String> get artist => $composableBuilder(
     column: $table.artist,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7996,6 +8952,16 @@ class $$QueueEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get albumName => $composableBuilder(
     column: $table.albumName,
     builder: (column) => ColumnOrderings(column),
@@ -8055,6 +9021,16 @@ class $$QueueEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get artist =>
       $composableBuilder(column: $table.artist, builder: (column) => column);
+
+  GeneratedColumn<String> get artistsJson => $composableBuilder(
+    column: $table.artistsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumItemId => $composableBuilder(
+    column: $table.albumItemId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get albumName =>
       $composableBuilder(column: $table.albumName, builder: (column) => column);
@@ -8122,6 +9098,8 @@ class $$QueueEntriesTableTableManager
                 Value<String> itemId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> artist = const Value.absent(),
+                Value<String?> artistsJson = const Value.absent(),
+                Value<String?> albumItemId = const Value.absent(),
                 Value<String?> albumName = const Value.absent(),
                 Value<int?> durationMicros = const Value.absent(),
                 Value<String?> imageItemId = const Value.absent(),
@@ -8135,6 +9113,8 @@ class $$QueueEntriesTableTableManager
                 itemId: itemId,
                 title: title,
                 artist: artist,
+                artistsJson: artistsJson,
+                albumItemId: albumItemId,
                 albumName: albumName,
                 durationMicros: durationMicros,
                 imageItemId: imageItemId,
@@ -8150,6 +9130,8 @@ class $$QueueEntriesTableTableManager
                 required String itemId,
                 required String title,
                 Value<String?> artist = const Value.absent(),
+                Value<String?> artistsJson = const Value.absent(),
+                Value<String?> albumItemId = const Value.absent(),
                 Value<String?> albumName = const Value.absent(),
                 Value<int?> durationMicros = const Value.absent(),
                 Value<String?> imageItemId = const Value.absent(),
@@ -8163,6 +9145,8 @@ class $$QueueEntriesTableTableManager
                 itemId: itemId,
                 title: title,
                 artist: artist,
+                artistsJson: artistsJson,
+                albumItemId: albumItemId,
                 albumName: albumName,
                 durationMicros: durationMicros,
                 imageItemId: imageItemId,
@@ -9510,6 +10494,391 @@ typedef $$DownloadedCollectionsTableProcessedTableManager =
       DownloadedCollectionRow,
       PrefetchHooks Function()
     >;
+typedef $$ListeningHistoryEntriesTableCreateCompanionBuilder =
+    ListeningHistoryEntriesCompanion Function({
+      required String accountKey,
+      required String serverId,
+      required String contextKind,
+      required String contextItemId,
+      required String name,
+      Value<String?> subtitle,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<int> playCount,
+      required int firstPlayedAtMs,
+      required int lastPlayedAtMs,
+      Value<int> rowid,
+    });
+typedef $$ListeningHistoryEntriesTableUpdateCompanionBuilder =
+    ListeningHistoryEntriesCompanion Function({
+      Value<String> accountKey,
+      Value<String> serverId,
+      Value<String> contextKind,
+      Value<String> contextItemId,
+      Value<String> name,
+      Value<String?> subtitle,
+      Value<String?> imageItemId,
+      Value<String?> imageKind,
+      Value<String?> imageTag,
+      Value<double?> imageAspectRatio,
+      Value<int> playCount,
+      Value<int> firstPlayedAtMs,
+      Value<int> lastPlayedAtMs,
+      Value<int> rowid,
+    });
+
+class $$ListeningHistoryEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ListeningHistoryEntriesTable> {
+  $$ListeningHistoryEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contextKind => $composableBuilder(
+    column: $table.contextKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contextItemId => $composableBuilder(
+    column: $table.contextItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subtitle => $composableBuilder(
+    column: $table.subtitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get playCount => $composableBuilder(
+    column: $table.playCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get firstPlayedAtMs => $composableBuilder(
+    column: $table.firstPlayedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPlayedAtMs => $composableBuilder(
+    column: $table.lastPlayedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ListeningHistoryEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ListeningHistoryEntriesTable> {
+  $$ListeningHistoryEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contextKind => $composableBuilder(
+    column: $table.contextKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contextItemId => $composableBuilder(
+    column: $table.contextItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subtitle => $composableBuilder(
+    column: $table.subtitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageKind => $composableBuilder(
+    column: $table.imageKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageTag => $composableBuilder(
+    column: $table.imageTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get playCount => $composableBuilder(
+    column: $table.playCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get firstPlayedAtMs => $composableBuilder(
+    column: $table.firstPlayedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPlayedAtMs => $composableBuilder(
+    column: $table.lastPlayedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ListeningHistoryEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ListeningHistoryEntriesTable> {
+  $$ListeningHistoryEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get contextKind => $composableBuilder(
+    column: $table.contextKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contextItemId => $composableBuilder(
+    column: $table.contextItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get subtitle =>
+      $composableBuilder(column: $table.subtitle, builder: (column) => column);
+
+  GeneratedColumn<String> get imageItemId => $composableBuilder(
+    column: $table.imageItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageKind =>
+      $composableBuilder(column: $table.imageKind, builder: (column) => column);
+
+  GeneratedColumn<String> get imageTag =>
+      $composableBuilder(column: $table.imageTag, builder: (column) => column);
+
+  GeneratedColumn<double> get imageAspectRatio => $composableBuilder(
+    column: $table.imageAspectRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get playCount =>
+      $composableBuilder(column: $table.playCount, builder: (column) => column);
+
+  GeneratedColumn<int> get firstPlayedAtMs => $composableBuilder(
+    column: $table.firstPlayedAtMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastPlayedAtMs => $composableBuilder(
+    column: $table.lastPlayedAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$ListeningHistoryEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ListeningHistoryEntriesTable,
+          ListeningHistoryEntryRow,
+          $$ListeningHistoryEntriesTableFilterComposer,
+          $$ListeningHistoryEntriesTableOrderingComposer,
+          $$ListeningHistoryEntriesTableAnnotationComposer,
+          $$ListeningHistoryEntriesTableCreateCompanionBuilder,
+          $$ListeningHistoryEntriesTableUpdateCompanionBuilder,
+          (
+            ListeningHistoryEntryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ListeningHistoryEntriesTable,
+              ListeningHistoryEntryRow
+            >,
+          ),
+          ListeningHistoryEntryRow,
+          PrefetchHooks Function()
+        > {
+  $$ListeningHistoryEntriesTableTableManager(
+    _$AppDatabase db,
+    $ListeningHistoryEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ListeningHistoryEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ListeningHistoryEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ListeningHistoryEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> accountKey = const Value.absent(),
+                Value<String> serverId = const Value.absent(),
+                Value<String> contextKind = const Value.absent(),
+                Value<String> contextItemId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> subtitle = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<int> playCount = const Value.absent(),
+                Value<int> firstPlayedAtMs = const Value.absent(),
+                Value<int> lastPlayedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ListeningHistoryEntriesCompanion(
+                accountKey: accountKey,
+                serverId: serverId,
+                contextKind: contextKind,
+                contextItemId: contextItemId,
+                name: name,
+                subtitle: subtitle,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                playCount: playCount,
+                firstPlayedAtMs: firstPlayedAtMs,
+                lastPlayedAtMs: lastPlayedAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String accountKey,
+                required String serverId,
+                required String contextKind,
+                required String contextItemId,
+                required String name,
+                Value<String?> subtitle = const Value.absent(),
+                Value<String?> imageItemId = const Value.absent(),
+                Value<String?> imageKind = const Value.absent(),
+                Value<String?> imageTag = const Value.absent(),
+                Value<double?> imageAspectRatio = const Value.absent(),
+                Value<int> playCount = const Value.absent(),
+                required int firstPlayedAtMs,
+                required int lastPlayedAtMs,
+                Value<int> rowid = const Value.absent(),
+              }) => ListeningHistoryEntriesCompanion.insert(
+                accountKey: accountKey,
+                serverId: serverId,
+                contextKind: contextKind,
+                contextItemId: contextItemId,
+                name: name,
+                subtitle: subtitle,
+                imageItemId: imageItemId,
+                imageKind: imageKind,
+                imageTag: imageTag,
+                imageAspectRatio: imageAspectRatio,
+                playCount: playCount,
+                firstPlayedAtMs: firstPlayedAtMs,
+                lastPlayedAtMs: lastPlayedAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ListeningHistoryEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ListeningHistoryEntriesTable,
+      ListeningHistoryEntryRow,
+      $$ListeningHistoryEntriesTableFilterComposer,
+      $$ListeningHistoryEntriesTableOrderingComposer,
+      $$ListeningHistoryEntriesTableAnnotationComposer,
+      $$ListeningHistoryEntriesTableCreateCompanionBuilder,
+      $$ListeningHistoryEntriesTableUpdateCompanionBuilder,
+      (
+        ListeningHistoryEntryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $ListeningHistoryEntriesTable,
+          ListeningHistoryEntryRow
+        >,
+      ),
+      ListeningHistoryEntryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9542,4 +10911,9 @@ class $AppDatabaseManager {
       );
   $$DownloadedCollectionsTableTableManager get downloadedCollections =>
       $$DownloadedCollectionsTableTableManager(_db, _db.downloadedCollections);
+  $$ListeningHistoryEntriesTableTableManager get listeningHistoryEntries =>
+      $$ListeningHistoryEntriesTableTableManager(
+        _db,
+        _db.listeningHistoryEntries,
+      );
 }

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
+import 'package:jellyfinity/domain/media/artist.dart';
+import 'package:jellyfinity/domain/media/ListeningContext.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/Track.dart';
@@ -52,6 +54,7 @@ void main() {
   late FakePlaybackEngine engine;
   late FakeAudioSourceResolver resolver;
   late RecordingPlaybackProgressRepository progress;
+  late RecordingListeningHistoryRepository history;
   late SettingsCubit settings;
   late PlaybackCubit cubit;
 
@@ -61,12 +64,14 @@ void main() {
     engine = FakePlaybackEngine();
     resolver = FakeAudioSourceResolver();
     progress = RecordingPlaybackProgressRepository();
+    history = RecordingListeningHistoryRepository();
     settings = fakeSettingsCubit();
     cubit = PlaybackCubit(
       engine,
       queueRepository,
       resolver,
       progress,
+      history,
       settings,
     );
   });
@@ -300,6 +305,7 @@ void main() {
         queueRepository,
         resolver,
         progress,
+        history,
         settings,
       );
       await started.playNow([_track('a'), _track('b')], startIndex: 1);
@@ -316,6 +322,7 @@ void main() {
         queueRepository,
         resolver,
         progress,
+        history,
         settings,
       );
       addTearDown(restoredCubit.close);
@@ -528,6 +535,7 @@ void main() {
         queueRepository,
         resolver,
         progress,
+        history,
         saved,
       );
       addTearDown(savedCubit.close);
@@ -617,6 +625,7 @@ void main() {
         queueRepository,
         resolver,
         progress,
+        history,
         saved,
       );
       addTearDown(savedCubit.close);
@@ -661,5 +670,183 @@ void main() {
         expect(engine.normalization.enabled, isTrue);
       },
     );
+  });
+
+  group('listening history (v0.3.1, ADR-0025)', () {
+    Track albumTrack(
+      String itemId, {
+      String album = 'album-1',
+      Duration duration = const Duration(minutes: 3),
+      MediaAvailability availability = MediaAvailability.remoteOnly,
+    }) => Track(
+      id: MediaId(serverId: 's1', itemId: itemId),
+      name: 'Track $itemId',
+      albumId: MediaId(serverId: 's1', itemId: album),
+      albumName: 'Kind of Blue',
+      artists: const [ArtistRef(name: 'Miles Davis')],
+      duration: duration,
+      availability: availability,
+    );
+
+    test('a track skipped after two seconds is not recorded', () async {
+      await cubit.playNow([albumTrack('a'), albumTrack('b')], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 2));
+      await _pump();
+
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays, isEmpty);
+    });
+
+    test('a track listened past the 20s floor is recorded', () async {
+      await cubit.playNow([albumTrack('a'), albumTrack('b')], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 25));
+      await _pump();
+
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays, hasLength(1));
+      expect(history.plays.single.context.kind, ListeningContextKind.album);
+      expect(history.plays.single.context.id.itemId, 'album-1');
+    });
+
+    test('half of a short track is enough', () async {
+      await cubit.playNow([
+        albumTrack('a', duration: const Duration(seconds: 30)),
+        albumTrack('b'),
+      ], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 16));
+      await _pump();
+
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays, hasLength(1));
+    });
+
+    test('under half of a short track is not enough', () async {
+      await cubit.playNow([
+        albumTrack('a', duration: const Duration(seconds: 30)),
+        albumTrack('b'),
+      ], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 12));
+      await _pump();
+
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays, isEmpty);
+    });
+
+    test('a track that finishes on its own is always a play', () async {
+      await cubit.playNow([albumTrack('a')], startIndex: 0);
+      // No position events at all — completion still counts.
+      engine.emitStatus(PlaybackStatus.completed);
+      await _pump();
+
+      expect(history.plays, hasLength(1));
+    });
+
+    test('a downloaded track played offline is recorded', () async {
+      await cubit.playNow([
+        albumTrack('a', availability: MediaAvailability.localOnly),
+        albumTrack('b', availability: MediaAvailability.localOnly),
+      ], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 40));
+      await _pump();
+
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays, hasLength(1));
+    });
+
+    test('an unplayable entry is never recorded', () async {
+      await cubit.playNow([albumTrack('a'), albumTrack('b')], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 40));
+      await _pump();
+
+      // The engine reports it could not actually play.
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 0,
+          id: MediaId(serverId: 's1', itemId: 'a'),
+          message: 'dead stream',
+        ),
+      );
+      await _pump();
+
+      expect(history.plays, isEmpty);
+    });
+
+    test('an album played straight through collapses into one entry', () async {
+      await cubit.playNow([
+        albumTrack('a'),
+        albumTrack('b'),
+        albumTrack('c'),
+      ], startIndex: 0);
+
+      for (var i = 0; i < 3; i++) {
+        engine.emitPosition(const Duration(seconds: 30));
+        await _pump();
+        engine.emitCurrentIndex(i + 1 < 3 ? i + 1 : null);
+        await _pump();
+      }
+      await cubit.close();
+
+      final entries = (await history.recent(limit: 10)).valueOrNull!;
+      expect(entries, hasLength(1));
+      expect(entries.single.context.id.itemId, 'album-1');
+      expect(entries.single.playCount, 3);
+    });
+
+    test('a single with no album records a track context', () async {
+      await cubit.playNow([
+        Track(
+          id: MediaId(serverId: 's1', itemId: 'single'),
+          name: 'A Single',
+          duration: const Duration(minutes: 3),
+        ),
+      ], startIndex: 0);
+      engine.emitStatus(PlaybackStatus.completed);
+      await _pump();
+
+      expect(history.plays.single.context.kind, ListeningContextKind.track);
+      expect(history.plays.single.context.id.itemId, 'single');
+    });
+
+    test('resuming a saved queue only credits this session', () async {
+      await cubit.playNow([albumTrack('a'), albumTrack('b')], startIndex: 0);
+      await queueRepository.savePosition(
+        currentIndex: 0,
+        position: const Duration(minutes: 2, seconds: 30),
+      );
+      await cubit.close();
+
+      final freshEngine = FakePlaybackEngine();
+      addTearDown(freshEngine.disposeForTest);
+      final freshHistory = RecordingListeningHistoryRepository();
+      final resumed = PlaybackCubit(
+        freshEngine,
+        queueRepository,
+        resolver,
+        progress,
+        freshHistory,
+        settings,
+      );
+      addTearDown(resumed.close);
+
+      await resumed.restore();
+      // A couple of seconds of fresh listening, then move on — the 2:30
+      // already heard last session must not carry over.
+      freshEngine.emitPosition(const Duration(seconds: 3));
+      await _pump();
+      await resumed.next();
+      await _pump();
+
+      expect(freshHistory.plays, isEmpty);
+    });
   });
 }

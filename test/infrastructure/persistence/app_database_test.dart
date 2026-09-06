@@ -13,8 +13,8 @@ void main() {
     setUp(() => db = newTestDatabase());
     tearDown(() => db.close());
 
-    test('is at schema version 6', () {
-      expect(db.schemaVersion, 6);
+    test('is at schema version 7', () {
+      expect(db.schemaVersion, 7);
     });
 
     test('creates every declared table', () async {
@@ -58,6 +58,7 @@ void main() {
       expect(indexes, contains('idx_saved_servers_base_url'));
       expect(indexes, contains('idx_download_owners_owner'));
       expect(indexes, contains('idx_playlist_download_members_playlist'));
+      expect(indexes, contains('idx_listening_history_account'));
     });
 
     test('enables foreign-key enforcement on open', () async {
@@ -86,6 +87,6 @@ void main() {
       second.keyValueEntries,
     )..where((t) => t.key.equals('k'))).getSingle();
     expect(row.value, 'v');
-    expect(second.schemaVersion, 6);
+    expect(second.schemaVersion, 7);
   });
 }

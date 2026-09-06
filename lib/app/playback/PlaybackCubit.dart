@@ -5,6 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/result/result.dart';
+import '../../domain/media/artist.dart';
+import '../../domain/media/ListeningContext.dart';
+import '../../domain/media/ListeningHistoryRepository.dart';
+import '../../domain/media/media_availability.dart';
 import '../../domain/media/MediaId.dart';
 import '../../domain/media/PlaybackProgressRepository.dart';
 import '../../domain/media/Track.dart';
@@ -41,6 +45,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     this._queueRepository,
     this._sourceResolver,
     this._progressRepository,
+    this._history,
     this._settings,
   ) : super(const PlaybackUiState()) {
     _statusSub = _engine.statusStream.listen(_onStatus);
@@ -60,6 +65,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   final QueueRepository _queueRepository;
   final AudioSourceResolver _sourceResolver;
   final PlaybackProgressRepository _progressRepository;
+  final ListeningHistoryRepository _history;
   final SettingsCubit _settings;
 
   late final StreamSubscription<PlaybackStatus> _statusSub;
@@ -114,6 +120,26 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> _operationTail = Future<void>.value();
   bool _isSynchronizingSources = false;
 
+  // ---- Listening history (v0.3.1, ADR-0025) ----
+
+  /// A play is recorded once the user has genuinely listened to a track:
+  /// [_listenThreshold] of playback, or [_listenFraction] of a track whose
+  /// length is known, or the track finishing on its own. The fraction
+  /// covers a long track skipped after a couple of minutes; the absolute
+  /// floor covers a short one. Crossfade (ADR-0016) hands control over up
+  /// to 12 s early, which still clears the fraction for any track long
+  /// enough to matter, so it needs no special case here.
+  static const Duration _listenThreshold = Duration(seconds: 20);
+  static const double _listenFraction = 0.5;
+
+  /// The entry listening time is currently accruing against, the furthest
+  /// position seen for it, and whether it has already been recorded — so a
+  /// natural completion just after a threshold crossing does not
+  /// double-count.
+  QueueEntry? _listeningEntry;
+  Duration _listeningFurthest = Duration.zero;
+  bool _listeningRecorded = false;
+
   // ---- Cold start ----
 
   /// Restores the saved queue and primes the engine at its last position,
@@ -137,6 +163,10 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       play: false,
       initialPosition: restored.position,
     );
+    // Only this session's listening counts towards the threshold: a track
+    // resumed halfway needs threshold-worth of fresh playback to record,
+    // not to be credited for the part heard last time.
+    _retargetListening(restored.queue.currentEntry);
   }
 
   // ---- Starting playback ----
@@ -175,6 +205,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         .withRepeatMode(state.queue.repeatMode);
 
     _retriedAtOriginal.clear();
+    _retargetListening(null);
     emit(
       PlaybackUiState(
         queue: queue,
@@ -184,6 +215,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     );
     unawaited(_queueRepository.replace(queue));
     await _loadIntoEngine(queue, play: true);
+    _retargetListening(queue.currentEntry);
   }
 
   // ---- Transport ----
@@ -346,6 +378,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
     final moved = queue.withCurrentIndex(entriesIndex);
     final entry = moved.entries[entriesIndex];
+    _retargetListening(entry);
     emit(
       PlaybackUiState(
         queue: moved,
@@ -511,6 +544,11 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   }
 
   void _onPosition(Duration position) {
+    if (_listeningEntry != null &&
+        _listeningEntry!.id == state.queue.currentEntry?.id &&
+        position > _listeningFurthest) {
+      _listeningFurthest = position;
+    }
     emit(
       PlaybackUiState(
         queue: state.queue,
@@ -561,6 +599,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       ),
     );
     unawaited(_progressRepository.reportStart(entry.id));
+    _retargetListening(entry);
   }
 
   void _onEngineFailure(PlaybackFailure failure) {
@@ -625,16 +664,107 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       );
     }
 
+    // The track played to its natural end — a play, regardless of how far
+    // the position stream got before completion was reported.
+    _flushListening(completed: true);
+
     switch (queue.repeatMode) {
       case RepeatMode.one:
         await _engine.seek(Duration.zero);
         await _engine.play();
+        // A fresh loop is a fresh listen: an hour of one track on repeat
+        // is an hour the user spent with it, and the history collapses
+        // the repeats into the one entry anyway.
+        _retargetListening(current);
       case RepeatMode.all:
         final next = queue.nextIndexOnCompletion();
-        if (next != null) await _advanceTo(next);
+        if (next != null) {
+          await _advanceTo(next);
+        } else {
+          _retargetListening(null);
+        }
       case RepeatMode.off:
-      // The queue reached its natural end; there is nothing more to do.
+        _retargetListening(null);
     }
+  }
+
+  // ---- Listening history ----
+
+  /// Records whatever listening time was accruing (if it qualifies), then
+  /// starts accruing against [entry] — or nothing, for `null`.
+  void _retargetListening(QueueEntry? entry) {
+    _flushListening(completed: false);
+    _listeningEntry = entry;
+    _listeningFurthest = Duration.zero;
+    _listeningRecorded = false;
+  }
+
+  /// Records the current listening entry as a play when the user has
+  /// genuinely listened to it (ADR-0025). A no-op for an entry already
+  /// recorded, one that never played, or one the engine marked
+  /// unavailable.
+  void _flushListening({required bool completed}) {
+    final entry = _listeningEntry;
+    if (entry == null || _listeningRecorded) return;
+    // Read availability from the live queue, not the entry captured when
+    // tracking began: the engine may have marked it unavailable since.
+    final liveIndex = state.queue.entries.indexWhere(
+      (candidate) => candidate.id == entry.id,
+    );
+    final availability = liveIndex < 0
+        ? entry.availability
+        : state.queue.entries[liveIndex].availability;
+    if (availability == MediaAvailability.remoteUnavailable) return;
+
+    final duration = entry.duration;
+    final farEnough =
+        duration != null &&
+        duration > Duration.zero &&
+        _listeningFurthest.inMilliseconds >=
+            duration.inMilliseconds * _listenFraction;
+    if (!completed && !farEnough && _listeningFurthest < _listenThreshold) {
+      return;
+    }
+
+    _listeningRecorded = true;
+    unawaited(
+      _history.record(
+        ListeningPlay(
+          context: _listeningContextFor(entry),
+          playedAt: DateTime.now().toUtc(),
+        ),
+      ),
+    );
+  }
+
+  /// What a play of [entry] is about: its album if it has one, else its
+  /// artist, else the track on its own. This is what history collapses on
+  /// — an album played straight through is one thing the user did.
+  ListeningContext _listeningContextFor(QueueEntry entry) {
+    if (entry.albumId case final MediaId albumId) {
+      return ListeningContext(
+        kind: ListeningContextKind.album,
+        id: albumId,
+        name: entry.albumName ?? entry.title,
+        subtitle: entry.artist,
+        image: entry.image,
+      );
+    }
+    final primary = entry.artists.primary;
+    if (primary?.id case final MediaId artistId) {
+      return ListeningContext(
+        kind: ListeningContextKind.artist,
+        id: artistId,
+        name: primary!.name,
+      );
+    }
+    return ListeningContext(
+      kind: ListeningContextKind.track,
+      id: entry.id,
+      name: entry.title,
+      subtitle: entry.artist,
+      image: entry.image,
+    );
   }
 
   Future<void> _savePosition() => _queueRepository.savePosition(
@@ -644,6 +774,9 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   @override
   Future<void> close() {
+    // The app or this cubit is going away mid-track; a track listened to
+    // for long enough by now is still a play.
+    _flushListening(completed: false);
     _positionTimer?.cancel();
     unawaited(_settingsSub.cancel());
     unawaited(_statusSub.cancel());

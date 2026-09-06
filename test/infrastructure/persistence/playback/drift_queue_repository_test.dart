@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/domain/media/artist.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
@@ -79,6 +80,37 @@ void main() {
     expect(restored.artist, 'Miles Davis');
     expect(restored.albumName, 'Kind of Blue');
     expect(restored.duration, const Duration(minutes: 5));
+  });
+
+  test('the album and artist ids survive the round trip (v0.3.1)', () async {
+    final entry = QueueEntry(
+      id: MediaId(serverId: 's1', itemId: 'a'),
+      title: 'So What',
+      artist: 'Miles Davis, John Coltrane',
+      artists: const [
+        ArtistRef(
+          name: 'Miles Davis',
+          id: MediaId(serverId: 's1', itemId: 'md'),
+        ),
+        ArtistRef(name: 'John Coltrane'),
+      ],
+      albumId: const MediaId(serverId: 's1', itemId: 'kob'),
+      albumName: 'Kind of Blue',
+    );
+
+    await repository.replace(
+      PlaybackQueue.empty.withEntries([entry], startIndex: 0),
+    );
+    final restored =
+        (await repository.load()).valueOrNull!.queue.entries.single;
+
+    expect(restored.albumId, const MediaId(serverId: 's1', itemId: 'kob'));
+    expect(restored.artists.map((a) => a.name), [
+      'Miles Davis',
+      'John Coltrane',
+    ]);
+    expect(restored.artists.first.id?.itemId, 'md');
+    expect(restored.artists[1].id, isNull);
   });
 
   test('replace overwrites what was there before, not merges', () async {

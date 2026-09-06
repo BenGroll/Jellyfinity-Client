@@ -20,7 +20,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # `flutter create` default of 1.0.0 through every release to date, which
 # would have shipped v0.3.0 announcing itself as 1.0.0 — and 1.0.0 means
 # something specific here: the first public release, which this is not.
-version: 0.3.0+1
+version: 0.3.1+2
 
 environment:
   sdk: ^3.12.2
