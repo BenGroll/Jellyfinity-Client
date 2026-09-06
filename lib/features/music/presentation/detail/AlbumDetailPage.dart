@@ -121,7 +121,6 @@ class _AlbumDetailView extends StatelessWidget {
                     track: track,
                     showArtwork: false,
                     position: track.trackNumber ?? index + 1,
-                    markUnavailable: !state.isCached,
                     playable: playable,
                     onTap: playable
                         ? () => context.read<PlaybackCubit>().playNow(
