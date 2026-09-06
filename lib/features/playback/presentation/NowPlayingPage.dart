@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/di/service_locator.dart';
+import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
@@ -138,7 +139,7 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                     ),
                   ),
                   _ArtistAlbumLinks(entry: entry),
-                  const _SourceQualityRow(),
+                  _SourceQualityRow(id: entry.id),
                   SizedBox(height: t.spacing.lg),
                   _SeekBar(state: state),
                   SizedBox(height: t.spacing.sm),
@@ -508,13 +509,33 @@ class _LinkOrText extends StatelessWidget {
 /// The source file's own format/bitrate, stacked on the left, and a badge
 /// on the right naming either "Lossless" or the transcode target — the
 /// v0.1.6 restyle of the single-line hint ADR-0015 shipped.
+///
+/// Which quality preference the badge describes depends on where the
+/// audio is actually coming from. `LocalFirstAudioSourceResolver` plays a
+/// completed download in preference to the server and deliberately
+/// ignores the *streaming* preference when it does, so reading
+/// `streamQuality` for a downloaded track claimed a transcode that is not
+/// happening — a downloaded lossless file announcing itself as "AAC ·
+/// 256 kbps" because of a preference that never touched it. A download is
+/// governed by the separate download-quality preference (v0.2.2), so that
+/// is the one the badge answers to here.
 class _SourceQualityRow extends StatelessWidget {
-  const _SourceQualityRow();
+  const _SourceQualityRow({required this.id});
+
+  /// The track being played, to ask the catalog whether it is on the
+  /// device.
+  final MediaId id;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final quality = context.watch<SettingsCubit>().state.streamQuality;
+    final settings = context.watch<SettingsCubit>().state;
+    final isDownloaded = context.select<DownloadsCubit, bool>(
+      (downloads) => downloads.state.isDownloaded(id),
+    );
+    final quality = isDownloaded
+        ? settings.downloadQuality
+        : settings.streamQuality;
 
     return BlocBuilder<TrackSourceInfoCubit, TrackSourceInfoState>(
       builder: (context, state) {

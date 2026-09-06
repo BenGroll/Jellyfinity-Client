@@ -15,6 +15,19 @@ import '../../support/FakeDioAdapter.dart';
 const _id = MediaId(serverId: 'server-1', itemId: 'track-1');
 final _source = Uri.parse('https://media.example.test/Audio/track-1/stream');
 
+/// The same track at a transcoded download quality — a different address
+/// answering with different bytes, as `JellyfinAudioSourceResolver`
+/// builds it.
+final _transcoded = Uri.parse(
+  'https://media.example.test/Audio/track-1/stream.aac'
+  '?audioCodec=aac&audioBitRate=256000',
+);
+
+/// [_source] carrying a session token, the one part of a stream address
+/// that changes without changing a byte of the audio.
+Uri _authorized(String token) =>
+    _source.replace(queryParameters: {'api_key': token, 'static': 'true'});
+
 /// A [ResponseBody] over fixed bytes, with headers a real server would
 /// send for a full (`200`) or partial (`206`) audio response.
 ResponseBody _audioResponse(
@@ -38,6 +51,22 @@ ResponseBody _audioResponse(
     statusCode,
     headers: headers,
   );
+}
+
+/// Seeds a partial file exactly as an interrupted transfer of [source]
+/// would have left it: the bytes, plus the marker recording what they are
+/// of. Writing bytes without the marker is a different case — see the
+/// "unmarked partial" test.
+Future<void> _seedPartial(
+  DownloadStorage storage,
+  List<int> bytes, {
+  Uri? source,
+}) async {
+  final partial = await storage.partialFileForSource(
+    _id,
+    HttpDownloadEngine.sourceKeyFor(source ?? _source),
+  );
+  await partial.writeAsBytes(bytes);
 }
 
 HttpDownloadEngine _engine(DownloadStorage storage, FakeDioAdapter adapter) {
@@ -85,8 +114,7 @@ void main() {
   });
 
   test('resumes a partial transfer with a Range request', () async {
-    final partial = await storage.partialFile(_id);
-    await partial.writeAsBytes([1, 2]);
+    await _seedPartial(storage, [1, 2]);
 
     RequestOptions? seenRequest;
     final adapter = FakeDioAdapter((options) async {
@@ -104,8 +132,7 @@ void main() {
   });
 
   test('starts over when the server ignores the range and sends 200', () async {
-    final partial = await storage.partialFile(_id);
-    await partial.writeAsBytes([9, 9]);
+    await _seedPartial(storage, [9, 9]);
 
     final adapter = FakeDioAdapter(
       (_) async => _audioResponse([1, 2, 3], statusCode: 200),
@@ -118,6 +145,92 @@ void main() {
     // duplicated prefix would be silent corruption.
     final stored = result.valueOrNull!;
     expect(await File.fromUri(stored.address).readAsBytes(), [1, 2, 3]);
+  });
+
+  group('a partial only resumes onto the address it came from', () {
+    test('starts over when the download quality changed under it', () async {
+      // Paused at original quality, retried after the download-quality
+      // preference moved to a transcode: a different encoding, so the
+      // bytes already on disk are not the head of this file. Appending to
+      // them would complete a download that plays as noise.
+      await _seedPartial(storage, [9, 9]);
+
+      RequestOptions? seenRequest;
+      final adapter = FakeDioAdapter((options) async {
+        seenRequest = options;
+        return _audioResponse([1, 2, 3]);
+      });
+
+      final result = await _engine(storage, adapter).fetch(_id, _transcoded);
+
+      expect(seenRequest!.headers[HttpHeaders.rangeHeader], isNull);
+      final stored = result.valueOrNull!;
+      expect(await File.fromUri(stored.address).readAsBytes(), [1, 2, 3]);
+    });
+
+    test('resumes across a new session token', () async {
+      // The same address bar its `api_key`: a re-issued session token
+      // changes the URL without changing a byte of the audio, so throwing
+      // the partial away there would be needless re-downloading.
+      await _seedPartial(storage, [1, 2], source: _authorized('token-one'));
+
+      RequestOptions? seenRequest;
+      final adapter = FakeDioAdapter((options) async {
+        seenRequest = options;
+        return _audioResponse([3, 4], statusCode: 206, rangeStart: 2);
+      });
+
+      final result = await _engine(
+        storage,
+        adapter,
+      ).fetch(_id, _authorized('token-two'));
+
+      expect(seenRequest!.headers[HttpHeaders.rangeHeader], 'bytes=2-');
+      expect(await File.fromUri(result.valueOrNull!.address).readAsBytes(), [
+        1,
+        2,
+        3,
+        4,
+      ]);
+    });
+
+    test('discards a partial left with no record of its source', () async {
+      // Everything an install downloaded before this guard existed. The
+      // bytes cannot be vouched for, so one track starts over rather than
+      // risking a spliced file; it self-heals in a single transfer.
+      final partial = await storage.partialFile(_id);
+      await partial.writeAsBytes([9, 9]);
+
+      RequestOptions? seenRequest;
+      final adapter = FakeDioAdapter((options) async {
+        seenRequest = options;
+        return _audioResponse([1, 2, 3]);
+      });
+
+      final result = await _engine(storage, adapter).fetch(_id, _source);
+
+      expect(seenRequest!.headers[HttpHeaders.rangeHeader], isNull);
+      expect(await File.fromUri(result.valueOrNull!.address).readAsBytes(), [
+        1,
+        2,
+        3,
+      ]);
+    });
+
+    test('the source key ignores the credential but not the quality', () {
+      expect(
+        HttpDownloadEngine.sourceKeyFor(_authorized('token-one')),
+        HttpDownloadEngine.sourceKeyFor(_authorized('token-two')),
+      );
+      expect(
+        HttpDownloadEngine.sourceKeyFor(_source),
+        isNot(HttpDownloadEngine.sourceKeyFor(_transcoded)),
+      );
+      expect(
+        HttpDownloadEngine.sourceKeyFor(_authorized('token-one')),
+        isNot(contains('token-one')),
+      );
+    });
   });
 
   test('abort keeps the partial bytes for a later resume', () async {

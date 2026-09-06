@@ -70,8 +70,8 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   ) : super(DownloadCatalog.empty) {
     // A held-back download should resume the moment Wi-Fi returns or the
     // user relaxes the policy, without them reopening the app.
-    _networkSub = _network.changes().listen((_) => _reevaluateNetwork());
-    _settingsSub = _settings.stream.listen((_) => _reevaluateNetwork());
+    _networkSub = _network.changes().listen((_) => _checkNetworkPolicy());
+    _settingsSub = _settings.stream.listen((_) => _checkNetworkPolicy());
     // Downloads are per-profile (v0.2.3): when the active profile changes
     // the catalog has to be rebuilt from the other profile's records, and
     // a signed-out app shows nothing.
@@ -115,6 +115,12 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   /// flight. The engine's own failure for an aborted transfer arrives
   /// after the fact, and must not be written back over the state the
   /// user just asked for.
+  ///
+  /// Only ever the transfer that is actually running — marking a record
+  /// nothing is transferring achieves nothing, and an id added for one
+  /// would stay for the life of the process, so a long session of
+  /// downloading and removing music grew this without bound. [_drain]
+  /// clears the entry when the transfer it describes settles.
   final Set<MediaId> _abandoned = {};
 
   /// Serializes the worker so two pumps cannot both claim the same
@@ -629,8 +635,10 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
   Future<void> pause(MediaId id) async {
     final record = state[id];
     if (record == null || !record.state.isPending) return;
-    _abandoned.add(id);
-    await _engine.abort(id);
+    if (_active == id) {
+      _abandoned.add(id);
+      await _engine.abort(id);
+    }
     await _write(
       record.copyWith(state: DownloadState.paused, clearFailureReason: true),
     );
@@ -720,8 +728,10 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
       return;
     }
 
-    _abandoned.add(id);
-    if (_active == id) await _engine.abort(id);
+    if (_active == id) {
+      _abandoned.add(id);
+      await _engine.abort(id);
+    }
     await _engine.discard(id);
     await _store.delete(id);
 
@@ -761,39 +771,72 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     return network.allowsDownload(wifiOnly: true);
   }
 
-  /// Re-checks the policy against the current network — called whenever
-  /// connectivity or the preference changes. Releases held-back
+  /// Serializes every network-policy transition.
+  ///
+  /// Two routines move records between [DownloadState.queued] and
+  /// [DownloadState.waitingForNetwork]: this listener, and the worker's
+  /// own gate in [_drain]. Both read the network and then write, so
+  /// unserialized they can interleave on a rapid connectivity flip — the
+  /// listener releasing the queue on a connection that has just come
+  /// back, the worker's stale "not allowed" answer landing afterwards and
+  /// holding it again. Nothing re-pumps after that, so the queue sits
+  /// idle on a perfectly good connection until the *next* change.
+  ///
+  /// A separate chain from [_worker] rather than the same one: a policy
+  /// check must stay responsive while a transfer that may run for minutes
+  /// is in flight.
+  Future<void> _policy = Future<void>.value();
+
+  /// Queues a policy re-check behind any other one already running, and
+  /// answers whether a download may run once it has settled.
+  ///
+  /// [pumpWhenAllowed] is false for the worker's own call: it is about to
+  /// carry on and start the transfer itself.
+  Future<bool> _checkNetworkPolicy({bool pumpWhenAllowed = true}) {
+    final checked = _policy.then(
+      (_) => _reevaluateNetwork(pumpWhenAllowed: pumpWhenAllowed),
+    );
+    _policy = checked;
+    return checked;
+  }
+
+  /// Re-checks the policy against the current network. Releases held-back
   /// downloads once they are allowed again, and marks queued ones as
   /// waiting when they are not, so the UI is honest the moment the policy
   /// bites rather than only when the worker next turns.
-  Future<void> _reevaluateNetwork() async {
-    if (isClosed) return;
+  ///
+  /// Only ever called through [_checkNetworkPolicy].
+  Future<bool> _reevaluateNetwork({required bool pumpWhenAllowed}) async {
+    if (isClosed) return false;
     final hasCandidates = state.downloads.values.any(
       (record) =>
           record.state == DownloadState.queued ||
           record.state == DownloadState.waitingForNetwork,
     );
-    if (!hasCandidates) return;
+    // Nothing is waiting on the answer, so there is no reason to spend a
+    // connectivity read on it. The worker never gets here with an empty
+    // queue: it checks for a pending record first.
+    if (!hasCandidates) return true;
 
-    if (await _networkAllowsDownload()) {
-      if (isClosed) return;
-      var released = false;
-      for (final record in state.downloads.values.toList()) {
-        if (record.state == DownloadState.waitingForNetwork) {
-          await _write(
-            record.copyWith(
-              state: DownloadState.queued,
-              clearFailureReason: true,
-            ),
-          );
-          released = true;
-        }
-      }
-      if (released) _pump();
-    } else {
-      if (isClosed) return;
+    if (!await _networkAllowsDownload()) {
+      if (isClosed) return false;
       await _holdForNetwork();
+      return false;
     }
+
+    if (isClosed) return false;
+    for (final record in state.downloads.values.toList()) {
+      if (record.state == DownloadState.waitingForNetwork) {
+        await _write(
+          record.copyWith(
+            state: DownloadState.queued,
+            clearFailureReason: true,
+          ),
+        );
+      }
+    }
+    if (pumpWhenAllowed) _pump();
+    return true;
   }
 
   /// Moves every queued download to [DownloadState.waitingForNetwork].
@@ -823,11 +866,12 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     // Wi-Fi-only (v0.2.2): if the policy blocks work right now, hold the
     // whole queue as waiting-for-network rather than starting a transfer
     // that would spend a metered connection.
-    if (!await _networkAllowsDownload()) {
-      if (isClosed) return;
-      await _holdForNetwork();
-      return;
-    }
+    //
+    // Through [_checkNetworkPolicy] rather than an inline read, so this
+    // cannot race the connectivity listener: the two share one lock, so
+    // whichever reads the network second also writes second, and there is
+    // exactly one answer per drain for both to act on.
+    if (!await _checkNetworkPolicy(pumpWhenAllowed: false)) return;
     if (isClosed || _active != null) return;
 
     // Re-read after the awaited network check: a request that landed
@@ -845,7 +889,10 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     final failure = await _transfer(next);
     _active = null;
 
-    if (!isClosed && failure != null && !_abandoned.remove(next.id)) {
+    // Cleared however the transfer ended, so the set never outlives the
+    // one transfer it is about.
+    final abandoned = _abandoned.remove(next.id);
+    if (!isClosed && failure != null && !abandoned) {
       final current = state[next.id];
       if (current != null) {
         await _write(

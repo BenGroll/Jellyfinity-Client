@@ -210,6 +210,12 @@ class DownloadCatalog extends Equatable {
   /// one download (v0.2.2) — one row each on the Downloads screen. A
   /// downloaded playlist with a snapshot but no surviving members is
   /// included so it does not vanish from the screen.
+  ///
+  /// Ordered by kind and then by name. The set is built by walking maps
+  /// whose iteration order shifts as records change state, so leaving it
+  /// in that order made the Downloads screen's Collections list reshuffle
+  /// itself while a download ran — the two sections either side of it are
+  /// both explicitly sorted.
   List<DownloadOwner> get collectionOwners {
     final owners = <DownloadOwner>{};
     for (final download in downloads.values) {
@@ -222,8 +228,22 @@ class DownloadCatalog extends Equatable {
     }
     // A collection whose every track has since been removed but whose
     // identity is still stored stays on the screen rather than vanishing.
-    owners.addAll(collections.keys);
-    return owners.toList();
+    // Filtered the same way as the owners above: only a collection is a
+    // row here, and a track identity is never stored anyway.
+    for (final owner in collections.keys) {
+      if (owner.kind != DownloadOwnerKind.track) owners.add(owner);
+    }
+
+    // Named once rather than inside the comparator: resolving a name
+    // walks every record, which a sort would otherwise repeat O(n log n)
+    // times.
+    final names = {
+      for (final owner in owners) owner: collectionName(owner).toLowerCase(),
+    };
+    return owners.toList()..sort((a, b) {
+      final byKind = a.kind.index.compareTo(b.kind.index);
+      return byKind != 0 ? byKind : names[a]!.compareTo(names[b]!);
+    });
   }
 
   /// The tracks the user downloaded on their own — a `track` owner, with

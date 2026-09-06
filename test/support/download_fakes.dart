@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
@@ -40,7 +41,7 @@ DownloadsCubit fakeDownloadsCubit({
   MusicLibraryRepository? library,
   PlaylistRepository? playlists,
   SettingsCubit? settings,
-  FakeNetworkCondition? network,
+  NetworkCondition? network,
   SessionCubit? session,
   FakeStorageProbe? storage,
 }) => DownloadsCubit(
@@ -86,6 +87,36 @@ class FakeNetworkCondition implements NetworkCondition {
     state = next;
     _controller.add(next);
   }
+}
+
+/// A [NetworkCondition] that comes back to Wi-Fi *during* the very first
+/// question asked of it, and lets everything the change wakes run to
+/// completion before answering with the connection it had when asked.
+///
+/// The rapid transition `ROADMAP.md` v0.3.0 asks the download lifecycle to
+/// survive, reduced to its worst interleaving: a caller acting on a stale
+/// "metered" answer after a listener has already acted on the new one.
+class ReturningNetworkCondition implements NetworkCondition {
+  NetworkState state = NetworkState.metered;
+  bool _returned = false;
+  final _controller = StreamController<NetworkState>.broadcast();
+
+  @override
+  Future<NetworkState> current() async {
+    if (_returned) return state;
+    _returned = true;
+    final asked = state;
+    state = NetworkState.unmetered;
+    _controller.add(state);
+    // Everything the change woke settles before the stale answer lands.
+    // A bounded number of turns rather than an open-ended drain, so this
+    // does not swallow the event-queue budget of the test around it.
+    await pumpEventQueue(times: 5);
+    return asked;
+  }
+
+  @override
+  Stream<NetworkState> changes() => _controller.stream;
 }
 
 /// A [DownloadStore] with no database behind it.

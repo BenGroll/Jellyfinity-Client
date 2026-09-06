@@ -834,6 +834,36 @@ void main() {
 
       expect(cubit.state.stateOf(mediaId('t1')), DownloadState.completed);
     });
+
+    test(
+      'a connection that returns mid-check does not strand the queue',
+      () async {
+        // The worker and the connectivity listener both read the network and
+        // then write. Unserialized, a connection coming back *while* the
+        // worker was asking could let the listener's release land first and
+        // the worker's stale hold land on top of it — leaving every request
+        // parked on "waiting for Wi-Fi" with good Wi-Fi and nothing left to
+        // wake it.
+        final settings = fakeSettingsCubit(downloadsWifiOnly: true);
+        addTearDown(settings.close);
+        final scoped = fakeDownloadsCubit(
+          store: store,
+          engine: engine,
+          resolver: resolver,
+          library: library,
+          playlists: playlists,
+          settings: settings,
+          network: ReturningNetworkCondition(),
+        );
+        addTearDown(scoped.close);
+
+        await scoped.downloadTrack(testTrack('t1'));
+        await pumpEventQueue();
+
+        expect(scoped.state.stateOf(mediaId('t1')), DownloadState.completed);
+        expect(engine.fetched, [mediaId('t1')]);
+      },
+    );
   });
 
   group('downloaded-collection identity (v0.2.3)', () {
@@ -848,17 +878,20 @@ void main() {
       expect(store.collectionsMap[owner]?.name, 'Kind of Blue');
     });
 
-    test('downloading a playlist gives the Downloads screen its real name', () async {
-      playlists.trackList = [testTrack('t1')];
+    test(
+      'downloading a playlist gives the Downloads screen its real name',
+      () async {
+        playlists.trackList = [testTrack('t1')];
 
-      await cubit.downloadPlaylist(testPlaylist('pl-1', name: 'Roadtrip'));
-      await pumpEventQueue();
+        await cubit.downloadPlaylist(testPlaylist('pl-1', name: 'Roadtrip'));
+        await pumpEventQueue();
 
-      expect(
-        cubit.state.collectionName(DownloadOwner.playlist(mediaId('pl-1'))),
-        'Roadtrip',
-      );
-    });
+        expect(
+          cubit.state.collectionName(DownloadOwner.playlist(mediaId('pl-1'))),
+          'Roadtrip',
+        );
+      },
+    );
 
     test('removing a collection forgets its stored identity', () async {
       library.tracksByAlbum['al-1'] = [testTrack('t1', albumId: 'al-1')];
@@ -888,31 +921,34 @@ void main() {
   });
 
   group('per-profile downloads (v0.2.3)', () {
-    test('switching profile rebuilds the catalog from that profile\'s records', () async {
-      // Alice has a download.
-      store.records[mediaId('t1')] = downloadRecord(
-        mediaId('t1'),
-        state: DownloadState.completed,
-      );
-      engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
-      await cubit.restore();
-      await pumpEventQueue();
-      expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
+    test(
+      'switching profile rebuilds the catalog from that profile\'s records',
+      () async {
+        // Alice has a download.
+        store.records[mediaId('t1')] = downloadRecord(
+          mediaId('t1'),
+          state: DownloadState.completed,
+        );
+        engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
+        await cubit.restore();
+        await pumpEventQueue();
+        expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
 
-      // Bob signs in — a different profile with nothing downloaded.
-      store.accountKey = 'server-1/user-2';
-      session.emit(
-        SessionState.signedIn(
-          fakeAuthSession(
-            account: fakeJellyfinAccount(id: 'acct-2', userId: 'user-2'),
+        // Bob signs in — a different profile with nothing downloaded.
+        store.accountKey = 'server-1/user-2';
+        session.emit(
+          SessionState.signedIn(
+            fakeAuthSession(
+              account: fakeJellyfinAccount(id: 'acct-2', userId: 'user-2'),
+            ),
           ),
-        ),
-      );
-      await pumpEventQueue();
+        );
+        await pumpEventQueue();
 
-      expect(cubit.state.downloads, isEmpty);
-      expect(cubit.state.isLoaded, isTrue);
-    });
+        expect(cubit.state.downloads, isEmpty);
+        expect(cubit.state.isLoaded, isTrue);
+      },
+    );
 
     test('signing out empties the catalog', () async {
       store.records[mediaId('t1')] = downloadRecord(
@@ -930,56 +966,62 @@ void main() {
       expect(cubit.state.downloads, isEmpty);
     });
 
-    test('restore claims downloads left unscoped by the schema-v6 upgrade', () async {
-      store.accountKey = '';
-      store.records[mediaId('t1')] = downloadRecord(
-        mediaId('t1'),
-        state: DownloadState.completed,
-      );
-      engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
+    test(
+      'restore claims downloads left unscoped by the schema-v6 upgrade',
+      () async {
+        store.accountKey = '';
+        store.records[mediaId('t1')] = downloadRecord(
+          mediaId('t1'),
+          state: DownloadState.completed,
+        );
+        engine.stored[mediaId('t1')] = Uri.file('/downloads/t1/audio.flac');
 
-      store.accountKey = 'server-1/user-1';
-      await cubit.restore();
-      await pumpEventQueue();
+        store.accountKey = 'server-1/user-1';
+        await cubit.restore();
+        await pumpEventQueue();
 
-      expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
-    });
+        expect(cubit.state.isDownloaded(mediaId('t1')), isTrue);
+      },
+    );
   });
 
   group('server-deleted downloads (v0.2.3)', () {
-    test('reconcileCollectionPresence marks a dropped track "only on device"', () async {
-      final album = DownloadOwner.album(mediaId('al-1'));
-      for (final id in ['t1', 't2']) {
-        store.records[mediaId(id)] = downloadRecord(
-          mediaId(id),
-          state: DownloadState.completed,
-          owners: {album},
+    test(
+      'reconcileCollectionPresence marks a dropped track "only on device"',
+      () async {
+        final album = DownloadOwner.album(mediaId('al-1'));
+        for (final id in ['t1', 't2']) {
+          store.records[mediaId(id)] = downloadRecord(
+            mediaId(id),
+            state: DownloadState.completed,
+            owners: {album},
+          );
+        }
+        store.collectionsMap[album] = DownloadedCollection(
+          owner: album,
+          name: 'Kind of Blue',
         );
-      }
-      store.collectionsMap[album] = DownloadedCollection(
-        owner: album,
-        name: 'Kind of Blue',
-      );
-      await cubit.restore();
-      await pumpEventQueue();
+        await cubit.restore();
+        await pumpEventQueue();
 
-      // The server now lists only t1.
-      await cubit.reconcileCollectionPresence(album, {mediaId('t1')});
+        // The server now lists only t1.
+        await cubit.reconcileCollectionPresence(album, {mediaId('t1')});
 
-      expect(cubit.state[mediaId('t1')]!.serverGone, isFalse);
-      expect(cubit.state[mediaId('t2')]!.serverGone, isTrue);
-      expect(
-        cubit.state[mediaId('t2')]!.toTrack().availability,
-        MediaAvailability.localOnly,
-      );
+        expect(cubit.state[mediaId('t1')]!.serverGone, isFalse);
+        expect(cubit.state[mediaId('t2')]!.serverGone, isTrue);
+        expect(
+          cubit.state[mediaId('t2')]!.toTrack().availability,
+          MediaAvailability.localOnly,
+        );
 
-      // t2 comes back — the mark is cleared.
-      await cubit.reconcileCollectionPresence(album, {
-        mediaId('t1'),
-        mediaId('t2'),
-      });
-      expect(cubit.state[mediaId('t2')]!.serverGone, isFalse);
-    });
+        // t2 comes back — the mark is cleared.
+        await cubit.reconcileCollectionPresence(album, {
+          mediaId('t1'),
+          mediaId('t2'),
+        });
+        expect(cubit.state[mediaId('t2')]!.serverGone, isFalse);
+      },
+    );
 
     test('a playlist reconcile marks a removed-but-kept member', () async {
       final playlistOwner = DownloadOwner.playlist(mediaId('pl-1'));
@@ -1022,10 +1064,15 @@ void main() {
       expect(await cubit.storageWarning(), isNull);
     });
 
-    test('does not warn when the platform will not report free space', () async {
-      final scoped = fakeDownloadsCubit(storage: FakeStorageProbe(available: null));
-      addTearDown(scoped.close);
-      expect(await scoped.storageWarning(), isNull);
-    });
+    test(
+      'does not warn when the platform will not report free space',
+      () async {
+        final scoped = fakeDownloadsCubit(
+          storage: FakeStorageProbe(available: null),
+        );
+        addTearDown(scoped.close);
+        expect(await scoped.storageWarning(), isNull);
+      },
+    );
   });
 }

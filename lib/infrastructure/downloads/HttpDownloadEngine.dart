@@ -38,6 +38,12 @@ import 'DownloadStorage.dart';
 /// rather than append to bytes it already has — a duplicated prefix
 /// would produce a file that looks complete and plays as noise.
 ///
+/// The same reasoning covers a partial left by a *different* address:
+/// changing the download-quality preference changes what the server
+/// sends, so [DownloadStorage.partialFileForSource] throws away a
+/// partial fetched under an address other than this one rather than
+/// splicing two encodings together.
+///
 /// ## Its own `Dio`
 ///
 /// Not `JellyfinHttpClient`: that client is built per server around JSON
@@ -108,7 +114,7 @@ class HttpDownloadEngine implements DownloadEngine {
     CancelToken cancelToken,
     void Function(DownloadProgress progress)? onProgress,
   ) async {
-    var partial = await _storage.partialFile(id);
+    var partial = await _storage.partialFileForSource(id, sourceKeyFor(source));
     var offset = await partial.exists() ? await partial.length() : 0;
 
     final Response<ResponseBody> response;
@@ -203,6 +209,32 @@ class HttpDownloadEngine implements DownloadEngine {
     final partial = await _storage.partialFile(id);
     return await partial.exists() ? partial.length() : 0;
   }
+
+  /// What the bytes of a partial file are *of*, so a transfer never
+  /// resumes onto bytes fetched from a different address.
+  ///
+  /// The address minus its credential. A Jellyfin stream URL carries the
+  /// session token as an `api_key` query parameter (see
+  /// `JellyfinAudioSourceResolver`), which changes between sign-ins
+  /// without changing a single byte of the audio; everything else in the
+  /// address — the path, and the `static`/`audioCodec`/`audioBitRate`
+  /// parameters the download-quality preference sets — decides what the
+  /// server actually sends, and so belongs in the key.
+  ///
+  /// Public because it is the engine's half of its contract with
+  /// [DownloadStorage.partialFileForSource]: the two have to agree on when
+  /// two addresses mean the same bytes.
+  static String sourceKeyFor(Uri source) => source
+      .replace(
+        queryParameters: {
+          for (final parameter in source.queryParameters.entries)
+            if (parameter.key != _credentialParameter)
+              parameter.key: parameter.value,
+        },
+      )
+      .toString();
+
+  static const String _credentialParameter = 'api_key';
 
   /// The file's full size, preferring `Content-Range`'s total (which is
   /// the whole file) over `Content-Length` (which, for a resumed
