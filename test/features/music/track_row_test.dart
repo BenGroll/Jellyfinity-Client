@@ -12,29 +12,30 @@ void main() {
   });
   tearDown(() => MediaArtwork.imageBuilderOverride = null);
 
-  testWidgets('an unplayable track is greyed out and non-interactive (v0.2.3)', (
-    tester,
-  ) async {
-    var tapped = false;
-    await pumpThemed(
-      tester,
-      TrackRow(
-        track: testTrack('t1', name: 'So What'),
-        playable: false,
-        onTap: () => tapped = true,
-      ),
-    );
+  testWidgets(
+    'an unplayable track is greyed out and non-interactive (v0.2.3)',
+    (tester) async {
+      var tapped = false;
+      await pumpThemed(
+        tester,
+        TrackRow(
+          track: testTrack('t1', name: 'So What'),
+          playable: false,
+          onTap: () => tapped = true,
+        ),
+      );
 
-    // Dimmed.
-    expect(
-      find.byWidgetPredicate((w) => w is Opacity && w.opacity < 1.0),
-      findsOneWidget,
-    );
+      // Dimmed.
+      expect(
+        find.byWidgetPredicate((w) => w is Opacity && w.opacity < 1.0),
+        findsOneWidget,
+      );
 
-    await tester.tap(find.text('So What'), warnIfMissed: false);
-    await tester.pump();
-    expect(tapped, isFalse);
-  });
+      await tester.tap(find.text('So What'), warnIfMissed: false);
+      await tester.pump();
+      expect(tapped, isFalse);
+    },
+  );
 
   testWidgets('a playable track renders at full strength and taps through', (
     tester,

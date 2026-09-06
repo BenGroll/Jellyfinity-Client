@@ -128,37 +128,46 @@ void main() {
       expect(cubit.state.wholeSearchFailure, isA<RecoverableFailure>());
     });
 
-    test('offline, falls back to the downloads when they match (v0.2.3)', () async {
-      final music = _library()
-        ..failure = const RecoverableFailure('Could not reach the server.');
-      final playlists = FakePlaylistRepository()
-        ..failure = const RecoverableFailure('Could not reach the server.');
-      final downloads = FakeDownloadsLibrarySource()
-        ..trackList = [testTrack('t1', name: 'Miles Runs the Voodoo Down')];
-      final cubit = _cubit(music, playlists, downloads);
+    test(
+      'offline, falls back to the downloads when they match (v0.2.3)',
+      () async {
+        final music = _library()
+          ..failure = const RecoverableFailure('Could not reach the server.');
+        final playlists = FakePlaylistRepository()
+          ..failure = const RecoverableFailure('Could not reach the server.');
+        final downloads = FakeDownloadsLibrarySource()
+          ..trackList = [testTrack('t1', name: 'Miles Runs the Voodoo Down')];
+        final cubit = _cubit(music, playlists, downloads);
 
-      cubit.queryChanged('miles');
-      await cubit.submit();
+        cubit.queryChanged('miles');
+        await cubit.submit();
 
-      expect(cubit.state.wholeSearchFailure, isNull);
-      expect(cubit.state.songs.items.single.name, 'Miles Runs the Voodoo Down');
-    });
+        expect(cubit.state.wholeSearchFailure, isNull);
+        expect(
+          cubit.state.songs.items.single.name,
+          'Miles Runs the Voodoo Down',
+        );
+      },
+    );
 
-    test('the Downloaded filter searches only the downloads (v0.2.3)', () async {
-      final music = _library();
-      final downloads = FakeDownloadsLibrarySource()
-        ..albumList = [testAlbum('al1', name: 'Blue Train')];
-      final cubit = _cubit(music, null, downloads);
+    test(
+      'the Downloaded filter searches only the downloads (v0.2.3)',
+      () async {
+        final music = _library();
+        final downloads = FakeDownloadsLibrarySource()
+          ..albumList = [testAlbum('al1', name: 'Blue Train')];
+        final cubit = _cubit(music, null, downloads);
 
-      await cubit.showDownloadedOnly(true);
-      cubit.queryChanged('blue');
-      await cubit.submit();
+        await cubit.showDownloadedOnly(true);
+        cubit.queryChanged('blue');
+        await cubit.submit();
 
-      expect(cubit.downloadedOnly, isTrue);
-      expect(cubit.state.albums.items.single.name, 'Blue Train');
-      // The server list (Miles Ahead) is not consulted.
-      expect(cubit.state.artists.items, isEmpty);
-    });
+        expect(cubit.downloadedOnly, isTrue);
+        expect(cubit.state.albums.items.single.name, 'Blue Train');
+        // The server list (Miles Ahead) is not consulted.
+        expect(cubit.state.artists.items, isEmpty);
+      },
+    );
 
     test('a slow answer to an old query never wins', () async {
       final music = _library()
@@ -240,10 +249,7 @@ void main() {
       (tester) async {
         final music = FakeMusicLibraryRepository()
           ..failure = const RecoverableFailure('offline');
-        await pumpThemed(
-          tester,
-          InlineMusicSearch(cubit: _pageCubit(music)),
-        );
+        await pumpThemed(tester, InlineMusicSearch(cubit: _pageCubit(music)));
         await settle(tester);
 
         await tester.enterText(find.byType(TextField), 'miles');

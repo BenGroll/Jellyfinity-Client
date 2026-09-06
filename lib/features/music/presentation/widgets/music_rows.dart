@@ -11,17 +11,24 @@ import 'media_formatting.dart';
 /// scrolled without measuring anything.
 const double musicRowHeight = 64;
 
-/// Explains the `markUnavailable` flag every row takes.
+/// Explains the `markUnavailable` flag [AlbumTile] takes.
 ///
 /// An item that cannot be used is normally dimmed and made
 /// non-interactive — the missing track in an otherwise fine album. But a
 /// list served from the saved copy has *every* item unavailable, and
 /// dimming all of it would read as a broken screen rather than an offline
 /// one. Those screens pass `markUnavailable: false` and put a
-/// `SavedCopyNotice` above the list instead.
+/// `SavedCopyNotice` above the grid instead.
+///
+/// Only a grid tile takes this. The rows — [ArtistRow], [AlbumRow],
+/// [TrackRow], [PlaylistRow] — say the same thing in the colour of their
+/// title and never dim wholesale, so they accepted the flag and ignored
+/// it; it was removed rather than left to imply an effect it never had.
+/// [TrackRow.playable] is the separate, live mechanism for a row that
+/// genuinely cannot be tapped.
 abstract final class MusicRowStyle {
   /// Whether an unavailable item should be marked in place. The default
-  /// every row takes; screens showing the saved copy pass `false`.
+  /// [AlbumTile] takes; screens showing the saved copy pass `false`.
   static const bool markUnavailable = true;
 }
 
@@ -34,15 +41,11 @@ class ArtistRow extends StatelessWidget {
     super.key,
     required this.artist,
     this.onTap,
-    this.markUnavailable = MusicRowStyle.markUnavailable,
     this.downloaded = false,
   });
 
   final Artist artist;
   final VoidCallback? onTap;
-
-  /// See [MusicRowStyle.markUnavailable].
-  final bool markUnavailable;
 
   /// Whether any of this artist is kept on the device (v0.2.3) — shows a
   /// small marker in the trailing slot.
@@ -53,7 +56,6 @@ class ArtistRow extends StatelessWidget {
     return _MusicRow(
       onTap: onTap,
       availability: artist.availability,
-      markUnavailable: markUnavailable,
       leading: MediaArtwork(
         image: artist.image,
         kind: MediaKind.artist,
@@ -72,15 +74,11 @@ class AlbumRow extends StatelessWidget {
     super.key,
     required this.album,
     this.onTap,
-    this.markUnavailable = MusicRowStyle.markUnavailable,
     this.downloaded = false,
   });
 
   final Album album;
   final VoidCallback? onTap;
-
-  /// See [MusicRowStyle.markUnavailable].
-  final bool markUnavailable;
 
   /// Whether this album is kept on the device (v0.2.3).
   final bool downloaded;
@@ -90,7 +88,6 @@ class AlbumRow extends StatelessWidget {
     return _MusicRow(
       onTap: onTap,
       availability: album.availability,
-      markUnavailable: markUnavailable,
       leading: MediaArtwork(
         image: album.image,
         kind: MediaKind.album,
@@ -115,7 +112,6 @@ class TrackRow extends StatelessWidget {
     this.onTap,
     this.showArtwork = true,
     this.position,
-    this.markUnavailable = MusicRowStyle.markUnavailable,
     this.playable = true,
     this.onPlayNext,
     this.onAddToQueue,
@@ -133,9 +129,6 @@ class TrackRow extends StatelessWidget {
   /// a tap that does nothing. Callers that cannot play the track pass
   /// `onTap: null` alongside this.
   final bool playable;
-
-  /// See [MusicRowStyle.markUnavailable].
-  final bool markUnavailable;
 
   /// The number shown in place of artwork, when this row is part of an
   /// ordered list the user recognises (an album, a playlist).
@@ -171,7 +164,6 @@ class TrackRow extends StatelessWidget {
       child: _MusicRow(
         onTap: onTap,
         availability: track.availability,
-        markUnavailable: markUnavailable,
         leading: showArtwork
             ? MediaArtwork(
                 image: track.image,
@@ -316,15 +308,11 @@ class PlaylistRow extends StatelessWidget {
     super.key,
     required this.playlist,
     this.onTap,
-    this.markUnavailable = MusicRowStyle.markUnavailable,
     this.downloaded = false,
   });
 
   final Playlist playlist;
   final VoidCallback? onTap;
-
-  /// See [MusicRowStyle.markUnavailable].
-  final bool markUnavailable;
 
   /// Whether this playlist is kept on the device (v0.2.3).
   final bool downloaded;
@@ -334,7 +322,6 @@ class PlaylistRow extends StatelessWidget {
     return _MusicRow(
       onTap: onTap,
       availability: playlist.availability,
-      markUnavailable: markUnavailable,
       leading: MediaArtwork(
         image: playlist.image,
         kind: MediaKind.playlist,
@@ -499,7 +486,6 @@ class _MusicRow extends StatelessWidget {
     required this.leading,
     required this.title,
     required this.availability,
-    required this.markUnavailable,
     this.subtitle,
     this.trailing,
     this.onTap,
@@ -511,9 +497,6 @@ class _MusicRow extends StatelessWidget {
   final Widget? trailing;
   final MediaAvailability availability;
 
-  /// See [MusicRowStyle.markUnavailable].
-  final bool markUnavailable;
-
   final VoidCallback? onTap;
 
   @override
@@ -521,53 +504,50 @@ class _MusicRow extends StatelessWidget {
     final t = context.tokens;
     final unavailable = availability == MediaAvailability.remoteUnavailable;
 
-    return UnavailableContent(
-      // Dim only what is individually unusable. A whole list read from
-      // the saved copy says so with a notice above it instead — dimming
-      // every row would make the screen look broken rather than offline.
-      isUnavailable: false,
-      child: SizedBox(
-        height: musicRowHeight,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: t.radii.smBorder,
-          child: Row(
-            children: [
-              leading,
-              SizedBox(width: t.spacing.sm),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+    // Deliberately not wrapped in `UnavailableContent`: a row states its
+    // availability in the colour of its title and, where a whole list
+    // came from the saved copy, in a notice above the list. Dimming and
+    // disabling every row as well would make an offline screen look
+    // broken. A grid of `AlbumTile`s, which has no title colour to lean
+    // on, does dim an individually unavailable tile.
+    return SizedBox(
+      height: musicRowHeight,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: t.radii.smBorder,
+        child: Row(
+          children: [
+            leading,
+            SizedBox(width: t.spacing.sm),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.typography.bodyLarge.copyWith(
+                      color: unavailable
+                          ? t.colors.textSecondary
+                          : t.colors.textPrimary,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty)
                     Text(
-                      title,
+                      subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: t.typography.bodyLarge.copyWith(
-                        color: unavailable
-                            ? t.colors.textSecondary
-                            : t.colors.textPrimary,
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.textSecondary,
                       ),
                     ),
-                    if (subtitle != null && subtitle!.isNotEmpty)
-                      Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.typography.caption.copyWith(
-                          color: t.colors.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
-              if (trailing != null) ...[
-                SizedBox(width: t.spacing.sm),
-                trailing!,
-              ],
-            ],
-          ),
+            ),
+            if (trailing != null) ...[SizedBox(width: t.spacing.sm), trailing!],
+          ],
         ),
       ),
     );

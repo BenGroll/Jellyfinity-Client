@@ -144,7 +144,6 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
                     track: track,
                     showArtwork: false,
                     position: index + 1,
-                    markUnavailable: !state.isCached,
                     playable: playable,
                     onTap: playable
                         ? () => context.read<PlaybackCubit>().playNow(

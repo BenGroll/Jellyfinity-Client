@@ -145,8 +145,7 @@ class _GoOfflineTile extends StatelessWidget {
           activeThumbColor: t.colors.accent,
           onChanged: forced
               ? null
-              : (value) =>
-                    context.read<OfflineCubit>().setManualOffline(value),
+              : (value) => context.read<OfflineCubit>().setManualOffline(value),
         );
       },
     );

@@ -193,7 +193,6 @@ class _ArtistsTabState extends State<ArtistsTab>
           onRetryLoadMore: cubit.retryLoadMore,
           itemBuilder: (context, artist, _) => ArtistRow(
             artist: artist,
-            markUnavailable: !state.isCached,
             downloaded: DownloadedMarker.warranted(
               catalog.statusFor(DownloadOwner.artist(artist.id)),
             ),
@@ -311,7 +310,6 @@ class _SongsTabState extends State<SongsTab>
                 catalog.isDownloaded(track.id);
             return TrackRow(
               track: track,
-              markUnavailable: !state.isCached,
               playable: playable,
               onTap: playable
                   ? () => context.read<PlaybackCubit>().playNow(
@@ -377,7 +375,6 @@ class _PlaylistsTabState extends State<PlaylistsTab>
           onRetryLoadMore: cubit.retryLoadMore,
           itemBuilder: (context, playlist, _) => PlaylistRow(
             playlist: playlist,
-            markUnavailable: !state.isCached,
             downloaded: context
                 .watch<DownloadsCubit>()
                 .state
@@ -392,4 +389,3 @@ class _PlaylistsTabState extends State<PlaylistsTab>
     );
   }
 }
-

@@ -81,7 +81,6 @@ class DownloadsPage extends StatelessWidget {
                 for (final record in unsettled)
                   TrackRow(
                     track: record.toTrack(),
-                    markUnavailable: false,
                     downloadAction: TrackDownloadButton(
                       track: record.toTrack(),
                     ),
@@ -103,20 +102,18 @@ class DownloadsPage extends StatelessWidget {
                 for (var i = 0; i < standalone.length; i++)
                   TrackRow(
                     track: standalone[i].toTrack(),
-                    markUnavailable: false,
                     // Tapping a downloaded song plays it, in the order the
                     // section shows (v0.2.3) — it should not take a trip
                     // through the album to hear one track.
-                    onTap: () => context.read<PlaybackCubit>().playNow(
-                      [for (final record in standalone) record.toTrack()],
-                      startIndex: i,
-                    ),
+                    onTap: () => context.read<PlaybackCubit>().playNow([
+                      for (final record in standalone) record.toTrack(),
+                    ], startIndex: i),
                     onPlayNext: () => context.read<PlaybackCubit>().playNext(
                       standalone[i].toTrack(),
                     ),
-                    onAddToQueue: () => context.read<PlaybackCubit>().addToQueue(
-                      standalone[i].toTrack(),
-                    ),
+                    onAddToQueue: () => context
+                        .read<PlaybackCubit>()
+                        .addToQueue(standalone[i].toTrack()),
                     downloadAction: TrackDownloadButton(
                       track: standalone[i].toTrack(),
                     ),

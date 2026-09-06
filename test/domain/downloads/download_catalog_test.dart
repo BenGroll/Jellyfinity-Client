@@ -80,19 +80,22 @@ void main() {
       expect(record.toTrack().availability.isOnDevice, isFalse);
     });
 
-    test('a completed download the server dropped is "only on this device"', () {
-      final record = _record(
-        'track-1',
-        state: DownloadState.completed,
-        owner: album,
-      ).copyWith(serverGone: true);
+    test(
+      'a completed download the server dropped is "only on this device"',
+      () {
+        final record = _record(
+          'track-1',
+          state: DownloadState.completed,
+          owner: album,
+        ).copyWith(serverGone: true);
 
-      expect(record.isPlayableOffline, isTrue);
-      final track = record.toTrack();
-      expect(track.availability, MediaAvailability.localOnly);
-      expect(track.availability.isOnDevice, isTrue);
-      expect(track.availability.isPlayable, isTrue);
-    });
+        expect(record.isPlayableOffline, isTrue);
+        final track = record.toTrack();
+        expect(track.availability, MediaAvailability.localOnly);
+        expect(track.availability.isOnDevice, isTrue);
+        expect(track.availability.isPlayable, isTrue);
+      },
+    );
 
     test('carries enough metadata to rebuild the track it came from', () {
       final track = testTrack('track-1', name: 'So What', albumId: 'album-1');
@@ -372,6 +375,82 @@ void main() {
       // t2 is only ever wanted by itself — a standalone song, not a
       // collection.
       expect(catalog.standaloneTrackDownloads.map((r) => r.id.itemId), ['t2']);
+    });
+
+    test('orders collections by kind and name, not by map order', () {
+      // The set is built by walking maps whose iteration order shifts as
+      // records change state, so an unsorted answer made the Downloads
+      // screen reshuffle its Collections list while a download ran.
+      DownloadCatalog catalogOf(Iterable<MapEntry<String, String>> albums) {
+        final owners = {
+          for (final entry in albums)
+            DownloadOwner.album(_id(entry.key)): entry.value,
+        };
+        return DownloadCatalog(
+          downloads: {
+            for (final owner in owners.keys)
+              _id('t-${owner.id.itemId}'): _record(
+                't-${owner.id.itemId}',
+                state: DownloadState.completed,
+                owner: owner,
+              ),
+          },
+          collections: {
+            for (final entry in owners.entries)
+              entry.key: DownloadedCollection(
+                owner: entry.key,
+                name: entry.value,
+              ),
+          },
+          isLoaded: true,
+        );
+      }
+
+      final pairs = [
+        const MapEntry('al-1', 'Zoo'),
+        const MapEntry('al-2', 'apple'),
+        const MapEntry('al-3', 'Mango'),
+      ];
+      const expected = ['apple', 'Mango', 'Zoo'];
+
+      names(DownloadCatalog c) => [
+        for (final owner in c.collectionOwners) c.collectionName(owner),
+      ];
+
+      expect(names(catalogOf(pairs)), expected);
+      // The same collections inserted the other way round still read the
+      // same way.
+      expect(names(catalogOf(pairs.reversed)), expected);
+    });
+
+    test('groups collections of a kind together', () {
+      final catalog = DownloadCatalog(
+        downloads: {
+          _id('t1'): _record(
+            't1',
+            state: DownloadState.completed,
+            owner: artist,
+          ),
+          _id('t2'): _record(
+            't2',
+            state: DownloadState.completed,
+            owner: album,
+          ),
+        },
+        playlistSnapshots: {
+          _id('pl-1'): [(position: 0, trackId: _id('t1'))],
+        },
+        isLoaded: true,
+      );
+
+      // Declaration order of DownloadOwnerKind. Which kind leads is
+      // arbitrary; that the answer is grouped and the same every rebuild
+      // is the point.
+      expect(catalog.collectionOwners.map((owner) => owner.kind), [
+        DownloadOwnerKind.album,
+        DownloadOwnerKind.playlist,
+        DownloadOwnerKind.artist,
+      ]);
     });
   });
 

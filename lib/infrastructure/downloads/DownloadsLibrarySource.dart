@@ -222,11 +222,10 @@ class DownloadsLibrarySource {
     if (completed case Err<List<TrackDownload>>(:final failure)) {
       return Result.err(failure);
     }
-    final records =
-        [
-          for (final record in (completed as Ok<List<TrackDownload>>).value)
-            if (record.albumId == albumId) record,
-        ]..sort(_byDiscAndTrack);
+    final records = [
+      for (final record in (completed as Ok<List<TrackDownload>>).value)
+        if (record.albumId == albumId) record,
+    ]..sort(_byDiscAndTrack);
     return Result.ok(
       _window<Track>(
         [for (final record in records) record.toTrack()],
@@ -278,7 +277,9 @@ class DownloadsLibrarySource {
   int _byDiscAndTrack(TrackDownload a, TrackDownload b) {
     final disc = (a.discNumber ?? 0).compareTo(b.discNumber ?? 0);
     if (disc != 0) return disc;
-    final track = (a.trackNumber ?? 1 << 30).compareTo(b.trackNumber ?? 1 << 30);
+    final track = (a.trackNumber ?? 1 << 30).compareTo(
+      b.trackNumber ?? 1 << 30,
+    );
     return track != 0
         ? track
         : a.title.toLowerCase().compareTo(b.title.toLowerCase());

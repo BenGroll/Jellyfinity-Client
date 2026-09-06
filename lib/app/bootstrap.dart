@@ -84,7 +84,9 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // The offline-library-scope preference (v0.2.3). Enum, so registered
   // directly like ShellNavigationMode above.
   final initialOfflineLibraryScope =
-      await SettingsCubit.loadInitialOfflineLibraryScope(getIt<KeyValueStore>());
+      await SettingsCubit.loadInitialOfflineLibraryScope(
+        getIt<KeyValueStore>(),
+      );
   getIt.registerSingleton<OfflineLibraryScope>(initialOfflineLibraryScope);
 
   // Crossfade (ADR-0016) is read here too, so the engine is configured

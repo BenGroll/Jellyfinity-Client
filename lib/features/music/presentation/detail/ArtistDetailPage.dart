@@ -66,7 +66,10 @@ class ArtistDetailPage extends StatelessWidget {
 /// artist counterpart to `ReconcileDownloadedCollection`, keyed off the
 /// albums list because the artist screen loads no flat track list.
 class _ArtistPresenceReconciler extends StatefulWidget {
-  const _ArtistPresenceReconciler({required this.artistId, required this.child});
+  const _ArtistPresenceReconciler({
+    required this.artistId,
+    required this.child,
+  });
 
   final MediaId artistId;
   final Widget child;
@@ -160,7 +163,6 @@ class _ArtistDetailView extends StatelessWidget {
                 offlineGapNoun: 'album',
                 itemBuilder: (context, album, _) => AlbumTile(
                   album: album,
-                  markUnavailable: !state.isCached,
                   onTap: () => context.pushNamed(
                     RouteNames.libraryAlbum,
                     pathParameters: {'id': album.id.key},

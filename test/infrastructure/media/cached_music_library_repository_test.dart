@@ -186,29 +186,35 @@ void main() {
   });
 
   group('working offline (v0.2.3)', () {
-    test('a read answers from the saved copy without touching the server', () async {
-      final cache = RecordingMediaCacheStore();
-      // Prime the cache while online.
-      await _repository(_answering([_albumRow]), cache: cache).repository.albums();
+    test(
+      'a read answers from the saved copy without touching the server',
+      () async {
+        final cache = RecordingMediaCacheStore();
+        // Prime the cache while online.
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums();
 
-      // A server that would throw if it were ever called.
-      final offline = FakeOfflineMode(manual: true);
-      final repository = _repository(
-        _offline(),
-        cache: cache,
-        offline: offline,
-      ).repository;
+        // A server that would throw if it were ever called.
+        final offline = FakeOfflineMode(manual: true);
+        final repository = _repository(
+          _offline(),
+          cache: cache,
+          offline: offline,
+        ).repository;
 
-      final result = await repository.albums();
+        final result = await repository.albums();
 
-      final page = result.valueOrNull!;
-      expect(page.items.single.name, 'Kind of Blue');
-      expect(page.source, PageSource.cache);
-      expect(
-        page.items.single.availability,
-        MediaAvailability.remoteUnavailable,
-      );
-    });
+        final page = result.valueOrNull!;
+        expect(page.items.single.name, 'Kind of Blue');
+        expect(page.source, PageSource.cache);
+        expect(
+          page.items.single.availability,
+          MediaAvailability.remoteUnavailable,
+        );
+      },
+    );
 
     test(
       'an artist never browsed still opens from a downloaded track (v0.2.3)',
@@ -216,21 +222,23 @@ void main() {
         const artistId = MediaId(serverId: 'server-1', itemId: 'artist-9');
         const albumId = MediaId(serverId: 'server-1', itemId: 'album-9');
         final store = InMemoryDownloadStore();
-        store.records[const MediaId(serverId: 'server-1', itemId: 't1')] =
-            TrackDownload(
-              id: const MediaId(serverId: 'server-1', itemId: 't1'),
-              title: 'So What',
-              state: DownloadState.completed,
-              owners: {
-                const DownloadOwner.track(
-                  MediaId(serverId: 'server-1', itemId: 't1'),
-                ),
-              },
-              requestedAt: DateTime.utc(2026),
-              albumId: albumId,
-              albumName: 'Kind of Blue',
-              artists: [const ArtistRef(name: 'Miles Davis', id: artistId)],
-            );
+        store.records[const MediaId(
+          serverId: 'server-1',
+          itemId: 't1',
+        )] = TrackDownload(
+          id: const MediaId(serverId: 'server-1', itemId: 't1'),
+          title: 'So What',
+          state: DownloadState.completed,
+          owners: {
+            const DownloadOwner.track(
+              MediaId(serverId: 'server-1', itemId: 't1'),
+            ),
+          },
+          requestedAt: DateTime.utc(2026),
+          albumId: albumId,
+          albumName: 'Kind of Blue',
+          artists: [const ArtistRef(name: 'Miles Davis', id: artistId)],
+        );
 
         final repository = _repository(
           _offline(),
@@ -244,7 +252,9 @@ void main() {
           (await repository.artist(artistId)).valueOrNull!.name,
           'Miles Davis',
         );
-        final albums = (await repository.albums(artistId: artistId)).valueOrNull!;
+        final albums = (await repository.albums(
+          artistId: artistId,
+        )).valueOrNull!;
         expect(albums.items.single.name, 'Kind of Blue');
         expect(albums.source, PageSource.cache);
 

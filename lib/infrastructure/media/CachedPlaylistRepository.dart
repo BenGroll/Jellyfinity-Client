@@ -118,8 +118,9 @@ class CachedPlaylistRepository implements PlaylistRepository {
     final tracks = <Track>[];
     for (final member in members.sublist(start, end)) {
       final record = await _downloads.find(member.trackId);
-      if (record case Ok<TrackDownload?>(:final value?)
-          when value.state == DownloadState.completed) {
+      if (record case Ok<TrackDownload?>(
+        :final value?,
+      ) when value.state == DownloadState.completed) {
         tracks.add(value.toTrack());
       }
     }

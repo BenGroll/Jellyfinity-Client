@@ -425,7 +425,9 @@ class DriftDownloadStore implements DownloadStore {
 
       return Result.ok(
         Page<DownloadedCollection>(
-          content: Partial(available: [for (final row in rows) _toCollection(row)]),
+          content: Partial(
+            available: [for (final row in rows) _toCollection(row)],
+          ),
           startIndex: page.startIndex,
           totalCount: total,
           source: PageSource.cache,
@@ -574,11 +576,9 @@ class DriftDownloadStore implements DownloadStore {
   ) async {
     if (rows.isEmpty) return const {};
     final itemIds = {for (final row in rows) row.itemId};
-    final ownerRows =
-        await (_db.select(_db.downloadOwners)..where(
-              (t) => t.accountKey.equals(key) & t.itemId.isIn(itemIds),
-            ))
-            .get();
+    final ownerRows = await (_db.select(
+      _db.downloadOwners,
+    )..where((t) => t.accountKey.equals(key) & t.itemId.isIn(itemIds))).get();
     final owners = <(String, String), Set<DownloadOwner>>{};
     for (final row in ownerRows) {
       final owner = _toOwner(row);
