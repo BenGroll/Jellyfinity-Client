@@ -2,7 +2,77 @@
 
 All notable changes to Jellyfinity are documented here.
 
-## Unreleased
+## v0.3.0 — Offline music hardening
+
+Bug fixes, lifecycle hardening, and release hygiene on top of v0.2.3. This
+is **not** the whole of `Roadmap to v0.3.md`'s v0.3.0 scope — the feature
+deliverables it lists are still outstanding, and are named at the end of
+this entry.
+
+- **A retried download no longer splices two encodings together.** A
+  partial file was keyed by track alone, with no record of the address its
+  bytes came from. Pausing or failing a download at one download quality
+  and retrying it at another appended the tail of the new encoding to the
+  head of the old one, and the result completed, reported itself
+  downloaded, and played as noise. `DownloadStorage` now records the
+  source beside the partial and discards a partial fetched under a
+  different one; a re-issued session token is explicitly *not* a different
+  source, so an ordinary re-sign-in still resumes rather than starting
+  over. A partial left by an older install carries no marker and is
+  discarded once, costing one track a fresh start.
+- **A connection returning mid-check no longer strands the download
+  queue.** The worker's Wi-Fi-only gate and the connectivity listener both
+  read the network and then wrote, unserialized. On a rapid transition the
+  listener's release could land first and the worker's stale hold on top
+  of it, leaving every request parked on "waiting for Wi-Fi" with good
+  Wi-Fi and nothing left to wake it. Both now go through one lock and one
+  answer per pass.
+- **Now Playing no longer claims a transcode for a downloaded track.** The
+  quality badge read the *streaming* preference, which
+  `LocalFirstAudioSourceResolver` deliberately ignores when it plays a
+  local file — so a downloaded lossless track announced itself as "AAC ·
+  256 kbps" because of a preference that never touched it. The badge now
+  answers to the download-quality preference when the track is on the
+  device.
+- The Downloads screen's Collections list keeps a stable order. It was
+  built by walking maps whose iteration order shifts as records change
+  state, so it reshuffled itself while a download ran; it is now grouped
+  by kind and sorted by name, like the two sections either side of it.
+- `DownloadsCubit` no longer accumulates abandoned-download ids for the
+  life of the process. Only the transfer actually in flight is marked, and
+  the mark is cleared however that transfer ends.
+- Removed the `markUnavailable` flag from `ArtistRow`, `AlbumRow`,
+  `TrackRow` and `PlaylistRow`. It was documented, threaded through, and
+  set at every call site, but the shared row had been changed to a
+  hardcoded "never dim" and ignored it entirely. `AlbumTile`, which does
+  honour the flag, keeps it; `TrackRow.playable` remains the live
+  mechanism for a row that genuinely cannot be tapped. No rendering
+  changes.
+- Added a CI workflow (format, analyze, test), which `CONTEXT.md` has
+  required since v0.0.1 and which the repository did not have. Making the
+  formatting gate pass reformatted 21 files that were already unformatted
+  on `main`; those changes are whitespace only.
+- Corrected `pubspec.yaml`'s version, left at the `flutter create` default
+  of `1.0.0` through every release so far. `1.0.0` is reserved for the
+  first public release.
+- Gave this changelog per-version sections. Everything up to v0.1.0 was
+  recorded without headings and is kept as one section rather than split
+  on guesswork.
+
+Still outstanding from v0.3.0's specification, all of it new behaviour
+rather than repair: the entry-point audit (Now Playing, the queue and the
+mini-player carry no download or offline state, and inline search has no
+download action); batch retry and batch removal on the Downloads screen;
+rendering `MediaAvailability.localOnly` as "Only on this device", which
+v0.2.3 promised and no widget yet does; and reclaiming downloaded files
+when an account or server is removed, which today leaves them on disk and
+unreachable.
+
+## v0.0.1 – v0.1.0 — Proof of concept
+
+Recorded without per-version headings at the time. `ROADMAP.md` and
+`Proof Of Concept Roadmap.md` carry the version-by-version scope; the
+entries below are in the order the work landed.
 
 - Initialized the Flutter Android and iOS application.
 - Added the reproducible development container.
@@ -219,6 +289,9 @@ All notable changes to Jellyfinity are documented here.
   asset catalogue, with every image flattened to opaque RGB so the
   1024px marketing icon carries no alpha channel. The web `manifest.json`
   and `index.html` lose their "A new Flutter project" boilerplate.
+
+## v0.1.1 — Streaming quality and transcoding
+
 - Added streaming quality and transcoding (ADR-0015, v0.1.1):
   `StreamQuality` grows from direct-play-only to Lossless plus three AAC
   transcoded tiers (320/192/128 kbps), selectable from a new "Streaming
@@ -228,6 +301,9 @@ All notable changes to Jellyfinity are documented here.
   transient failure as permanent. Now Playing shows the source file's own
   format/bitrate and, when a transcode is likely, what it is being
   transcoded to.
+
+## v0.1.3 — Crossfade
+
 - Added crossfade (ADR-0016, v0.1.3), configurable from a new Crossfade
   section in Settings: a switch plus a 1-12 second length slider,
   persisted like the other preferences. `just_audio` has no crossfade of
@@ -240,6 +316,9 @@ All notable changes to Jellyfinity are documented here.
   path, so gapless playback is preserved by construction. Repeat-one
   suppresses crossfade, since a queue repeating one track never reaches
   the next source the engine would otherwise fade into.
+
+## v0.1.4 — Volume normalization
+
 - Added volume normalization (ADR-0017, v0.1.4), configurable from a new
   Volume normalization switch in Settings. Reads Jellyfin's own
   `NormalizationGain` — server-side loudness analysis when available,
@@ -252,6 +331,9 @@ All notable changes to Jellyfinity are documented here.
   Gain is only ever applied as attenuation, never a boost, to avoid
   clipping a track with no limiter downstream; a track with no reported
   gain plays unchanged rather than being guessed at.
+
+## v0.1.5 — Lyrics
+
 - Added lyrics (ADR-0018, v0.1.5), reached from a new lyrics button in Now
   Playing's app bar. Jellyfin's `/Audio/{itemId}/Lyrics` endpoint answers
   with a line list that carries per-line timing only when the source
@@ -262,6 +344,9 @@ All notable changes to Jellyfinity are documented here.
   track itself is gone) is treated as the empty state the roadmap asks
   for, not an error; the Lyrics view otherwise shows a loading skeleton or
   a retryable failure like every other on-demand detail screen.
+
+## v0.1.6 — Interface refresh
+
 - Added an interface refresh (ADR-0019, v0.1.6) across Settings, Home,
   Artist, Album, Now Playing, Queue, and Playlist:
   - Settings' streaming-quality picker is a dropdown, with the selected
@@ -321,6 +406,9 @@ All notable changes to Jellyfinity are documented here.
     gaplessly advanced on its own, and starting the overlap anyway played
     the same source twice at once (ADR-0016). The preload lead is also
     widened from 5 s to 10 s so this is hit less often.
+
+## v0.2.0 — Downloaded tracks and albums
+
 - Added downloaded tracks and albums (ADR-0020, v0.2.0), the first
   release in the offline-music arc:
   - New `lib/domain/downloads/` vocabulary: `TrackDownload` (a
@@ -354,6 +442,9 @@ All notable changes to Jellyfinity are documented here.
     summary.
   - `InsufficientStorageFailure` joins the core `Failure` hierarchy
     (ADR-0004) as its own distinct, user-actionable outcome.
+
+## v0.2.1 — Downloadable playlists
+
 - Added downloadable playlists (ADR-0021, v0.2.1), the next release in
   the offline-music arc:
   - `DownloadOwnerKind.playlist` joins `track` and `album` with no
@@ -384,6 +475,9 @@ All notable changes to Jellyfinity are documented here.
     the server is unreachable and the metadata cache has been evicted,
     so a downloaded playlist still plays in order offline. A downloaded
     member plays through the unchanged v0.2.0 local-first path.
+
+## v0.2.2 — Artist downloads, download quality, and management
+
 - Added artist downloads, download quality, and a Downloads screen
   (ADR-0022, v0.2.2), the third release in the offline-music arc:
   - `DownloadOwnerKind.artist` joins `track`, `album` and `playlist`
@@ -420,6 +514,9 @@ All notable changes to Jellyfinity are documented here.
     download is re-fetched from the server at the current quality instead
     of resolving to the partial local file.
   - Added the `ACCESS_NETWORK_STATE` Android permission.
+
+## v0.2.3 — Offline library and recovery
+
 - Added the offline library and recovery release (ADR-0023, v0.2.3), the
   fourth in the offline-music arc — downloaded music you can find and
   trust when the server is away or has changed:

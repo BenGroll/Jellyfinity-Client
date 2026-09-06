@@ -29,7 +29,15 @@ published Git tag.
 | v0.2.1 | Downloadable playlists | Implemented | [spec](Roadmap%20to%20v0.3.md#v021--downloadable-playlists) |
 | v0.2.2 | Artist downloads, quality, and management | Implemented | [spec](Roadmap%20to%20v0.3.md#v022--artist-downloads-download-quality-and-management) |
 | v0.2.3 | Offline library and recovery | Implemented | [spec](Roadmap%20to%20v0.3.md#v023--offline-library-and-recovery) |
-| v0.3.0 | Offline music completion | Planned | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
+| v0.3.0 | Offline music completion | Partly implemented | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
+
+v0.3.0 has shipped its hardening half — the download lifecycle fixes,
+regression tests, CI, and release hygiene in `CHANGELOG.md`. Its feature
+deliverables are still outstanding: the entry-point audit across Now
+Playing, the queue, the mini-player and inline search; batch retry and
+batch removal; showing `MediaAvailability.localOnly` as "Only on this
+device"; and reclaiming a removed account's or server's downloaded files.
+Until those land, the version's "Done when" is not met.
 
 Future ideas are deliberately unsequenced in `OUTLOOK.md`. They are not part
 of a version unless promoted into this index and given a bounded specification.

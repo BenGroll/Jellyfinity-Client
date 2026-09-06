@@ -1,0 +1,46 @@
+# The CI `CONTEXT.md` requires ("Keep `main` releasable; use focused
+# changes, meaningful commits, CI, semantic versions, and changelog
+# updates") and `Roadmap to v0.3.md` restates for every version ("All
+# versions require focused changes, behavior tests, a current changelog
+# entry, and passing CI").
+#
+# Three things, in the order a reviewer wants them: the code is
+# formatted, it analyzes clean, and the behaviour tests pass. The
+# migration and scale suites are tagged but not excluded — a schema step
+# that silently stopped matching `drift_schemas/`, or a query that stopped
+# being indexed at 130k songs, is exactly what this is here to catch.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned rather than `stable`: an SDK bump should be a commit
+          # someone made deliberately, not a Tuesday where main went red.
+          flutter-version: 3.44.7
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test

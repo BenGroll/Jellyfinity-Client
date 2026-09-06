@@ -16,7 +16,11 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+# Kept in step with ROADMAP.md and CHANGELOG.md. This had been left at the
+# `flutter create` default of 1.0.0 through every release to date, which
+# would have shipped v0.3.0 announcing itself as 1.0.0 — and 1.0.0 means
+# something specific here: the first public release, which this is not.
+version: 0.3.0+1
 
 environment:
   sdk: ^3.12.2
