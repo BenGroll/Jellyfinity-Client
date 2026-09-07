@@ -220,6 +220,16 @@ class QueueEntries extends Table {
 
   /// The joined artist credit line, already formatted for display.
   TextColumn get artist => text().nullable()();
+
+  /// The individual artist credits as a JSON array of `{name, id?}`
+  /// objects (v0.3.1), encoded the same way [CachedMediaItems.artistsJson]
+  /// is. Kept for the ids: a restored queue row has to open its artist,
+  /// not just print [artist].
+  TextColumn get artistsJson => text().nullable()();
+
+  /// The track's album id on the same server (v0.3.1), so a queued track
+  /// can open its album and listening history can attribute the play.
+  TextColumn get albumItemId => text().nullable()();
   TextColumn get albumName => text().nullable()();
   IntColumn get durationMicros => integer().nullable()();
 
@@ -457,5 +467,68 @@ class DownloadedCollections extends Table {
     serverId,
     ownerKind,
     ownerItemId,
+  };
+}
+
+/// What this profile has listened to (v0.3.1, ADR-0025), schema v7.
+///
+/// One row per *context* — an album, an artist, or a single track played
+/// on its own — not one row per track play. Playing an album straight
+/// through bumps the one album row's [playCount] and [lastPlayedAtMs]
+/// twelve times rather than writing twelve rows; that is the collapse
+/// ADR-0025 chose to do at the write.
+///
+/// Scoped by [accountKey] exactly like [TrackDownloads] (ADR-0023): one
+/// profile's listening never appears under another's, and a signed-out app
+/// reads none. Recording is a purely local write, so it works with the
+/// server switched off.
+///
+/// **Bounded.** `CONTEXT.md` forbids unbounded local growth and a year of
+/// listening is not a useful list. The store keeps at most
+/// `DriftListeningHistoryRepository.maxEntriesPerProfile` rows per profile
+/// and evicts the one with the oldest [lastPlayedAtMs] when a new context
+/// would exceed it.
+@DataClassName('ListeningHistoryEntryRow')
+class ListeningHistoryEntries extends Table {
+  /// The profile this entry belongs to — the active server's local id and
+  /// the Jellyfin user id joined with a slash, as [TrackDownloads.accountKey].
+  TextColumn get accountKey => text()();
+
+  TextColumn get serverId => text()();
+
+  /// `ListeningContextKind.name` — `album`, `artist` or `track`.
+  TextColumn get contextKind => text()();
+
+  /// The context's id on [serverId]: an album, artist or track id.
+  TextColumn get contextItemId => text()();
+
+  /// Display name of the context, kept so a row renders offline.
+  TextColumn get name => text()();
+
+  /// The credit line shown under [name], when there is one.
+  TextColumn get subtitle => text().nullable()();
+
+  /// Artwork pointer, flattened the same way [CachedMediaItems] flattens
+  /// it. Null for an artist context — the queue snapshot it is derived
+  /// from carries album art, not the artist's.
+  TextColumn get imageItemId => text().nullable()();
+  TextColumn get imageKind => text().nullable()();
+  TextColumn get imageTag => text().nullable()();
+  RealColumn get imageAspectRatio => real().nullable()();
+
+  /// Qualifying track plays folded into this entry so far (>= 1).
+  IntColumn get playCount => integer().withDefault(const Constant(1))();
+
+  /// First and last play, milliseconds since epoch (UTC). [lastPlayedAtMs]
+  /// is the sort key for "recently played" and the eviction key.
+  IntColumn get firstPlayedAtMs => integer()();
+  IntColumn get lastPlayedAtMs => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+    accountKey,
+    serverId,
+    contextKind,
+    contextItemId,
   };
 }

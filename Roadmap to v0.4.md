@@ -1,4 +1,4 @@
-# Jellyfinity v0.4.x–v0.5.0 specifications
+# Jellyfinity v0.3.x–v0.4.0 specifications
 
 Read only the assigned version. Each version is one complete, user-visible
 increment. All versions require focused changes, behavior tests, a current
@@ -38,7 +38,7 @@ A modular, user-reorderable Home (`OUTLOOK.md` §9) is **not** this arc.
 Strong defaults first; customization is only worth building once there is
 something to customize.
 
-## v0.4.0 — Listening history
+## v0.3.1 — Listening history
 
 **Goal:** Record what the user actually listened to, so later versions can
 show it.
@@ -70,7 +70,7 @@ show it.
 online and off, within a bounded local record — with nothing yet showing
 it.
 
-## v0.4.1 — Continue listening and recently played
+## v0.3.2 — Continue listening and recently played
 
 **Goal:** Make Home open on what the user was doing.
 
@@ -85,7 +85,7 @@ it.
   restored across restarts, so offer to resume it — what was playing, how
   far in, and one tap to carry on. If there is nothing to resume, the
   section is absent, not empty.
-- Add **Recently played** from v0.4.0's history: the albums, playlists and
+- Add **Recently played** from v0.3.1's history: the albums, playlists and
   artists the user actually returned to, newest first, tappable straight
   into the thing itself.
 - Both sections must render offline from local data, marking what is not
@@ -100,7 +100,7 @@ it.
 **Done when:** Opening Jellyfinity shows what the user was listening to
 and what they have played lately, with the server up or down.
 
-## v0.4.2 — Recently added
+## v0.3.3 — Recently added
 
 **Goal:** Show what the server has gained since the user last looked.
 
@@ -124,7 +124,7 @@ and what they have played lately, with the server up or down.
 **Done when:** A user who added music to their server last night sees it
 on Home this morning.
 
-## v0.4.3 — Favorites as a place
+## v0.3.4 — Favorites as a place
 
 **Goal:** Give the star a destination.
 
@@ -135,9 +135,9 @@ on Home this morning.
   favorite artists, albums and tracks, reachable from normal music
   navigation — not buried in Settings.
 - Extend the media query surface with Jellyfin's `IsFavorite` filter, the
-  same shared-seam care v0.4.2 takes with sort order.
+  same shared-seam care v0.3.3 takes with sort order.
 - Add Favorites sections to Home, consistent with the section pattern
-  v0.4.1 establishes.
+  v0.3.2 establishes.
 - Settle the offline question honestly. ADR-0019 deliberately does **not**
   persist favorite state to the offline cache, which means an offline
   Favorites view has nothing to read. Either extend the cache (a schema
@@ -152,7 +152,7 @@ on Home this morning.
 **Done when:** A user can star music from anywhere and then actually find
 it again, with the offline story stated rather than implied.
 
-## v0.4.4 — Related artists and albums
+## v0.3.5 — Related artists and albums
 
 **Goal:** Make one thing lead to the next, from the user's own library.
 
@@ -177,7 +177,7 @@ drawn entirely from the user's own server.
 **Stretch:** Genre or decade entry points, if they can be added without a
 new subsystem.
 
-## v0.5.0 — Home completion
+## v0.4.0 — Home completion
 
 **Goal:** Release a Home that holds up on a real library, on a real
 device, in every state Jellyfinity can be in.
@@ -204,7 +204,7 @@ device, in every state Jellyfinity can be in.
 **Done when:** Home is the screen a user is glad to land on, at any
 library size, in any connection state, on both platforms.
 
-## Non-goals for v0.4.0–v0.5.0
+## Non-goals for v0.3.1–v0.4.0
 
 Movies, television, video playback and video downloads remain outside this
 arc, as they have since v0.1.0. Also out of scope: a user-configurable or
@@ -229,6 +229,6 @@ version in this arc may make it so.
   "listened to". Pick it from how the queue actually behaves — including
   crossfade (ADR-0016), which ends a track early by design.
 - **Whether Favorites joins the offline cache.** ADR-0019 deferred this
-  deliberately to keep v0.1.6 free of a migration. v0.4.3 either takes the
+  deliberately to keep v0.1.6 free of a migration. v0.3.4 either takes the
   migration on or documents why Favorites remains online-only; both are
   defensible, but the UI must say which is true.

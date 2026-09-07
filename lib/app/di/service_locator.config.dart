@@ -39,6 +39,8 @@ import 'package:jellyfinity/domain/downloads/LocalAudioSource.dart' as _i186;
 import 'package:jellyfinity/domain/downloads/NetworkCondition.dart' as _i1047;
 import 'package:jellyfinity/domain/media/ArtworkResolver.dart' as _i285;
 import 'package:jellyfinity/domain/media/FavoritesRepository.dart' as _i685;
+import 'package:jellyfinity/domain/media/ListeningHistoryRepository.dart'
+    as _i175;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart' as _i260;
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
@@ -147,6 +149,8 @@ import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart'
     as _i617;
 import 'package:jellyfinity/infrastructure/persistence/LegacyJsonImporter.dart'
     as _i408;
+import 'package:jellyfinity/infrastructure/persistence/media/DriftListeningHistoryRepository.dart'
+    as _i245;
 import 'package:jellyfinity/infrastructure/persistence/media/media_cache_store.dart'
     as _i1018;
 import 'package:jellyfinity/infrastructure/persistence/playback/DriftQueueRepository.dart'
@@ -288,6 +292,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i285.ArtworkResolver>(
       () => _i1022.JellyfinArtworkResolver(gh<_i346.JellyfinSessionContext>()),
+    );
+    gh.lazySingleton<_i175.ListeningHistoryRepository>(
+      () => _i245.DriftListeningHistoryRepository(
+        gh<_i242.AppDatabase>(),
+        gh<_i346.JellyfinSessionContext>(),
+      ),
     );
     gh.lazySingleton<_i853.DownloadStore>(
       () => _i167.DriftDownloadStore(
@@ -459,6 +469,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i642.QueueRepository>(),
         gh<_i922.AudioSourceResolver>(),
         gh<_i474.PlaybackProgressRepository>(),
+        gh<_i175.ListeningHistoryRepository>(),
         gh<_i230.SettingsCubit>(),
       ),
     );

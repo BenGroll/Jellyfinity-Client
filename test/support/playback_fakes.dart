@@ -7,6 +7,9 @@ import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/FavoritesRepository.dart';
+import 'package:jellyfinity/domain/media/ListeningContext.dart';
+import 'package:jellyfinity/domain/media/ListeningHistoryEntry.dart';
+import 'package:jellyfinity/domain/media/ListeningHistoryRepository.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/MediaMetadataRepository.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
@@ -36,11 +39,15 @@ import 'settings_fakes.dart';
 /// A [PlaybackCubit] wired entirely to fakes, for tests that only need
 /// one to exist (e.g. because the widget tree requires it) without
 /// driving or asserting on playback itself.
-PlaybackCubit fakePlaybackCubit({SettingsCubit? settings}) => PlaybackCubit(
+PlaybackCubit fakePlaybackCubit({
+  SettingsCubit? settings,
+  ListeningHistoryRepository? history,
+}) => PlaybackCubit(
   FakePlaybackEngine(),
   FakeQueueRepository(),
   FakeAudioSourceResolver(),
   RecordingPlaybackProgressRepository(),
+  history ?? RecordingListeningHistoryRepository(),
   settings ?? fakeSettingsCubit(),
 );
 
@@ -295,6 +302,39 @@ class RecordingPlaybackProgressRepository
   }) async {
     stopped.add((id: id, position: position));
     return const Result.ok(null);
+  }
+}
+
+/// A [ListeningHistoryRepository] that records every [record] call instead
+/// of persisting it, so a test can assert exactly what `PlaybackCubit`
+/// decided was a play. [recent] replays what was recorded, newest first,
+/// with the same per-context collapse the real store does — enough for
+/// widget/navigation tests that only need the seam to exist.
+class RecordingListeningHistoryRepository
+    implements ListeningHistoryRepository {
+  final List<ListeningPlay> plays = [];
+
+  @override
+  Future<Result<void>> record(ListeningPlay play) async {
+    plays.add(play);
+    return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<List<ListeningHistoryEntry>>> recent({int limit = 30}) async {
+    final byContext = <ListeningContext, ListeningHistoryEntry>{};
+    for (final play in plays) {
+      final existing = byContext[play.context];
+      byContext[play.context] = ListeningHistoryEntry(
+        context: play.context,
+        firstPlayedAt: existing?.firstPlayedAt ?? play.playedAt,
+        lastPlayedAt: play.playedAt,
+        playCount: (existing?.playCount ?? 0) + 1,
+      );
+    }
+    final entries = byContext.values.toList()
+      ..sort((a, b) => b.lastPlayedAt.compareTo(a.lastPlayedAt));
+    return Result.ok(entries.take(limit < 0 ? 0 : limit).toList());
   }
 }
 

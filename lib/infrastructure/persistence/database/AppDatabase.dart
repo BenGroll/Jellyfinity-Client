@@ -37,13 +37,14 @@ part 'AppDatabase.g.dart';
     DownloadOwners,
     PlaylistDownloadMembers,
     DownloadedCollections,
+    ListeningHistoryEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,6 +56,7 @@ class AppDatabase extends _$AppDatabase {
       await m.createIndex(_playlistDownloadMembersPlaylistIndex);
       await m.createIndex(_trackDownloadsAccountIndex);
       await m.createIndex(_downloadedCollectionsAccountIndex);
+      await m.createIndex(_listeningHistoryAccountIndex);
     },
     onUpgrade: (m, from, to) async {
       // v2 (v0.0.8): the media metadata cache. Purely additive — three
@@ -68,8 +70,14 @@ class AppDatabase extends _$AppDatabase {
       }
       // v3 (v0.0.9): the playback queue. Also purely additive — an
       // install upgrading from v1 or v2 starts with an empty queue.
+      //
+      // Frozen at its v3 shape rather than built from the live definition:
+      // v0.3.1 (v7) adds two columns to `queue_entries`, and a v2 -> v3
+      // step must still produce exactly the v3 schema. The v7 step below
+      // brings it up to date, the same treatment v0.2.3 gave the download
+      // tables (ADR-0023).
       if (from < 3) {
-        await m.createTable(queueEntries);
+        await m.database.customStatement(_createQueueEntriesV3);
       }
       // v4 (v0.2.0): downloads. Additive again — the two new tables
       // start empty, so an upgrading install keeps everything it had
@@ -130,6 +138,22 @@ class AppDatabase extends _$AppDatabase {
         await m.createIndex(_trackDownloadsAccountIndex);
         await m.createIndex(_downloadedCollectionsAccountIndex);
       }
+      // v7 (v0.3.1): listening history, and the two ids the queue snapshot
+      // was missing. `queue_entries` gains `artists_json` and
+      // `album_item_id` (both nullable) so a queued or restored track can
+      // open its artist and album; every pre-v7 row keeps its data with
+      // those null. `listening_history_entries` is new and starts empty —
+      // history begins accruing from the next qualifying play.
+      if (from < 7) {
+        await m.alterTable(
+          TableMigration(
+            queueEntries,
+            newColumns: [queueEntries.artistsJson, queueEntries.albumItemId],
+          ),
+        );
+        await m.createTable(listeningHistoryEntries);
+        await m.createIndex(_listeningHistoryAccountIndex);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -161,6 +185,25 @@ class AppDatabase extends _$AppDatabase {
       '"image_aspect_ratio" REAL NULL, '
       '"requested_at" INTEGER NOT NULL, '
       'PRIMARY KEY ("server_id", "item_id"))';
+
+  /// The v3 shape of `queue_entries`, frozen so the v2 -> v3 step produces
+  /// exactly what schema v3 committed even though v7 adds columns to the
+  /// live definition (see [_createTrackDownloadsV4]).
+  static const String _createQueueEntriesV3 =
+      'CREATE TABLE IF NOT EXISTS "queue_entries" ('
+      '"position" INTEGER NOT NULL, '
+      '"server_id" TEXT NOT NULL, '
+      '"item_id" TEXT NOT NULL, '
+      '"title" TEXT NOT NULL, '
+      '"artist" TEXT NULL, '
+      '"album_name" TEXT NULL, '
+      '"duration_micros" INTEGER NULL, '
+      '"image_item_id" TEXT NULL, '
+      '"image_kind" TEXT NULL, '
+      '"image_tag" TEXT NULL, '
+      '"image_aspect_ratio" REAL NULL, '
+      '"availability" TEXT NOT NULL DEFAULT \'remoteOnly\', '
+      'PRIMARY KEY ("position"))';
 
   /// The v4 shape of `download_owners`, frozen (see
   /// [_createTrackDownloadsV4]).
@@ -228,5 +271,13 @@ class AppDatabase extends _$AppDatabase {
     'idx_downloaded_collections_account',
     'CREATE INDEX IF NOT EXISTS idx_downloaded_collections_account '
         'ON downloaded_collections (account_key, owner_kind, sort_name)',
+  );
+
+  /// Reading listening history — and enforcing its per-profile bound —
+  /// always scans one profile's rows newest-played first (v0.3.1).
+  static final Index _listeningHistoryAccountIndex = Index(
+    'idx_listening_history_account',
+    'CREATE INDEX IF NOT EXISTS idx_listening_history_account '
+        'ON listening_history_entries (account_key, last_played_at_ms)',
   );
 }

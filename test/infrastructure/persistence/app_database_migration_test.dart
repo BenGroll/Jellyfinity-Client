@@ -10,6 +10,7 @@ import '../../support/drift_schemas/schema_v1.dart' as v1;
 import '../../support/drift_schemas/schema_v3.dart' as v3;
 import '../../support/drift_schemas/schema_v4.dart' as v4;
 import '../../support/drift_schemas/schema_v5.dart' as v5;
+import '../../support/drift_schemas/schema_v6.dart' as v6;
 
 /// The forward-only migration policy ADR-0010 committed to: a schema
 /// change never drops the database, and an install on any past version
@@ -18,9 +19,11 @@ import '../../support/drift_schemas/schema_v5.dart' as v5;
 /// `SchemaVerifier.migrateAndValidate(db, n)` runs the full `onUpgrade`
 /// chain to the latest schema and then diffs the result against the
 /// committed snapshot for version `n`, tolerating tables added after `n`
-/// but flagging any change to a table `n` already had. So a step that
-/// only *adds* tables (v1–v5) is still checked against its own version;
-/// v6, which reshapes the three download tables, is checked against v6.
+/// but flagging any change to a table `n` already had. So once a step
+/// reshapes an existing table, every test past that point has to assert
+/// the current schema: v6 reshaped the download tables and v7 (v0.3.1)
+/// widened `queue_entries`, so every intermediate check now validates at
+/// HEAD.
 void main() {
   late SchemaVerifier verifier;
 
@@ -58,29 +61,31 @@ void main() {
     await db.close();
   });
 
-  test('upgrades a v2 database to the v3 playback queue schema', () async {
+  test('upgrades a v2 database to the current schema', () async {
     final schema = await verifier.schemaAt(2);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 3);
+    await verifier.migrateAndValidate(db, 7);
 
-    // Purely additive: the queue table exists and starts empty, same as
-    // the v1 -> v2 cache tables did.
+    // Purely additive at v3: the queue table exists and starts empty, same
+    // as the v1 -> v2 cache tables did.
     expect(await db.select(db.queueEntries).get(), isEmpty);
 
     await db.close();
   });
 
-  test('upgrades a v3 database to the current downloads schema', () async {
+  test('upgrades a v3 database to the current schema', () async {
     final schema = await verifier.schemaAt(3);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 6);
+    await verifier.migrateAndValidate(db, 7);
 
     // An install that upgrades from before downloads existed starts with
     // nothing downloaded rather than losing what it had.
     expect(await db.select(db.trackDownloads).get(), isEmpty);
     expect(await db.select(db.downloadOwners).get(), isEmpty);
+    // Listening history (v0.3.1) is new and starts empty.
+    expect(await db.select(db.listeningHistoryEntries).get(), isEmpty);
 
     await db.close();
   });
@@ -98,31 +103,32 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 6);
+      await verifier.migrateAndValidate(db, 7);
 
       final entries = await db.select(db.queueEntries).get();
       expect(entries.single.title, 'So What');
+      // The v7 columns are added nullable, so a pre-v7 row keeps its data
+      // and simply carries no album or artist ids.
+      expect(entries.single.albumItemId, isNull);
+      expect(entries.single.artistsJson, isNull);
 
       await db.close();
     },
   );
 
-  test(
-    'upgrades a v4 database to the current playlist-downloads schema',
-    () async {
-      final schema = await verifier.schemaAt(4);
-      final db = AppDatabase(schema.newConnection());
+  test('upgrades a v4 database to the current schema', () async {
+    final schema = await verifier.schemaAt(4);
+    final db = AppDatabase(schema.newConnection());
 
-      await verifier.migrateAndValidate(db, 6);
+    await verifier.migrateAndValidate(db, 7);
 
-      // Additive at v5 (v0.2.1): the snapshot table exists and starts
-      // empty; an upgrading install keeps every track and album download
-      // it had and simply has no playlist snapshots yet.
-      expect(await db.select(db.playlistDownloadMembers).get(), isEmpty);
+    // Additive at v5 (v0.2.1): the snapshot table exists and starts
+    // empty; an upgrading install keeps every track and album download
+    // it had and simply has no playlist snapshots yet.
+    expect(await db.select(db.playlistDownloadMembers).get(), isEmpty);
 
-      await db.close();
-    },
-  );
+    await db.close();
+  });
 
   test(
     'an upgrade from v4 keeps the downloads an install was already holding',
@@ -143,7 +149,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 6);
+      await verifier.migrateAndValidate(db, 7);
 
       final downloads = await db.select(db.trackDownloads).get();
       expect(downloads.single.title, 'So What');
@@ -153,22 +159,19 @@ void main() {
     },
   );
 
-  test(
-    'upgrades a v5 database to the v6 per-profile downloads schema',
-    () async {
-      final schema = await verifier.schemaAt(5);
-      final db = AppDatabase(schema.newConnection());
+  test('upgrades a v5 database to the current schema', () async {
+    final schema = await verifier.schemaAt(5);
+    final db = AppDatabase(schema.newConnection());
 
-      await verifier.migrateAndValidate(db, 6);
+    await verifier.migrateAndValidate(db, 7);
 
-      // The downloaded-collection identity table is new and starts empty;
-      // a collection's name and artwork fill in the next time it is
-      // downloaded or opened online.
-      expect(await db.select(db.downloadedCollections).get(), isEmpty);
+    // The downloaded-collection identity table is new and starts empty;
+    // a collection's name and artwork fill in the next time it is
+    // downloaded or opened online.
+    expect(await db.select(db.downloadedCollections).get(), isEmpty);
 
-      await db.close();
-    },
-  );
+    await db.close();
+  });
 
   test(
     'an upgrade to v6 keeps existing downloads and leaves them unclaimed',
@@ -194,7 +197,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 6);
+      await verifier.migrateAndValidate(db, 7);
 
       // Data is preserved; the new account_key defaults to empty, which
       // `DownloadsCubit.restore` then claims for the first profile to sign
@@ -212,4 +215,38 @@ void main() {
       await db.close();
     },
   );
+
+  test('upgrades a v6 database to the v7 listening-history schema', () async {
+    final schema = await verifier.schemaAt(6);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 7);
+
+    // Listening history is new and starts empty; it begins accruing from
+    // the next qualifying play.
+    expect(await db.select(db.listeningHistoryEntries).get(), isEmpty);
+
+    await db.close();
+  });
+
+  test('an upgrade from v6 keeps a queued track and widens its row', () async {
+    final schema = await verifier.schemaAt(6);
+
+    final old = v6.DatabaseAtV6(schema.newConnection());
+    await old.customStatement(
+      'INSERT INTO queue_entries (position, server_id, item_id, title) '
+      "VALUES (0, 'server-1', 'track-1', 'So What')",
+    );
+    await old.close();
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 7);
+
+    final entries = await db.select(db.queueEntries).get();
+    expect(entries.single.title, 'So What');
+    expect(entries.single.albumItemId, isNull);
+    expect(entries.single.artistsJson, isNull);
+
+    await db.close();
+  });
 }

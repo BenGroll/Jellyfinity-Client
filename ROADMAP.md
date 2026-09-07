@@ -30,12 +30,12 @@ published Git tag.
 | v0.2.2 | Artist downloads, quality, and management | Implemented | [spec](Roadmap%20to%20v0.3.md#v022--artist-downloads-download-quality-and-management) |
 | v0.2.3 | Offline library and recovery | Implemented | [spec](Roadmap%20to%20v0.3.md#v023--offline-library-and-recovery) |
 | v0.3.0 | Offline music completion | Partly implemented | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
-| v0.4.0 | Listening history | Planned | [spec](Roadmap%20to%20v0.4.md#v040--listening-history) |
-| v0.4.1 | Continue listening and recently played | Planned | [spec](Roadmap%20to%20v0.4.md#v041--continue-listening-and-recently-played) |
-| v0.4.2 | Recently added | Planned | [spec](Roadmap%20to%20v0.4.md#v042--recently-added) |
-| v0.4.3 | Favorites as a place | Planned | [spec](Roadmap%20to%20v0.4.md#v043--favorites-as-a-place) |
-| v0.4.4 | Related artists and albums | Planned | [spec](Roadmap%20to%20v0.4.md#v044--related-artists-and-albums) |
-| v0.5.0 | Home completion | Planned | [spec](Roadmap%20to%20v0.4.md#v050--home-completion) |
+| v0.3.1 | Listening history | Implemented | [spec](Roadmap%20to%20v0.4.md#v031--listening-history) |
+| v0.3.2 | Continue listening and recently played | Planned | [spec](Roadmap%20to%20v0.4.md#v032--continue-listening-and-recently-played) |
+| v0.3.3 | Recently added | Planned | [spec](Roadmap%20to%20v0.4.md#v033--recently-added) |
+| v0.3.4 | Favorites as a place | Planned | [spec](Roadmap%20to%20v0.4.md#v034--favorites-as-a-place) |
+| v0.3.5 | Related artists and albums | Planned | [spec](Roadmap%20to%20v0.4.md#v035--related-artists-and-albums) |
+| v0.4.0 | Home completion | Planned | [spec](Roadmap%20to%20v0.4.md#v040--home-completion) |
 
 v0.1.2 is complete but for reorder. v0.3.0 shipped the rest of it and left
 reorder out deliberately: Jellyfin's move endpoint takes an absolute
