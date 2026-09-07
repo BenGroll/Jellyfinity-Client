@@ -87,6 +87,9 @@ Future<TestSessionScope> pumpApp(
   // from every pumpApp test via the mini-player, so this is registered
   // unconditionally rather than only by tests that specifically care
   // about it (mirrors registerMusicCubits for the music detail cubits).
+  // HomePage is the app's first route, reached by every pumpApp test; it
+  // reads RecentlyPlayedCubit straight from getIt (v0.3.2).
+  registerRecentlyPlayedCubit();
   registerTrackSourceInfoCubit(resolver: trackSourceInfoResolver);
   // LyricsPage is the same shape — a root route reading LyricsCubit
   // straight from getIt, reachable from every pumpApp test via Now

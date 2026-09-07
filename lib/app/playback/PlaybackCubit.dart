@@ -230,6 +230,16 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     }
   }
 
+  /// Carries on the restored queue from where it left off — Home's
+  /// "Continue listening" (v0.3.2). The queue was primed into the engine,
+  /// paused, by [restore] at launch; this just starts it. A no-op with an
+  /// empty queue or one already playing, so the one entry point is safe to
+  /// call from a card that may be tapped twice.
+  Future<void> resume() async {
+    if (state.queue.isEmpty || state.isPlaying) return;
+    await _engine.play();
+  }
+
   Future<void> seek(Duration position) => _engine.seek(position);
 
   Future<void> next() async {

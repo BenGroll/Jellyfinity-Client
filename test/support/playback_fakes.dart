@@ -28,6 +28,7 @@ import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
+import 'package:jellyfinity/features/home/presentation/RecentlyPlayedCubit.dart';
 import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart';
 import 'package:jellyfinity/features/playback/presentation/now_playing_details_cubit.dart';
 import 'package:jellyfinity/features/playback/presentation/track_source_info_cubit.dart';
@@ -397,6 +398,47 @@ void registerNowPlayingDetailsCubit({MediaMetadataRepository? metadata}) {
   final repository = metadata ?? FakeMediaMetadataRepository();
   getIt.registerFactory<NowPlayingDetailsCubit>(
     () => NowPlayingDetailsCubit(repository),
+  );
+  addTearDown(getIt.reset);
+}
+
+/// A [ListeningHistoryRepository] whose `recent` answer a test seeds
+/// directly — for Home's "Recently played" widget tests, which care about
+/// how entries render, not how they were recorded.
+class SeededListeningHistoryRepository implements ListeningHistoryRepository {
+  List<ListeningHistoryEntry> entries = [];
+  Failure? failure;
+
+  final List<ListeningPlay> recorded = [];
+
+  @override
+  Future<Result<void>> record(ListeningPlay play) async {
+    recorded.add(play);
+    return const Result.ok(null);
+  }
+
+  @override
+  Future<Result<List<ListeningHistoryEntry>>> recent({int limit = 30}) async {
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(entries.take(limit < 0 ? 0 : limit).toList());
+  }
+}
+
+/// Registers a fake [RecentlyPlayedCubit] factory into `getIt` — Home is
+/// the app's first route, so every [pumpApp] test reaches it and needs
+/// this. [pumpApp] calls it by default; pass [history]/[metadata] to
+/// control what "Recently played" shows.
+void registerRecentlyPlayedCubit({
+  ListeningHistoryRepository? history,
+  MediaMetadataRepository? metadata,
+}) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<RecentlyPlayedCubit>()) return;
+  final historyRepository = history ?? SeededListeningHistoryRepository();
+  final metadataRepository = metadata ?? FakeMediaMetadataRepository();
+  getIt.registerFactory<RecentlyPlayedCubit>(
+    () => RecentlyPlayedCubit(historyRepository, metadataRepository),
   );
   addTearDown(getIt.reset);
 }

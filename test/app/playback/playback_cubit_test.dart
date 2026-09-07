@@ -158,6 +158,42 @@ void main() {
       expect(engine.playing, isTrue);
     });
 
+    test('resume starts a restored queue (v0.3.2)', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+      await queueRepository.savePosition(
+        currentIndex: 0,
+        position: const Duration(seconds: 40),
+      );
+      await cubit.close();
+
+      final freshEngine = FakePlaybackEngine();
+      addTearDown(freshEngine.disposeForTest);
+      cubit = PlaybackCubit(
+        freshEngine,
+        queueRepository,
+        resolver,
+        progress,
+        history,
+        settings,
+      );
+      await cubit.restore();
+      expect(freshEngine.playing, isFalse);
+
+      await cubit.resume();
+
+      expect(freshEngine.playing, isTrue);
+    });
+
+    test('resume is a no-op with no queue or one already playing', () async {
+      await cubit.resume();
+      expect(engine.playing, isFalse);
+
+      await cubit.playNow([_track('a')], startIndex: 0);
+      engine.calls.clear();
+      await cubit.resume();
+      expect(engine.calls, isNot(contains('play')));
+    });
+
     test('seek delegates straight to the engine', () async {
       await cubit.playNow([_track('a')], startIndex: 0);
 
