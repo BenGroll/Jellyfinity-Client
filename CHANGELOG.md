@@ -2,6 +2,41 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## v0.3.2 — Continue listening and recently played
+
+Home stops being a placeholder. It now opens on what the user was doing —
+what is waiting to be resumed, and what they have played lately — with the
+server up or down.
+
+### Home sections (ADR-0026)
+
+- **Continue listening.** The playback queue is already restored, paused,
+  at launch (v0.0.9). Home surfaces it: the track, how far in, and one tap
+  to carry on. Nothing to resume — no queue, or already playing — and the
+  section is absent, not an empty box.
+- **Recently played.** The albums, artists and single tracks this profile
+  actually returned to, newest first, from v0.3.1's listening history
+  (ADR-0025). An album or artist opens its page; a single plays again
+  (there is no track screen to open).
+- **Each section stands on its own.** They share no state, so one that
+  fails shows its own compact retry and leaves the rest of Home usable —
+  the rule `MusicSearchCubit` already follows for search categories. A
+  failed *refresh* that still has rows keeps showing them.
+- **Honest offline.** With the full-library scope, a row whose audio is
+  not on the device is shown dimmed and labelled rather than hidden. With
+  the "downloads only" scope (ADR-0023), it is left out entirely, and
+  Continue listening is absent when the queued track is not downloaded —
+  no resume button that reaches only silence.
+- The strip refreshes itself when a track starts playing, so it is
+  current by the time the user comes back to the Home tab.
+- Home's "Browse music" button now appears only when there is nothing to
+  resume or replay; otherwise the Library is its bottom-navigation tab.
+- `PlaybackCubit` gains `resume()`. No new domain contract, no schema
+  change.
+- **Not** in this version: attributing plays to the playlist they came
+  from (needs a queue origin, which ADR-0025 and ADR-0026 both defer), and
+  a reorderable Home (`OUTLOOK.md` §9).
+
 ## v0.3.1 — Listening history
 
 The first step of the Home arc: Jellyfinity now durably records what the

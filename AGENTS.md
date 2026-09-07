@@ -16,7 +16,10 @@ specification.
 - v0.3.1 (listening history, ADR-0025) is **implemented**: the Home arc's
   first step, a bounded local record of what the profile played, with
   nothing yet showing it. Its spec lives in `Roadmap to v0.4.md`.
-- v0.3.2 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
+- v0.3.2 (continue listening and recently played, ADR-0026) is
+  **implemented**: Home is now built from independent sections over the
+  restored queue and v0.3.1's history, honest offline.
+- v0.3.3 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
   **planned, not started**. Read a section only if you were assigned that
   version. v0.4.0 there is Home completion, not a new arc.
 

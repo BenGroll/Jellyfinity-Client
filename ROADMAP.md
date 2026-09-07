@@ -31,7 +31,7 @@ published Git tag.
 | v0.2.3 | Offline library and recovery | Implemented | [spec](Roadmap%20to%20v0.3.md#v023--offline-library-and-recovery) |
 | v0.3.0 | Offline music completion | Partly implemented | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
 | v0.3.1 | Listening history | Implemented | [spec](Roadmap%20to%20v0.4.md#v031--listening-history) |
-| v0.3.2 | Continue listening and recently played | Planned | [spec](Roadmap%20to%20v0.4.md#v032--continue-listening-and-recently-played) |
+| v0.3.2 | Continue listening and recently played | Implemented | [spec](Roadmap%20to%20v0.4.md#v032--continue-listening-and-recently-played) |
 | v0.3.3 | Recently added | Planned | [spec](Roadmap%20to%20v0.4.md#v033--recently-added) |
 | v0.3.4 | Favorites as a place | Planned | [spec](Roadmap%20to%20v0.4.md#v034--favorites-as-a-place) |
 | v0.3.5 | Related artists and albums | Planned | [spec](Roadmap%20to%20v0.4.md#v035--related-artists-and-albums) |
