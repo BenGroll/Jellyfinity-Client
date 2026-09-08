@@ -42,6 +42,7 @@ import 'package:jellyfinity/domain/media/FavoritesRepository.dart' as _i685;
 import 'package:jellyfinity/domain/media/ListeningHistoryRepository.dart'
     as _i175;
 import 'package:jellyfinity/domain/media/media.dart' as _i747;
+import 'package:jellyfinity/domain/media/MediaMetadataRepository.dart' as _i50;
 import 'package:jellyfinity/domain/media/MusicLibraryRepository.dart' as _i260;
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart'
     as _i474;
@@ -67,6 +68,8 @@ import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart'
     as _i1045;
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart'
     as _i952;
+import 'package:jellyfinity/features/home/presentation/RecentlyPlayedCubit.dart'
+    as _i606;
 import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart'
     as _i824;
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart'
@@ -443,6 +446,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i618.PlaylistTracksCubit(
         gh<_i747.PlaylistRepository>(),
         gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.factory<_i606.RecentlyPlayedCubit>(
+      () => _i606.RecentlyPlayedCubit(
+        gh<_i175.ListeningHistoryRepository>(),
+        gh<_i50.MediaMetadataRepository>(),
       ),
     );
     gh.factory<_i29.NowPlayingDetailsCubit>(
