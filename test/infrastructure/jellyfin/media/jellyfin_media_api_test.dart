@@ -72,6 +72,19 @@ void main() {
       },
     );
 
+    test('sorts descending only when asked, ascending by default', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+      final api = testMediaApi(adapter);
+
+      await api.queryItems(sortBy: const ['DateCreated'], descending: true);
+      await api.queryItems(sortBy: const ['SortName']);
+
+      expect(adapter.requests[0].queryParameters['sortOrder'], 'Descending');
+      expect(adapter.requests[1].queryParameters['sortOrder'], 'Ascending');
+    });
+
     test('requests only the extra fields it needs', () async {
       final adapter = FakeDioAdapter(
         (_) async => jsonResponseBody(itemsResponse(const [])),

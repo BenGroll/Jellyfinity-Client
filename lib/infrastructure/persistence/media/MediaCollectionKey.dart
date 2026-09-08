@@ -21,6 +21,11 @@ abstract final class MediaCollectionKey {
   /// Every album in the library.
   static const albums = 'albums';
 
+  /// The newest albums by the date the server acquired them (v0.3.3). A
+  /// bounded top-N window, saved so a cold offline open can still show the
+  /// last known "recently added" rather than an error.
+  static const recentlyAddedAlbums = 'albums:recently-added';
+
   /// Every song in the library.
   static const tracks = 'tracks';
 

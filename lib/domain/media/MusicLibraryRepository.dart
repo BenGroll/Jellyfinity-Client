@@ -52,6 +52,20 @@ abstract class MusicLibraryRepository {
     String? searchTerm,
   });
 
+  /// The albums most recently added to the library, newest first by the
+  /// date the server acquired them (v0.3.3).
+  ///
+  /// A distinct question from [albums], which is always alphabetical: this
+  /// one is "what is new", and it is a bounded top-N list rather than a
+  /// window into a collection — the returned [Page] reports itself
+  /// complete and is never paged. Cached like [albums], so a cold offline
+  /// open answers from the saved copy marked [PageSource.cache]; but it is
+  /// a *server* fact, and a deliberately-offline caller must not present
+  /// the saved copy as if freshness had been checked.
+  Future<Result<Page<Album>>> recentlyAddedAlbums({
+    PageRequest page = const PageRequest.first(),
+  });
+
   /// Tracks, optionally only those on [albumId] or by [artistId].
   ///
   /// Album tracks come back in disc/track order; anything else is in the

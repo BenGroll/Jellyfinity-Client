@@ -201,6 +201,11 @@ class JellyfinMediaApi {
   /// [searchTerm] is Jellyfin's own name matching, applied by the server
   /// on top of every other filter. Matching a 130k-track library is the
   /// server's job; nothing here narrows anything in Dart.
+  ///
+  /// [descending] flips the sort direction the server applies to [sortBy].
+  /// It defaults to ascending — the direction every library, artist and
+  /// playlist read has always wanted — and only "Recently added" (v0.3.3),
+  /// which is newest-first by definition, passes `true`.
   Future<Result<ItemsResponseDto>> queryItems({
     String path = itemsPath,
     List<String> includeItemTypes = const [],
@@ -211,6 +216,7 @@ class JellyfinMediaApi {
     String? searchTerm,
     List<String> fields = defaultFields,
     List<String> sortBy = const [],
+    bool descending = false,
     bool recursive = true,
     PageRequest? page,
     CancelToken? cancelToken,
@@ -234,7 +240,7 @@ class JellyfinMediaApi {
       'searchTerm': ?normalizeSearchTerm(searchTerm),
       if (sortBy.isNotEmpty) ...{
         'sortBy': sortBy.join(','),
-        'sortOrder': 'Ascending',
+        'sortOrder': descending ? 'Descending' : 'Ascending',
       },
       if (recursive && path == itemsPath) 'recursive': true,
       if (page != null) ...{'startIndex': page.startIndex, 'limit': page.limit},

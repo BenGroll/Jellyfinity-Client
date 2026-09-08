@@ -11,6 +11,8 @@ import 'package:jellyfinity/domain/session/AccountStore.dart';
 import 'package:jellyfinity/domain/session/CredentialStore.dart';
 import 'package:jellyfinity/domain/session/JellyfinAuthenticator.dart';
 import 'package:jellyfinity/domain/session/ServerRegistry.dart';
+import 'package:jellyfinity/features/home/presentation/RecentlyAddedCubit.dart';
+import 'package:jellyfinity/features/home/presentation/RecentlyPlayedCubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
@@ -86,6 +88,16 @@ void main() {
       expect(getIt<PlaylistDetailCubit>(), isA<PlaylistDetailCubit>());
       expect(getIt<MusicSearchCubit>(), isA<MusicSearchCubit>());
     });
+
+    test(
+      'Home section cubits resolve from the graph (v0.3.2, v0.3.3)',
+      () async {
+        await configureDependencies();
+
+        expect(getIt<RecentlyPlayedCubit>(), isA<RecentlyPlayedCubit>());
+        expect(getIt<RecentlyAddedCubit>(), isA<RecentlyAddedCubit>());
+      },
+    );
 
     test(
       'a paged cubit keeps its own window size, not an injected one',

@@ -14,6 +14,7 @@ import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
 import 'download_fakes.dart';
+import 'music_fakes.dart';
 import 'offline_fakes.dart';
 import 'playback_fakes.dart';
 import 'session_fakes.dart';
@@ -88,8 +89,10 @@ Future<TestSessionScope> pumpApp(
   // unconditionally rather than only by tests that specifically care
   // about it (mirrors registerMusicCubits for the music detail cubits).
   // HomePage is the app's first route, reached by every pumpApp test; it
-  // reads RecentlyPlayedCubit straight from getIt (v0.3.2).
+  // reads RecentlyPlayedCubit (v0.3.2) and RecentlyAddedCubit (v0.3.3)
+  // straight from getIt.
   registerRecentlyPlayedCubit();
+  registerRecentlyAddedCubit();
   registerTrackSourceInfoCubit(resolver: trackSourceInfoResolver);
   // LyricsPage is the same shape — a root route reading LyricsCubit
   // straight from getIt, reachable from every pumpApp test via Now
