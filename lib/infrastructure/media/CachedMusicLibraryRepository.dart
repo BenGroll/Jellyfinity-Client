@@ -244,6 +244,29 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<ArtistStats>> artistStats(MediaId artistId) =>
       _remote.artistStats(artistId);
 
+  /// Live only, like [artistStats]: similarity is the server's answer and
+  /// nothing here caches it. Working offline (v0.2.3) there is genuinely
+  /// nothing to attempt, so the read is short-circuited to a
+  /// [RecoverableFailure] rather than left to time out — either way the
+  /// caller's section is absent (ADR-0029).
+  @override
+  Future<Result<List<Artist>>> relatedArtists(
+    MediaId artistId, {
+    int limit = 12,
+  }) async {
+    if (_offline.status.isOffline) return _offlineFailure<List<Artist>>();
+    return _remote.relatedArtists(artistId, limit: limit);
+  }
+
+  @override
+  Future<Result<List<Album>>> similarAlbums(
+    MediaId albumId, {
+    int limit = 12,
+  }) async {
+    if (_offline.status.isOffline) return _offlineFailure<List<Album>>();
+    return _remote.similarAlbums(albumId, limit: limit);
+  }
+
   Future<Result<Page<T>>> _collection<T extends MediaItem>({
     required PageRequest page,
     required String? searchTerm,

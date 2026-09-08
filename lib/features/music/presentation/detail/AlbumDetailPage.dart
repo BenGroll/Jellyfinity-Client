@@ -21,7 +21,9 @@ import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
 import '../widgets/reconcile_downloaded_collection.dart';
+import '../widgets/RelatedMediaStrip.dart';
 import 'media_detail_cubit.dart';
+import 'related_media_cubits.dart';
 
 /// One album: its header, then its tracks.
 ///
@@ -36,11 +38,13 @@ class AlbumDetailPage extends StatelessWidget {
     required this.albumId,
     this.detail,
     this.tracks,
+    this.similar,
   });
 
   final MediaId albumId;
   final AlbumDetailCubit? detail;
   final SongsCubit? tracks;
+  final SimilarAlbumsCubit? similar;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +55,10 @@ class AlbumDetailPage extends StatelessWidget {
         ),
         BlocProvider<SongsCubit>(
           create: (_) => (tracks ?? getIt<SongsCubit>())..forAlbum(albumId),
+        ),
+        BlocProvider<SimilarAlbumsCubit>(
+          create: (_) =>
+              (similar ?? getIt<SimilarAlbumsCubit>())..open(albumId),
         ),
       ],
       child: ReconcileDownloadedCollection(
@@ -91,6 +99,9 @@ class _AlbumDetailView extends StatelessWidget {
                       child: _AlbumHeader(state: header, tracks: state.items),
                     ),
                   ),
+                ],
+                footerSlivers: const [
+                  SliverToBoxAdapter(child: _SimilarAlbums()),
                 ],
                 skeleton: const MusicListSkeleton(itemCount: 8),
                 emptyTitle: 'No songs on this album',
@@ -282,5 +293,34 @@ class _AlbumArtistCredit extends StatelessWidget {
     }
 
     return Wrap(alignment: WrapAlignment.center, children: pieces);
+  }
+}
+
+/// "Similar albums" under the track list (v0.3.5, ADR-0029): somewhere
+/// obvious to go when the record finishes, drawn from the server's own
+/// similarity endpoint. Absent while loading and whenever the server had
+/// nothing to suggest.
+class _SimilarAlbums extends StatelessWidget {
+  const _SimilarAlbums();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<SimilarAlbumsCubit, RelatedMediaState<Album>>(
+      builder: (context, state) {
+        if (state.items.isEmpty) return const SizedBox.shrink();
+        final t = context.tokens;
+        return Padding(
+          padding: EdgeInsets.only(top: t.spacing.lg, bottom: t.spacing.xxl),
+          child: RelatedMediaStrip(
+            title: 'Similar albums',
+            items: state.items,
+            onOpen: (item) => context.pushNamed(
+              RouteNames.libraryAlbum,
+              pathParameters: {'id': item.id.key},
+            ),
+          ),
+        );
+      },
+    );
   }
 }

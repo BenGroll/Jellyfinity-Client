@@ -327,6 +327,50 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     );
   }
 
+  @override
+  Future<Result<List<Artist>>> relatedArtists(
+    MediaId artistId, {
+    int limit = 12,
+  }) => _similar(artistId, (mapper, dto) => mapper.toArtist(dto), limit);
+
+  @override
+  Future<Result<List<Album>>> similarAlbums(
+    MediaId albumId, {
+    int limit = 12,
+  }) => _similar(
+    albumId,
+    (mapper, dto) => mapper.toAlbum(dto),
+    limit,
+    fields: JellyfinMediaApi.detailFields,
+  );
+
+  /// Asks the server for items similar to [id] and maps them, keeping only
+  /// the ones that are of the expected type and could be read. A row the
+  /// mapper cannot make sense of is dropped rather than shown as an
+  /// unavailable card — a suggestion strip has no use for a blank one.
+  Future<Result<List<T>>> _similar<T extends MediaItem>(
+    MediaId id,
+    T? Function(BaseItemMapper mapper, BaseItemDto dto) map,
+    int limit, {
+    List<String> fields = JellyfinMediaApi.defaultFields,
+  }) async {
+    final scope = _api.scopeFor(id);
+    if (scope case Err<MediaScope>(:final failure)) return Result.err(failure);
+    final (:mapper, :itemId) = (scope as Ok<MediaScope>).value;
+
+    final response = await _api.similarItems(
+      itemId,
+      limit: limit,
+      fields: fields,
+    );
+    return response.map(
+      (dto) => (dto.items ?? const <BaseItemDto>[])
+          .map((row) => map(mapper, row))
+          .whereType<T>()
+          .toList(growable: false),
+    );
+  }
+
   /// Sums [songCount] tracks' running time, page by page — bounded by
   /// [ArtistStats.durationSumLimit] at the call site, so this never reads
   /// more of the library than one artist's own discography.

@@ -127,6 +127,13 @@ class JellyfinMediaApi {
   /// A track's lyrics (v0.1.5). 404 when the track has none.
   static String lyricsPath(String itemId) => '/Audio/$itemId/Lyrics';
 
+  /// Items Jellyfin considers similar to [itemId] (v0.3.5) — same-typed
+  /// (an album's similars are albums, an artist's are artists), drawn from
+  /// the server's own library. A server that predates the endpoint answers
+  /// 404, which [TransportErrorMapper] turns into an [UnavailableFailure]
+  /// the caller treats as "no suggestions".
+  static String similarItemsPath(String itemId) => '/Items/$itemId/Similar';
+
   /// Jellyfin 10.10 replaced `/Users/{userId}/PlayedItems/{itemId}` with
   /// this user-implicit form; the minimum supported server is 10.11.6.
   static String playedItemPath(String itemId) => '/UserPlayedItems/$itemId';
@@ -284,6 +291,38 @@ class JellyfinMediaApi {
       final items = dto.items;
       return (items == null || items.isEmpty) ? null : items.first;
     });
+  }
+
+  /// Up to [limit] items the server considers similar to [itemId] (v0.3.5).
+  ///
+  /// Its own request rather than a mode of [queryItems]: the `/Similar`
+  /// route takes none of the collection vocabulary [queryItems] speaks —
+  /// no `SortBy`, `IncludeItemTypes` or `Recursive` — and the server picks
+  /// both the ordering and the type. An empty `Items` list is a normal
+  /// answer.
+  Future<Result<ItemsResponseDto>> similarItems(
+    String itemId, {
+    int limit = 12,
+    List<String> fields = defaultFields,
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.getJson<ItemsResponseDto>(
+      similarItemsPath(itemId),
+      parse: ItemsResponseDto.fromJson,
+      queryParameters: <String, dynamic>{
+        'userId': active.userId,
+        'limit': limit,
+        if (fields.isNotEmpty) 'fields': fields.join(','),
+        'enableImageTypes': imageTypes.join(','),
+      },
+      cancelToken: cancelToken,
+    );
   }
 
   /// The lyrics Jellyfin has stored for [itemId], or `Ok(null)` when there

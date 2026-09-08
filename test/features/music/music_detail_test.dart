@@ -7,6 +7,7 @@ import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/PlaylistDetailPage.dart';
+import 'package:jellyfinity/features/music/presentation/detail/related_media_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
@@ -33,6 +34,7 @@ Future<void> _pumpAlbum(
         FakeDownloadsLibrarySource(),
         FakeOfflineMode(),
       ),
+      similar: SimilarAlbumsCubit(music, FakeOfflineMode()),
     ),
   );
 }
@@ -101,6 +103,49 @@ void main() {
     expect(find.text('1959 · 5 songs'), findsOneWidget);
     // The credits line under the title (the track rows repeat it).
     expect(find.text('Miles Davis'), findsWidgets);
+  });
+
+  testWidgets('shows a "Similar albums" strip when the server has some', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+      ..trackList = [testTrack('t1', name: 'So What', trackNumber: 1)]
+      ..similarAlbumList = [
+        testAlbum('al2', name: 'Milestones'),
+        testAlbum('al3', name: 'Round About Midnight'),
+      ];
+
+    await _pumpAlbum(tester, music);
+    await tester.pumpAndSettle();
+
+    final scrollable = find
+        .descendant(
+          of: find.byType(CustomScrollView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Similar albums'),
+      400,
+      scrollable: scrollable,
+    );
+    expect(find.text('Milestones'), findsOneWidget);
+    expect(find.text('Round About Midnight'), findsOneWidget);
+  });
+
+  testWidgets('no "Similar albums" strip when the server offers none', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+      ..trackList = [testTrack('t1', name: 'So What', trackNumber: 1)]
+      ..similarityFailure = const RecoverableFailure('no endpoint');
+
+    await _pumpAlbum(tester, music);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Similar albums'), findsNothing);
   });
 
   testWidgets('a missing album header does not take the tracks down', (
@@ -268,6 +313,7 @@ void main() {
             FakeDownloadsLibrarySource(),
             FakeOfflineMode(),
           ),
+          similar: SimilarAlbumsCubit(music, FakeOfflineMode()),
         ),
         downloads: downloads,
         playback: playback,
