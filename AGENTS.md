@@ -30,9 +30,17 @@ specification.
   migration ADR-0019 deferred landed as schema v8's account-scoped
   `cached_favorites`, so the destination is honest offline. The
   detail-page heart offline stays as ADR-0019 left it.
-- v0.3.5 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
-  **planned, not started**. Read a section only if you were assigned that
-  version. v0.4.0 there is Home completion, not a new arc.
+- v0.3.5 (related artists and albums, ADR-0029) is **implemented**: a
+  "Related artists" strip under an artist's discography and a "Similar
+  albums" strip under an album's track list, from Jellyfin's own
+  `/Items/{id}/Similar` endpoint. Read live only — no cache, no schema
+  change — and absent (never a spinner or an error) whenever the server
+  offers nothing. No Home section: picking a seed for it would be the
+  kind of guessing `PHILOSOPHY.md` §13 rules out.
+- v0.4.0 (the rest of `Roadmap to v0.4.md`) is **planned, not started**.
+  Read a section only if you were assigned that version. v0.4.0 is Home
+  completion — an audit and hardening pass over the whole arc, not a new
+  arc.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

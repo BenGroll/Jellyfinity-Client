@@ -2,6 +2,32 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## v0.3.5 — Related artists and albums
+
+Finishing an album, or landing on an artist, now offers somewhere
+obvious to go next — drawn entirely from your own server.
+
+### Related artists and albums (ADR-0029)
+
+- **A "Related artists" strip under an artist's discography** and a
+  **"Similar albums" strip under an album's track list**, from Jellyfin's
+  own similarity endpoint (`/Items/{id}/Similar`). No external
+  recommendation service, no tracking backend — the suggestions never
+  leave your library.
+- **Absent, never broken.** A server with nothing to suggest, one that
+  predates the endpoint, or one that cannot be reached simply shows no
+  strip — no spinner, no error row. Coming back online fills a strip that
+  was empty offline.
+- **Live only.** Nothing is cached and there is no schema change: the
+  strips are a bonus over the detail page, which already renders and owns
+  its own offline state.
+- No Home section: Home already opens on four strong sections, and a
+  "more like this" strip would need the app to *guess* which artist or
+  album to seed it with — the kind of guessing the project's philosophy
+  rules out. The album page is where "somewhere to go next" belongs.
+- Genre and decade entry points (a stretch goal) are not included — they
+  are a browsing surface of their own, not a section.
+
 ## v0.3.4 — Favorites as a place
 
 The star gets a destination. A track, album or artist could be favorited
