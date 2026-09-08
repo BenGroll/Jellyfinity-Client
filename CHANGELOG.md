@@ -2,6 +2,42 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## v0.3.4 — Favorites as a place
+
+The star gets a destination. A track, album or artist could be favorited
+from three screens and then never found again; now Favorites is a place
+you can open, on Home and in the bottom navigation.
+
+### Favorites as a place (ADR-0028)
+
+- **A Favorites section in the bottom navigation**, between Home and
+  Library, with a heart icon. Scoped by the same media-type pill as
+  Library — Music today — with Artists, Albums and Songs tabs. Each tab
+  is an ordinary paged list; the **Songs tab plays straight through**,
+  with Play and Shuffle, like a playlist.
+- **A Favorites strip on Home**, following the section pattern
+  "Recently played" and "Recently added" established (ADR-0026): favorite
+  albums and artists, its header opening the full destination, absent
+  when there is nothing starred, and independent — a failure there leaves
+  the rest of Home standing.
+- **`IsFavorite` on the shared query surface.** `queryItems` gained a
+  `favoritesOnly` flag that defaults off, so the library, discography,
+  album-tracks, playlist, search and "recently added" reads are all
+  unchanged and only the three favorites reads opt in.
+- **Favorites are honest offline.** The migration ADR-0019 deliberately
+  deferred is now taken on: schema **v8** adds an account-scoped
+  `cached_favorites` table, so a cold offline open shows the last known
+  favorites marked as a saved copy rather than an empty list. A favorite
+  removed on another client disappears on the next sync; a star tapped
+  online shows offline straight away. A profile whose favorites were
+  never read online is told to reconnect, not shown "you have none".
+  Under the downloads-only scope, the Home strip narrows to favorites
+  with something on the device.
+- Toggling a favorite anywhere in the app refreshes the destination and
+  the Home strip — no stale list after starring something.
+- The detail-page heart on a cached/offline copy stays hidden, as
+  ADR-0019 left it; reconciling it offline is a later step.
+
 ## v0.3.3 — Recently added
 
 Home gains a third section: the albums the server has just gained,
