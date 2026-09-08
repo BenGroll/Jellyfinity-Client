@@ -2,24 +2,29 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/result/result.dart';
 import '../../../domain/media/FavoritesRepository.dart';
+import '../../../domain/media/media_kind.dart';
 import '../../../domain/media/MediaId.dart';
 import 'jellyfin_media_api.dart';
 
-/// [FavoritesRepository] backed by the active session's Jellyfin server.
+/// The server half of [FavoritesRepository]: the write itself.
 ///
-/// No local half: a favorite toggle is only ever attempted while the
-/// screen showing it is online (a cached/offline detail hides the heart
-/// button entirely — see `Artist.isFavorite`'s doc comment), so there is
-/// nothing here for `CachedMusicLibraryRepository`'s fallback pattern to
-/// do. Registered directly as [FavoritesRepository].
-@LazySingleton(as: FavoritesRepository)
+/// Since v0.3.4 this is wrapped by `CachedFavoritesRepository`, which
+/// mirrors a successful toggle into the local favorites cache (ADR-0028)
+/// so an offline Favorites view stays honest. That is why this class is
+/// registered as itself rather than as the contract — the same
+/// remote-half convention `JellyfinMusicLibraryRepository` follows.
+@lazySingleton
 class JellyfinFavoritesRepository implements FavoritesRepository {
   JellyfinFavoritesRepository(this._api);
 
   final JellyfinMediaApi _api;
 
   @override
-  Future<Result<void>> setFavorite(MediaId id, {required bool favorite}) {
+  Future<Result<void>> setFavorite(
+    MediaId id, {
+    required bool favorite,
+    MediaKind? kind,
+  }) {
     final itemId = _api.localItemId(id);
     if (itemId case Err<String>(:final failure)) {
       return Future.value(Result.err(failure));

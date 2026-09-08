@@ -21,8 +21,12 @@ void main() {
   ) async {
     // v0.0.3 shipped Home alone and deliberately hid the bar; v0.0.8's
     // Music section (renamed Library in v0.0.10, ADR-0014) is what makes
-    // it appear.
-    expect(shellDestinations.map((d) => d.label), ['Home', 'Library']);
+    // it appear. v0.3.4 (ADR-0028) added Favorites between them.
+    expect(shellDestinations.map((d) => d.label), [
+      'Home',
+      'Favorites',
+      'Library',
+    ]);
 
     final scope = await pumpApp(tester);
     await scope.signIn();

@@ -14,6 +14,7 @@ import '../library/music_collection_cubits.dart';
 import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
 import '../widgets/download_controls.dart';
+import '../widgets/favorite_actions.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/media_formatting.dart';
@@ -128,11 +129,12 @@ class _ArtistDetailView extends StatelessWidget {
                   ),
                   FavoriteButton(
                     isFavorite: artist.isFavorite,
-                    onChanged: (favorite) async {
-                      final result = await getIt<FavoritesRepository>()
-                          .setFavorite(artist.id, favorite: favorite);
-                      return result.isOk;
-                    },
+                    onChanged: (favorite) => applyFavorite(
+                      context,
+                      artist.id,
+                      MediaKind.artist,
+                      favorite: favorite,
+                    ),
                   ),
                 ],
           body: BlocBuilder<AlbumsCubit, PagedCollectionState<Album>>(

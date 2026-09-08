@@ -4,6 +4,8 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/features/favorites/presentation/favorites_cubits.dart';
+import 'package:jellyfinity/features/home/presentation/HomeFavoritesCubit.dart';
 import 'package:jellyfinity/features/home/presentation/RecentlyAddedCubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
@@ -18,15 +20,21 @@ const String testServerId = 'server-1';
 MediaId mediaId(String itemId) =>
     MediaId(serverId: testServerId, itemId: itemId);
 
-Artist testArtist(String id, {String? name}) =>
-    Artist(id: mediaId(id), name: name ?? 'Artist $id');
+Artist testArtist(String id, {String? name, bool isFavorite = false}) =>
+    Artist(id: mediaId(id), name: name ?? 'Artist $id', isFavorite: isFavorite);
 
-Album testAlbum(String id, {String? name, List<ArtistRef>? artists}) => Album(
+Album testAlbum(
+  String id, {
+  String? name,
+  List<ArtistRef>? artists,
+  bool isFavorite = false,
+}) => Album(
   id: mediaId(id),
   name: name ?? 'Album $id',
   artists: artists ?? [const ArtistRef(name: 'Miles Davis')],
   productionYear: 1959,
   trackCount: 5,
+  isFavorite: isFavorite,
 );
 
 Track testTrack(
@@ -34,6 +42,7 @@ Track testTrack(
   String? name,
   String? albumId,
   int? trackNumber,
+  bool isFavorite = false,
   MediaAvailability availability = MediaAvailability.remoteOnly,
 }) => Track(
   id: mediaId(id),
@@ -43,6 +52,7 @@ Track testTrack(
   albumName: albumId == null ? null : 'Album $albumId',
   trackNumber: trackNumber,
   duration: const Duration(minutes: 3, seconds: 42),
+  isFavorite: isFavorite,
   availability: availability,
 );
 
@@ -93,6 +103,14 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
   /// the alphabetical [albumList], or leave it empty so the section is
   /// simply absent.
   List<Album> recentlyAddedList = [];
+
+  /// What the favorites reads answer with (v0.3.4). Their own lists so a
+  /// test can star a subset without touching [artistList]/[albumList]/
+  /// [trackList], or leave them empty so the Favorites destination and its
+  /// Home section are simply absent.
+  List<Artist> favoriteArtistList = [];
+  List<Album> favoriteAlbumList = [];
+  List<Track> favoriteTrackList = [];
 
   /// Per-album and per-artist track lists, consulted before [trackList]
   /// when a scoped `tracks` read names one — lets a test give an album
@@ -163,6 +181,33 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
         source: window.source,
       ),
     );
+  }
+
+  @override
+  Future<Result<Page<Artist>>> favoriteArtists({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    calls.add((method: 'favoriteArtists', page: page, searchTerm: null));
+    await _pause();
+    return _answer(favoriteArtistList, page, null, (a) => a.name);
+  }
+
+  @override
+  Future<Result<Page<Album>>> favoriteAlbums({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    calls.add((method: 'favoriteAlbums', page: page, searchTerm: null));
+    await _pause();
+    return _answer(favoriteAlbumList, page, null, (a) => a.name);
+  }
+
+  @override
+  Future<Result<Page<Track>>> favoriteTracks({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    calls.add((method: 'favoriteTracks', page: page, searchTerm: null));
+    await _pause();
+    return _answer(favoriteTrackList, page, null, (t) => t.name);
   }
 
   @override
@@ -363,16 +408,55 @@ class FakePlaylistRepository implements PlaylistRepository {
 }
 
 /// A [FavoritesRepository] a test controls, recording every call.
+///
+/// Pass [library] to have a successful toggle also move the item in and
+/// out of that repository's favorite lists — so a heart tapped on a detail
+/// screen actually changes what the Favorites destination reads back,
+/// which is what "favoriting reflects in the destination" needs.
 class FakeFavoritesRepository implements FavoritesRepository {
+  FakeFavoritesRepository({this.library});
+
+  final FakeMusicLibraryRepository? library;
   Failure? failure;
-  final List<({MediaId id, bool favorite})> calls = [];
+  final List<({MediaId id, bool favorite, MediaKind? kind})> calls = [];
 
   @override
-  Future<Result<void>> setFavorite(MediaId id, {required bool favorite}) async {
-    calls.add((id: id, favorite: favorite));
+  Future<Result<void>> setFavorite(
+    MediaId id, {
+    required bool favorite,
+    MediaKind? kind,
+  }) async {
+    calls.add((id: id, favorite: favorite, kind: kind));
     final failed = failure;
     if (failed != null) return Result.err(failed);
+    _applyToLibrary(id, favorite: favorite, kind: kind);
     return const Result.ok(null);
+  }
+
+  void _applyToLibrary(MediaId id, {required bool favorite, MediaKind? kind}) {
+    final lib = library;
+    if (lib == null) return;
+    switch (kind) {
+      case MediaKind.artist:
+        lib.favoriteArtistList.removeWhere((a) => a.id == id);
+        if (favorite) {
+          lib.favoriteArtistList.addAll(
+            lib.artistList.where((a) => a.id == id),
+          );
+        }
+      case MediaKind.album:
+        lib.favoriteAlbumList.removeWhere((a) => a.id == id);
+        if (favorite) {
+          lib.favoriteAlbumList.addAll(lib.albumList.where((a) => a.id == id));
+        }
+      case MediaKind.track:
+        lib.favoriteTrackList.removeWhere((t) => t.id == id);
+        if (favorite) {
+          lib.favoriteTrackList.addAll(lib.trackList.where((t) => t.id == id));
+        }
+      case _:
+        break;
+    }
   }
 }
 
@@ -541,6 +625,17 @@ void registerMusicCubits({
     // Home's "Recently added" strip (v0.3.3) reads this straight from
     // getIt, and Home is the app's first route.
     ..registerFactory<RecentlyAddedCubit>(() => RecentlyAddedCubit(music))
+    // The Favorites destination and Home's "Favorites" strip (v0.3.4).
+    ..registerFactory<FavoriteArtistsCubit>(
+      () => FavoriteArtistsCubit(music, offlineMode),
+    )
+    ..registerFactory<FavoriteAlbumsCubit>(
+      () => FavoriteAlbumsCubit(music, offlineMode),
+    )
+    ..registerFactory<FavoriteTracksCubit>(
+      () => FavoriteTracksCubit(music, offlineMode),
+    )
+    ..registerFactory<HomeFavoritesCubit>(() => HomeFavoritesCubit(music))
     ..registerSingleton<PlaylistRepository>(playlistRepository)
     ..registerSingleton<FavoritesRepository>(favoritesRepository);
   addTearDown(getIt.reset);
@@ -558,5 +653,29 @@ void registerRecentlyAddedCubit({FakeMusicLibraryRepository? music}) {
   getIt.registerFactory<RecentlyAddedCubit>(
     () => RecentlyAddedCubit(repository),
   );
+  addTearDown(getIt.reset);
+}
+
+/// Registers the favorites cubits (v0.3.4) into `getIt` — Home's
+/// "Favorites" strip reads [HomeFavoritesCubit] straight from it, and the
+/// Favorites destination reads the three paged cubits. Guarded like
+/// [registerRecentlyAddedCubit]; [pumpApp] calls it by default. Pass
+/// [music] to control what favorites show.
+void registerFavoritesCubits({FakeMusicLibraryRepository? music}) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<HomeFavoritesCubit>()) return;
+  final repository = music ?? FakeMusicLibraryRepository();
+  final offlineMode = FakeOfflineMode();
+  getIt
+    ..registerFactory<HomeFavoritesCubit>(() => HomeFavoritesCubit(repository))
+    ..registerFactory<FavoriteArtistsCubit>(
+      () => FavoriteArtistsCubit(repository, offlineMode),
+    )
+    ..registerFactory<FavoriteAlbumsCubit>(
+      () => FavoriteAlbumsCubit(repository, offlineMode),
+    )
+    ..registerFactory<FavoriteTracksCubit>(
+      () => FavoriteTracksCubit(repository, offlineMode),
+    );
   addTearDown(getIt.reset);
 }

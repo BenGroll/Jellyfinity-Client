@@ -171,6 +171,66 @@ void main() {
     });
   });
 
+  group('favorites (v0.3.4)', () {
+    const favAlbum = {'Id': 'album-7', 'Name': 'Starred', 'Type': 'MusicAlbum'};
+
+    test('a served list is current and is cached per profile', () async {
+      final cache = RecordingMediaCacheStore();
+      final (:repository, cache: _) = _repository(
+        _answering([favAlbum]),
+        cache: cache,
+      );
+
+      final result = await repository.favoriteAlbums();
+
+      expect(result.valueOrNull!.items.single.name, 'Starred');
+      expect(result.valueOrNull!.source, PageSource.server);
+      expect(cache.replacedFavorites.single.accountKey, 'server-1/user-1');
+      expect(cache.replacedFavorites.single.kind, MediaKind.album);
+    });
+
+    test('an unreachable server answers from the saved copy', () async {
+      final cache = RecordingMediaCacheStore();
+      await _repository(
+        _answering([favAlbum]),
+        cache: cache,
+      ).repository.favoriteAlbums();
+
+      final offline = _repository(_offline(), cache: cache).repository;
+      final page = (await offline.favoriteAlbums()).valueOrNull!;
+
+      expect(page.items.single.name, 'Starred');
+      expect(page.source, PageSource.cache);
+    });
+
+    test('with nothing saved, the failure is the answer', () async {
+      final (:repository, cache: _) = _repository(_offline());
+
+      final result = await repository.favoriteAlbums();
+
+      // An empty list would tell the user they have no favorites.
+      expect(result.failureOrNull, isA<RecoverableFailure>());
+    });
+
+    test('a favorite removed on the server stops showing offline', () async {
+      final cache = RecordingMediaCacheStore();
+      await _repository(
+        _answering([favAlbum]),
+        cache: cache,
+      ).repository.favoriteAlbums();
+
+      // Next sync: the album is no longer a favorite.
+      await _repository(
+        _answering(const []),
+        cache: cache,
+      ).repository.favoriteAlbums();
+
+      final offline = _repository(_offline(), cache: cache).repository;
+      final page = (await offline.favoriteAlbums()).valueOrNull!;
+      expect(page.items, isEmpty);
+    });
+  });
+
   test('files a discography under the artist it belongs to', () async {
     final (:repository, :cache) = _repository(_answering([_albumRow]));
 

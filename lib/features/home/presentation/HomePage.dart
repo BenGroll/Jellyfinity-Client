@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/connectivity/OfflineCubit.dart';
 import '../../../app/di/service_locator.dart';
+import '../../../app/favorites/FavoritesRevisionCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
@@ -17,6 +18,7 @@ import '../../../domain/downloads/downloads.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/QueueEntry.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
+import 'HomeFavoritesCubit.dart';
 import 'RecentlyAddedCubit.dart';
 import 'RecentlyPlayedCubit.dart';
 
@@ -35,12 +37,18 @@ import 'RecentlyPlayedCubit.dart';
 /// show; the Library stays one tap away on the bottom navigation bar (and
 /// the empty-Home state keeps the explicit affordance).
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, this.recentlyPlayed, this.recentlyAdded});
+  const HomePage({
+    super.key,
+    this.recentlyPlayed,
+    this.recentlyAdded,
+    this.favorites,
+  });
 
   /// Injectable seams for widget tests; the graph supplies these in the
   /// app, the same pattern as [LibraryPage].
   final RecentlyPlayedCubit? recentlyPlayed;
   final RecentlyAddedCubit? recentlyAdded;
+  final HomeFavoritesCubit? favorites;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +60,9 @@ class HomePage extends StatelessWidget {
         ),
         BlocProvider<RecentlyAddedCubit>(
           create: (_) => (recentlyAdded ?? getIt<RecentlyAddedCubit>())..load(),
+        ),
+        BlocProvider<HomeFavoritesCubit>(
+          create: (_) => (favorites ?? getIt<HomeFavoritesCubit>())..load(),
         ),
       ],
       child: const _HomeView(),
@@ -76,24 +87,40 @@ class _HomeView extends StatelessWidget {
 
     // A track starting while Home sits in the background is exactly when
     // "Recently played" goes stale — re-read it then, so it is current by
-    // the time the user comes back to this tab.
-    return BlocListener<PlaybackCubit, PlaybackUiState>(
-      listenWhen: (previous, current) =>
-          previous.currentEntry?.id != current.currentEntry?.id,
-      listener: (context, _) => context.read<RecentlyPlayedCubit>().refresh(),
+    // the time the user comes back to this tab. A star toggled elsewhere
+    // does the same to "Favorites" (ADR-0028).
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<PlaybackCubit, PlaybackUiState>(
+          listenWhen: (previous, current) =>
+              previous.currentEntry?.id != current.currentEntry?.id,
+          listener: (context, _) =>
+              context.read<RecentlyPlayedCubit>().refresh(),
+        ),
+        BlocListener<FavoritesRevisionCubit, int>(
+          listenWhen: (previous, current) => current != previous,
+          listener: (context, _) =>
+              context.read<HomeFavoritesCubit>().refresh(),
+        ),
+      ],
       child: BlocBuilder<PlaybackCubit, PlaybackUiState>(
         builder: (context, playback) {
           return BlocBuilder<RecentlyPlayedCubit, RecentlyPlayedState>(
             builder: (context, recent) {
               return BlocBuilder<RecentlyAddedCubit, RecentlyAddedState>(
                 builder: (context, added) {
-                  return _HomeBody(
-                    playback: playback,
-                    recent: recent,
-                    added: added,
-                    catalog: catalog,
-                    offline: offline,
-                    downloadsOnly: downloadsOnly,
+                  return BlocBuilder<HomeFavoritesCubit, HomeFavoritesState>(
+                    builder: (context, favorites) {
+                      return _HomeBody(
+                        playback: playback,
+                        recent: recent,
+                        added: added,
+                        favorites: favorites,
+                        catalog: catalog,
+                        offline: offline,
+                        downloadsOnly: downloadsOnly,
+                      );
+                    },
                   );
                 },
               );
@@ -110,6 +137,7 @@ class _HomeBody extends StatelessWidget {
     required this.playback,
     required this.recent,
     required this.added,
+    required this.favorites,
     required this.catalog,
     required this.offline,
     required this.downloadsOnly,
@@ -118,6 +146,7 @@ class _HomeBody extends StatelessWidget {
   final PlaybackUiState playback;
   final RecentlyPlayedState recent;
   final RecentlyAddedState added;
+  final HomeFavoritesState favorites;
   final DownloadCatalog catalog;
   final bool offline;
   final bool downloadsOnly;
@@ -218,7 +247,7 @@ class _HomeBody extends StatelessWidget {
         case RecentlyAddedStatus.loading:
           children
             ..add(const _SectionHeader('Recently added'))
-            ..add(const _RecentlyAddedSkeleton());
+            ..add(const _CardStripSkeleton());
         case RecentlyAddedStatus.failed:
           children
             ..add(const _SectionHeader('Recently added'))
@@ -253,6 +282,76 @@ class _HomeBody extends StatelessWidget {
               );
           }
       }
+    }
+
+    // "Favorites": a peek at the profile's starred albums and artists, the
+    // section header opening the full destination. Under the
+    // downloads-only scope it narrows to favorites with something on the
+    // device — a curated list of what plays offline is exactly what that
+    // scope is for — rather than being dropped like "Recently added"
+    // (ADR-0028).
+    final favAlbums = downloadsOnly
+        ? [
+            for (final album in favorites.albums)
+              if (catalog.statusFor(DownloadOwner.album(album.id)).completed >
+                  0)
+                album,
+          ]
+        : favorites.albums;
+    final favArtists = downloadsOnly
+        ? [
+            for (final artist in favorites.artists)
+              if (catalog.statusFor(DownloadOwner.artist(artist.id)).completed >
+                  0)
+                artist,
+          ]
+        : favorites.artists;
+
+    void openFavorites() => context.goNamed(RouteNames.favorites);
+
+    switch (favorites.status) {
+      case HomeFavoritesStatus.initial:
+      case HomeFavoritesStatus.loading:
+        children
+          ..add(const _SectionHeader('Favorites'))
+          ..add(const _CardStripSkeleton());
+      case HomeFavoritesStatus.failed:
+        children
+          ..add(const _SectionHeader('Favorites'))
+          ..add(
+            _SectionError(
+              failure: favorites.failure,
+              fallbackMessage: "Couldn't load your favorites.",
+              onRetry: () => context.read<HomeFavoritesCubit>().retry(),
+            ),
+          );
+      case HomeFavoritesStatus.loaded:
+        if (favAlbums.isNotEmpty || favArtists.isNotEmpty) {
+          children
+            ..add(
+              _SectionHeader(
+                'Favorites',
+                note: (favorites.isCached && !downloadsOnly)
+                    ? 'Saved — reconnect to sync your favorites'
+                    : null,
+                onTap: openFavorites,
+              ),
+            )
+            ..add(
+              _FavoritesStrip(
+                albums: favAlbums,
+                artists: favArtists,
+                onOpenAlbum: (album) => context.pushNamed(
+                  RouteNames.libraryAlbum,
+                  pathParameters: {'id': album.id.key},
+                ),
+                onOpenArtist: (artist) => context.pushNamed(
+                  RouteNames.libraryArtist,
+                  pathParameters: {'id': artist.id.key},
+                ),
+              ),
+            );
+        }
     }
 
     if (children.isEmpty) {
@@ -309,27 +408,47 @@ class _HomeBody extends StatelessWidget {
 
 /// A section title, the shared heading for every strip on Home. [note] is
 /// a quiet line under the title — used to say a strip is a saved copy
-/// rather than a fresh read.
+/// rather than a fresh read. [onTap], when set, makes the whole title a
+/// link into the section's own destination and shows a chevron.
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title, {this.note});
+  const _SectionHeader(this.title, {this.note, this.onTap});
 
   final String title;
   final String? note;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final titleRow = Row(
+      children: [
+        Text(
+          title,
+          style: t.typography.titleMedium.copyWith(color: t.colors.textPrimary),
+        ),
+        if (onTap != null)
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: t.colors.textSecondary,
+          ),
+      ],
+    );
     return Padding(
       padding: EdgeInsets.fromLTRB(t.spacing.md, 0, t.spacing.md, t.spacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: t.typography.titleMedium.copyWith(
-              color: t.colors.textPrimary,
-            ),
-          ),
+          if (onTap != null)
+            InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: t.spacing.xxs),
+                child: titleRow,
+              ),
+            )
+          else
+            titleRow,
           if (note != null)
             Padding(
               padding: EdgeInsets.only(top: t.spacing.xxs),
@@ -703,9 +822,121 @@ class _RecentlyAddedCard extends StatelessWidget {
   }
 }
 
-/// A skeleton the same shape as the "Recently added" strip.
-class _RecentlyAddedSkeleton extends StatelessWidget {
-  const _RecentlyAddedSkeleton();
+/// The horizontal strip of "Favorites" cards (v0.3.4): favorite albums
+/// first, then favorite artists. Songs are not here — a favorite song has
+/// no card and nowhere to open; the destination's Songs tab holds them.
+class _FavoritesStrip extends StatelessWidget {
+  const _FavoritesStrip({
+    required this.albums,
+    required this.artists,
+    required this.onOpenAlbum,
+    required this.onOpenArtist,
+  });
+
+  final List<Album> albums;
+  final List<Artist> artists;
+  final void Function(Album album) onOpenAlbum;
+  final void Function(Artist artist) onOpenArtist;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final cards = <Widget>[
+      for (final album in albums)
+        _FavoriteCard(
+          image: album.image,
+          kind: MediaKind.album,
+          name: album.name,
+          subtitle: album.artists.isNotEmpty
+              ? album.artists.map((a) => a.name).join(', ')
+              : 'Album',
+          onTap: () => onOpenAlbum(album),
+        ),
+      for (final artist in artists)
+        _FavoriteCard(
+          image: artist.image,
+          kind: MediaKind.artist,
+          name: artist.name,
+          subtitle: 'Artist',
+          onTap: () => onOpenArtist(artist),
+        ),
+    ];
+
+    return SizedBox(
+      height: _cardWidth + 66,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+        itemCount: cards.length,
+        separatorBuilder: (_, _) => SizedBox(width: t.spacing.sm),
+        itemBuilder: (context, index) => cards[index],
+      ),
+    );
+  }
+}
+
+class _FavoriteCard extends StatelessWidget {
+  const _FavoriteCard({
+    required this.image,
+    required this.kind,
+    required this.name,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final MediaImage? image;
+  final MediaKind kind;
+  final String name;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final circle = kind == MediaKind.artist;
+
+    return SizedBox(
+      width: _cardWidth,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: t.radii.smBorder,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MediaArtwork(
+              image: image,
+              kind: kind,
+              size: _cardWidth,
+              shape: circle ? ArtworkShape.circle : ArtworkShape.rounded,
+            ),
+            SizedBox(height: t.spacing.xs),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.typography.bodyMedium.copyWith(
+                color: t.colors.textPrimary,
+              ),
+            ),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.typography.caption.copyWith(
+                color: t.colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A skeleton the same shape as a strip of cards — used by "Recently
+/// added" and "Favorites".
+class _CardStripSkeleton extends StatelessWidget {
+  const _CardStripSkeleton();
 
   @override
   Widget build(BuildContext context) {

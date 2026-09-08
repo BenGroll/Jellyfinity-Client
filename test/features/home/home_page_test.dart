@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' show Icons, NavigationBar;
+import 'package:flutter/material.dart' show Icons, InkWell, NavigationBar;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
@@ -8,6 +8,7 @@ import 'package:jellyfinity/domain/media/ListeningHistoryEntry.dart';
 import 'package:jellyfinity/domain/media/page.dart';
 import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
 import 'package:jellyfinity/domain/playback/QueueEntry.dart';
+import 'package:jellyfinity/features/favorites/presentation/FavoritesPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
 import 'package:jellyfinity/features/playback/presentation/NowPlayingPage.dart';
@@ -248,5 +249,58 @@ void main() {
 
     expect(find.text('Recently added'), findsNothing);
     expect(find.text('New Album'), findsNothing);
+  });
+
+  testWidgets('Favorites shows starred albums and artists (v0.3.4)', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..favoriteAlbumList = [testAlbum('a', name: 'Starred Album')]
+      ..favoriteArtistList = [testArtist('b', name: 'Starred Artist')];
+    await _pumpHome(tester, music: music);
+
+    // The section heading, plus the bottom-nav destination label.
+    expect(find.text('Favorites'), findsNWidgets(2));
+    expect(find.text('Starred Album'), findsOneWidget);
+    expect(find.text('Starred Artist'), findsOneWidget);
+  });
+
+  testWidgets('Favorites section is absent when nothing is starred', (
+    tester,
+  ) async {
+    await _pumpHome(tester);
+
+    // Only the bottom-nav destination, never the Home section.
+    expect(find.text('Favorites'), findsOneWidget);
+  });
+
+  testWidgets('the Favorites header opens the Favorites destination', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..favoriteAlbumList = [testAlbum('a', name: 'Starred Album')];
+    await _pumpHome(tester, music: music);
+
+    await tester.tap(
+      find.ancestor(
+        of: find.byIcon(Icons.chevron_right_rounded),
+        matching: find.byType(InkWell),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FavoritesPage), findsOneWidget);
+  });
+
+  testWidgets('a favorited album on Home opens it', (tester) async {
+    final music = FakeMusicLibraryRepository()
+      ..favoriteAlbumList = [testAlbum('kob', name: 'Kind of Blue')]
+      ..albumList = [testAlbum('kob', name: 'Kind of Blue')];
+    await _pumpHome(tester, music: music);
+
+    await tester.tap(find.text('Kind of Blue'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlbumDetailPage), findsOneWidget);
   });
 }

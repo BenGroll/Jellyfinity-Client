@@ -12,6 +12,9 @@ import '../../../app/router/route_paths.dart';
 /// bottom bar appear; v0.0.10 renamed it to Library, scoped by whichever
 /// media-type pill is active in `HomeLibraryHeader` (ADR-0014) — today
 /// always Music. Movies and Shows arrive as pills, not new sections.
+/// v0.3.4 (ADR-0028) added Favorites between the two: the same
+/// media-scoped browse as Library, filtered to what the profile has
+/// starred.
 class ShellDestination {
   const ShellDestination({
     required this.path,
@@ -32,6 +35,12 @@ const List<ShellDestination> shellDestinations = [
     label: 'Home',
     icon: Icons.home_outlined,
     selectedIcon: Icons.home_rounded,
+  ),
+  ShellDestination(
+    path: RoutePaths.favorites,
+    label: 'Favorites',
+    icon: Icons.favorite_border_rounded,
+    selectedIcon: Icons.favorite_rounded,
   ),
   ShellDestination(
     path: RoutePaths.library,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../design/design.dart';
 import 'connectivity/OfflineCubit.dart';
 import 'downloads/DownloadsCubit.dart';
+import 'favorites/FavoritesRevisionCubit.dart';
 import 'navigation/MediaScopeCubit.dart';
 import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
@@ -57,6 +58,12 @@ class JellyfinityApp extends StatelessWidget {
         BlocProvider<MediaScopeCubit>.value(value: mediaScope),
         BlocProvider<DownloadsCubit>.value(value: downloads),
         BlocProvider<OfflineCubit>.value(value: offline),
+        // A zero-dependency signal every "favorites changed" listener
+        // watches (v0.3.4); created here so it sits above the whole
+        // router, the same level the other cross-cutting cubits do.
+        BlocProvider<FavoritesRevisionCubit>(
+          create: (_) => FavoritesRevisionCubit(),
+        ),
       ],
       child: MaterialApp.router(
         title: 'Jellyfinity',

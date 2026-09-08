@@ -19,6 +19,7 @@ import '../../../domain/playback/repeat_mode.dart';
 import '../../../domain/playback/stream_quality.dart';
 import '../../../domain/playback/TrackSourceInfo.dart';
 import '../../../infrastructure/artwork/ArtworkCache.dart';
+import '../../music/presentation/widgets/favorite_actions.dart';
 import '../../music/presentation/widgets/FavoriteButton.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/media_formatting.dart';
@@ -215,11 +216,12 @@ class _PlayerTopBar extends StatelessWidget {
                   isFavorite: track.isFavorite,
                   unselectedColor: Colors.white,
                   iconSize: 30,
-                  onChanged: (favorite) async {
-                    final result = await getIt<FavoritesRepository>()
-                        .setFavorite(track.id, favorite: favorite);
-                    return result.isOk;
-                  },
+                  onChanged: (favorite) => applyFavorite(
+                    context,
+                    track.id,
+                    MediaKind.track,
+                    favorite: favorite,
+                  ),
                 );
               },
             ),

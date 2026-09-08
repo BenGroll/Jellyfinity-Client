@@ -142,6 +142,89 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   }
 
   @override
+  Future<Result<Page<Artist>>> favoriteArtists({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      path: JellyfinMediaApi.albumArtistsPath,
+      favoritesOnly: true,
+      sortBy: const ['SortName'],
+      page: page,
+      recursive: false,
+    );
+
+    return response.map(
+      (dto) => mapper.toPage(
+        dto,
+        request: page,
+        map: mapper.toArtist,
+        reason: 'This artist could not be read.',
+      ),
+    );
+  }
+
+  @override
+  Future<Result<Page<Album>>> favoriteAlbums({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.albumType],
+      favoritesOnly: true,
+      sortBy: const ['SortName'],
+      fields: JellyfinMediaApi.detailFields,
+      page: page,
+    );
+
+    return response.map(
+      (dto) => mapper.toPage(
+        dto,
+        request: page,
+        map: mapper.toAlbum,
+        reason: 'This album could not be read.',
+      ),
+    );
+  }
+
+  @override
+  Future<Result<Page<Track>>> favoriteTracks({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.trackType],
+      favoritesOnly: true,
+      sortBy: const ['SortName'],
+      page: page,
+    );
+
+    return response.map(
+      (dto) => mapper.toPage(
+        dto,
+        request: page,
+        map: mapper.toTrack,
+        reason: 'This song is unavailable.',
+      ),
+    );
+  }
+
+  @override
   Future<Result<Page<Track>>> tracks({
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,

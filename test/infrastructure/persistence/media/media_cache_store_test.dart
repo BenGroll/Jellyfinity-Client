@@ -256,4 +256,135 @@ void main() {
 
     expect(other, isNull);
   });
+
+  group('favorites (v0.3.4)', () {
+    const account = '$_server/user-1';
+    const otherAccount = '$_server/user-2';
+
+    test('has nothing to say about a kind never synced', () async {
+      final page = await store.readFavorites<Album>(
+        account,
+        MediaKind.album,
+        const PageRequest.first(),
+      );
+
+      // "Never synced" and "no favorites" are different answers.
+      expect(page, isNull);
+    });
+
+    test('an empty sync reads back as empty, not never-synced', () async {
+      await store.replaceFavorites(account, MediaKind.album, const []);
+
+      final page = await store.readFavorites<Album>(
+        account,
+        MediaKind.album,
+        const PageRequest.first(),
+      );
+
+      expect(page, isNotNull);
+      expect(page!.items, isEmpty);
+      expect(page.source, PageSource.cache);
+    });
+
+    test('replaces a kind wholesale — a removed favorite disappears', () async {
+      await store.replaceFavorites(account, MediaKind.album, [
+        _album('album-1', name: 'A'),
+        _album('album-2', name: 'B'),
+      ]);
+      await store.replaceFavorites(account, MediaKind.album, [
+        _album('album-2', name: 'B'),
+      ]);
+
+      final page = await store.readFavorites<Album>(
+        account,
+        MediaKind.album,
+        const PageRequest.first(),
+      );
+
+      expect(page!.items.map((a) => a.name), ['B']);
+    });
+
+    test('reads back alphabetical and marked unreachable', () async {
+      await store.replaceFavorites(account, MediaKind.album, [
+        _album('album-2', name: 'Second'),
+        _album('album-1', name: 'First'),
+      ]);
+
+      final page = await store.readFavorites<Album>(
+        account,
+        MediaKind.album,
+        const PageRequest.first(),
+      );
+
+      expect(page!.items.map((a) => a.name), ['First', 'Second']);
+      expect(
+        page.items.first.availability,
+        MediaAvailability.remoteUnavailable,
+      );
+    });
+
+    test("one profile's favorites never surface under another's", () async {
+      await store.replaceFavorites(account, MediaKind.album, [
+        _album('album-1'),
+      ]);
+
+      expect(
+        await store.readFavorites<Album>(
+          otherAccount,
+          MediaKind.album,
+          const PageRequest.first(),
+        ),
+        isNull,
+      );
+    });
+
+    test('a single toggle shows once its metadata is cached', () async {
+      await store.replaceFavorites(account, MediaKind.album, const []);
+      await store.saveItem(_album('album-9', name: 'Later'));
+
+      await store.setFavorite(
+        account,
+        _id('album-9'),
+        MediaKind.album,
+        favorite: true,
+      );
+
+      final page = await store.readFavorites<Album>(
+        account,
+        MediaKind.album,
+        const PageRequest.first(),
+      );
+      expect(page!.items.single.name, 'Later');
+
+      await store.setFavorite(
+        account,
+        _id('album-9'),
+        MediaKind.album,
+        favorite: false,
+      );
+      final after = await store.readFavorites<Album>(
+        account,
+        MediaKind.album,
+        const PageRequest.first(),
+      );
+      expect(after!.items, isEmpty);
+    });
+
+    test('clearing the server forgets its favorites too', () async {
+      await store.replaceFavorites(account, MediaKind.album, [
+        _album('album-1'),
+      ]);
+
+      await store.clearServer(_server);
+
+      expect(
+        await store.readFavorites<Album>(
+          account,
+          MediaKind.album,
+          const PageRequest.first(),
+        ),
+        isNull,
+      );
+    });
+  });
 }

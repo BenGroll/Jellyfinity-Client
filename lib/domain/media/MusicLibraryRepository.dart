@@ -66,6 +66,34 @@ abstract class MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
   });
 
+  /// The signed-in profile's favorite artists, albums and tracks (v0.3.4,
+  /// ADR-0028), alphabetical — the same order [artists]/[albums]/[tracks]
+  /// use, since Jellyfin exposes no "date favorited" to sort on.
+  ///
+  /// Each is a distinct question rather than an `isFavorite:` flag on the
+  /// method above it, the same reasoning [recentlyAddedAlbums] is its own
+  /// method (ADR-0027): these back the Favorites destination and its Home
+  /// section, they have their own per-profile cache, and folding a flag
+  /// into [artists]/[albums]/[tracks] would make every caller carry a
+  /// parameter for a case only Favorites uses.
+  ///
+  /// Favorite state is the *user's*, not the server's, so the cache is
+  /// account-scoped: a cold offline open answers from the saved copy
+  /// marked [PageSource.cache]; a profile whose favorites have never been
+  /// read online gets the failure back, not an empty list that would read
+  /// as "you have no favorites".
+  Future<Result<Page<Artist>>> favoriteArtists({
+    PageRequest page = const PageRequest.first(),
+  });
+
+  Future<Result<Page<Album>>> favoriteAlbums({
+    PageRequest page = const PageRequest.first(),
+  });
+
+  Future<Result<Page<Track>>> favoriteTracks({
+    PageRequest page = const PageRequest.first(),
+  });
+
   /// Tracks, optionally only those on [albumId] or by [artistId].
   ///
   /// Album tracks come back in disc/track order; anything else is in the

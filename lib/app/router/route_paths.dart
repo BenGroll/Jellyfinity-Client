@@ -22,6 +22,12 @@ abstract final class RoutePaths {
   // Shell sections.
   static const home = '/home';
 
+  /// Everything the signed-in profile has starred — favorite artists,
+  /// albums and songs, in the three shapes people look for them
+  /// (v0.3.4). A shell section of its own, reached by its bottom-nav
+  /// tab.
+  static const favorites = '/favorites';
+
   /// The library: whichever media type is active in the media-pills
   /// header (today, always Music — artists, albums, songs and
   /// playlists). Search is no longer a subscreen of this (ADR-0014); it
@@ -73,6 +79,7 @@ abstract final class RouteNames {
   static const connect = 'connect';
   static const signIn = 'signIn';
   static const home = 'home';
+  static const favorites = 'favorites';
   static const library = 'library';
   static const librarySearchCategory = 'librarySearchCategory';
   static const libraryArtist = 'libraryArtist';
