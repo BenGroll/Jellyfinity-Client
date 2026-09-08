@@ -33,7 +33,7 @@ published Git tag.
 | v0.3.1 | Listening history | Implemented | [spec](Roadmap%20to%20v0.4.md#v031--listening-history) |
 | v0.3.2 | Continue listening and recently played | Implemented | [spec](Roadmap%20to%20v0.4.md#v032--continue-listening-and-recently-played) |
 | v0.3.3 | Recently added | Implemented | [spec](Roadmap%20to%20v0.4.md#v033--recently-added) |
-| v0.3.4 | Favorites as a place | Planned | [spec](Roadmap%20to%20v0.4.md#v034--favorites-as-a-place) |
+| v0.3.4 | Favorites as a place | Implemented | [spec](Roadmap%20to%20v0.4.md#v034--favorites-as-a-place) |
 | v0.3.5 | Related artists and albums | Planned | [spec](Roadmap%20to%20v0.4.md#v035--related-artists-and-albums) |
 | v0.4.0 | Home completion | Planned | [spec](Roadmap%20to%20v0.4.md#v040--home-completion) |
 

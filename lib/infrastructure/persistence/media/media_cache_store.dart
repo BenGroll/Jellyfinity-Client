@@ -44,6 +44,42 @@ abstract class MediaCacheStore {
   /// never read.
   Future<MediaItem?> readItem(MediaId id);
 
+  /// Replaces [accountKey]'s cached favorites of [kind] with exactly
+  /// [items], recording their metadata on the way (v0.3.4, ADR-0028).
+  ///
+  /// Called after an online favorites-list read, so a favorite removed on
+  /// another client stops appearing in the offline list here too. The
+  /// window is treated as the whole of that kind's favorites — the
+  /// Favorites destination pages within one kind, but only the first
+  /// window is cached.
+  Future<void> replaceFavorites(
+    String accountKey,
+    MediaKind kind,
+    List<MediaItem> items,
+  );
+
+  /// One window of [accountKey]'s cached favorites of [kind], alphabetical,
+  /// or `null` if this profile's favorites of that kind have never been
+  /// read online — which the caller turns back into the failure that sent
+  /// it here rather than an empty list that would read as "you have no
+  /// favorites".
+  Future<Page<T>?> readFavorites<T extends MediaItem>(
+    String accountKey,
+    MediaKind kind,
+    PageRequest request,
+  );
+
+  /// Records or clears one favorite for [accountKey] locally (v0.3.4), so
+  /// a toggle made online shows in an offline Favorites view without
+  /// waiting for the next full sync. A no-op for a kind the cache does not
+  /// store.
+  Future<void> setFavorite(
+    String accountKey,
+    MediaId id,
+    MediaKind kind, {
+    required bool favorite,
+  });
+
   /// Forgets everything belonging to [serverId]. Called when a server is
   /// removed: its metadata is meaningless without it.
   Future<void> clearServer(String serverId);
@@ -244,6 +280,162 @@ class DriftMediaCacheStore implements MediaCacheStore {
     );
   }
 
+  /// The `cached_collections` key that marks a profile's favorites of one
+  /// kind as having been synced at least once — so [readFavorites] can
+  /// tell "no favorite albums" (an empty sync) from "never synced".
+  static String _favoritesMarker(String accountKey, String kindName) =>
+      'favorites:$kindName:$accountKey';
+
+  static String _serverFromAccount(String accountKey) {
+    final slash = accountKey.indexOf('/');
+    return slash < 0 ? accountKey : accountKey.substring(0, slash);
+  }
+
+  @override
+  Future<void> replaceFavorites(
+    String accountKey,
+    MediaKind kind,
+    List<MediaItem> items,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final kindName = kind.name;
+    final serverId = _serverFromAccount(accountKey);
+
+    final rows = <CachedMediaItemsCompanion>[];
+    final favourites = <CachedFavoritesCompanion>[];
+    for (final item in items) {
+      final row = _mapper.toRow(item, now: now);
+      if (row == null) continue;
+      rows.add(row);
+      favourites.add(
+        CachedFavoritesCompanion.insert(
+          accountKey: accountKey,
+          serverId: item.id.serverId,
+          itemId: item.id.itemId,
+          kind: kindName,
+          updatedAt: now,
+        ),
+      );
+    }
+
+    await _db.transaction(() async {
+      await _db.batch((batch) {
+        batch.insertAllOnConflictUpdate(_db.cachedMediaItems, rows);
+        // Rewrite this profile's favorites of exactly this kind — a
+        // removal on another client has to disappear here too.
+        batch.deleteWhere(
+          _db.cachedFavorites,
+          (t) => t.accountKey.equals(accountKey) & t.kind.equals(kindName),
+        );
+        batch.insertAllOnConflictUpdate(_db.cachedFavorites, favourites);
+        batch.insert(
+          _db.cachedCollections,
+          CachedCollectionsCompanion.insert(
+            serverId: serverId,
+            collectionKey: _favoritesMarker(accountKey, kindName),
+            totalCount: favourites.length,
+            updatedAt: now,
+          ),
+          onConflict: DoUpdate(
+            (_) => CachedCollectionsCompanion(
+              totalCount: Value(favourites.length),
+              updatedAt: Value(now),
+            ),
+          ),
+        );
+      });
+    });
+  }
+
+  @override
+  Future<Page<T>?> readFavorites<T extends MediaItem>(
+    String accountKey,
+    MediaKind kind,
+    PageRequest request,
+  ) async {
+    final kindName = kind.name;
+    final serverId = _serverFromAccount(accountKey);
+
+    final marker =
+        await (_db.select(_db.cachedCollections)..where(
+              (t) =>
+                  t.serverId.equals(serverId) &
+                  t.collectionKey.equals(
+                    _favoritesMarker(accountKey, kindName),
+                  ),
+            ))
+            .getSingleOrNull();
+    if (marker == null) return null;
+
+    final favourites =
+        await (_db.select(_db.cachedFavorites)..where(
+              (t) => t.accountKey.equals(accountKey) & t.kind.equals(kindName),
+            ))
+            .get();
+
+    final itemsById = await _itemsById(serverId, [
+      for (final row in favourites) row.itemId,
+    ]);
+
+    final available = <T>[];
+    for (final favourite in favourites) {
+      final row = itemsById[favourite.itemId];
+      final item = row == null
+          ? null
+          : _mapper.toItem(
+              row,
+              availability: MediaAvailability.remoteUnavailable,
+            );
+      if (item is T) available.add(item);
+    }
+    available.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+
+    final start = request.startIndex.clamp(0, available.length);
+    final end = (start + request.limit).clamp(0, available.length);
+    return Page<T>(
+      content: Partial(available: available.sublist(start, end)),
+      startIndex: start,
+      totalCount: available.length,
+      source: PageSource.cache,
+    );
+  }
+
+  @override
+  Future<void> setFavorite(
+    String accountKey,
+    MediaId id,
+    MediaKind kind, {
+    required bool favorite,
+  }) async {
+    if (!MediaCacheMapper.cachedKinds.contains(kind)) return;
+    if (favorite) {
+      await _db
+          .into(_db.cachedFavorites)
+          .insert(
+            CachedFavoritesCompanion.insert(
+              accountKey: accountKey,
+              serverId: id.serverId,
+              itemId: id.itemId,
+              kind: kind.name,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+            onConflict: DoUpdate(
+              (_) => CachedFavoritesCompanion(
+                kind: Value(kind.name),
+                updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+              ),
+            ),
+          );
+    } else {
+      await (_db.delete(_db.cachedFavorites)..where(
+            (t) => t.accountKey.equals(accountKey) & t.itemId.equals(id.itemId),
+          ))
+          .go();
+    }
+  }
+
   @override
   Future<void> clearServer(String serverId) async {
     await _db.transaction(() async {
@@ -255,6 +447,9 @@ class DriftMediaCacheStore implements MediaCacheStore {
       )..where((t) => t.serverId.equals(serverId))).go();
       await (_db.delete(
         _db.cachedMediaItems,
+      )..where((t) => t.serverId.equals(serverId))).go();
+      await (_db.delete(
+        _db.cachedFavorites,
       )..where((t) => t.serverId.equals(serverId))).go();
     });
   }

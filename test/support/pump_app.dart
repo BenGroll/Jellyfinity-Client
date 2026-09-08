@@ -93,6 +93,7 @@ Future<TestSessionScope> pumpApp(
   // straight from getIt.
   registerRecentlyPlayedCubit();
   registerRecentlyAddedCubit();
+  registerFavoritesCubits();
   registerTrackSourceInfoCubit(resolver: trackSourceInfoResolver);
   // LyricsPage is the same shape — a root route reading LyricsCubit
   // straight from getIt, reachable from every pumpApp test via Now

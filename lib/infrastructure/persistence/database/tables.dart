@@ -532,3 +532,42 @@ class ListeningHistoryEntries extends Table {
     contextItemId,
   };
 }
+
+/// The items the signed-in profile has marked as favorites (v0.3.4,
+/// ADR-0028), schema v8.
+///
+/// `ADR-0019` deliberately kept favorite state out of the offline cache to
+/// spare v0.1.6 a schema migration; v0.3.4's Favorites destination is the
+/// version that needs it, so it takes that migration on. This table is the
+/// *set* of favorited ids per profile — the metadata for each item still
+/// lives in [CachedMediaItems] (one row per item, whoever favorited it),
+/// and this table joins to it by `(server_id, item_id)`.
+///
+/// Scoped by [accountKey] exactly like [TrackDownloads] (ADR-0023):
+/// favoriting is the Jellyfin *user's*, and two profiles on one server
+/// keep different favorites. Written whenever a favorites list is read
+/// online (which replaces one profile's rows of one [kind] wholesale, so a
+/// favorite removed on another client stops showing here too) and by the
+/// favorite toggle itself; read when the Favorites destination or its Home
+/// section has no server.
+@DataClassName('CachedFavoriteRow')
+class CachedFavorites extends Table {
+  /// The profile this favorite belongs to — the active server's local id
+  /// and the Jellyfin user id joined with a slash, as
+  /// [TrackDownloads.accountKey].
+  TextColumn get accountKey => text()();
+
+  TextColumn get serverId => text()();
+  TextColumn get itemId => text()();
+
+  /// `MediaKind.name` — `artist`, `album` or `track`. Denormalized from
+  /// the item so the destination's three tabs each filter without a join,
+  /// and so a list refresh can replace exactly one kind's rows.
+  TextColumn get kind => text()();
+
+  /// When this row was last written (milliseconds since epoch).
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {accountKey, itemId};
+}

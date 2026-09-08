@@ -23,7 +23,14 @@ specification.
   section over one extra library query — the newest albums — with the
   shared query surface taught to sort descending, cached like every
   browse read, and dropped or marked stale offline.
-- v0.3.4 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
+- v0.3.4 (favorites as a place, ADR-0028) is **implemented**: the star
+  gets a destination — a Favorites bottom-nav section with Artists,
+  Albums and Songs tabs (Songs playable like a playlist) and a Home
+  strip. The shared query surface gained an `IsFavorite` filter, and the
+  migration ADR-0019 deferred landed as schema v8's account-scoped
+  `cached_favorites`, so the destination is honest offline. The
+  detail-page heart offline stays as ADR-0019 left it.
+- v0.3.5 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
   **planned, not started**. Read a section only if you were assigned that
   version. v0.4.0 there is Home completion, not a new arc.
 

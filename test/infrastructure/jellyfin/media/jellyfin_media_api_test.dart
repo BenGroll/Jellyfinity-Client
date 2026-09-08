@@ -85,6 +85,22 @@ void main() {
       expect(adapter.requests[1].queryParameters['sortOrder'], 'Ascending');
     });
 
+    test('filters to favorites only when asked (v0.3.4)', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+      final api = testMediaApi(adapter);
+
+      await api.queryItems(favoritesOnly: true);
+      await api.queryItems();
+
+      expect(adapter.requests[0].queryParameters['isFavorite'], isTrue);
+      expect(
+        adapter.requests[1].queryParameters,
+        isNot(contains('isFavorite')),
+      );
+    });
+
     test('requests only the extra fields it needs', () async {
       final adapter = FakeDioAdapter(
         (_) async => jsonResponseBody(itemsResponse(const [])),

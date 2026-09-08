@@ -6,6 +6,7 @@ import '../../features/auth/presentation/accounts/accounts_page.dart';
 import '../../features/auth/presentation/login/login_page.dart';
 import '../../features/auth/presentation/server_setup/server_setup_page.dart';
 import '../../features/downloads/presentation/DownloadsPage.dart';
+import '../../features/favorites/presentation/FavoritesPage.dart';
 import '../../features/home/presentation/HomePage.dart';
 import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
@@ -175,18 +176,24 @@ class AppRouter {
 
   static String _routeNameFor(String path) => switch (path) {
     RoutePaths.home => RouteNames.home,
+    RoutePaths.favorites => RouteNames.favorites,
     RoutePaths.library => RouteNames.library,
     _ => path,
   };
 
   static Widget _pageFor(String path) => switch (path) {
     RoutePaths.home => const HomePage(),
+    RoutePaths.favorites => const FavoritesPage(),
     RoutePaths.library => const LibraryPage(),
     _ => NotFoundPage(location: path),
   };
 
   static List<RouteBase> _subRoutesFor(String path) => switch (path) {
     RoutePaths.library => _libraryRoutes,
+    // Favorites opens artist and album pages by the same `library/...`
+    // route names; go_router pushes them onto the Favorites branch's own
+    // stack (the same way Home opens "Recently added"), so no duplicate
+    // routes are needed here.
     _ => const [],
   };
 

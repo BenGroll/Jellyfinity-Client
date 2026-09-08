@@ -128,6 +128,77 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   }
 
   @override
+  Future<Result<Page<Artist>>> favoriteArtists({
+    PageRequest page = const PageRequest.first(),
+  }) => _favorites(
+    MediaKind.artist,
+    page,
+    () => _remote.favoriteArtists(page: page),
+  );
+
+  @override
+  Future<Result<Page<Album>>> favoriteAlbums({
+    PageRequest page = const PageRequest.first(),
+  }) => _favorites(
+    MediaKind.album,
+    page,
+    () => _remote.favoriteAlbums(page: page),
+  );
+
+  @override
+  Future<Result<Page<Track>>> favoriteTracks({
+    PageRequest page = const PageRequest.first(),
+  }) => _favorites(
+    MediaKind.track,
+    page,
+    () => _remote.favoriteTracks(page: page),
+  );
+
+  /// Favorites are cached per profile (ADR-0028), not per server like every
+  /// other browse read: favoriting is the signed-in Jellyfin user's, and
+  /// two profiles on one server keep different favorites. A served
+  /// first-window read replaces that profile's cached favorites of the
+  /// kind wholesale; an unreachable (or deliberately-offline) server is
+  /// answered from that saved copy. A profile whose favorites were never
+  /// read online has nothing saved, and the failure is the honest answer —
+  /// an empty list would say "you have no favorites".
+  Future<Result<Page<T>>> _favorites<T extends MediaItem>(
+    MediaKind kind,
+    PageRequest page,
+    Future<Result<Page<T>>> Function() read,
+  ) async {
+    final accountKey = _accountKey;
+    final result = _offline.status.isOffline
+        ? _offlineFailure<Page<T>>()
+        : await read();
+
+    switch (result) {
+      case Ok<Page<T>>(:final value):
+        // Only a first-window read is a whole list to replace with; later
+        // windows page live but are not cached (offline favorites are the
+        // first window, as the metadata cache is "what was browsed").
+        if (accountKey != null && value.startIndex == 0) {
+          await _cache.replaceFavorites(accountKey, kind, value.items);
+        }
+        return result;
+      case Err<Page<T>>(:final failure):
+        if (accountKey == null || !canServeFromCache(failure)) return result;
+        final saved = await _cache.readFavorites<T>(accountKey, kind, page);
+        if (saved != null) return Result.ok(saved);
+        return result;
+    }
+  }
+
+  /// `server_id/user_id`, or `null` with nobody signed in — the profile a
+  /// favorites read and its cache belong to.
+  String? get _accountKey {
+    final serverId = _context.serverId;
+    final userId = _context.userId;
+    if (serverId == null || userId == null) return null;
+    return '$serverId/$userId';
+  }
+
+  @override
   Future<Result<Page<Track>>> tracks({
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,
@@ -217,6 +288,26 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     switch (result) {
       case Ok<T>(:final value):
         await _cache.saveItem(value);
+        // A freshly-fetched header carries live favorite state; fold it
+        // into the per-profile favorites cache so an un-favorite made on
+        // another client is caught the next time the item is opened here
+        // (ADR-0028). The list read is the full reconcile; this keeps the
+        // set from drifting between them.
+        final accountKey = _accountKey;
+        final favorite = switch (value) {
+          Artist(:final isFavorite) => isFavorite,
+          Album(:final isFavorite) => isFavorite,
+          Track(:final isFavorite) => isFavorite,
+          _ => null,
+        };
+        if (accountKey != null && favorite != null) {
+          await _cache.setFavorite(
+            accountKey,
+            value.id,
+            value.kind,
+            favorite: favorite,
+          );
+        }
         return result;
       case Err<T>(:final failure):
         if (!canServeFromCache(failure)) return result;

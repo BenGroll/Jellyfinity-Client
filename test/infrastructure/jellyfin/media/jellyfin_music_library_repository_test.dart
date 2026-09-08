@@ -116,6 +116,49 @@ void main() {
     );
   });
 
+  group('favorites (v0.3.4)', () {
+    test('asks the server for favorites of each kind, alphabetical', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+      final repository = _repository(adapter);
+
+      await repository.favoriteArtists();
+      await repository.favoriteAlbums();
+      await repository.favoriteTracks(
+        page: const PageRequest(startIndex: 0, limit: 40),
+      );
+
+      expect(adapter.requests[0].path, JellyfinMediaApi.albumArtistsPath);
+      expect(adapter.requests[0].queryParameters['isFavorite'], isTrue);
+      expect(
+        adapter.requests[1].queryParameters['includeItemTypes'],
+        'MusicAlbum',
+      );
+      expect(adapter.requests[1].queryParameters['isFavorite'], isTrue);
+      expect(adapter.requests[1].queryParameters['sortBy'], 'SortName');
+      expect(adapter.requests[2].queryParameters['includeItemTypes'], 'Audio');
+      expect(adapter.requests[2].queryParameters['isFavorite'], isTrue);
+      expect(adapter.requests[2].queryParameters['limit'], 40);
+    });
+
+    test('maps the favorites to domain entities and pages them', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'a1', 'Name': 'Blue Train', 'Type': 'MusicAlbum'},
+          ], totalRecordCount: 3),
+        ),
+      );
+
+      final page = (await _repository(adapter).favoriteAlbums()).valueOrNull!;
+
+      expect(page.items.single.name, 'Blue Train');
+      expect(page.totalCount, 3);
+      expect(page.hasMore, isTrue);
+    });
+  });
+
   test('orders an album in disc and track order', () async {
     final adapter = FakeDioAdapter(
       (_) async => jsonResponseBody(itemsResponse(const [])),

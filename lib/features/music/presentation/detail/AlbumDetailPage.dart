@@ -12,6 +12,7 @@ import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
 import '../widgets/download_controls.dart';
+import '../widgets/favorite_actions.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/MediaPlaybackActionsRow.dart';
@@ -226,13 +227,12 @@ class _AlbumHeader extends StatelessWidget {
           download: AlbumDownloadButton(album: album),
           favorite: FavoriteButton(
             isFavorite: album.isFavorite,
-            onChanged: (favorite) async {
-              final result = await getIt<FavoritesRepository>().setFavorite(
-                album.id,
-                favorite: favorite,
-              );
-              return result.isOk;
-            },
+            onChanged: (favorite) => applyFavorite(
+              context,
+              album.id,
+              MediaKind.album,
+              favorite: favorite,
+            ),
           ),
         ),
         SizedBox(height: t.spacing.md),

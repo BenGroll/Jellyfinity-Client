@@ -11,6 +11,7 @@ import '../../support/drift_schemas/schema_v3.dart' as v3;
 import '../../support/drift_schemas/schema_v4.dart' as v4;
 import '../../support/drift_schemas/schema_v5.dart' as v5;
 import '../../support/drift_schemas/schema_v6.dart' as v6;
+import '../../support/drift_schemas/schema_v7.dart' as v7;
 
 /// The forward-only migration policy ADR-0010 committed to: a schema
 /// change never drops the database, and an install on any past version
@@ -246,6 +247,48 @@ void main() {
     expect(entries.single.title, 'So What');
     expect(entries.single.albumItemId, isNull);
     expect(entries.single.artistsJson, isNull);
+
+    await db.close();
+  });
+
+  test('upgrades a v7 database to the v8 favorites cache', () async {
+    final schema = await verifier.schemaAt(7);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 8);
+
+    // The favorites cache is new and starts empty; it fills in the first
+    // time the Favorites screen is opened online (ADR-0028).
+    expect(await db.select(db.cachedFavorites).get(), isEmpty);
+
+    await db.close();
+  });
+
+  test('an upgrade from v7 keeps a queued track and its history', () async {
+    final schema = await verifier.schemaAt(7);
+
+    final old = v7.DatabaseAtV7(schema.newConnection());
+    await old.customStatement(
+      'INSERT INTO queue_entries (position, server_id, item_id, title) '
+      "VALUES (0, 'server-1', 'track-1', 'So What')",
+    );
+    await old.customStatement(
+      'INSERT INTO listening_history_entries '
+      '(account_key, server_id, context_kind, context_item_id, name, '
+      'first_played_at_ms, last_played_at_ms) '
+      "VALUES ('server-1/user-1', 'server-1', 'album', 'album-1', "
+      "'Kind of Blue', 1, 2)",
+    );
+    await old.close();
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 8);
+
+    expect((await db.select(db.queueEntries).get()).single.title, 'So What');
+    expect(
+      (await db.select(db.listeningHistoryEntries).get()).single.name,
+      'Kind of Blue',
+    );
 
     await db.close();
   });

@@ -206,6 +206,10 @@ class JellyfinMediaApi {
   /// It defaults to ascending — the direction every library, artist and
   /// playlist read has always wanted — and only "Recently added" (v0.3.3),
   /// which is newest-first by definition, passes `true`.
+  ///
+  /// [favoritesOnly] narrows the result to items the signed-in user has
+  /// favorited (`IsFavorite`, v0.3.4). It defaults to off, so every
+  /// existing query is unchanged; only the Favorites reads pass `true`.
   Future<Result<ItemsResponseDto>> queryItems({
     String path = itemsPath,
     List<String> includeItemTypes = const [],
@@ -213,6 +217,7 @@ class JellyfinMediaApi {
     String? parentId,
     String? artistId,
     String? albumArtistId,
+    bool favoritesOnly = false,
     String? searchTerm,
     List<String> fields = defaultFields,
     List<String> sortBy = const [],
@@ -237,6 +242,7 @@ class JellyfinMediaApi {
       'parentId': ?parentId,
       'artistIds': ?artistId,
       'albumArtistIds': ?albumArtistId,
+      if (favoritesOnly) 'isFavorite': true,
       'searchTerm': ?normalizeSearchTerm(searchTerm),
       if (sortBy.isNotEmpty) ...{
         'sortBy': sortBy.join(','),

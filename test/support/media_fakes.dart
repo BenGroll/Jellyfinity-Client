@@ -107,6 +107,89 @@ class RecordingMediaCacheStore implements MediaCacheStore {
     _items[item.id.key] = item;
   }
 
+  /// `accountKey -> kind.name -> {itemId}`. `_favoritesSynced` records which
+  /// (account, kind) pairs a list read has replaced, so [readFavorites] can
+  /// tell "no favorites" from "never synced" the way the real store's
+  /// marker collection does.
+  final Map<String, Map<String, Set<String>>> _favorites = {};
+  final Set<String> _favoritesSynced = {};
+
+  /// Every ([replaceFavorites]) call, in order.
+  final List<({String accountKey, MediaKind kind, int count})>
+  replacedFavorites = [];
+
+  @override
+  Future<void> replaceFavorites(
+    String accountKey,
+    MediaKind kind,
+    List<MediaItem> items,
+  ) async {
+    replacedFavorites.add((
+      accountKey: accountKey,
+      kind: kind,
+      count: items.length,
+    ));
+    _favoritesSynced.add('$accountKey|${kind.name}');
+    final byKind = _favorites.putIfAbsent(accountKey, () => {});
+    byKind[kind.name] = {
+      for (final item in items)
+        if (_cachedKinds.contains(item.kind)) item.id.itemId,
+    };
+    for (final item in items) {
+      if (_cachedKinds.contains(item.kind)) _items[item.id.key] = item;
+    }
+  }
+
+  @override
+  Future<Page<T>?> readFavorites<T extends MediaItem>(
+    String accountKey,
+    MediaKind kind,
+    PageRequest request,
+  ) async {
+    if (!_favoritesSynced.contains('$accountKey|${kind.name}')) return null;
+    final serverId = accountKey.split('/').first;
+    final ids = _favorites[accountKey]?[kind.name] ?? const <String>{};
+    final available = <T>[];
+    for (final itemId in ids) {
+      final item = _items[MediaId(serverId: serverId, itemId: itemId).key];
+      if (item is T) available.add(_offline(item) as T);
+    }
+    available.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+    final start = request.startIndex.clamp(0, available.length);
+    final end = (start + request.limit).clamp(0, available.length);
+    return Page<T>(
+      content: Partial(available: available.sublist(start, end)),
+      startIndex: start,
+      totalCount: available.length,
+      source: PageSource.cache,
+    );
+  }
+
+  @override
+  Future<void> setFavorite(
+    String accountKey,
+    MediaId id,
+    MediaKind kind, {
+    required bool favorite,
+  }) async {
+    if (!_cachedKinds.contains(kind)) return;
+    if (favorite) {
+      _favorites
+          .putIfAbsent(accountKey, () => {})
+          .putIfAbsent(kind.name, () => {})
+          .add(id.itemId);
+    } else {
+      final byKind = _favorites[accountKey];
+      if (byKind != null) {
+        for (final ids in byKind.values) {
+          ids.remove(id.itemId);
+        }
+      }
+    }
+  }
+
   @override
   Future<MediaItem?> readItem(MediaId id) async {
     final item = _items[id.key];

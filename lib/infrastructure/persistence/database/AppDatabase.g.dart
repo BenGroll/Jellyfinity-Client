@@ -7276,6 +7276,382 @@ class ListeningHistoryEntriesCompanion
   }
 }
 
+class $CachedFavoritesTable extends CachedFavorites
+    with TableInfo<$CachedFavoritesTable, CachedFavoriteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedFavoritesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    accountKey,
+    serverId,
+    itemId,
+    kind,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_favorites';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedFavoriteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountKeyMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {accountKey, itemId};
+  @override
+  CachedFavoriteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedFavoriteRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedFavoritesTable createAlias(String alias) {
+    return $CachedFavoritesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedFavoriteRow extends DataClass
+    implements Insertable<CachedFavoriteRow> {
+  /// The profile this favorite belongs to — the active server's local id
+  /// and the Jellyfin user id joined with a slash, as
+  /// [TrackDownloads.accountKey].
+  final String accountKey;
+  final String serverId;
+  final String itemId;
+
+  /// `MediaKind.name` — `artist`, `album` or `track`. Denormalized from
+  /// the item so the destination's three tabs each filter without a join,
+  /// and so a list refresh can replace exactly one kind's rows.
+  final String kind;
+
+  /// When this row was last written (milliseconds since epoch).
+  final int updatedAt;
+  const CachedFavoriteRow({
+    required this.accountKey,
+    required this.serverId,
+    required this.itemId,
+    required this.kind,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
+    map['server_id'] = Variable<String>(serverId);
+    map['item_id'] = Variable<String>(itemId);
+    map['kind'] = Variable<String>(kind);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CachedFavoritesCompanion toCompanion(bool nullToAbsent) {
+    return CachedFavoritesCompanion(
+      accountKey: Value(accountKey),
+      serverId: Value(serverId),
+      itemId: Value(itemId),
+      kind: Value(kind),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CachedFavoriteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedFavoriteRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
+      serverId: serializer.fromJson<String>(json['serverId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
+      'serverId': serializer.toJson<String>(serverId),
+      'itemId': serializer.toJson<String>(itemId),
+      'kind': serializer.toJson<String>(kind),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CachedFavoriteRow copyWith({
+    String? accountKey,
+    String? serverId,
+    String? itemId,
+    String? kind,
+    int? updatedAt,
+  }) => CachedFavoriteRow(
+    accountKey: accountKey ?? this.accountKey,
+    serverId: serverId ?? this.serverId,
+    itemId: itemId ?? this.itemId,
+    kind: kind ?? this.kind,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CachedFavoriteRow copyWithCompanion(CachedFavoritesCompanion data) {
+    return CachedFavoriteRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedFavoriteRow(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('kind: $kind, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(accountKey, serverId, itemId, kind, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedFavoriteRow &&
+          other.accountKey == this.accountKey &&
+          other.serverId == this.serverId &&
+          other.itemId == this.itemId &&
+          other.kind == this.kind &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CachedFavoritesCompanion extends UpdateCompanion<CachedFavoriteRow> {
+  final Value<String> accountKey;
+  final Value<String> serverId;
+  final Value<String> itemId;
+  final Value<String> kind;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CachedFavoritesCompanion({
+    this.accountKey = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedFavoritesCompanion.insert({
+    required String accountKey,
+    required String serverId,
+    required String itemId,
+    required String kind,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : accountKey = Value(accountKey),
+       serverId = Value(serverId),
+       itemId = Value(itemId),
+       kind = Value(kind),
+       updatedAt = Value(updatedAt);
+  static Insertable<CachedFavoriteRow> custom({
+    Expression<String>? accountKey,
+    Expression<String>? serverId,
+    Expression<String>? itemId,
+    Expression<String>? kind,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
+      if (serverId != null) 'server_id': serverId,
+      if (itemId != null) 'item_id': itemId,
+      if (kind != null) 'kind': kind,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedFavoritesCompanion copyWith({
+    Value<String>? accountKey,
+    Value<String>? serverId,
+    Value<String>? itemId,
+    Value<String>? kind,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedFavoritesCompanion(
+      accountKey: accountKey ?? this.accountKey,
+      serverId: serverId ?? this.serverId,
+      itemId: itemId ?? this.itemId,
+      kind: kind ?? this.kind,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedFavoritesCompanion(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('kind: $kind, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7300,6 +7676,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DownloadedCollectionsTable(this);
   late final $ListeningHistoryEntriesTable listeningHistoryEntries =
       $ListeningHistoryEntriesTable(this);
+  late final $CachedFavoritesTable cachedFavorites = $CachedFavoritesTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7317,6 +7696,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     playlistDownloadMembers,
     downloadedCollections,
     listeningHistoryEntries,
+    cachedFavorites,
   ];
 }
 
@@ -10879,6 +11259,214 @@ typedef $$ListeningHistoryEntriesTableProcessedTableManager =
       ListeningHistoryEntryRow,
       PrefetchHooks Function()
     >;
+typedef $$CachedFavoritesTableCreateCompanionBuilder =
+    CachedFavoritesCompanion Function({
+      required String accountKey,
+      required String serverId,
+      required String itemId,
+      required String kind,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedFavoritesTableUpdateCompanionBuilder =
+    CachedFavoritesCompanion Function({
+      Value<String> accountKey,
+      Value<String> serverId,
+      Value<String> itemId,
+      Value<String> kind,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedFavoritesTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedFavoritesTable> {
+  $$CachedFavoritesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedFavoritesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedFavoritesTable> {
+  $$CachedFavoritesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedFavoritesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedFavoritesTable> {
+  $$CachedFavoritesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CachedFavoritesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedFavoritesTable,
+          CachedFavoriteRow,
+          $$CachedFavoritesTableFilterComposer,
+          $$CachedFavoritesTableOrderingComposer,
+          $$CachedFavoritesTableAnnotationComposer,
+          $$CachedFavoritesTableCreateCompanionBuilder,
+          $$CachedFavoritesTableUpdateCompanionBuilder,
+          (
+            CachedFavoriteRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CachedFavoritesTable,
+              CachedFavoriteRow
+            >,
+          ),
+          CachedFavoriteRow,
+          PrefetchHooks Function()
+        > {
+  $$CachedFavoritesTableTableManager(
+    _$AppDatabase db,
+    $CachedFavoritesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedFavoritesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedFavoritesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedFavoritesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> accountKey = const Value.absent(),
+                Value<String> serverId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedFavoritesCompanion(
+                accountKey: accountKey,
+                serverId: serverId,
+                itemId: itemId,
+                kind: kind,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String accountKey,
+                required String serverId,
+                required String itemId,
+                required String kind,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CachedFavoritesCompanion.insert(
+                accountKey: accountKey,
+                serverId: serverId,
+                itemId: itemId,
+                kind: kind,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedFavoritesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedFavoritesTable,
+      CachedFavoriteRow,
+      $$CachedFavoritesTableFilterComposer,
+      $$CachedFavoritesTableOrderingComposer,
+      $$CachedFavoritesTableAnnotationComposer,
+      $$CachedFavoritesTableCreateCompanionBuilder,
+      $$CachedFavoritesTableUpdateCompanionBuilder,
+      (
+        CachedFavoriteRow,
+        BaseReferences<_$AppDatabase, $CachedFavoritesTable, CachedFavoriteRow>,
+      ),
+      CachedFavoriteRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10916,4 +11504,6 @@ class $AppDatabaseManager {
         _db,
         _db.listeningHistoryEntries,
       );
+  $$CachedFavoritesTableTableManager get cachedFavorites =>
+      $$CachedFavoritesTableTableManager(_db, _db.cachedFavorites);
 }

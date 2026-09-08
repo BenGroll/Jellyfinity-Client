@@ -38,13 +38,14 @@ part 'AppDatabase.g.dart';
     PlaylistDownloadMembers,
     DownloadedCollections,
     ListeningHistoryEntries,
+    CachedFavorites,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -57,6 +58,7 @@ class AppDatabase extends _$AppDatabase {
       await m.createIndex(_trackDownloadsAccountIndex);
       await m.createIndex(_downloadedCollectionsAccountIndex);
       await m.createIndex(_listeningHistoryAccountIndex);
+      await m.createIndex(_cachedFavoritesAccountIndex);
     },
     onUpgrade: (m, from, to) async {
       // v2 (v0.0.8): the media metadata cache. Purely additive — three
@@ -153,6 +155,15 @@ class AppDatabase extends _$AppDatabase {
         );
         await m.createTable(listeningHistoryEntries);
         await m.createIndex(_listeningHistoryAccountIndex);
+      }
+      // v8 (v0.3.4): the favorites cache the Favorites destination reads
+      // offline. Purely additive — one new table, nothing existing
+      // touched, so an upgrading install keeps everything it had and its
+      // favorites fill in the first time the Favorites screen is opened
+      // online.
+      if (from < 8) {
+        await m.createTable(cachedFavorites);
+        await m.createIndex(_cachedFavoritesAccountIndex);
       }
     },
     beforeOpen: (details) async {
@@ -279,5 +290,14 @@ class AppDatabase extends _$AppDatabase {
     'idx_listening_history_account',
     'CREATE INDEX IF NOT EXISTS idx_listening_history_account '
         'ON listening_history_entries (account_key, last_played_at_ms)',
+  );
+
+  /// Every favorites read (v0.3.4) is one profile's rows of one kind —
+  /// the Artists, Albums or Songs tab of the Favorites destination, or a
+  /// Home strip — so the cache is keyed by profile and kind.
+  static final Index _cachedFavoritesAccountIndex = Index(
+    'idx_cached_favorites_account',
+    'CREATE INDEX IF NOT EXISTS idx_cached_favorites_account '
+        'ON cached_favorites (account_key, kind)',
   );
 }
