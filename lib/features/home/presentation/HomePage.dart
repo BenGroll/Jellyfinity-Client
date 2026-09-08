@@ -17,32 +17,43 @@ import '../../../domain/downloads/downloads.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/QueueEntry.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
+import 'RecentlyAddedCubit.dart';
 import 'RecentlyPlayedCubit.dart';
 
-/// The Home section (v0.3.2).
+/// The Home screen (v0.3.2, extended v0.3.3).
 ///
 /// No longer a placeholder: Home opens on what the user was doing —
 /// **Continue listening** (the persisted queue from v0.0.9, restored
-/// paused at launch) and **Recently played** (v0.3.1's listening history,
-/// ADR-0025). Each section loads, empties and fails on its own; a dead
-/// section is simply absent and never takes the screen down
-/// (`PHILOSOPHY.md` §2). A modular, user-reorderable Home (`OUTLOOK.md`
-/// §9) is still not this arc — strong defaults first.
+/// paused at launch), **Recently played** (v0.3.1's listening history,
+/// ADR-0025) and **Recently added** (one library query for the newest
+/// albums, v0.3.3, ADR-0027). Each section loads, empties and fails on
+/// its own; a dead section is simply absent and never takes the screen
+/// down (`PHILOSOPHY.md` §2). A modular, user-reorderable Home
+/// (`OUTLOOK.md` §9) is still not this arc — strong defaults first.
 ///
 /// Home has no "Browse music" button once there is something better to
 /// show; the Library stays one tap away on the bottom navigation bar (and
 /// the empty-Home state keeps the explicit affordance).
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, this.recentlyPlayed});
+  const HomePage({super.key, this.recentlyPlayed, this.recentlyAdded});
 
-  /// Injectable seam for widget tests; the graph supplies it in the app,
-  /// the same pattern as [LibraryPage].
+  /// Injectable seams for widget tests; the graph supplies these in the
+  /// app, the same pattern as [LibraryPage].
   final RecentlyPlayedCubit? recentlyPlayed;
+  final RecentlyAddedCubit? recentlyAdded;
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<RecentlyPlayedCubit>(
-      create: (_) => (recentlyPlayed ?? getIt<RecentlyPlayedCubit>())..load(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<RecentlyPlayedCubit>(
+          create: (_) =>
+              (recentlyPlayed ?? getIt<RecentlyPlayedCubit>())..load(),
+        ),
+        BlocProvider<RecentlyAddedCubit>(
+          create: (_) => (recentlyAdded ?? getIt<RecentlyAddedCubit>())..load(),
+        ),
+      ],
       child: const _HomeView(),
     );
   }
@@ -74,12 +85,17 @@ class _HomeView extends StatelessWidget {
         builder: (context, playback) {
           return BlocBuilder<RecentlyPlayedCubit, RecentlyPlayedState>(
             builder: (context, recent) {
-              return _HomeBody(
-                playback: playback,
-                recent: recent,
-                catalog: catalog,
-                offline: offline,
-                downloadsOnly: downloadsOnly,
+              return BlocBuilder<RecentlyAddedCubit, RecentlyAddedState>(
+                builder: (context, added) {
+                  return _HomeBody(
+                    playback: playback,
+                    recent: recent,
+                    added: added,
+                    catalog: catalog,
+                    offline: offline,
+                    downloadsOnly: downloadsOnly,
+                  );
+                },
               );
             },
           );
@@ -93,6 +109,7 @@ class _HomeBody extends StatelessWidget {
   const _HomeBody({
     required this.playback,
     required this.recent,
+    required this.added,
     required this.catalog,
     required this.offline,
     required this.downloadsOnly,
@@ -100,6 +117,7 @@ class _HomeBody extends StatelessWidget {
 
   final PlaybackUiState playback;
   final RecentlyPlayedState recent;
+  final RecentlyAddedState added;
   final DownloadCatalog catalog;
   final bool offline;
   final bool downloadsOnly;
@@ -190,6 +208,53 @@ class _HomeBody extends StatelessWidget {
         }
     }
 
+    // "Recently added" is a server fact — what the library just gained.
+    // The downloads-only scope is a request to see only what plays
+    // offline, so the section is dropped there rather than shown stale
+    // (ADR-0027, the same rule ADR-0026 applies to unplayable rows).
+    if (!downloadsOnly) {
+      switch (added.status) {
+        case RecentlyAddedStatus.initial:
+        case RecentlyAddedStatus.loading:
+          children
+            ..add(const _SectionHeader('Recently added'))
+            ..add(const _RecentlyAddedSkeleton());
+        case RecentlyAddedStatus.failed:
+          children
+            ..add(const _SectionHeader('Recently added'))
+            ..add(
+              _SectionError(
+                failure: added.failure,
+                fallbackMessage: "Couldn't check what's new on your server.",
+                onRetry: () => context.read<RecentlyAddedCubit>().retry(),
+              ),
+            );
+        case RecentlyAddedStatus.loaded:
+          if (added.albums.isNotEmpty) {
+            children
+              ..add(
+                _SectionHeader(
+                  'Recently added',
+                  // A saved copy must not read as a freshness check the
+                  // app could not actually make offline (ADR-0027).
+                  note: added.isCached
+                      ? 'Saved list — reconnect to see new music'
+                      : null,
+                ),
+              )
+              ..add(
+                _RecentlyAddedStrip(
+                  albums: added.albums,
+                  onOpen: (album) => context.pushNamed(
+                    RouteNames.libraryAlbum,
+                    pathParameters: {'id': album.id.key},
+                  ),
+                ),
+              );
+          }
+      }
+    }
+
     if (children.isEmpty) {
       return _EmptyHome(offline: offline);
     }
@@ -242,20 +307,52 @@ class _HomeBody extends StatelessWidget {
   }
 }
 
-/// A section title, the shared heading for every strip on Home.
+/// A section title, the shared heading for every strip on Home. [note] is
+/// a quiet line under the title — used to say a strip is a saved copy
+/// rather than a fresh read.
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {this.note});
 
   final String title;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     return Padding(
       padding: EdgeInsets.fromLTRB(t.spacing.md, 0, t.spacing.md, t.spacing.xs),
-      child: Text(
-        title,
-        style: t.typography.titleMedium.copyWith(color: t.colors.textPrimary),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: t.typography.titleMedium.copyWith(
+              color: t.colors.textPrimary,
+            ),
+          ),
+          if (note != null)
+            Padding(
+              padding: EdgeInsets.only(top: t.spacing.xxs),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 13,
+                    color: t.colors.textSecondary,
+                  ),
+                  SizedBox(width: t.spacing.xxs),
+                  Flexible(
+                    child: Text(
+                      note!,
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -524,13 +621,138 @@ class _RecentlyPlayedSkeleton extends StatelessWidget {
   }
 }
 
+/// The horizontal strip of "Recently added" album cards (v0.3.3).
+class _RecentlyAddedStrip extends StatelessWidget {
+  const _RecentlyAddedStrip({required this.albums, required this.onOpen});
+
+  final List<Album> albums;
+  final void Function(Album album) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return SizedBox(
+      height: _cardWidth + 66,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+        itemCount: albums.length,
+        separatorBuilder: (_, _) => SizedBox(width: t.spacing.sm),
+        itemBuilder: (context, index) {
+          final album = albums[index];
+          return _RecentlyAddedCard(
+            album: album,
+            // The album page owns its own offline state, so a saved-copy
+            // card still opens — unlike a "recently played" track, which
+            // has nowhere to go and no audio.
+            onTap: () => onOpen(album),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RecentlyAddedCard extends StatelessWidget {
+  const _RecentlyAddedCard({required this.album, required this.onTap});
+
+  final Album album;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final artist = album.artists.isNotEmpty
+        ? album.artists.map((a) => a.name).join(', ')
+        : 'Album';
+
+    return SizedBox(
+      width: _cardWidth,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: t.radii.smBorder,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MediaArtwork(
+              image: album.image,
+              kind: MediaKind.album,
+              size: _cardWidth,
+            ),
+            SizedBox(height: t.spacing.xs),
+            Text(
+              album.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.typography.bodyMedium.copyWith(
+                color: t.colors.textPrimary,
+              ),
+            ),
+            Text(
+              artist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.typography.caption.copyWith(
+                color: t.colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A skeleton the same shape as the "Recently added" strip.
+class _RecentlyAddedSkeleton extends StatelessWidget {
+  const _RecentlyAddedSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return SizedBox(
+      height: _cardWidth + 66,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+        itemCount: 4,
+        separatorBuilder: (_, _) => SizedBox(width: t.spacing.sm),
+        itemBuilder: (context, _) => SizedBox(
+          width: _cardWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppSkeleton(
+                width: _cardWidth,
+                height: _cardWidth,
+                borderRadius: t.radii.smBorder,
+              ),
+              SizedBox(height: t.spacing.xs),
+              const AppSkeleton(height: 12, width: 100),
+              SizedBox(height: t.spacing.xxs),
+              const AppSkeleton(height: 10, width: 60),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A compact failure inside one section — it never takes Home down, so it
 /// is a line and a retry, not a full-screen [ErrorStateView].
 class _SectionError extends StatelessWidget {
-  const _SectionError({required this.failure, required this.onRetry});
+  const _SectionError({
+    required this.failure,
+    required this.onRetry,
+    this.fallbackMessage = "Couldn't load what you played lately.",
+  });
 
   final Failure? failure;
   final VoidCallback onRetry;
+
+  /// Shown when the failure carries no message of its own.
+  final String fallbackMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -541,7 +763,7 @@ class _SectionError extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              failure?.message ?? "Couldn't load what you played lately.",
+              failure?.message ?? fallbackMessage,
               style: t.typography.bodyMedium.copyWith(
                 color: t.colors.textSecondary,
               ),

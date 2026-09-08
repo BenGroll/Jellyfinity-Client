@@ -30,6 +30,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0024](ADR-0024-playlist-curation.md) | Playlist curation |
 | [0025](ADR-0025-listening-history.md) | Listening history |
 | [0026](ADR-0026-home-sections.md) | Home sections |
+| [0027](ADR-0027-recently-added.md) | Recently added |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

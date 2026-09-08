@@ -68,6 +68,8 @@ import 'package:jellyfinity/features/auth/presentation/login/login_cubit.dart'
     as _i1045;
 import 'package:jellyfinity/features/auth/presentation/server_setup/server_setup_cubit.dart'
     as _i952;
+import 'package:jellyfinity/features/home/presentation/RecentlyAddedCubit.dart'
+    as _i684;
 import 'package:jellyfinity/features/home/presentation/RecentlyPlayedCubit.dart'
     as _i606;
 import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart'
@@ -420,6 +422,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i747.MusicLibraryRepository>(),
         gh<_i797.OfflineMode>(),
       ),
+    );
+    gh.factory<_i684.RecentlyAddedCubit>(
+      () => _i684.RecentlyAddedCubit(gh<_i260.MusicLibraryRepository>()),
     );
     gh.factory<_i618.ArtistsCubit>(
       () => _i618.ArtistsCubit(

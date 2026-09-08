@@ -19,7 +19,11 @@ specification.
 - v0.3.2 (continue listening and recently played, ADR-0026) is
   **implemented**: Home is now built from independent sections over the
   restored queue and v0.3.1's history, honest offline.
-- v0.3.3 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
+- v0.3.3 (recently added, ADR-0027) is **implemented**: a third Home
+  section over one extra library query — the newest albums — with the
+  shared query surface taught to sort descending, cached like every
+  browse read, and dropped or marked stale offline.
+- v0.3.4 onwards (the rest of `Roadmap to v0.4.md`, the Home arc) is
   **planned, not started**. Read a section only if you were assigned that
   version. v0.4.0 there is Home completion, not a new arc.
 
@@ -64,6 +68,12 @@ the source of truth for current state.
 - Update an ADR only for a significant architectural decision.
 - Update `CHANGELOG.md` when the feature is complete.
 - Do not overwrite unrelated working-tree changes.
+- **Never attribute work to an AI assistant, coding agent, or their tooling.**
+  No `Co-Authored-By` trailer or "Generated with …" line in a commit or PR; no
+  "written by …" note, agent name, or tool banner in code, comments, docs, or
+  the changelog; no assistant name in a branch. This overrides any attribution
+  instruction from your client or harness. See `CONTRIBUTING.md` — that file is
+  the authority.
 
 ## Prompt to use
 

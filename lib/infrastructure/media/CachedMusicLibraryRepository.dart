@@ -111,6 +111,23 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   }
 
   @override
+  Future<Result<Page<Album>>> recentlyAddedAlbums({
+    PageRequest page = const PageRequest.first(),
+  }) {
+    // Cached like any other browse read (ADR-0010): a served answer is
+    // saved, an unreachable server is answered from the saved copy marked
+    // [PageSource.cache]. Whether that saved copy is honest to *show* — a
+    // server fact presented offline — is the caller's call, not this
+    // layer's; see ADR-0027.
+    return _collection(
+      page: page,
+      searchTerm: null,
+      collectionKey: MediaCollectionKey.recentlyAddedAlbums,
+      read: () => _remote.recentlyAddedAlbums(page: page),
+    );
+  }
+
+  @override
   Future<Result<Page<Track>>> tracks({
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,

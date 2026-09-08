@@ -131,6 +131,46 @@ void main() {
     );
   });
 
+  group('recently added (v0.3.3)', () {
+    const recentRow = {
+      'Id': 'album-9',
+      'Name': 'Just Arrived',
+      'Type': 'MusicAlbum',
+    };
+
+    test('saves the answer under its own collection key', () async {
+      final (:repository, :cache) = _repository(_answering([recentRow]));
+
+      final result = await repository.recentlyAddedAlbums();
+
+      expect(result.valueOrNull!.items.single.name, 'Just Arrived');
+      expect(result.valueOrNull!.source, PageSource.server);
+      expect(cache.savedPages, [MediaCollectionKey.recentlyAddedAlbums]);
+    });
+
+    test('an unreachable server answers from the saved copy, marked', () async {
+      final cache = RecordingMediaCacheStore();
+      await _repository(
+        _answering([recentRow]),
+        cache: cache,
+      ).repository.recentlyAddedAlbums();
+
+      final offline = _repository(_offline(), cache: cache).repository;
+      final page = (await offline.recentlyAddedAlbums()).valueOrNull!;
+
+      expect(page.items.single.name, 'Just Arrived');
+      expect(page.source, PageSource.cache);
+    });
+
+    test('with nothing saved, the failure is the answer', () async {
+      final (:repository, cache: _) = _repository(_offline());
+
+      final result = await repository.recentlyAddedAlbums();
+
+      expect(result.failureOrNull, isA<RecoverableFailure>());
+    });
+  });
+
   test('files a discography under the artist it belongs to', () async {
     final (:repository, :cache) = _repository(_answering([_albumRow]));
 

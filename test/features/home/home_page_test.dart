@@ -5,6 +5,7 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/domain/media/ListeningContext.dart';
 import 'package:jellyfinity/domain/media/ListeningHistoryEntry.dart';
+import 'package:jellyfinity/domain/media/page.dart';
 import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
 import 'package:jellyfinity/domain/playback/QueueEntry.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
@@ -188,5 +189,64 @@ void main() {
 
     expect(find.text('Album streamed'), findsOneWidget);
     expect(find.text('Not playable offline'), findsOneWidget);
+  });
+
+  testWidgets('Recently added shows the newest albums (v0.3.3)', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..recentlyAddedList = [testAlbum('n', name: 'Just Landed')];
+    await _pumpHome(tester, music: music);
+
+    expect(find.text('Recently added'), findsOneWidget);
+    expect(find.text('Just Landed'), findsOneWidget);
+  });
+
+  testWidgets('Recently added is absent when the library has none', (
+    tester,
+  ) async {
+    await _pumpHome(tester);
+
+    expect(find.text('Recently added'), findsNothing);
+  });
+
+  testWidgets('a recently added album opens it', (tester) async {
+    final music = FakeMusicLibraryRepository()
+      ..recentlyAddedList = [testAlbum('kob', name: 'Kind of Blue')]
+      ..albumList = [testAlbum('kob', name: 'Kind of Blue')];
+    await _pumpHome(tester, music: music);
+
+    await tester.tap(find.text('Kind of Blue'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlbumDetailPage), findsOneWidget);
+  });
+
+  testWidgets('offline, Recently added shows the saved list and says so', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..recentlyAddedList = [testAlbum('n', name: 'Saved Album')]
+      ..source = PageSource.cache;
+    await _pumpHome(tester, music: music, offline: true);
+
+    expect(find.text('Saved Album'), findsOneWidget);
+    // The strip is honest that it could not check for new music offline.
+    expect(find.textContaining('Saved list'), findsOneWidget);
+  });
+
+  testWidgets('the downloads-only scope drops Recently added', (tester) async {
+    final music = FakeMusicLibraryRepository()
+      ..recentlyAddedList = [testAlbum('n', name: 'New Album')]
+      ..source = PageSource.cache;
+    await _pumpHome(
+      tester,
+      music: music,
+      offline: true,
+      scope: OfflineLibraryScope.limited,
+    );
+
+    expect(find.text('Recently added'), findsNothing);
+    expect(find.text('New Album'), findsNothing);
   });
 }

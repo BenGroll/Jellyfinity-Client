@@ -4,6 +4,7 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/features/home/presentation/RecentlyAddedCubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
@@ -87,6 +88,12 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
   List<Album> albumList = [];
   List<Track> trackList = [];
 
+  /// What [recentlyAddedAlbums] answers with — its own list so a test can
+  /// give Home's "Recently added" strip (v0.3.3) something different from
+  /// the alphabetical [albumList], or leave it empty so the section is
+  /// simply absent.
+  List<Album> recentlyAddedList = [];
+
   /// Per-album and per-artist track lists, consulted before [trackList]
   /// when a scoped `tracks` read names one — lets a test give an album
   /// and an artist different track sets in the same case.
@@ -129,6 +136,33 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
     calls.add((method: 'albums', page: page, searchTerm: searchTerm));
     await _pause();
     return _answer(albumList, page, searchTerm, (a) => a.name);
+  }
+
+  @override
+  Future<Result<Page<Album>>> recentlyAddedAlbums({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    calls.add((method: 'recentlyAddedAlbums', page: page, searchTerm: null));
+    await _pause();
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    final window = windowOf(
+      recentlyAddedList,
+      page,
+      unavailable: unavailable,
+      source: source,
+    );
+    // The real repository reports this bounded list as complete, never as
+    // a window into every album — mirror that so paging logic that reads
+    // `hasMore` behaves the same against the fake.
+    return Result.ok(
+      Page<Album>(
+        content: window.content,
+        startIndex: window.startIndex,
+        totalCount: window.startIndex + window.consumed,
+        source: window.source,
+      ),
+    );
   }
 
   @override
@@ -504,7 +538,25 @@ void registerMusicCubits({
         offlineMode,
       ),
     )
+    // Home's "Recently added" strip (v0.3.3) reads this straight from
+    // getIt, and Home is the app's first route.
+    ..registerFactory<RecentlyAddedCubit>(() => RecentlyAddedCubit(music))
     ..registerSingleton<PlaylistRepository>(playlistRepository)
     ..registerSingleton<FavoritesRepository>(favoritesRepository);
+  addTearDown(getIt.reset);
+}
+
+/// Registers a fake [RecentlyAddedCubit] factory into `getIt` — Home is
+/// the app's first route, so every [pumpApp] test reaches it and needs
+/// this. Guarded against a test that already registered one (a music
+/// screen test calls `registerMusicCubits`, which does). [pumpApp] calls
+/// it by default; pass [music] to control what "Recently added" shows.
+void registerRecentlyAddedCubit({FakeMusicLibraryRepository? music}) {
+  final getIt = GetIt.instance;
+  if (getIt.isRegistered<RecentlyAddedCubit>()) return;
+  final repository = music ?? FakeMusicLibraryRepository();
+  getIt.registerFactory<RecentlyAddedCubit>(
+    () => RecentlyAddedCubit(repository),
+  );
   addTearDown(getIt.reset);
 }

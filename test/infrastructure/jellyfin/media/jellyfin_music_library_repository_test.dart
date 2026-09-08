@@ -71,6 +71,51 @@ void main() {
     },
   );
 
+  group('recentlyAddedAlbums (v0.3.3)', () {
+    test('asks for albums newest-first by acquisition date', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+
+      await _repository(
+        adapter,
+      ).recentlyAddedAlbums(page: const PageRequest(startIndex: 0, limit: 20));
+
+      final query = adapter.requests.single.queryParameters;
+      expect(query['includeItemTypes'], 'MusicAlbum');
+      expect(query['sortBy'], 'DateCreated,SortName');
+      expect(query['sortOrder'], 'Descending');
+      expect(query['limit'], 20);
+    });
+
+    test(
+      'reports the window as complete, not a slice of every album',
+      () async {
+        // The server says the library holds 480 albums; the strip only ever
+        // sees this window and must not believe there is more to page.
+        final adapter = FakeDioAdapter(
+          (_) async => jsonResponseBody(
+            itemsResponse([
+              {'Id': 'a1', 'Name': 'Just Landed', 'Type': 'MusicAlbum'},
+              {'Id': 'a2', 'Name': 'Last Week', 'Type': 'MusicAlbum'},
+            ], totalRecordCount: 480),
+          ),
+        );
+
+        final page = (await _repository(
+          adapter,
+        ).recentlyAddedAlbums()).valueOrNull!;
+
+        expect(page.items.map((album) => album.name), [
+          'Just Landed',
+          'Last Week',
+        ]);
+        expect(page.totalCount, 2);
+        expect(page.hasMore, isFalse);
+      },
+    );
+  });
+
   test('orders an album in disc and track order', () async {
     final adapter = FakeDioAdapter(
       (_) async => jsonResponseBody(itemsResponse(const [])),

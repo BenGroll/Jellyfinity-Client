@@ -102,6 +102,46 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   }
 
   @override
+  Future<Result<Page<Album>>> recentlyAddedAlbums({
+    PageRequest page = const PageRequest.first(),
+  }) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.albumType],
+      // The date the server acquired the item, newest first; SortName only
+      // to keep a batch imported in one scan from shuffling between reads.
+      sortBy: const ['DateCreated', 'SortName'],
+      descending: true,
+      page: page,
+    );
+
+    return response.map((dto) {
+      final window = mapper.toPage(
+        dto,
+        request: page,
+        map: mapper.toAlbum,
+        reason: 'This album could not be read.',
+      );
+      // Recently added is a bounded "newest N" list, not a window into a
+      // paginated collection: the section asks once and never pages. Report
+      // the window as the whole of it — total record count would be every
+      // album in the library — so the saved copy replaces cleanly on a
+      // refresh instead of leaving rows stranded past a list that shrank.
+      return Page<Album>(
+        content: window.content,
+        startIndex: window.startIndex,
+        totalCount: window.startIndex + window.consumed,
+        source: window.source,
+      );
+    });
+  }
+
+  @override
   Future<Result<Page<Track>>> tracks({
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,
