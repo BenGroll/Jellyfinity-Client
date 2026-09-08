@@ -2,6 +2,39 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## v0.3.3 — Recently added
+
+Home gains a third section: the albums the server has just gained,
+newest first, so music added to the server last night is on Home this
+morning.
+
+### Recently added (ADR-0027)
+
+- **One extra library query.** The newest albums by the date the server
+  acquired them (`DateCreated`, descending). No new content type, no new
+  playback capability — the same section shape "Continue listening" and
+  "Recently played" already use (ADR-0026).
+- **Descending sort on the shared query surface.** `queryItems` only ever
+  sorted ascending; it now takes a `descending` flag that defaults to
+  ascending, so the library, discography, album-tracks, playlist and
+  search queries are all unchanged and only "Recently added" opts in.
+- **Cached like every other browse read.** A served answer is saved; an
+  unreachable server is answered from the saved copy, marked as such. A
+  cold offline open still shows the last known "recently added" rather
+  than an error.
+- **Honest offline.** "Recently added" is a *server* fact. With the
+  full-library scope offline, the saved list shows under a
+  "Saved list — reconnect to see new music" line so it never implies a
+  freshness check the app could not make; with the "downloads only"
+  scope, the section is dropped entirely, the same way an unplayable
+  "recently played" row is (ADR-0026).
+- **Albums only.** Artists are deferred: Jellyfin's `DateCreated` on an
+  artist does not track when their music actually landed, and merging two
+  date-sorted lists is more than a section should carry.
+- A bounded top-20 window that reports itself complete, so the saved copy
+  replaces cleanly on a refresh instead of stranding rows past a list
+  that shrank. No schema change.
+
 ## v0.3.2 — Continue listening and recently played
 
 Home stops being a placeholder. It now opens on what the user was doing —
