@@ -33,6 +33,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0027](ADR-0027-recently-added.md) | Recently added |
 | [0028](ADR-0028-favorites-as-a-place.md) | Favorites as a place |
 | [0029](ADR-0029-related-artists-and-albums.md) | Related artists and albums |
+| [0030](ADR-0030-offline-music-completion-finished.md) | Offline music completion, finished |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

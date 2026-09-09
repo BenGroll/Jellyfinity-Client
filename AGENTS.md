@@ -9,10 +9,11 @@ that is the one you are working on, and `Roadmap to v0.3.md` is your
 specification.
 
 - v0.2.0–v0.2.3 (the offline-music arc) are implemented and merged.
-- v0.3.0 is **partly implemented**. Its hardening half has shipped, as has
-  the playlist curation v0.1.2 left unfinished — bar reorder, which
-  ADR-0024 explains was left out on purpose. v0.3.0's remaining offline
-  deliverables are listed in `ROADMAP.md`.
+- v0.3.0 is **implemented**. Its hardening half and the playlist curation
+  v0.1.2 left unfinished shipped as v0.3.0 itself (bar reorder, which
+  ADR-0024 explains was left out on purpose); its offline **feature**
+  deliverables shipped as **v0.3.6** (ADR-0030). Device validation across
+  the whole offline story is a later release's hardening pass.
 - v0.3.1 (listening history, ADR-0025) is **implemented**: the Home arc's
   first step, a bounded local record of what the profile played, with
   nothing yet showing it. Its spec lives in `Roadmap to v0.4.md`.
@@ -37,10 +38,17 @@ specification.
   change — and absent (never a spinner or an error) whenever the server
   offers nothing. No Home section: picking a seed for it would be the
   kind of guessing `PHILOSOPHY.md` §13 rules out.
-- v0.4.0 (the rest of `Roadmap to v0.4.md`) is **planned, not started**.
-  Read a section only if you were assigned that version. v0.4.0 is Home
-  completion — an audit and hardening pass over the whole arc, not a new
-  arc.
+- v0.3.6 (offline music completion finished, ADR-0030) is **implemented**:
+  the four v0.3.0 offline-feature deliverables — the download/offline-state
+  audit across Now Playing, the queue, the mini-player and inline search;
+  batch retry and batch removal on the Downloads screen; the
+  `MediaAvailability.localOnly` "Only on this device" label; and reclaiming
+  a removed profile's or server's downloaded files. No schema change.
+- v0.3.7 onwards (playlist reorder, playlist history context, the offline
+  favorite heart) and v0.4.0 (Home completion) are **planned, not
+  started**. Read a section only if you were assigned that version. v0.4.0
+  is Home completion — an audit and hardening pass over the whole arc, not
+  a new arc.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

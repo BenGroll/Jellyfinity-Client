@@ -29,12 +29,13 @@ published Git tag.
 | v0.2.1 | Downloadable playlists | Implemented | [spec](Roadmap%20to%20v0.3.md#v021--downloadable-playlists) |
 | v0.2.2 | Artist downloads, quality, and management | Implemented | [spec](Roadmap%20to%20v0.3.md#v022--artist-downloads-download-quality-and-management) |
 | v0.2.3 | Offline library and recovery | Implemented | [spec](Roadmap%20to%20v0.3.md#v023--offline-library-and-recovery) |
-| v0.3.0 | Offline music completion | Partly implemented | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
+| v0.3.0 | Offline music completion | Implemented (feature half completed in v0.3.6) | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
 | v0.3.1 | Listening history | Implemented | [spec](Roadmap%20to%20v0.4.md#v031--listening-history) |
 | v0.3.2 | Continue listening and recently played | Implemented | [spec](Roadmap%20to%20v0.4.md#v032--continue-listening-and-recently-played) |
 | v0.3.3 | Recently added | Implemented | [spec](Roadmap%20to%20v0.4.md#v033--recently-added) |
 | v0.3.4 | Favorites as a place | Implemented | [spec](Roadmap%20to%20v0.4.md#v034--favorites-as-a-place) |
 | v0.3.5 | Related artists and albums | Implemented | [spec](Roadmap%20to%20v0.4.md#v035--related-artists-and-albums) |
+| v0.3.6 | Offline music completion, finished | Implemented | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
 | v0.4.0 | Home completion | Planned | [spec](Roadmap%20to%20v0.4.md#v040--home-completion) |
 
 v0.1.2 is complete but for reorder. v0.3.0 shipped the rest of it and left
@@ -44,15 +45,17 @@ ordered list, so the index the UI can compute is wrong on any playlist
 holding something that is not a readable song. Doing it correctly needs a
 read model that exposes true positions — see ADR-0024.
 
-v0.3.0 has shipped its hardening half — the download lifecycle fixes,
+v0.3.0 shipped its hardening half — the download lifecycle fixes,
 regression tests, CI, and release hygiene in `CHANGELOG.md` — plus the rest
-of the playlist curation v0.1.2 left unfinished, folded in here rather than
-given a version of its own. Its remaining offline deliverables are still
-outstanding: the entry-point audit across Now Playing, the queue, the
-mini-player and inline search; batch retry and batch removal; showing
+of the playlist curation v0.1.2 left unfinished, folded in there rather than
+given a version of its own. Its offline **feature** deliverables — the
+entry-point audit across Now Playing, the queue, the mini-player and inline
+search; batch retry and batch removal; showing
 `MediaAvailability.localOnly` as "Only on this device"; and reclaiming a
-removed account's or server's downloaded files. Until those land, the
-version's "Done when" is not met.
+removed account's or server's downloaded files — were carried into
+**v0.3.6** (ADR-0030), which completes them. Device validation across the
+whole offline story is folded into a later release's hardening pass rather
+than blocking here.
 
 Future ideas are deliberately unsequenced in `OUTLOOK.md`. They are not part
 of a version unless promoted into this index and given a bounded specification.
