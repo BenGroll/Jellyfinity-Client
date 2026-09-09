@@ -38,6 +38,7 @@ class DownloadsPage extends StatelessWidget {
         icon: const Icon(Icons.arrow_back_rounded),
         onPressed: () => context.pop(),
       ),
+      actions: const [_DownloadsMenu()],
       body: BlocBuilder<DownloadsCubit, DownloadCatalog>(
         builder: (context, catalog) {
           if (!catalog.isLoaded) {
@@ -158,6 +159,72 @@ class DownloadsPage extends StatelessWidget {
     return 'In progress';
   }
 }
+
+/// The Downloads screen's app-bar menu (v0.3.6): batch recovery and a
+/// clean sweep, the two actions that only make sense across the whole
+/// screen rather than one collection at a time.
+class _DownloadsMenu extends StatelessWidget {
+  const _DownloadsMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<DownloadsCubit, DownloadCatalog>(
+      builder: (context, catalog) {
+        if (!catalog.isLoaded || catalog.downloads.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final downloads = context.read<DownloadsCubit>();
+        final overall = catalog.overallStatus;
+        final canRetry = overall.failed > 0 || overall.paused > 0;
+
+        return PopupMenuButton<_DownloadsAction>(
+          icon: const Icon(Icons.more_vert_rounded),
+          onSelected: (action) {
+            switch (action) {
+              case _DownloadsAction.retryFailed:
+                downloads.retryFailedDownloads();
+              case _DownloadsAction.removeAll:
+                _confirmRemoveAll(context, downloads, catalog);
+            }
+          },
+          itemBuilder: (context) => [
+            if (canRetry)
+              const PopupMenuItem(
+                value: _DownloadsAction.retryFailed,
+                child: Text('Retry failed downloads'),
+              ),
+            const PopupMenuItem(
+              value: _DownloadsAction.removeAll,
+              child: Text('Remove all downloads'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmRemoveAll(
+    BuildContext context,
+    DownloadsCubit downloads,
+    DownloadCatalog catalog,
+  ) async {
+    final completed = catalog.overallStatus.completed;
+    final size = formatDownloadSize(catalog.storageInUse);
+    await confirmRemoveDownload(
+      context,
+      title: 'Remove every download?',
+      message:
+          'Deletes all $completed downloaded '
+          '${completed == 1 ? 'song' : 'songs'} ($size) from this device, '
+          'along with every album, artist and playlist download. Nothing '
+          'changes on your server, and no playlist loses a track there.',
+      confirmLabel: 'Remove all',
+      onConfirm: downloads.removeAllDownloads,
+    );
+  }
+}
+
+enum _DownloadsAction { retryFailed, removeAll }
 
 /// Storage in use and a one-line status across every download.
 class _StorageHeader extends StatelessWidget {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
@@ -57,5 +58,22 @@ void main() {
     await tester.tap(find.text('So What'));
     await tester.pump();
     expect(tapped, isTrue);
+  });
+
+  testWidgets('a server-dropped download says "Only on this device" (v0.3.6)', (
+    tester,
+  ) async {
+    await pumpThemed(
+      tester,
+      TrackRow(
+        track: testTrack(
+          't1',
+          name: 'So What',
+          availability: MediaAvailability.localOnly,
+        ),
+      ),
+    );
+
+    expect(find.textContaining('Only on this device'), findsOneWidget);
   });
 }

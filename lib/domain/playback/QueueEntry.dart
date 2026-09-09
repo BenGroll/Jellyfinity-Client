@@ -74,6 +74,23 @@ class QueueEntry extends Equatable {
   /// dropped.
   final MediaAvailability availability;
 
+  /// The queued track as the rest of the app speaks about it — enough to
+  /// drive a download control or a "play from here" tap on the queue and
+  /// Now Playing screens (v0.3.6). The reverse of [QueueEntry.fromTrack];
+  /// the fields a queue does not keep (favorite state, disc/track number)
+  /// come back at their defaults.
+  Track toTrack() => Track(
+    id: id,
+    name: title,
+    artists: artists,
+    albumId: albumId,
+    albumName: albumName,
+    duration: duration,
+    normalizationGain: normalizationGain,
+    availability: availability,
+    image: image,
+  );
+
   QueueEntry markUnavailable() => QueueEntry(
     id: id,
     title: title,

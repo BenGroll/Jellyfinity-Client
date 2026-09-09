@@ -2,12 +2,15 @@ import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/connectivity/OfflineCubit.dart';
+import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../design/design.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/PlaybackQueue.dart';
 import '../../../domain/playback/QueueEntry.dart';
+import '../../music/presentation/widgets/downloaded_marker.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/media_formatting.dart';
 
@@ -110,8 +113,19 @@ class _QueueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final downloaded = context.select<DownloadsCubit, bool>(
+      (downloads) => downloads.state.isDownloaded(entry.id),
+    );
+    final offline = context.select<OfflineCubit, bool>(
+      (cubit) => cubit.state.isOffline,
+    );
+    // Marked, not hidden: an entry that streamed fine but has no file is
+    // still in the queue, it just cannot play until the server is back
+    // (v0.3.6, the same rule `TrackRow` follows for a library list).
+    final notPlayableOffline = offline && !downloaded;
     final unavailable =
-        entry.availability == MediaAvailability.remoteUnavailable;
+        entry.availability == MediaAvailability.remoteUnavailable ||
+        notPlayableOffline;
 
     return Padding(
       key: key,
@@ -157,9 +171,11 @@ class _QueueRow extends StatelessWidget {
                             : t.colors.textPrimary,
                       ),
                     ),
-                    if (entry.artist != null)
+                    if (notPlayableOffline || entry.artist != null)
                       Text(
-                        entry.artist!,
+                        notPlayableOffline
+                            ? 'Not available offline'
+                            : entry.artist!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: t.typography.caption.copyWith(
@@ -169,6 +185,10 @@ class _QueueRow extends StatelessWidget {
                   ],
                 ),
               ),
+              if (downloaded) ...[
+                SizedBox(width: t.spacing.xs),
+                const DownloadedMarker.inline(size: 16),
+              ],
               if (entry.duration != null) ...[
                 SizedBox(width: t.spacing.sm),
                 Text(

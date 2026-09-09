@@ -306,6 +306,37 @@ class InMemoryDownloadStore implements DownloadStore {
     if (legacyCollections != null) collectionsMap.addAll(legacyCollections);
     return Result.ok(moved);
   }
+
+  @override
+  Future<Result<List<MediaId>>> purgeProfile({
+    required String serverId,
+    required String userId,
+  }) async {
+    final key = '$serverId/$userId';
+    final owned = (_recordsByAccount.remove(key) ?? {}).keys.toList();
+    _snapshotsByAccount.remove(key);
+    _collectionsByAccount.remove(key);
+    final stillKept = {
+      for (final account in _recordsByAccount.values)
+        for (final id in account.keys) id,
+    };
+    return Result.ok([
+      for (final id in owned)
+        if (!stillKept.contains(id)) id,
+    ]);
+  }
+
+  @override
+  Future<Result<void>> purgeServer(String serverId) async {
+    for (final map in [
+      _recordsByAccount,
+      _snapshotsByAccount,
+      _collectionsByAccount,
+    ]) {
+      map.removeWhere((key, _) => key.startsWith('$serverId/'));
+    }
+    return const Result.ok(null);
+  }
 }
 
 /// A [DownloadEngine] a test drives directly: it records what it was

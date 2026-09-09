@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/connectivity/OfflineCubit.dart';
+import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/media/media.dart';
+import '../../music/presentation/widgets/downloaded_marker.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 
 /// The persistent bar in [AppShell] above the bottom navigation — a
@@ -27,6 +30,13 @@ class MiniPlayer extends StatelessWidget {
 
         final t = context.tokens;
         final cubit = context.read<PlaybackCubit>();
+        final downloaded = context.select<DownloadsCubit, bool>(
+          (downloads) => downloads.state.isDownloaded(entry.id),
+        );
+        final offline = context.select<OfflineCubit, bool>(
+          (offlineCubit) => offlineCubit.state.isOffline,
+        );
+        final notPlayableOffline = offline && !downloaded;
         final duration = state.duration;
         final progress = (duration != null && duration > Duration.zero)
             ? (state.position.inMilliseconds / duration.inMilliseconds).clamp(
@@ -70,17 +80,31 @@ class MiniPlayer extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              entry.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.typography.bodyMedium.copyWith(
-                                color: t.colors.textPrimary,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    entry.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.typography.bodyMedium.copyWith(
+                                      color: notPlayableOffline
+                                          ? t.colors.textSecondary
+                                          : t.colors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                if (downloaded) ...[
+                                  SizedBox(width: t.spacing.xxs),
+                                  const DownloadedMarker.inline(size: 13),
+                                ],
+                              ],
                             ),
-                            if (entry.artist != null)
+                            if (notPlayableOffline || entry.artist != null)
                               Text(
-                                entry.artist!,
+                                notPlayableOffline
+                                    ? 'Not available offline'
+                                    : entry.artist!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: t.typography.caption.copyWith(
