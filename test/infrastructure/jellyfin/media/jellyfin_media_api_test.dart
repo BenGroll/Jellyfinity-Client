@@ -110,7 +110,7 @@ void main() {
 
       final query = adapter.requests.single.queryParameters;
       expect(query['fields'], 'PrimaryImageAspectRatio');
-      expect(query['enableImageTypes'], 'Primary,Backdrop,Logo');
+      expect(query['enableImageTypes'], 'Primary,Backdrop,Logo,Banner');
     });
 
     test('reports a transport failure as a Result, not an exception', () async {

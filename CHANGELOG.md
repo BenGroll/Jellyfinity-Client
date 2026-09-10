@@ -2,6 +2,50 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Windows support
+
+- Extend album and artist artwork through their detail surfaces, add detail
+  refresh actions, give artists the collection playback controls, remove
+  desktop list refresh buttons, and use blurred artwork in the mini-player
+  with a more transparent bottom navigation bar.
+
+- Add a native `build_exe.bat` entry point for building and exporting the
+  Windows desktop bundle from Command Prompt or PowerShell.
+
+- Add `build_exe.sh` for labeled Windows executable exports with their complete
+  runtime, plus optional clean, dependency refresh and build-mode selection.
+
+- Remove duplicate album/artist app-bar titles and header backgrounds, keeping
+  back navigation. Carry a heavily blurred current-song backdrop across the app,
+  with translucent bottom navigation and a solid mini-player tint from artist
+  artwork (falling back to the song cover). Artist and album detail pages always
+  use their own blurred artwork, including behind the transparent back bar.
+
+- Replace the default Windows executable icon with Jellyfinity artwork at
+  seven icon sizes, using the transparent infinity mark without a colored
+  background. Use a larger cover beside the player controls in wide
+  windows, center Library/Favorites tabs, and color artist/album detail pages
+  with heavily blurred artwork. Artist headers prefer Jellyfin Banner images
+  and fall back to Backdrop artwork.
+
+- Supply a bundled Windows audio decoder and system media controls, retaining
+  the shared playback queue, streaming quality, normalization and two-deck
+  crossfade. Android and iOS keep their native playback backends.
+- Preserve track selection and position during Windows queue edits without
+  relying on the adapter's incompatible incremental playlist indices. An edit
+  may briefly rebuffer; ordinary playback uses playlist prefetch.
+- Check free space on the downloads' Windows volume and recognize Windows
+  disk-full errors. Retain existing secure storage, offline downloads, artwork
+  caching, database and connectivity implementations.
+- Make shelves draggable with a mouse, add desktop collection refresh buttons,
+  Ctrl+F / Escape search shortcuts and Alt+Left navigation. Keep the full player
+  and empty/error actions reachable in short windows.
+- Add Windows regression/build CI, desktop behavior tests and a native smoke
+  test covering local/HTTP audio, queue edits, seeking, crossfade, credentials
+  and storage. Fix Windows test database cleanup and path comparison.
+- Document setup, packaging and device acceptance in `docs/windows.md`, and
+  the platform decisions in ADR-0029.
+
 ## v0.3.6 — Offline music completion, finished
 
 The offline **feature** deliverables `Roadmap to v0.3.md`'s v0.3.0

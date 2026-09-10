@@ -1,7 +1,7 @@
 # Jellyfinity context
 
 Jellyfinity is a free, open-source Flutter client for Jellyfin, primarily for
-Android and iOS. Its promise is to make a self-hosted server feel like a
+Android, iOS and Windows. Its promise is to make a self-hosted server feel like a
 polished streaming service. Minimum supported server: **Jellyfin 10.11.6**.
 
 This file contains only constraints that commonly affect implementation. Read

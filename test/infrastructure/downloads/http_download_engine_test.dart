@@ -100,6 +100,29 @@ void main() {
 
   tearDown(() => root.deleteSync(recursive: true));
 
+  for (final code in Platform.isWindows ? [39, 112] : [28]) {
+    test(
+      'disk-full error $code becomes an actionable storage failure',
+      () async {
+        final full = DownloadStorage(
+          rootDirectory: () async {
+            throw FileSystemException(
+              'Disk full',
+              '',
+              OSError('Disk full', code),
+            );
+          },
+        );
+        final engine = _engine(
+          full,
+          FakeDioAdapter((_) async => _audioResponse([])),
+        );
+        final result = await engine.fetch(_id, _source);
+        expect(result.failureOrNull, isA<InsufficientStorageFailure>());
+      },
+    );
+  }
+
   test('fetches a whole file and completes it atomically', () async {
     final adapter = FakeDioAdapter((_) async => _audioResponse([1, 2, 3, 4]));
     final engine = _engine(storage, adapter);

@@ -173,6 +173,16 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
           ),
           title: header.item?.name,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh',
+              onPressed: () async {
+                await context.read<PlaylistDetailCubit>().retry();
+                if (context.mounted) {
+                  await context.read<PlaylistTracksCubit>().refresh();
+                }
+              },
+            ),
             if (header.item case final Playlist playlist)
               IconButton(
                 icon: const Icon(Icons.more_vert_rounded),

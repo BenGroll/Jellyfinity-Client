@@ -15,6 +15,7 @@ import '../widgets/download_controls.dart';
 import '../widgets/favorite_actions.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
+import '../widgets/ArtworkBackground.dart';
 import '../widgets/MediaPlaybackActionsRow.dart';
 import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
@@ -85,7 +86,20 @@ class _AlbumDetailView extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
-          title: album?.name,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh',
+              onPressed: () async {
+                await context.read<AlbumDetailCubit>().retry();
+                if (context.mounted) await context.read<SongsCubit>().refresh();
+              },
+            ),
+          ],
+          background: ArtworkBackground(
+            image: album?.image,
+            child: const SizedBox.expand(),
+          ),
           body: BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
             builder: (context, state) {
               final cubit = context.read<SongsCubit>();

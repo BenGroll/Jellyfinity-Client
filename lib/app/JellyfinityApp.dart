@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../design/design.dart';
+import '../design/components/ArtworkBackdropScope.dart';
+import '../domain/media/MediaImage.dart';
+import '../features/music/presentation/widgets/ArtworkBackground.dart';
+import 'playback/PlaybackUiState.dart';
 import 'connectivity/OfflineCubit.dart';
+import 'DesktopScrollBehavior.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'favorites/FavoritesRevisionCubit.dart';
 import 'navigation/MediaScopeCubit.dart';
@@ -72,6 +78,27 @@ class JellyfinityApp extends StatelessWidget {
         darkTheme: AppTheme.dark(),
         themeMode: ThemeMode.dark,
         routerConfig: router,
+        scrollBehavior: const DesktopScrollBehavior(),
+        builder: (context, child) => CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () {
+              if (router.canPop()) router.pop();
+            },
+          },
+          child: BlocSelector<PlaybackCubit, PlaybackUiState, MediaImage?>(
+            selector: (state) => state.currentEntry?.image,
+            builder: (context, image) => ColoredBox(
+              color: context.tokens.colors.background,
+              child: ArtworkBackground(
+                image: image,
+                child: ArtworkBackdropScope(
+                  hasArtwork: image != null,
+                  child: child!,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -303,10 +303,11 @@ class HttpDownloadEngine implements DownloadEngine {
 
   /// Running out of room is its own answer to the user ("free some up"),
   /// so it does not get collapsed into a generic write failure that
-  /// offers a retry which cannot succeed. `ENOSPC` is 28 on both Android
-  /// and iOS.
+  /// offers a retry which cannot succeed. POSIX ENOSPC is 28; Windows
+  /// ERROR_HANDLE_DISK_FULL and ERROR_DISK_FULL are 39 and 112.
   Failure _mapFileSystem(FileSystemException error, StackTrace stackTrace) {
-    if (error.osError?.errorCode == _noSpaceLeftErrno) {
+    final diskFullCodes = Platform.isWindows ? const {39, 112} : const {28};
+    if (diskFullCodes.contains(error.osError?.errorCode)) {
       return InsufficientStorageFailure(
         'There is not enough storage left on this device.',
         cause: error,
@@ -322,6 +323,4 @@ class HttpDownloadEngine implements DownloadEngine {
       stackTrace: stackTrace,
     );
   }
-
-  static const int _noSpaceLeftErrno = 28;
 }

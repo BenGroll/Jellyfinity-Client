@@ -9,6 +9,7 @@ import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/media/media.dart';
+import '../../music/presentation/widgets/ArtworkBackground.dart';
 import '../../music/presentation/widgets/downloaded_marker.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 
@@ -45,90 +46,143 @@ class MiniPlayer extends StatelessWidget {
               )
             : 0.0;
 
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: t.colors.surface,
-            border: Border(top: BorderSide(color: t.colors.border)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 2,
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 2,
-                  backgroundColor: Colors.transparent,
-                  valueColor: AlwaysStoppedAnimation(t.colors.accent),
-                ),
+        return SizedBox(
+          height: height,
+          child: ArtworkBackground(
+            image: entry.image,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: t.colors.border)),
               ),
-              InkWell(
-                onTap: () => context.pushNamed(RouteNames.nowPlaying),
-                child: SizedBox(
-                  height: height - 2,
-                  child: Row(
-                    children: [
-                      SizedBox(width: t.spacing.sm),
-                      MediaArtwork(
-                        image: entry.image,
-                        kind: MediaKind.track,
-                        size: 40,
-                      ),
-                      SizedBox(width: t.spacing.sm),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 2,
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 2,
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation(t.colors.accent),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => context.pushNamed(RouteNames.nowPlaying),
+                    child: SizedBox(
+                      height: height - 2,
+                      child: Row(
+                        children: [
+                          SizedBox(width: t.spacing.sm),
+                          MediaArtwork(
+                            image: entry.image,
+                            kind: MediaKind.track,
+                            size: 40,
+                          ),
+                          SizedBox(width: t.spacing.sm),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Flexible(
-                                  child: Text(
-                                    entry.title,
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        entry.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: t.typography.bodyMedium.copyWith(
+                                          color: notPlayableOffline
+                                              ? t.colors.textSecondary
+                                              : t.colors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    if (downloaded) ...[
+                                      SizedBox(width: t.spacing.xxs),
+                                      const DownloadedMarker.inline(size: 13),
+                                    ],
+                                  ],
+                                ),
+                                if (notPlayableOffline || entry.artist != null)
+                                  Text(
+                                    notPlayableOffline
+                                        ? 'Not available offline'
+                                        : entry.artist!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: t.typography.bodyMedium.copyWith(
-                                      color: notPlayableOffline
-                                          ? t.colors.textSecondary
-                                          : t.colors.textPrimary,
+                                    style: t.typography.caption.copyWith(
+                                      color: t.colors.textSecondary,
                                     ),
                                   ),
-                                ),
-                                if (downloaded) ...[
-                                  SizedBox(width: t.spacing.xxs),
-                                  const DownloadedMarker.inline(size: 13),
-                                ],
                               ],
                             ),
-                            if (notPlayableOffline || entry.artist != null)
-                              Text(
-                                notPlayableOffline
-                                    ? 'Not available offline'
-                                    : entry.artist!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: t.typography.caption.copyWith(
-                                  color: t.colors.textSecondary,
-                                ),
-                              ),
-                          ],
-                        ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              state.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                            ),
+                            color: t.colors.textPrimary,
+                            onPressed: cubit.togglePlayPause,
+                          ),
+                          SizedBox(width: t.spacing.xxs),
+                        ],
                       ),
-                      IconButton(
-                        icon: Icon(
-                          state.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                        ),
-                        color: t.colors.textPrimary,
-                        onPressed: cubit.togglePlayPause,
-                      ),
-                      SizedBox(width: t.spacing.xxs),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  entry.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.typography.bodyMedium.copyWith(
+                                    color: t.colors.textPrimary,
+                                  ),
+                                ),
+                                if (entry.artist != null)
+                                  Text(
+                                    entry.artist!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.typography.caption.copyWith(
+                                      color: t.colors.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              state.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                            ),
+                            color: t.colors.textPrimary,
+                            onPressed: cubit.togglePlayPause,
+                          ),
+                          SizedBox(width: t.spacing.xxs),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },

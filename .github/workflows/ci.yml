@@ -22,7 +22,10 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,4 +46,11 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test --exclude-tags=scale
+
+      - name: Large-library tests
+        run: flutter test --tags=scale --concurrency=1
+
+      - name: Build Windows
+        if: runner.os == 'Windows'
+        run: flutter build windows --release

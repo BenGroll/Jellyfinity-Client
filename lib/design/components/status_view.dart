@@ -34,32 +34,34 @@ class StatusView extends StatelessWidget {
     };
 
     return Center(
-      child: Padding(
-        padding: EdgeInsets.all(t.spacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 40, color: accentColor),
-            SizedBox(height: t.spacing.md),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: t.typography.titleLarge.copyWith(
-                color: t.colors.textPrimary,
-              ),
-            ),
-            if (message != null) ...[
-              SizedBox(height: t.spacing.xs),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(t.spacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 40, color: accentColor),
+              SizedBox(height: t.spacing.md),
               Text(
-                message!,
+                title,
                 textAlign: TextAlign.center,
-                style: t.typography.bodyMedium.copyWith(
-                  color: t.colors.textSecondary,
+                style: t.typography.titleLarge.copyWith(
+                  color: t.colors.textPrimary,
                 ),
               ),
+              if (message != null) ...[
+                SizedBox(height: t.spacing.xs),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: t.typography.bodyMedium.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ],
+              if (action != null) ...[SizedBox(height: t.spacing.lg), action!],
             ],
-            if (action != null) ...[SizedBox(height: t.spacing.lg), action!],
-          ],
+          ),
         ),
       ),
     );

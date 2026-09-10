@@ -114,7 +114,7 @@ class _LibraryViewState extends State<_LibraryView> {
         children: [
           TabBar(
             isScrollable: true,
-            tabAlignment: TabAlignment.start,
+            tabAlignment: TabAlignment.center,
             labelColor: t.colors.textPrimary,
             unselectedLabelColor: t.colors.textSecondary,
             indicatorColor: t.colors.accent,

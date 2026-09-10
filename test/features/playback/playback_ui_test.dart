@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/di/service_locator.dart';
+import 'package:jellyfinity/features/music/presentation/widgets/ArtworkBackground.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
@@ -10,6 +12,7 @@ import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/playback/presentation/LyricsPage.dart';
+import 'package:jellyfinity/features/playback/presentation/MiniPlayer.dart';
 import 'package:jellyfinity/features/playback/presentation/QueuePage.dart';
 
 import '../../support/download_fakes.dart';
@@ -25,7 +28,82 @@ Track _track(String itemId, {String name = 'Track'}) => Track(
   duration: const Duration(minutes: 3),
 );
 
+class _NoArtworkUrl implements ArtworkResolver {
+  @override
+  Uri? imageUrl(MediaImage image, {int? maxWidth, int? maxHeight}) => null;
+}
+
 void main() {
+  testWidgets('shared backdrop follows song changes and remains while paused', (
+    tester,
+  ) async {
+    final playback = fakePlaybackCubit();
+    final scope = await pumpApp(tester, playback: playback);
+    getIt.registerSingleton<ArtworkResolver>(_NoArtworkUrl());
+    await scope.signIn();
+    await tester.pumpAndSettle();
+    final first = MediaImage(
+      itemId: mediaId('a'),
+      kind: MediaImageKind.primary,
+      tag: 'a',
+    );
+    final second = MediaImage(
+      itemId: mediaId('b'),
+      kind: MediaImageKind.primary,
+      tag: 'b',
+    );
+    await playback.playNow([
+      Track(id: mediaId('a'), name: 'First', image: first),
+      Track(id: mediaId('b'), name: 'Second', image: second),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<ArtworkBackground>(find.byType(ArtworkBackground).first)
+          .image,
+      first,
+    );
+    await playback.togglePlayPause();
+    await tester.pumpAndSettle();
+    await playback.next();
+    await tester.pumpAndSettle();
+    if (playback.state.isPlaying) await playback.togglePlayPause();
+    await tester.pumpAndSettle();
+    expect(playback.state.isPlaying, isFalse);
+    expect(
+      tester
+          .widget<ArtworkBackground>(find.byType(ArtworkBackground).first)
+          .image,
+      second,
+    );
+    for (final scaffold in tester.widgetList<Scaffold>(find.byType(Scaffold))) {
+      expect(scaffold.backgroundColor, Colors.transparent);
+    }
+  });
+  testWidgets('wide player gives the cover room beside the controls', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+    await playback.playNow([_track('a', name: 'Wide player')], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wide player'));
+    await tester.pumpAndSettle();
+    final art = find.byType(MediaArtwork).last;
+    final controls = find.byIcon(Icons.pause_circle_filled_rounded);
+    expect(tester.getSize(art).width, greaterThan(500));
+    expect(
+      tester.getCenter(controls).dx,
+      greaterThan(tester.getRect(art).right),
+    );
+    expect(tester.takeException(), isNull);
+    await playback.togglePlayPause();
+  });
   setUp(() {
     MediaArtwork.imageBuilderOverride = (_, _) => const SizedBox.shrink();
   });
@@ -55,6 +133,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('So What'), findsOneWidget);
+    expect(tester.getSize(find.byType(MiniPlayer)).height, MiniPlayer.height);
+    expect(tester.takeException(), isNull);
     expect(
       find.byIcon(Icons.pause_rounded),
       findsOneWidget,
@@ -88,6 +168,29 @@ void main() {
 
     // Leave playback paused so no position-save timer outlives the test.
     await playback.togglePlayPause();
+  });
+
+  testWidgets('Now Playing controls remain usable in a short desktop window', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1100, 440));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+    await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.byIcon(Icons.pause_circle_filled_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.pause_circle_filled_rounded));
+    await tester.pumpAndSettle();
+    expect(playback.state.isPlaying, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shuffle and repeat toggle from Now Playing', (tester) async {

@@ -410,10 +410,13 @@ class BaseItemMapper {
     return null;
   }
 
-  /// An artist's own wide background image, for the artist page header
-  /// (v0.1.6). Unlike [_primaryImage] this never falls back to another
-  /// item's art — a missing backdrop means no banner, not a borrowed one.
+  /// Prefer the artist's Banner image, then its first Backdrop. Unlike
+  /// [_primaryImage], this never borrows another item's artwork.
   MediaImage? _backdropImage(BaseItemDto dto, MediaId id) {
+    final banner = dto.imageTags?['Banner'];
+    if (banner != null && banner.isNotEmpty) {
+      return MediaImage(itemId: id, kind: MediaImageKind.banner, tag: banner);
+    }
     final tags = dto.backdropImageTags;
     if (tags == null || tags.isEmpty) return null;
     final tag = tags.first;

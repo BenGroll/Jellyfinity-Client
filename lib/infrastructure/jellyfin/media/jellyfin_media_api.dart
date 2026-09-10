@@ -84,7 +84,12 @@ class JellyfinMediaApi {
 
   /// The image kinds Jellyfinity renders; asking for only these keeps
   /// image tags out of the response for the dozen kinds it does not.
-  static const List<String> imageTypes = ['Primary', 'Backdrop', 'Logo'];
+  static const List<String> imageTypes = [
+    'Primary',
+    'Backdrop',
+    'Logo',
+    'Banner',
+  ];
 
   /// Jellyfinity's local id for the server being queried, or `null` when
   /// signed out. The other half of every [MediaId] the mapper produces.

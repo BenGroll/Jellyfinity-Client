@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import '../core/config/AppConfig.dart';
 import '../core/logging/Logger.dart';
@@ -31,6 +32,12 @@ import 'settings/ShellNavigationMode.dart';
 /// real Flutter binding target.
 Future<void> bootstrap({required Widget Function() builder}) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Supply Windows' decoder before either playback deck is constructed.
+  // Mobile continues to use just_audio's native backends.
+  JustAudioMediaKit.title = 'Jellyfinity';
+  JustAudioMediaKit.prefetchPlaylist = true;
+  JustAudioMediaKit.ensureInitialized(windows: true, linux: false);
 
   final config = AppConfig.fromEnvironment();
   getIt.registerSingleton<AppConfig>(config);
