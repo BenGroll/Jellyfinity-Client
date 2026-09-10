@@ -3031,6 +3031,29 @@ class $QueueEntriesTable extends QueueEntries
     requiredDuringInsert: false,
     defaultValue: const Constant('remoteOnly'),
   );
+  static const VerificationMeta _normalizationGainMeta = const VerificationMeta(
+    'normalizationGain',
+  );
+  @override
+  late final GeneratedColumn<double> normalizationGain =
+      GeneratedColumn<double>(
+        'normalization_gain',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _failureMessageMeta = const VerificationMeta(
+    'failureMessage',
+  );
+  @override
+  late final GeneratedColumn<String> failureMessage = GeneratedColumn<String>(
+    'failure_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     position,
@@ -3047,6 +3070,8 @@ class $QueueEntriesTable extends QueueEntries
     imageTag,
     imageAspectRatio,
     availability,
+    normalizationGain,
+    failureMessage,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3168,6 +3193,24 @@ class $QueueEntriesTable extends QueueEntries
         ),
       );
     }
+    if (data.containsKey('normalization_gain')) {
+      context.handle(
+        _normalizationGainMeta,
+        normalizationGain.isAcceptableOrUnknown(
+          data['normalization_gain']!,
+          _normalizationGainMeta,
+        ),
+      );
+    }
+    if (data.containsKey('failure_message')) {
+      context.handle(
+        _failureMessageMeta,
+        failureMessage.isAcceptableOrUnknown(
+          data['failure_message']!,
+          _failureMessageMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3233,6 +3276,14 @@ class $QueueEntriesTable extends QueueEntries
         DriftSqlType.string,
         data['${effectivePrefix}availability'],
       )!,
+      normalizationGain: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}normalization_gain'],
+      ),
+      failureMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}failure_message'],
+      ),
     );
   }
 
@@ -3273,6 +3324,19 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
   /// track that failed before the app closed is still shown as
   /// unavailable rather than looking playable again.
   final String availability;
+
+  /// The dB loudness gain Jellyfin reports for this track (v0.4.1),
+  /// denormalized here for the same reason [durationMicros] is: a
+  /// restored queue has to hand `PlaybackCubit` a source-ready value
+  /// without a network call. Without it, volume normalization (v0.1.4)
+  /// silently stopped applying to every restored queue.
+  final double? normalizationGain;
+
+  /// Why this entry could not be played (v0.4.1), from the
+  /// `PlaybackFailure` that marked [availability]. Restored alongside it
+  /// so a failed track still explains itself after a restart instead of
+  /// being greyed out for no stated reason.
+  final String? failureMessage;
   const QueueEntryRow({
     required this.position,
     required this.serverId,
@@ -3288,6 +3352,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     this.imageTag,
     this.imageAspectRatio,
     required this.availability,
+    this.normalizationGain,
+    this.failureMessage,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3324,6 +3390,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       map['image_aspect_ratio'] = Variable<double>(imageAspectRatio);
     }
     map['availability'] = Variable<String>(availability);
+    if (!nullToAbsent || normalizationGain != null) {
+      map['normalization_gain'] = Variable<double>(normalizationGain);
+    }
+    if (!nullToAbsent || failureMessage != null) {
+      map['failure_message'] = Variable<String>(failureMessage);
+    }
     return map;
   }
 
@@ -3361,6 +3433,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
           ? const Value.absent()
           : Value(imageAspectRatio),
       availability: Value(availability),
+      normalizationGain: normalizationGain == null && nullToAbsent
+          ? const Value.absent()
+          : Value(normalizationGain),
+      failureMessage: failureMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failureMessage),
     );
   }
 
@@ -3384,6 +3462,10 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       imageTag: serializer.fromJson<String?>(json['imageTag']),
       imageAspectRatio: serializer.fromJson<double?>(json['imageAspectRatio']),
       availability: serializer.fromJson<String>(json['availability']),
+      normalizationGain: serializer.fromJson<double?>(
+        json['normalizationGain'],
+      ),
+      failureMessage: serializer.fromJson<String?>(json['failureMessage']),
     );
   }
   @override
@@ -3404,6 +3486,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       'imageTag': serializer.toJson<String?>(imageTag),
       'imageAspectRatio': serializer.toJson<double?>(imageAspectRatio),
       'availability': serializer.toJson<String>(availability),
+      'normalizationGain': serializer.toJson<double?>(normalizationGain),
+      'failureMessage': serializer.toJson<String?>(failureMessage),
     };
   }
 
@@ -3422,6 +3506,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     Value<String?> imageTag = const Value.absent(),
     Value<double?> imageAspectRatio = const Value.absent(),
     String? availability,
+    Value<double?> normalizationGain = const Value.absent(),
+    Value<String?> failureMessage = const Value.absent(),
   }) => QueueEntryRow(
     position: position ?? this.position,
     serverId: serverId ?? this.serverId,
@@ -3441,6 +3527,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
         ? imageAspectRatio.value
         : this.imageAspectRatio,
     availability: availability ?? this.availability,
+    normalizationGain: normalizationGain.present
+        ? normalizationGain.value
+        : this.normalizationGain,
+    failureMessage: failureMessage.present
+        ? failureMessage.value
+        : this.failureMessage,
   );
   QueueEntryRow copyWithCompanion(QueueEntriesCompanion data) {
     return QueueEntryRow(
@@ -3470,6 +3562,12 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
       availability: data.availability.present
           ? data.availability.value
           : this.availability,
+      normalizationGain: data.normalizationGain.present
+          ? data.normalizationGain.value
+          : this.normalizationGain,
+      failureMessage: data.failureMessage.present
+          ? data.failureMessage.value
+          : this.failureMessage,
     );
   }
 
@@ -3489,7 +3587,9 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
           ..write('imageKind: $imageKind, ')
           ..write('imageTag: $imageTag, ')
           ..write('imageAspectRatio: $imageAspectRatio, ')
-          ..write('availability: $availability')
+          ..write('availability: $availability, ')
+          ..write('normalizationGain: $normalizationGain, ')
+          ..write('failureMessage: $failureMessage')
           ..write(')'))
         .toString();
   }
@@ -3510,6 +3610,8 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
     imageTag,
     imageAspectRatio,
     availability,
+    normalizationGain,
+    failureMessage,
   );
   @override
   bool operator ==(Object other) =>
@@ -3528,7 +3630,9 @@ class QueueEntryRow extends DataClass implements Insertable<QueueEntryRow> {
           other.imageKind == this.imageKind &&
           other.imageTag == this.imageTag &&
           other.imageAspectRatio == this.imageAspectRatio &&
-          other.availability == this.availability);
+          other.availability == this.availability &&
+          other.normalizationGain == this.normalizationGain &&
+          other.failureMessage == this.failureMessage);
 }
 
 class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
@@ -3546,6 +3650,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
   final Value<String?> imageTag;
   final Value<double?> imageAspectRatio;
   final Value<String> availability;
+  final Value<double?> normalizationGain;
+  final Value<String?> failureMessage;
   const QueueEntriesCompanion({
     this.position = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -3561,6 +3667,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     this.imageTag = const Value.absent(),
     this.imageAspectRatio = const Value.absent(),
     this.availability = const Value.absent(),
+    this.normalizationGain = const Value.absent(),
+    this.failureMessage = const Value.absent(),
   });
   QueueEntriesCompanion.insert({
     this.position = const Value.absent(),
@@ -3577,6 +3685,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     this.imageTag = const Value.absent(),
     this.imageAspectRatio = const Value.absent(),
     this.availability = const Value.absent(),
+    this.normalizationGain = const Value.absent(),
+    this.failureMessage = const Value.absent(),
   }) : serverId = Value(serverId),
        itemId = Value(itemId),
        title = Value(title);
@@ -3595,6 +3705,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     Expression<String>? imageTag,
     Expression<double>? imageAspectRatio,
     Expression<String>? availability,
+    Expression<double>? normalizationGain,
+    Expression<String>? failureMessage,
   }) {
     return RawValuesInsertable({
       if (position != null) 'position': position,
@@ -3611,6 +3723,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
       if (imageTag != null) 'image_tag': imageTag,
       if (imageAspectRatio != null) 'image_aspect_ratio': imageAspectRatio,
       if (availability != null) 'availability': availability,
+      if (normalizationGain != null) 'normalization_gain': normalizationGain,
+      if (failureMessage != null) 'failure_message': failureMessage,
     });
   }
 
@@ -3629,6 +3743,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     Value<String?>? imageTag,
     Value<double?>? imageAspectRatio,
     Value<String>? availability,
+    Value<double?>? normalizationGain,
+    Value<String?>? failureMessage,
   }) {
     return QueueEntriesCompanion(
       position: position ?? this.position,
@@ -3645,6 +3761,8 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
       imageTag: imageTag ?? this.imageTag,
       imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
       availability: availability ?? this.availability,
+      normalizationGain: normalizationGain ?? this.normalizationGain,
+      failureMessage: failureMessage ?? this.failureMessage,
     );
   }
 
@@ -3693,6 +3811,12 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
     if (availability.present) {
       map['availability'] = Variable<String>(availability.value);
     }
+    if (normalizationGain.present) {
+      map['normalization_gain'] = Variable<double>(normalizationGain.value);
+    }
+    if (failureMessage.present) {
+      map['failure_message'] = Variable<String>(failureMessage.value);
+    }
     return map;
   }
 
@@ -3712,7 +3836,9 @@ class QueueEntriesCompanion extends UpdateCompanion<QueueEntryRow> {
           ..write('imageKind: $imageKind, ')
           ..write('imageTag: $imageTag, ')
           ..write('imageAspectRatio: $imageAspectRatio, ')
-          ..write('availability: $availability')
+          ..write('availability: $availability, ')
+          ..write('normalizationGain: $normalizationGain, ')
+          ..write('failureMessage: $failureMessage')
           ..write(')'))
         .toString();
   }
@@ -9199,6 +9325,8 @@ typedef $$QueueEntriesTableCreateCompanionBuilder =
       Value<String?> imageTag,
       Value<double?> imageAspectRatio,
       Value<String> availability,
+      Value<double?> normalizationGain,
+      Value<String?> failureMessage,
     });
 typedef $$QueueEntriesTableUpdateCompanionBuilder =
     QueueEntriesCompanion Function({
@@ -9216,6 +9344,8 @@ typedef $$QueueEntriesTableUpdateCompanionBuilder =
       Value<String?> imageTag,
       Value<double?> imageAspectRatio,
       Value<String> availability,
+      Value<double?> normalizationGain,
+      Value<String?> failureMessage,
     });
 
 class $$QueueEntriesTableFilterComposer
@@ -9294,6 +9424,16 @@ class $$QueueEntriesTableFilterComposer
 
   ColumnFilters<String> get availability => $composableBuilder(
     column: $table.availability,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get normalizationGain => $composableBuilder(
+    column: $table.normalizationGain,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get failureMessage => $composableBuilder(
+    column: $table.failureMessage,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9376,6 +9516,16 @@ class $$QueueEntriesTableOrderingComposer
     column: $table.availability,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get normalizationGain => $composableBuilder(
+    column: $table.normalizationGain,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get failureMessage => $composableBuilder(
+    column: $table.failureMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$QueueEntriesTableAnnotationComposer
@@ -9440,6 +9590,16 @@ class $$QueueEntriesTableAnnotationComposer
     column: $table.availability,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get normalizationGain => $composableBuilder(
+    column: $table.normalizationGain,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get failureMessage => $composableBuilder(
+    column: $table.failureMessage,
+    builder: (column) => column,
+  );
 }
 
 class $$QueueEntriesTableTableManager
@@ -9487,6 +9647,8 @@ class $$QueueEntriesTableTableManager
                 Value<String?> imageTag = const Value.absent(),
                 Value<double?> imageAspectRatio = const Value.absent(),
                 Value<String> availability = const Value.absent(),
+                Value<double?> normalizationGain = const Value.absent(),
+                Value<String?> failureMessage = const Value.absent(),
               }) => QueueEntriesCompanion(
                 position: position,
                 serverId: serverId,
@@ -9502,6 +9664,8 @@ class $$QueueEntriesTableTableManager
                 imageTag: imageTag,
                 imageAspectRatio: imageAspectRatio,
                 availability: availability,
+                normalizationGain: normalizationGain,
+                failureMessage: failureMessage,
               ),
           createCompanionCallback:
               ({
@@ -9519,6 +9683,8 @@ class $$QueueEntriesTableTableManager
                 Value<String?> imageTag = const Value.absent(),
                 Value<double?> imageAspectRatio = const Value.absent(),
                 Value<String> availability = const Value.absent(),
+                Value<double?> normalizationGain = const Value.absent(),
+                Value<String?> failureMessage = const Value.absent(),
               }) => QueueEntriesCompanion.insert(
                 position: position,
                 serverId: serverId,
@@ -9534,6 +9700,8 @@ class $$QueueEntriesTableTableManager
                 imageTag: imageTag,
                 imageAspectRatio: imageAspectRatio,
                 availability: availability,
+                normalizationGain: normalizationGain,
+                failureMessage: failureMessage,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -105,16 +105,39 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// cycling forever through a queue that is entirely unplayable (e.g.
   /// every stream is unreachable) — capped at the queue length, since
   /// that is enough attempts to have tried every entry once.
+  ///
+  /// Reset the moment the engine reports it is actually playing (v0.4.1),
+  /// which is the only honest reading of "in a row": before that it only
+  /// cleared on an engine-driven index change, so a queue recovered by a
+  /// manual skip kept counting its old failures towards the cap.
   int _consecutiveFailures = 0;
 
-  /// Entries that already got one retry at [StreamQuality.original] after
-  /// a failure at the settings-selected quality (ADR-0015) — resolved at
-  /// original from here on, so a second failure falls through to the
-  /// ordinary mark-unavailable-and-advance handling below rather than
-  /// retrying forever. Cleared on [playNow]; harmless to leave stale
-  /// entries in it otherwise, since it only ever makes a retry get
-  /// skipped once for a track that already needed one.
+  /// Entries that have already been re-resolved once after a failure
+  /// (v0.4.1), so a second failure falls through to the ordinary
+  /// mark-unavailable-and-advance handling rather than retrying forever.
+  ///
+  /// The retry exists because a source address can go stale while it sits
+  /// in the queue: a download finished or was deleted since it was
+  /// resolved, or the session moved to a different server. Re-resolving
+  /// asks [AudioSourceResolver] the question again, which is what lets a
+  /// removed download fall back to the stream (and a newly downloaded
+  /// track stop streaming).
+  final Set<MediaId> _retriedIds = {};
+
+  /// Entries whose retry above is pinned to [StreamQuality.original]
+  /// because they first failed at a transcoded quality (ADR-0015):
+  /// `just_audio`'s error surface can't reliably tell a transient
+  /// transcode failure from a dead track, so the original file gets one
+  /// chance before the entry is called unavailable.
   final Set<MediaId> _retriedAtOriginal = {};
+
+  /// The entry Jellyfin currently has an open play session for (v0.4.1) —
+  /// what [PlaybackProgressRepository.reportStop] has to name, and the
+  /// guard against opening a second session for a track that is already
+  /// reported. Sessions used to be started only from an engine-driven
+  /// index change, so every manually started or skipped-to track played
+  /// without the server ever being told.
+  QueueEntry? _reportedEntry;
 
   final Map<(MediaId, StreamQuality), PlaybackSource> _resolvedSources = {};
   Future<void> _operationTail = Future<void>.value();
@@ -182,30 +205,67 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// Replaces the queue with [tracks], shuffled, starting from a random
   /// entry (v0.1.6's Album/Playlist shuffle button).
   ///
-  /// Turns shuffle on first (if it was not already) so [_playNow]'s own
-  /// `withEntries` builds the shuffled play order directly, then starts
-  /// at a random index rather than always index 0 — [PlaybackQueue]
-  /// pins whichever index starts playing first in that order, so starting
-  /// at a fixed index would make "shuffle" always open the same track.
+  /// Starts at a random index rather than always index 0 —
+  /// [PlaybackQueue] pins whichever index starts playing first in that
+  /// order, so starting at a fixed index would make "shuffle" always open
+  /// the same track.
+  ///
+  /// Shuffle is turned on as part of building the *new* queue rather than
+  /// by toggling first (v0.4.1): `toggleShuffle` is a queue edit, so it
+  /// reshuffled, re-persisted and re-loaded the queue being replaced
+  /// half a frame before it was thrown away.
   Future<void> playShuffled(List<Track> tracks) async {
     if (tracks.isEmpty) return;
-    if (!state.queue.shuffleEnabled) await toggleShuffle();
     final startIndex = tracks.length == 1 ? 0 : Random().nextInt(tracks.length);
-    await _playNow(tracks, startIndex: startIndex);
+    await _playNow(tracks, startIndex: startIndex, shuffle: true);
   }
 
-  Future<void> _playNow(List<Track> tracks, {required int startIndex}) async {
+  /// Queues every one of [tracks] to play after the current one, in their
+  /// own order (v0.4.1) — the collection-wide counterpart to [playNext],
+  /// so an album header offers the same four actions a track row does.
+  ///
+  /// With nothing playing this is the same as [addAllToQueue]; with
+  /// shuffle on the tracks take the play-order slots straight after the
+  /// current entry, exactly as a single [playNext] does.
+  Future<void> playNextAll(List<Track> tracks) {
+    if (tracks.isEmpty) return Future<void>.value();
+    return _mutate((queue) {
+      var updated = queue;
+      // With something playing, each insertion goes directly after the
+      // current entry and pushes the previous one along, so inserting the
+      // last track first is what leaves them in their own order. With an
+      // empty queue there is no current entry to insert after and they
+      // simply append, which the same loop already does forwards.
+      final ordered = queue.currentIndex == null ? tracks : tracks.reversed;
+      for (final track in ordered) {
+        updated = updated.withEntryAdded(
+          QueueEntry.fromTrack(track),
+          playNext: true,
+        );
+      }
+      return updated;
+    });
+  }
+
+  Future<void> _playNow(
+    List<Track> tracks, {
+    required int startIndex,
+    bool? shuffle,
+  }) async {
     if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
       return;
     }
     final entries = [for (final track in tracks) QueueEntry.fromTrack(track)];
     final queue = PlaybackQueue.empty
-        .withEntries(entries, startIndex: startIndex)
-        .withShuffle(state.queue.shuffleEnabled)
-        .withRepeatMode(state.queue.repeatMode);
+        .withShuffle(shuffle ?? state.queue.shuffleEnabled)
+        .withRepeatMode(state.queue.repeatMode)
+        .withEntries(entries, startIndex: startIndex);
 
+    _retriedIds.clear();
     _retriedAtOriginal.clear();
-    _retargetListening(null);
+    _resolvedSources.clear();
+    _consecutiveFailures = 0;
+    _beginEntry(null);
     emit(
       PlaybackUiState(
         queue: queue,
@@ -215,7 +275,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     );
     unawaited(_queueRepository.replace(queue));
     await _loadIntoEngine(queue, play: true);
-    _retargetListening(queue.currentEntry);
+    _beginEntry(state.queue.currentEntry);
   }
 
   // ---- Transport ----
@@ -225,8 +285,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     if (state.isPlaying) {
       await _engine.pause();
       unawaited(_savePosition());
+      // Jellyfin shows a paused session as paused rather than dropping
+      // it, so pausing is reported, not stopped (v0.4.1).
+      unawaited(_reportProgress(isPaused: true));
     } else {
       await _engine.play();
+      unawaited(_reportProgress(isPaused: false));
     }
   }
 
@@ -245,7 +309,13 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> next() async {
     final index = state.queue.manualNextIndex();
     if (index == null) {
+      // Nothing follows and repeat will not wrap: stay on the last entry,
+      // paused, rather than silently doing nothing. `PlaybackQueue
+      // .isAtEndOfPlayOrder` is what the queue screen reads to say so
+      // (v0.4.1).
       await _engine.pause();
+      unawaited(_savePosition());
+      unawaited(_reportProgress(isPaused: true));
       return;
     }
     await _advanceTo(index);
@@ -306,6 +376,13 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   Future<void> reorder(int oldIndex, int newIndex) =>
       _mutate((queue) => queue.withReordered(oldIndex, newIndex));
+
+  /// Moves an entry within the order it actually plays in (v0.4.1) — what
+  /// a drag on the queue screen means, which is [reorder] only while
+  /// shuffle is off.
+  Future<void> reorderPlayOrder(int oldPosition, int newPosition) => _mutate(
+    (queue) => queue.withPlayOrderReordered(oldPosition, newPosition),
+  );
 
   Future<void> clear() => _mutate((queue) => queue.withCleared());
 
@@ -388,7 +465,9 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
     final moved = queue.withCurrentIndex(entriesIndex);
     final entry = moved.entries[entriesIndex];
-    _retargetListening(entry);
+    // Before the emit, so the stop report still carries the position the
+    // outgoing track actually reached.
+    _beginEntry(entry);
     emit(
       PlaybackUiState(
         queue: moved,
@@ -426,6 +505,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     final currentIndex = queue.currentIndex;
     if (queue.isEmpty || currentIndex == null) {
       _loadedOrder = const [];
+      _closeReportedSession();
       await _engine.stop();
       return;
     }
@@ -445,30 +525,40 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
           : _settings.state.streamQuality;
       final cacheKey = (entry.id, quality);
       var source = _resolvedSources[cacheKey];
+      String? resolveFailure;
       if (source == null) {
         final resolved = await _sourceResolver.resolve(
           entry.id,
           quality: quality,
         );
-        if (resolved case Ok<Uri>(:final value)) {
-          source = PlaybackSource(
-            id: entry.id,
-            uri: value,
-            title: entry.title,
-            artist: entry.artist,
-            album: entry.albumName,
-            duration: entry.duration,
-            image: entry.image,
-            normalizationGain: entry.normalizationGain,
-          );
-          _resolvedSources[cacheKey] = source;
+        switch (resolved) {
+          case Ok<Uri>(:final value):
+            source = PlaybackSource(
+              id: entry.id,
+              uri: value,
+              title: entry.title,
+              artist: entry.artist,
+              album: entry.albumName,
+              duration: entry.duration,
+              image: entry.image,
+              normalizationGain: entry.normalizationGain,
+            );
+            _resolvedSources[cacheKey] = source;
+          case Err<Uri>(:final failure):
+            resolveFailure = failure.message;
         }
       }
       if (source != null) {
         sources.add(source);
         loadedOrder.add(entriesIndex);
       } else {
-        updated = updated.withEntryMarkedUnavailable(entriesIndex);
+        // The address could not be worked out at all — a different
+        // problem from a source the engine rejected, and the entry says
+        // which (v0.4.1) instead of only greying out.
+        updated = updated.withEntryMarkedUnavailable(
+          entriesIndex,
+          reason: resolveFailure ?? _unresolvableReason,
+        );
         anyUnavailable = true;
       }
     }
@@ -530,13 +620,32 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   // ---- Engine stream handling ----
 
   void _onStatus(PlaybackStatus status) {
+    // Something is genuinely playing: whatever failed before it no longer
+    // describes the queue (v0.4.1). The run of failures is over, the
+    // current entry is demonstrably playable, and the one-off notice has
+    // been superseded — leaving any of the three standing was how a queue
+    // that had recovered kept insisting it was broken.
+    var queue = state.queue;
+    PlaybackFailure? failure = state.lastFailure;
+    if (status == PlaybackStatus.playing) {
+      _consecutiveFailures = 0;
+      failure = null;
+      final index = queue.currentIndex;
+      if (index != null) queue = queue.withEntryMarkedPlayable(index);
+      if (queue != state.queue) unawaited(_queueRepository.replace(queue));
+      // Playing always means an open session. Everything that chooses an
+      // entry reports it already; this covers the one path that chooses
+      // nothing — pressing play on the queue `restore` primed at launch,
+      // which is exactly how Home's "Continue listening" starts (v0.4.1).
+      if (_reportedEntry == null) _beginEntry(queue.currentEntry);
+    }
     emit(
       PlaybackUiState(
-        queue: state.queue,
+        queue: queue,
         status: status,
         position: state.position,
         duration: state.duration,
-        lastFailure: state.lastFailure,
+        lastFailure: failure,
       ),
     );
     if (status == PlaybackStatus.playing) {
@@ -595,6 +704,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     _consecutiveFailures = 0;
     final queue = state.queue.withCurrentIndex(entriesIndex);
     final entry = queue.entries[entriesIndex];
+    _beginEntry(entry);
     emit(
       PlaybackUiState(
         queue: queue,
@@ -608,8 +718,6 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         position: Duration.zero,
       ),
     );
-    unawaited(_progressRepository.reportStart(entry.id));
-    _retargetListening(entry);
   }
 
   void _onEngineFailure(PlaybackFailure failure) {
@@ -618,21 +726,30 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     );
     if (entriesIndex < 0) return;
 
-    // The entry that just failed to play was streamed at a transcoded
-    // quality — retry once at the original file before treating it as
-    // genuinely unavailable (ADR-0015), since just_audio's error surface
-    // can't reliably tell a transient transcode/network failure from a
-    // dead track. Only for the entry actually loading/playing right now:
-    // a preloaded-ahead entry failing keeps today's silent-mark handling
-    // below, unchanged.
+    // The entry that just failed to play gets one re-resolve before it is
+    // called unavailable (v0.4.1), because the address it failed at may
+    // simply be out of date: a download completed or was deleted while it
+    // sat in the queue, or — the ADR-0015 case — it was a transcode
+    // `just_audio` could not tell apart from a dead track, in which case
+    // the retry is pinned to the original file.
+    //
+    // Only for the entry actually loading/playing right now: a
+    // preloaded-ahead entry failing keeps the silent-mark handling below,
+    // unchanged, until playback reaches it.
     if (entriesIndex == state.queue.currentIndex &&
-        _settings.state.streamQuality != StreamQuality.original &&
-        _retriedAtOriginal.add(failure.id)) {
+        _retriedIds.add(failure.id)) {
+      if (_settings.state.streamQuality != StreamQuality.original) {
+        _retriedAtOriginal.add(failure.id);
+      }
+      _forgetResolvedSource(failure.id);
       unawaited(_loadIntoEngine(state.queue, play: true));
       return;
     }
 
-    final queue = state.queue.withEntryMarkedUnavailable(entriesIndex);
+    final queue = state.queue.withEntryMarkedUnavailable(
+      entriesIndex,
+      reason: failure.message,
+    );
     emit(
       PlaybackUiState(
         queue: queue,
@@ -648,6 +765,10 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     // one the engine was preloading ahead of time) — nothing more to do
     // until playback actually reaches it.
     if (entriesIndex != queue.currentIndex) return;
+
+    // This entry never played, so there is no session to close, but the
+    // one it displaced may still be open on the server.
+    _closeReportedSession();
 
     _consecutiveFailures++;
     if (_consecutiveFailures > queue.entries.length) {
@@ -672,6 +793,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
           position: state.duration ?? state.position,
         ),
       );
+      _reportedEntry = null;
     }
 
     // The track played to its natural end — a play, regardless of how far
@@ -684,17 +806,18 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         await _engine.play();
         // A fresh loop is a fresh listen: an hour of one track on repeat
         // is an hour the user spent with it, and the history collapses
-        // the repeats into the one entry anyway.
-        _retargetListening(current);
+        // the repeats into the one entry anyway. It is also a fresh play
+        // session on the server (v0.4.1) — the last one was just closed.
+        _beginEntry(current);
       case RepeatMode.all:
         final next = queue.nextIndexOnCompletion();
         if (next != null) {
           await _advanceTo(next);
         } else {
-          _retargetListening(null);
+          _beginEntry(null);
         }
       case RepeatMode.off:
-        _retargetListening(null);
+        _beginEntry(null);
     }
   }
 
@@ -777,16 +900,80 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     );
   }
 
-  Future<void> _savePosition() => _queueRepository.savePosition(
-    currentIndex: state.queue.currentIndex,
-    position: state.position,
-  );
+  // ---- Jellyfin play sessions (v0.4.1) ----
+
+  /// Switches the open Jellyfin play session to [entry] — closing the
+  /// previous one, opening a new one — and retargets listening history at
+  /// the same point.
+  ///
+  /// Every path that changes which entry is playing goes through here:
+  /// starting a queue, a manual skip, a tap on a queue row, an
+  /// engine-driven advance, a repeat-one loop. Reporting used to hang off
+  /// the engine's index stream alone, which every one of those except the
+  /// last silently bypassed, so the server saw no session at all for a
+  /// track the user chose by hand.
+  void _beginEntry(QueueEntry? entry) {
+    final previous = _reportedEntry;
+    if (previous != null && previous.id != entry?.id) {
+      unawaited(
+        _progressRepository.reportStop(previous.id, position: state.position),
+      );
+    }
+    final isNewSession = entry != null && previous?.id != entry.id;
+    _reportedEntry = entry;
+    if (isNewSession) unawaited(_progressRepository.reportStart(entry.id));
+    _retargetListening(entry);
+  }
+
+  /// Closes the open session without opening another — playback stopped
+  /// rather than moved on.
+  void _closeReportedSession() {
+    final open = _reportedEntry;
+    if (open == null) return;
+    _reportedEntry = null;
+    unawaited(
+      _progressRepository.reportStop(open.id, position: state.position),
+    );
+  }
+
+  Future<void> _reportProgress({required bool isPaused}) async {
+    final entry = _reportedEntry;
+    if (entry == null) return;
+    await _progressRepository.reportProgress(
+      entry.id,
+      position: state.position,
+      isPaused: isPaused,
+    );
+  }
+
+  /// Drops every cached address for [id] so the next load asks
+  /// [AudioSourceResolver] again — the local file may have appeared or
+  /// gone since (v0.4.1).
+  void _forgetResolvedSource(MediaId id) =>
+      _resolvedSources.removeWhere((key, _) => key.$1 == id);
+
+  Future<void> _savePosition() async {
+    await _queueRepository.savePosition(
+      currentIndex: state.queue.currentIndex,
+      position: state.position,
+    );
+    // The same tick keeps the server's session current (v0.4.1). Jellyfin
+    // drops a session it stops hearing from, which is why a track played
+    // to the end used to be the only one that ever reported a position.
+    unawaited(_reportProgress(isPaused: !state.isPlaying));
+  }
+
+  /// The explanation an entry gets when no address could be worked out
+  /// for it at all — no file on the device and no reachable server.
+  static const String _unresolvableReason =
+      'No file on this device, and the server could not be reached.';
 
   @override
   Future<void> close() {
     // The app or this cubit is going away mid-track; a track listened to
     // for long enough by now is still a play.
     _flushListening(completed: false);
+    _closeReportedSession();
     _positionTimer?.cancel();
     unawaited(_settingsSub.cancel());
     unawaited(_statusSub.cancel());

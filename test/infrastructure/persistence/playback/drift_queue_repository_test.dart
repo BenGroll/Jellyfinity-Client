@@ -159,6 +159,81 @@ void main() {
     );
   });
 
+  test('the shuffled play order survives a restart (v0.4.1)', () async {
+    final queue = PlaybackQueue.empty
+        .withEntries([
+          _entry('a'),
+          _entry('b'),
+          _entry('c'),
+        ], startIndex: 0)
+        .withShuffle(true);
+    final savedOrder = queue.shuffleOrder;
+
+    await repository.replace(queue);
+    final restored = (await repository.load()).valueOrNull!.queue;
+
+    expect(
+      restored.shuffleOrder,
+      savedOrder,
+      reason: 'the up-next list a listener left is the one they come back to',
+    );
+  });
+
+  test('a saved order that no longer matches the rows is discarded '
+      '(v0.4.1)', () async {
+    final queue = PlaybackQueue.empty
+        .withEntries([_entry('a'), _entry('b'), _entry('c')], startIndex: 0)
+        .withShuffle(true);
+    await repository.replace(queue);
+
+    // The rows changed without the order being rewritten — a shape only a
+    // corrupt or partially written save produces, but the restore has to
+    // survive it with a play order that still names every entry exactly
+    // once.
+    await DriftKeyValueStore(
+      db,
+    ).setString('playback.queue.shuffleOrder', '0,1,2,3');
+    final restored = (await repository.load()).valueOrNull!.queue;
+
+    expect(restored.shuffleOrder, hasLength(3));
+    expect(restored.shuffleOrder!.toSet(), {0, 1, 2});
+  });
+
+  test('the loudness gain survives the round trip (v0.4.1)', () async {
+    final queue = PlaybackQueue.empty.withEntries([
+      QueueEntry(
+        id: const MediaId(serverId: 's1', itemId: 'a'),
+        title: 'Loud',
+        normalizationGain: -7.25,
+      ),
+    ], startIndex: 0);
+
+    await repository.replace(queue);
+    final restored = (await repository.load()).valueOrNull!.queue;
+
+    expect(
+      restored.entries.first.normalizationGain,
+      -7.25,
+      reason: 'normalization has to keep working on a restored queue',
+    );
+  });
+
+  test('a failed entry still explains itself after a restart '
+      '(v0.4.1)', () async {
+    final queue = PlaybackQueue.empty
+        .withEntries([_entry('a')], startIndex: 0)
+        .withEntryMarkedUnavailable(0, reason: 'The stream ended.');
+
+    await repository.replace(queue);
+    final restored = (await repository.load()).valueOrNull!.queue;
+
+    expect(restored.entries.first.failureMessage, 'The stream ended.');
+    expect(
+      restored.entries.first.availability,
+      MediaAvailability.remoteUnavailable,
+    );
+  });
+
   test('replacing with an empty queue clears the saved entries', () async {
     await repository.replace(
       PlaybackQueue.empty.withEntries([_entry('a')], startIndex: 0),

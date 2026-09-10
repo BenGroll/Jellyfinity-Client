@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/router/AppRouter.dart';
+import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
@@ -177,6 +178,57 @@ void main() {
 
       expect(playback.state.queue.shuffleEnabled, isTrue);
       expect(playback.state.queue.entries, hasLength(2));
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('Play next queues the whole album after the current track '
+        '(v0.4.1)', (tester) async {
+      final music = FakeMusicLibraryRepository()
+        ..artistList = [testArtist('a1', name: 'Miles Davis')]
+        ..albumList = [testAlbum('al1', name: 'Kind of Blue')]
+        ..trackList = [
+          testTrack('t1', name: 'So What', albumId: 'al1'),
+          testTrack('t2', name: 'Freddie Freeloader', albumId: 'al1'),
+        ];
+
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      // Not by Miles Davis: the mini-player prints its artist, and a
+      // second "Miles Davis" on screen would make the artist row below
+      // ambiguous to tap.
+      await playback.playNow([
+        Track(
+          id: mediaId('other'),
+          name: 'Something Else',
+          artists: const [ArtistRef(name: 'Cannonball Adderley')],
+          duration: const Duration(minutes: 3),
+        ),
+      ], startIndex: 0);
+
+      await _openLibrary(tester, music, playback: playback);
+      await tester.tap(find.text('Miles Davis'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kind of Blue'));
+      await tester.pumpAndSettle();
+
+      // .first: the album header's overflow menu precedes the per-track
+      // ones in the sliver order.
+      await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Play next'));
+      await tester.pumpAndSettle();
+
+      expect(playback.state.queue.entries.map((e) => e.title), [
+        'Something Else',
+        'So What',
+        'Freddie Freeloader',
+      ]);
+      expect(
+        playback.state.queue.currentIndex,
+        0,
+        reason: 'the track already playing is not interrupted',
+      );
 
       await playback.togglePlayPause();
     });

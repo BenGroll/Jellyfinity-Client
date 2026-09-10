@@ -159,6 +159,7 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
                                 ),
                                 _ArtistAlbumLinks(entry: entry),
                                 _SourceQualityRow(id: entry.id),
+                                _PlaybackNotes(entry: entry, state: state),
                                 SizedBox(height: t.spacing.lg),
                                 _SeekBar(state: state),
                                 SizedBox(height: t.spacing.sm),
@@ -240,6 +241,7 @@ class _WidePlayer extends StatelessWidget {
                   _ArtistAlbumLinks(entry: entry),
                   const SizedBox(height: 24),
                   _SourceQualityRow(id: entry.id),
+                  _PlaybackNotes(entry: entry, state: state),
                   const SizedBox(height: 16),
                   _SeekBar(state: state),
                   const SizedBox(height: 12),
@@ -730,6 +732,91 @@ class _QualityBadge extends StatelessWidget {
           color: color,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+/// What is and is not actually happening to this track (v0.4.1).
+///
+/// Every playback feature Jellyfinity offers is conditional on something:
+/// crossfade cannot overlap a track the queue is about to replay,
+/// normalization needs loudness data the server may never have produced,
+/// and a streaming-quality preference means nothing for a file already on
+/// the device. Each of those used to be silently skipped, which reads to a
+/// listener as the feature not working. Stating the condition is cheaper
+/// than making them guess, and the row disappears entirely when there is
+/// nothing to say.
+class _PlaybackNotes extends StatelessWidget {
+  const _PlaybackNotes({required this.entry, required this.state});
+
+  final QueueEntry entry;
+  final PlaybackUiState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final settings = context.watch<SettingsCubit>().state;
+    final isDownloaded = context.select<DownloadsCubit, bool>(
+      (downloads) => downloads.state.isDownloaded(entry.id),
+    );
+
+    final notes = <String>[
+      // A download is played as the file it already is, at the quality it
+      // was fetched at — `LocalFirstAudioSourceResolver` deliberately
+      // ignores the streaming preference for it.
+      if (isDownloaded && settings.streamQuality != StreamQuality.original)
+        'Playing the downloaded file, so the streaming quality setting '
+            'does not apply.',
+      if (settings.normalization.enabled && entry.normalizationGain == null)
+        'Volume normalization is on, but this server has no loudness data '
+            'for this track.',
+      if (settings.crossfade.enabled &&
+          state.queue.repeatMode == RepeatMode.one)
+        'Crossfade is paused while Repeat one is on — there is no next '
+            'track to fade into.',
+    ];
+
+    final failure = state.lastFailure;
+    if (notes.isEmpty && failure == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(top: t.spacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (failure != null)
+            Padding(
+              padding: EdgeInsets.only(bottom: t.spacing.xxs),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 14,
+                    color: t.colors.danger,
+                  ),
+                  SizedBox(width: t.spacing.xxs),
+                  Expanded(
+                    child: Text(
+                      failure.message,
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          for (final note in notes)
+            Padding(
+              padding: EdgeInsets.only(bottom: t.spacing.xxs),
+              child: Text(
+                note,
+                style: t.typography.caption.copyWith(color: Colors.white70),
+              ),
+            ),
+        ],
       ),
     );
   }

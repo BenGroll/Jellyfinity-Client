@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/di/service_locator.dart';
@@ -6,6 +9,9 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/domain/playback/Lyrics.dart';
+import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
+import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
+import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
@@ -436,6 +442,119 @@ void main() {
     await playback.togglePlayPause();
   });
 
+  /// Opens Now Playing's Queue screen for a queue already loaded into
+  /// [playback] — the same three taps every queue test starts with.
+  Future<void> openQueueScreen(WidgetTester tester, String currentTitle) async {
+    await tester.tap(find.text(currentTitle));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the queue screen lists rows in the order they will actually '
+      'play (v0.4.1)', (tester) async {
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Blue in Green'),
+      _track('c', name: 'Flamenco Sketches'),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    // Not awaited: a queue edit reloads the engine playlist, and that
+    // reload waits on a timer only `pump` advances. Started, then pumped.
+    unawaited(playback.toggleShuffle());
+    await tester.pumpAndSettle();
+    unawaited(playback.reorderPlayOrder(1, 2));
+    await tester.pumpAndSettle();
+
+    await openQueueScreen(tester, 'So What');
+
+    final order = playback.state.queue.playOrder
+        .map((i) => playback.state.queue.entries[i].title)
+        .toList();
+    final shown = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data)
+        .where(order.contains)
+        .toList();
+    expect(
+      shown,
+      order,
+      reason: 'the list called "up next" is what comes next',
+    );
+
+    await playback.togglePlayPause();
+  });
+
+  testWidgets('the queue screen says when nothing follows the last track '
+      '(v0.4.1)', (tester) async {
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Blue in Green'),
+    ], startIndex: 1);
+    await tester.pumpAndSettle();
+
+    await openQueueScreen(tester, 'Blue in Green');
+    expect(find.text('End of queue'), findsOneWidget);
+
+    // Repeat all means there is always something after it.
+    unawaited(playback.setRepeatMode(RepeatMode.all));
+    await tester.pumpAndSettle();
+    expect(find.text('End of queue'), findsNothing);
+
+    await playback.togglePlayPause();
+  });
+
+  testWidgets('a failed queue row explains itself and offers a retry '
+      '(v0.4.1)', (tester) async {
+    final engine = FakePlaybackEngine();
+    final playback = fakePlaybackCubit(engine: engine);
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Blue in Green'),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    await openQueueScreen(tester, 'So What');
+
+    // Twice: the first failure buys a re-resolve (v0.4.1).
+    for (var i = 0; i < 2; i++) {
+      engine.emitFailure(
+        const PlaybackFailure(
+          sourceIndex: 1,
+          id: MediaId(serverId: 's1', itemId: 'b'),
+          message: 'The stream ended.',
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    expect(
+      find.text('The stream ended. Tap to try again.'),
+      findsOneWidget,
+      reason: 'unavailable on its own is not an explanation',
+    );
+
+    await playback.togglePlayPause();
+  });
+
   testWidgets('clearing the queue empties it', (tester) async {
     final playback = fakePlaybackCubit();
     addTearDown(playback.close);
@@ -524,6 +643,159 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('The queue is empty'), findsOneWidget);
+  });
+
+  testWidgets('the queue reorders under a mouse drag, for Windows '
+      '(v0.4.1)', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([
+      _track('a', name: 'So What'),
+      _track('b', name: 'Blue in Green'),
+      _track('c', name: 'Flamenco Sketches'),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
+    await tester.pumpAndSettle();
+
+    // A pointer press on the drag handle, not a touch long-press: on
+    // Windows the handle is the whole reorder affordance.
+    final handles = find.byIcon(Icons.drag_indicator_rounded);
+    final from = tester.getCenter(handles.at(2));
+    final to = tester.getCenter(handles.at(1));
+    final mouse = await tester.startGesture(
+      from,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(kLongPressTimeout);
+    await mouse.moveTo(to);
+    await tester.pump();
+    await mouse.up();
+    await tester.pumpAndSettle();
+
+    final order = [
+      for (final i in playback.state.queue.playOrder)
+        playback.state.queue.entries[i].title,
+    ];
+    expect(order, ['So What', 'Flamenco Sketches', 'Blue in Green']);
+
+    await playback.togglePlayPause();
+  });
+
+  group('what is really happening to this track (v0.4.1)', () {
+    testWidgets('says when normalization has no loudness data to use', (
+      tester,
+    ) async {
+      final settings = fakeSettingsCubit(
+        normalization: const NormalizationSettings(enabled: true),
+      );
+      addTearDown(settings.close);
+      final playback = fakePlaybackCubit(settings: settings);
+      addTearDown(playback.close);
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        settings: settings,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      // `_track` builds a track with no `normalizationGain` — the server
+      // never analyzed it, so the setting has nothing to apply.
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('no loudness data'),
+        findsOneWidget,
+        reason: 'a feature that cannot apply says so instead of going quiet',
+      );
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('says nothing when normalization has a gain to apply', (
+      tester,
+    ) async {
+      final settings = fakeSettingsCubit(
+        normalization: const NormalizationSettings(enabled: true),
+      );
+      addTearDown(settings.close);
+      final playback = fakePlaybackCubit(settings: settings);
+      addTearDown(playback.close);
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        settings: settings,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([
+        Track(
+          id: mediaId('a'),
+          name: 'So What',
+          duration: const Duration(minutes: 3),
+          normalizationGain: -6.5,
+        ),
+      ], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('no loudness data'), findsNothing);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('says why crossfade is not happening under repeat one', (
+      tester,
+    ) async {
+      final settings = fakeSettingsCubit(
+        crossfade: const CrossfadeSettings(
+          enabled: true,
+          duration: Duration(seconds: 6),
+        ),
+      );
+      addTearDown(settings.close);
+      final playback = fakePlaybackCubit(settings: settings);
+      addTearDown(playback.close);
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        settings: settings,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([
+        _track('a', name: 'So What'),
+        _track('b', name: 'Blue in Green'),
+      ], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Crossfade is paused'), findsNothing);
+
+      unawaited(playback.setRepeatMode(RepeatMode.one));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Crossfade is paused'), findsOneWidget);
+
+      await playback.togglePlayPause();
+    });
   });
 
   group('streaming quality hint (ADR-0015)', () {

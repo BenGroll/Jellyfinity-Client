@@ -11,11 +11,17 @@ import 'repeat_mode.dart';
 /// [entries] is always the user's own order (the order things were added
 /// in, or an album's track order) — shuffle never rewrites it. Instead
 /// [shuffleOrder] is a separate permutation of indices into [entries],
-/// generated whenever shuffle turns on or the entry list changes
-/// structurally, and always keeping the current entry first so toggling
-/// shuffle mid-track never restarts it. Turning shuffle off simply drops
-/// [shuffleOrder]; [entries] was never touched, so nothing needs
-/// restoring.
+/// generated when shuffle turns on and keeping the current entry first so
+/// toggling shuffle mid-track never restarts it. Turning shuffle off
+/// simply drops [shuffleOrder]; [entries] was never touched, so nothing
+/// needs restoring.
+///
+/// A structural edit *amends* [shuffleOrder] rather than regenerating it
+/// (v0.4.1). Rebuilding it meant adding one track re-shuffled everything
+/// the listener had not heard yet, and made "play next" land the track
+/// wherever the new permutation happened to put it. Every edit below
+/// therefore states what it does to play order, and the only thing that
+/// reshuffles is [withShuffle].
 class PlaybackQueue extends Equatable {
   const PlaybackQueue({
     this.entries = const [],
@@ -53,12 +59,36 @@ class PlaybackQueue extends Equatable {
 
   /// Entries after the current one, in play order — a queue screen's
   /// "up next".
-  List<QueueEntry> get upNext {
-    final order = playOrder;
-    final index = currentIndex;
-    final position = index == null ? -1 : order.indexOf(index);
+  List<QueueEntry> get upNext => [for (final i in upNextIndices) entries[i]];
+
+  /// The same entries as [upNext], as indices into [entries].
+  ///
+  /// A queue screen needs the indices, not just the entries: removing or
+  /// reordering a row names it by its position in [entries], while what
+  /// the user is looking at is play order. Under shuffle the two differ,
+  /// and a duplicate track makes `indexOf` the wrong way to recover one
+  /// from the other.
+  List<int> get upNextIndices {
+    final position = currentPlayPosition;
     if (position < 0) return const [];
-    return [for (final i in order.skip(position + 1)) entries[i]];
+    return playOrder.skip(position + 1).toList();
+  }
+
+  /// Where [currentIndex] sits in [playOrder], or `-1` when there is no
+  /// current entry. This is the position a queue screen counts from.
+  int get currentPlayPosition {
+    final index = currentIndex;
+    if (index == null) return -1;
+    return playOrder.indexOf(index);
+  }
+
+  /// Whether the current entry is the last one that will play — nothing
+  /// follows it, and [repeatMode] will not send playback back to the
+  /// start. What a queue screen says "End of queue" under, instead of
+  /// leaving the user to discover it when the music simply stops.
+  bool get isAtEndOfPlayOrder {
+    if (entries.isEmpty || currentIndex == null) return false;
+    return manualNextIndex() == null;
   }
 
   /// Replaces the whole queue, starting at [startIndex] — the result of
@@ -80,6 +110,14 @@ class PlaybackQueue extends Equatable {
 
   /// Inserts [entry] right after the current one (`Play Next`) or at the
   /// end (`Add to Queue`).
+  ///
+  /// Under shuffle both mean their *play-order* position, not their
+  /// position in [entries]: "play next" that dropped the track somewhere
+  /// in the canonical order and left the shuffled order to decide when it
+  /// actually plays would not be play-next at all. [shuffleOrder] is
+  /// therefore amended in place rather than regenerated — everything the
+  /// user has not heard yet stays in the order they were already
+  /// promised (v0.4.1).
   PlaybackQueue withEntryAdded(QueueEntry entry, {bool playNext = false}) {
     final insertAt = playNext && currentIndex != null
         ? currentIndex! + 1
@@ -92,13 +130,35 @@ class PlaybackQueue extends Equatable {
     final newCurrent = currentIndex == null
         ? 0
         : (insertAt <= currentIndex! ? currentIndex! + 1 : currentIndex);
-    return _rebuilt(entries: newEntries, currentIndex: newCurrent);
+
+    final order = shuffleOrder;
+    List<int>? newOrder;
+    if (order != null) {
+      // Every index at or past the insertion point moved up one.
+      final shifted = [for (final i in order) i >= insertAt ? i + 1 : i];
+      final playPosition = playNext && newCurrent != null
+          ? shifted.indexOf(newCurrent) + 1
+          : shifted.length;
+      newOrder = [...shifted]..insert(
+        playPosition.clamp(0, shifted.length),
+        insertAt,
+      );
+    }
+    return _with(
+      entries: newEntries,
+      currentIndex: newCurrent,
+      shuffleOrder: newOrder,
+    );
   }
 
   /// Removes the entry at [index]. If it was the current entry, the
   /// entry that shifts into its place becomes current (or `null` if that
   /// was the last entry) — `PlaybackCubit` is what decides whether to
   /// actually skip the engine there.
+  ///
+  /// The removed index simply drops out of [shuffleOrder]; the rest keep
+  /// the play order they had, so removing one track never re-shuffles the
+  /// others (v0.4.1).
   PlaybackQueue withEntryRemoved(int index) {
     if (index < 0 || index >= entries.length) return this;
     final newEntries = [...entries]..removeAt(index);
@@ -112,12 +172,29 @@ class PlaybackQueue extends Equatable {
             : currentIndex!.clamp(0, newEntries.length - 1);
       }
     }
-    return _rebuilt(entries: newEntries, currentIndex: newCurrent);
+
+    final order = shuffleOrder;
+    final newOrder = order == null
+        ? null
+        : [
+            for (final i in order)
+              if (i != index) i > index ? i - 1 : i,
+          ];
+    return _with(
+      entries: newEntries,
+      currentIndex: newCurrent,
+      shuffleOrder: newOrder,
+    );
   }
 
   /// Moves the entry at [oldIndex] to [newIndex] (both indices into
   /// [entries], the canonical order — matching `ReorderableListView`'s
   /// own convention).
+  ///
+  /// Play order is deliberately *unchanged* under shuffle: this reorders
+  /// the user's own list, and [shuffleOrder] is remapped onto the new
+  /// indices so exactly the same entries still play in exactly the same
+  /// sequence. Reordering what plays next is [withPlayOrderReordered].
   PlaybackQueue withReordered(int oldIndex, int newIndex) {
     if (oldIndex == newIndex ||
         oldIndex < 0 ||
@@ -130,22 +207,56 @@ class PlaybackQueue extends Equatable {
     final moved = newEntries.removeAt(oldIndex);
     newEntries.insert(newIndex, moved);
 
-    int? newCurrent = currentIndex;
-    if (currentIndex == oldIndex) {
-      newCurrent = newIndex;
-    } else if (currentIndex != null) {
-      if (oldIndex < currentIndex! && newIndex >= currentIndex!) {
-        newCurrent = currentIndex! - 1;
-      } else if (oldIndex > currentIndex! && newIndex <= currentIndex!) {
-        newCurrent = currentIndex! + 1;
-      }
+    int remap(int index) {
+      if (index == oldIndex) return newIndex;
+      final afterRemoval = index > oldIndex ? index - 1 : index;
+      return afterRemoval >= newIndex ? afterRemoval + 1 : afterRemoval;
     }
-    return _rebuilt(entries: newEntries, currentIndex: newCurrent);
+
+    final order = shuffleOrder;
+    return _with(
+      entries: newEntries,
+      currentIndex: currentIndex == null ? null : remap(currentIndex!),
+      shuffleOrder: order == null ? null : [for (final i in order) remap(i)],
+    );
+  }
+
+  /// Moves the entry at play-order position [oldPosition] to
+  /// [newPosition] — a drag on a queue screen, which shows play order
+  /// rather than [entries]' order (v0.4.1).
+  ///
+  /// With shuffle off the two orders are the same thing and this is
+  /// [withReordered]. With shuffle on only [shuffleOrder] moves: the
+  /// user's own list is not what they were rearranging.
+  PlaybackQueue withPlayOrderReordered(int oldPosition, int newPosition) {
+    final order = shuffleOrder;
+    if (order == null) return withReordered(oldPosition, newPosition);
+    if (oldPosition == newPosition ||
+        oldPosition < 0 ||
+        oldPosition >= order.length ||
+        newPosition < 0 ||
+        newPosition >= order.length) {
+      return this;
+    }
+    final newOrder = [...order];
+    newOrder.insert(newPosition, newOrder.removeAt(oldPosition));
+    return _with(
+      entries: entries,
+      currentIndex: currentIndex,
+      shuffleOrder: newOrder,
+    );
   }
 
   PlaybackQueue withCleared() =>
       PlaybackQueue(shuffleEnabled: shuffleEnabled, repeatMode: repeatMode);
 
+  /// Turns shuffle on — generating a fresh play order pinned to the
+  /// current entry — or off, dropping [shuffleOrder] entirely.
+  ///
+  /// This is the *only* thing that reshuffles. Every structural edit
+  /// amends the existing order instead (v0.4.1), so the one way a
+  /// listener's up-next list gets rearranged under them is their own
+  /// press of the shuffle button.
   PlaybackQueue withShuffle(bool enabled) {
     return PlaybackQueue(
       entries: entries,
@@ -156,6 +267,36 @@ class PlaybackQueue extends Equatable {
           ? _shuffled(entries.length, pinned: currentIndex)
           : null,
     );
+  }
+
+  /// Restores a previously saved shuffle order (v0.4.1), instead of
+  /// generating a new one the way [withShuffle] does.
+  ///
+  /// [order] is accepted only when it is a genuine permutation of every
+  /// index in [entries]; anything else — a saved order from a queue that
+  /// has since changed, a truncated or corrupt row — falls back to a
+  /// fresh shuffle rather than to a play order that would skip or repeat
+  /// entries. Ignored entirely when shuffle is off.
+  PlaybackQueue withRestoredShuffleOrder(List<int>? order) {
+    if (!shuffleEnabled) return this;
+    if (!_isPermutationOfEntries(order)) return this;
+    return PlaybackQueue(
+      entries: entries,
+      currentIndex: currentIndex,
+      shuffleEnabled: shuffleEnabled,
+      repeatMode: repeatMode,
+      shuffleOrder: List<int>.unmodifiable(order!),
+    );
+  }
+
+  bool _isPermutationOfEntries(List<int>? order) {
+    if (order == null || order.length != entries.length) return false;
+    final seen = <int>{};
+    for (final index in order) {
+      if (index < 0 || index >= entries.length) return false;
+      if (!seen.add(index)) return false;
+    }
+    return true;
   }
 
   PlaybackQueue withRepeatMode(RepeatMode mode) => PlaybackQueue(
@@ -178,12 +319,26 @@ class PlaybackQueue extends Equatable {
   );
 
   /// Marks the entry at [index] unavailable in place, for a source
-  /// [PlaybackEngine.failureStream] reported. The entry stays in the
+  /// [PlaybackEngine.failureStream] reported, carrying [reason] as the
+  /// explanation the queue screen shows (v0.4.1). The entry stays in the
   /// queue.
-  PlaybackQueue withEntryMarkedUnavailable(int index) {
+  PlaybackQueue withEntryMarkedUnavailable(int index, {String? reason}) =>
+      _withEntryAt(index, (entry) => entry.markUnavailable(reason: reason));
+
+  /// Clears the entry at [index]'s failure mark — it just played
+  /// (v0.4.1), so whatever stopped it last time no longer applies.
+  PlaybackQueue withEntryMarkedPlayable(int index) =>
+      _withEntryAt(index, (entry) => entry.markPlayable());
+
+  PlaybackQueue _withEntryAt(
+    int index,
+    QueueEntry Function(QueueEntry entry) transform,
+  ) {
     if (index < 0 || index >= entries.length) return this;
+    final updated = transform(entries[index]);
+    if (updated == entries[index]) return this;
     final newEntries = [...entries];
-    newEntries[index] = newEntries[index].markUnavailable();
+    newEntries[index] = updated;
     return PlaybackQueue(
       entries: newEntries,
       currentIndex: currentIndex,
@@ -229,19 +384,28 @@ class PlaybackQueue extends Equatable {
     return order[position - 1];
   }
 
-  PlaybackQueue _rebuilt({
+  /// This queue's settings carried onto an edited entry list.
+  ///
+  /// [shuffleOrder] is passed in by each edit rather than regenerated
+  /// here (v0.4.1) — the caller is what knows how the edit moved play
+  /// order. A shuffled queue whose caller could not produce a valid order
+  /// falls back to a fresh shuffle rather than to a broken one.
+  PlaybackQueue _with({
     required List<QueueEntry> entries,
     required int? currentIndex,
+    required List<int>? shuffleOrder,
   }) {
-    return PlaybackQueue(
+    final rebuilt = PlaybackQueue(
       entries: entries,
       currentIndex: currentIndex,
       shuffleEnabled: shuffleEnabled,
       repeatMode: repeatMode,
-      shuffleOrder: shuffleEnabled
-          ? _shuffled(entries.length, pinned: currentIndex)
-          : null,
+      shuffleOrder: shuffleEnabled ? shuffleOrder : null,
     );
+    if (shuffleEnabled && !rebuilt._isPermutationOfEntries(shuffleOrder)) {
+      return rebuilt.withShuffle(true);
+    }
+    return rebuilt;
   }
 
   static List<int>? _shuffled(int length, {int? pinned}) {

@@ -43,8 +43,9 @@ import 'settings_fakes.dart';
 PlaybackCubit fakePlaybackCubit({
   SettingsCubit? settings,
   ListeningHistoryRepository? history,
+  FakePlaybackEngine? engine,
 }) => PlaybackCubit(
-  FakePlaybackEngine(),
+  engine ?? FakePlaybackEngine(),
   FakeQueueRepository(),
   FakeAudioSourceResolver(),
   RecordingPlaybackProgressRepository(),

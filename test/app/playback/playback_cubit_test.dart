@@ -243,6 +243,17 @@ void main() {
       () async {
         await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
 
+        // Twice: the first failure buys one re-resolve (v0.4.1), because
+        // the address may simply have gone stale. The second is the one
+        // that settles it.
+        engine.emitFailure(
+          PlaybackFailure(
+            sourceIndex: 0,
+            id: MediaId(serverId: 's1', itemId: 'a'),
+            message: 'could not decode',
+          ),
+        );
+        await _pump();
         engine.emitFailure(
           PlaybackFailure(
             sourceIndex: 0,
@@ -530,9 +541,30 @@ void main() {
       expect(cubit.state.queue.currentIndex, 1);
     });
 
-    test('a failure while already at original quality marks unavailable '
-        'immediately, unchanged from today', () async {
+    test('a failure while already at original quality still gets one '
+        're-resolve, then marks unavailable (v0.4.1)', () async {
       await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 0,
+          id: MediaId(serverId: 's1', itemId: 'a'),
+          message: 'could not decode',
+        ),
+      );
+      await _pump();
+
+      // ADR-0015 gave the retry only to a transcoded stream. v0.4.1
+      // widens it to every source, because the reason an address goes bad
+      // is not always the transcode: a download can be deleted while its
+      // track sits in the queue, and re-resolving is what falls back to
+      // the stream.
+      expect(
+        cubit.state.queue.entries.first.availability,
+        isNot(MediaAvailability.remoteUnavailable),
+        reason: 'the first failure re-resolves rather than giving up',
+      );
+      expect(cubit.state.queue.currentIndex, 0);
 
       engine.emitFailure(
         PlaybackFailure(
@@ -548,6 +580,232 @@ void main() {
         MediaAvailability.remoteUnavailable,
       );
       expect(cubit.state.queue.currentIndex, 1);
+    });
+
+    test('a re-resolve that now succeeds keeps playing the entry '
+        '(v0.4.1)', () async {
+      // The track's only address fails at first — a download deleted
+      // underneath the queue is the real case — and resolves again once
+      // the fallback is available.
+      resolver.unresolvable.add('a');
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+      expect(
+        cubit.state.queue.entries.first.availability,
+        MediaAvailability.remoteUnavailable,
+        reason: 'nothing resolved, so it is unavailable with a reason',
+      );
+      expect(
+        cubit.state.queue.entries.first.failureMessage,
+        isNotNull,
+        reason: 'an unresolvable entry explains itself',
+      );
+
+      resolver.unresolvable.remove('a');
+      await cubit.playAt(0);
+
+      expect(
+        cubit.state.queue.currentIndex,
+        0,
+        reason: 'the retry found an address and stayed on the entry',
+      );
+      expect(engine.sources.map((s) => s.id.itemId), contains('a'));
+    });
+
+    test('an entry that plays after failing stops claiming it is '
+        'broken (v0.4.1)', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      engine.emitFailure(
+        PlaybackFailure(
+          sourceIndex: 1,
+          id: MediaId(serverId: 's1', itemId: 'b'),
+          message: 'stream dropped',
+        ),
+      );
+      await _pump();
+      expect(
+        cubit.state.queue.entries[1].availability,
+        MediaAvailability.remoteUnavailable,
+      );
+      expect(cubit.state.queue.entries[1].failureMessage, 'stream dropped');
+
+      await cubit.playAt(1);
+      engine.emitStatus(PlaybackStatus.playing);
+      await _pump();
+
+      expect(
+        cubit.state.queue.entries[1].availability,
+        isNot(MediaAvailability.remoteUnavailable),
+      );
+      expect(cubit.state.queue.entries[1].failureMessage, isNull);
+      expect(
+        cubit.state.lastFailure,
+        isNull,
+        reason: 'the one-off notice does not outlive the problem',
+      );
+    });
+  });
+
+  group('listening entry points (v0.4.1)', () {
+    test('playNextAll queues a whole collection in its own order', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      await cubit.playNextAll([_track('x'), _track('y')]);
+
+      expect(cubit.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'x',
+        'y',
+        'b',
+      ]);
+      expect(cubit.state.queue.currentIndex, 0, reason: 'a is still playing');
+    });
+
+    test('playNextAll on an empty queue simply becomes the queue', () async {
+      await cubit.playNextAll([_track('x'), _track('y')]);
+
+      expect(cubit.state.queue.entries.map((e) => e.id.itemId), ['x', 'y']);
+    });
+
+    test('playNextAll does nothing for an empty list', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      await cubit.playNextAll(const []);
+
+      expect(cubit.state.queue.entries, hasLength(1));
+    });
+
+    test('Play Next under shuffle plays next, and leaves the rest of the '
+        'order alone', () async {
+      await cubit.playNow([
+        _track('a'),
+        _track('b'),
+        _track('c'),
+        _track('d'),
+      ], startIndex: 0);
+      await cubit.toggleShuffle();
+      final orderBefore = [
+        for (final i in cubit.state.queue.playOrder)
+          cubit.state.queue.entries[i].id.itemId,
+      ];
+
+      await cubit.playNext(_track('x'));
+
+      final orderAfter = [
+        for (final i in cubit.state.queue.playOrder)
+          cubit.state.queue.entries[i].id.itemId,
+      ];
+      expect(
+        orderAfter[1],
+        'x',
+        reason: 'the new track is genuinely next in play order',
+      );
+      expect(
+        [orderAfter.first, ...orderAfter.skip(2)],
+        orderBefore,
+        reason: 'nothing else was re-shuffled around it',
+      );
+    });
+
+    test('playShuffled does not disturb the queue it replaces', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+      final replaceBefore = engine.calls.length;
+
+      await cubit.playShuffled([_track('x'), _track('y'), _track('z')]);
+
+      expect(cubit.state.queue.shuffleEnabled, isTrue);
+      expect(cubit.state.queue.entries.map((e) => e.id.itemId), [
+        'x',
+        'y',
+        'z',
+      ]);
+      expect(
+        engine.calls.skip(replaceBefore).where((c) => c.contains('Sources')),
+        hasLength(1),
+        reason: 'the outgoing queue is not re-loaded on its way out',
+      );
+    });
+  });
+
+  group('Jellyfin play sessions (v0.4.1)', () {
+    test('starting a queue by hand opens a session', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      expect(progress.started.map((id) => id.itemId), ['a']);
+    });
+
+    test('skipping closes the old session and opens the new one', () async {
+      await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+      await cubit.next();
+
+      expect(progress.started.map((id) => id.itemId), ['a', 'b']);
+      expect(progress.stopped.map((s) => s.id.itemId), ['a']);
+    });
+
+    test('tapping a queue row reports the track it jumped to', () async {
+      await cubit.playNow([
+        _track('a'),
+        _track('b'),
+        _track('c'),
+      ], startIndex: 0);
+
+      await cubit.playAt(2);
+
+      expect(progress.started.map((id) => id.itemId), ['a', 'c']);
+    });
+
+    test('pressing play on a restored queue opens a session', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+      await cubit.close();
+      progress.started.clear();
+
+      final restored = PlaybackCubit(
+        engine,
+        queueRepository,
+        resolver,
+        progress,
+        history,
+        settings,
+      );
+      addTearDown(restored.close);
+      await restored.restore();
+      expect(
+        progress.started,
+        isEmpty,
+        reason: 'priming the engine is not listening to anything',
+      );
+
+      await restored.resume();
+      engine.emitStatus(PlaybackStatus.playing);
+      await _pump();
+
+      expect(progress.started.map((id) => id.itemId), ['a']);
+    });
+
+    test('pausing reports the session as paused rather than ending '
+        'it', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+      engine.emitStatus(PlaybackStatus.playing);
+      await _pump();
+
+      await cubit.togglePlayPause();
+      await _pump();
+
+      expect(progress.progressed.last.isPaused, isTrue);
+      expect(
+        progress.stopped,
+        isEmpty,
+        reason: 'a paused track is still the open session',
+      );
+    });
+
+    test('emptying the queue closes the session', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      await cubit.clear();
+
+      expect(progress.stopped.map((s) => s.id.itemId), ['a']);
     });
   });
 
