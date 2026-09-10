@@ -1,12 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/features/home/presentation/HomePage.dart';
+import 'package:jellyfinity/features/music/presentation/search/InlineMusicSearch.dart';
 import 'package:jellyfinity/features/shell/presentation/app_shell.dart';
 import 'package:jellyfinity/features/shell/presentation/ShellDestination.dart';
 
 import '../../support/pump_app.dart';
+import '../../support/music_fakes.dart';
 
 void main() {
+  testWidgets('Ctrl+F opens search and Escape closes it', (tester) async {
+    registerMusicCubits(music: FakeMusicLibraryRepository());
+    final scope = await pumpApp(tester);
+    await scope.signIn();
+    await tester.pumpAndSettle();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.byType(InlineMusicSearch), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(InlineMusicSearch), findsNothing);
+  });
   testWidgets('the shell wraps the authenticated section', (tester) async {
     final scope = await pumpApp(tester);
     await scope.signIn();

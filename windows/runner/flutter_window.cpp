@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <flutter/standard_method_codec.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -25,6 +26,39 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  storage_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "jellyfinity/storage",
+          &flutter::StandardMethodCodec::GetInstance());
+  storage_channel_->SetMethodCallHandler(
+      [](const auto& call, auto result) {
+        if (call.method_name() != "availableBytes") {
+          result->NotImplemented();
+          return;
+        }
+        const auto* path = call.arguments()
+            ? std::get_if<std::string>(call.arguments()) : nullptr;
+        if (!path || path->empty()) {
+          result->Error("invalid_path", "A directory is required.");
+          return;
+        }
+        const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+            path->data(), static_cast<int>(path->size()), nullptr, 0);
+        if (length == 0) {
+          result->Error("invalid_path", "Invalid directory encoding.");
+          return;
+        }
+        std::wstring wide_path(length, L'\0');
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path->data(),
+            static_cast<int>(path->size()), wide_path.data(), length);
+        ULARGE_INTEGER available;
+        if (!GetDiskFreeSpaceExW(wide_path.c_str(), &available, nullptr, nullptr)) {
+          result->Error("storage_unavailable", "Cannot read free disk space.");
+          return;
+        }
+        result->Success(flutter::EncodableValue(
+            static_cast<int64_t>(available.QuadPart)));
+      });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -40,6 +74,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  storage_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

@@ -15,6 +15,31 @@ enum ArtworkShape {
   circle,
 }
 
+/// Cached artwork without a cover/portrait frame, for banners and backgrounds.
+class UnframedArtwork extends StatelessWidget {
+  const UnframedArtwork({
+    super.key,
+    required this.url,
+    required this.pixelWidth,
+  });
+
+  final Uri url;
+  final int pixelWidth;
+
+  @override
+  Widget build(BuildContext context) =>
+      MediaArtwork.imageBuilderOverride?.call(url, pixelWidth) ??
+      CachedNetworkImage(
+        imageUrl: url.toString(),
+        cacheManager: ArtworkCache.instance,
+        memCacheWidth: pixelWidth,
+        fit: BoxFit.cover,
+        fadeInDuration: context.motion.fast,
+        placeholder: (_, _) => const SizedBox.shrink(),
+        errorWidget: (_, _, _) => const SizedBox.shrink(),
+      );
+}
+
 /// One piece of artwork, at the size it will actually be drawn.
 ///
 /// Three rules live here so no screen has to remember them:

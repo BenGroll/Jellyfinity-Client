@@ -113,41 +113,62 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
           children: [
             _BlurredBackground(image: entry.image),
             const _PlayerContrastScrim(),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
-              child: Column(
-                children: [
-                  const SizedBox(height: 72),
-                  Expanded(
-                    child: Center(
-                      child: MediaArtwork(
-                        image: entry.image,
-                        kind: MediaKind.track,
-                        size: 280,
+            LayoutBuilder(
+              builder: (context, constraints) => constraints.maxWidth >= 900
+                  ? _WidePlayer(entry: entry, state: state)
+                  : SingleChildScrollView(
+                      child: Center(
+                        child: SizedBox(
+                          width: constraints.maxWidth.clamp(0.0, 640.0),
+                          height: constraints.maxHeight < 560
+                              ? 560
+                              : constraints.maxHeight,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: t.spacing.md,
+                            ),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 72),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, artSpace) => Center(
+                                      child: MediaArtwork(
+                                        image: entry.image,
+                                        kind: MediaKind.track,
+                                        size: artSpace.maxHeight.clamp(
+                                          0.0,
+                                          artSpace.maxWidth.clamp(0.0, 520.0),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: t.spacing.xl),
+                                Text(
+                                  entry.title,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.typography.displayLarge.copyWith(
+                                    fontSize: 36,
+                                    height: 1.12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                _ArtistAlbumLinks(entry: entry),
+                                _SourceQualityRow(id: entry.id),
+                                SizedBox(height: t.spacing.lg),
+                                _SeekBar(state: state),
+                                SizedBox(height: t.spacing.sm),
+                                _TransportRow(state: state, cubit: cubit),
+                                SizedBox(height: t.spacing.xl),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: t.spacing.xl),
-                  Text(
-                    entry.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.typography.displayLarge.copyWith(
-                      fontSize: 36,
-                      height: 1.12,
-                      color: Colors.white,
-                    ),
-                  ),
-                  _ArtistAlbumLinks(entry: entry),
-                  _SourceQualityRow(id: entry.id),
-                  SizedBox(height: t.spacing.lg),
-                  _SeekBar(state: state),
-                  SizedBox(height: t.spacing.sm),
-                  _TransportRow(state: state, cubit: cubit),
-                  SizedBox(height: t.spacing.xl),
-                ],
-              ),
             ),
             Positioned(
               top: 0,
@@ -165,6 +186,71 @@ class _NowPlayingContentState extends State<_NowPlayingContent> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _WidePlayer extends StatelessWidget {
+  const _WidePlayer({required this.entry, required this.state});
+
+  final QueueEntry entry;
+  final PlaybackUiState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(48, 72, 48, 80),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 6,
+            child: LayoutBuilder(
+              builder: (context, space) => Center(
+                child: MediaArtwork(
+                  image: entry.image,
+                  kind: MediaKind.track,
+                  size: space.maxWidth.clamp(
+                    0.0,
+                    space.maxHeight.clamp(0.0, 720.0),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+          Expanded(
+            flex: 5,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    entry.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.typography.displayLarge.copyWith(
+                      fontSize: 40,
+                      color: Colors.white,
+                    ),
+                  ),
+                  _ArtistAlbumLinks(entry: entry),
+                  const SizedBox(height: 24),
+                  _SourceQualityRow(id: entry.id),
+                  const SizedBox(height: 16),
+                  _SeekBar(state: state),
+                  const SizedBox(height: 12),
+                  _TransportRow(
+                    state: state,
+                    cubit: context.read<PlaybackCubit>(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

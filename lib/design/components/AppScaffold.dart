@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/theme_context.dart';
+import 'ArtworkBackdropScope.dart';
 
 /// The standard page frame.
 ///
@@ -21,9 +22,13 @@ class AppScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.padded = true,
     this.drawer,
+    this.background,
   });
 
   final Widget body;
+
+  /// Optional page-specific background, painted behind the body and app bar.
+  final Widget? background;
   final String? title;
   final List<Widget> actions;
   final Widget? leading;
@@ -44,12 +49,15 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Scaffold(
-      backgroundColor: t.colors.background,
+    final scaffold = Scaffold(
+      backgroundColor:
+          background == null && ArtworkBackdropScope.of(context) == null
+          ? t.colors.background
+          : Colors.transparent,
       appBar: title == null && actions.isEmpty && leading == null
           ? null
           : AppBar(
-              backgroundColor: t.colors.background,
+              backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               elevation: 0,
@@ -82,5 +90,8 @@ class AppScaffold extends StatelessWidget {
         ),
       ),
     );
+    return background == null
+        ? scaffold
+        : Stack(fit: StackFit.expand, children: [background!, scaffold]);
   }
 }

@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +8,6 @@ import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
-import '../../../../infrastructure/artwork/ArtworkCache.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/LibraryPage.dart';
 import '../library/paged_collection_cubit.dart';
@@ -17,6 +15,7 @@ import '../widgets/download_controls.dart';
 import '../widgets/favorite_actions.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
+import '../widgets/ArtworkBackground.dart';
 import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
@@ -117,7 +116,6 @@ class _ArtistDetailView extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
-          title: artist?.name,
           actions: artist == null
               ? const []
               : [
@@ -137,6 +135,10 @@ class _ArtistDetailView extends StatelessWidget {
                     ),
                   ),
                 ],
+          background: ArtworkBackground(
+            image: artist?.banner ?? artist?.image,
+            child: const SizedBox.expand(),
+          ),
           body: BlocBuilder<AlbumsCubit, PagedCollectionState<Album>>(
             builder: (context, state) {
               final cubit = context.read<AlbumsCubit>();
@@ -292,32 +294,25 @@ class _ArtistBanner extends StatelessWidget {
 
   final MediaImage? banner;
 
-  static const double _height = 140;
-
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
     final image = banner;
     if (image == null) return const SizedBox(height: 16);
 
     final url = getIt<ArtworkResolver>().imageUrl(
       image,
-      maxWidth: MediaQuery.sizeOf(context).width.round(),
+      maxWidth:
+          (MediaQuery.sizeOf(context).width *
+                  MediaQuery.devicePixelRatioOf(context))
+              .round()
+              .clamp(1, 1920),
     );
     if (url == null) return const SizedBox(height: 16);
 
     return SizedBox(
-      height: _height,
+      height: (MediaQuery.sizeOf(context).width / 3.5).clamp(140.0, 340.0),
       width: double.infinity,
-      child: CachedNetworkImage(
-        imageUrl: url.toString(),
-        cacheManager: ArtworkCache.instance,
-        fit: BoxFit.cover,
-        fadeInDuration: context.motion.fast,
-        placeholder: (context, _) => ColoredBox(color: t.colors.surfaceSunken),
-        errorWidget: (context, _, _) =>
-            ColoredBox(color: t.colors.surfaceSunken),
-      ),
+      child: UnframedArtwork(url: url, pixelWidth: 1920),
     );
   }
 }

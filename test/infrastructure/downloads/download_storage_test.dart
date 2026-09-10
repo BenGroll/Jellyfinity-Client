@@ -33,7 +33,7 @@ void main() {
     // observe "not there" or "the whole file", never a half-written one
     // under the completed name.
     expect(await partial.exists(), isFalse);
-    expect((await storage.completedFile(_id))?.path, completed.path);
+    expect((await storage.completedFile(_id))?.uri, completed.uri);
   });
 
   test('completing again replaces the earlier file (a re-download)', () async {

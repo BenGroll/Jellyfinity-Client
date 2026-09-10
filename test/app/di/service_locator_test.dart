@@ -27,13 +27,16 @@ import '../../support/fake_path_provider.dart';
 
 void main() {
   group('configureDependencies', () {
-    setUp(useFakePathProvider);
-
-    tearDown(() async {
-      if (getIt.isRegistered<AppDatabase>()) {
-        await getIt<AppDatabase>().close();
-      }
-      await getIt.reset();
+    setUp(() {
+      useFakePathProvider();
+      // Run before the path helper deletes its directory: Windows cannot
+      // unlink a database while its connection is still open.
+      addTearDown(() async {
+        if (getIt.isRegistered<AppDatabase>()) {
+          await getIt<AppDatabase>().close();
+        }
+        await getIt.reset();
+      });
     });
 
     test('registers a resolvable Logger', () async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/design.dart';
@@ -49,32 +50,43 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final showBar = shellDestinations.length > 1;
 
-    return AppScaffold(
-      padded: false,
-      drawer: const AppSidebar(),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            if (!_searching) HomeLibraryHeader(onSearchTap: _startSearch),
-            Expanded(
-              child: _searching
-                  ? InlineMusicSearch(onClose: _stopSearch)
-                  : widget.navigationShell,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _startSearch,
+        if (_searching)
+          const SingleActivator(LogicalKeyboardKey.escape): _stopSearch,
+      },
+      child: FocusScope(
+        autofocus: true,
+        child: AppScaffold(
+          padded: false,
+          drawer: const AppSidebar(),
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                if (!_searching) HomeLibraryHeader(onSearchTap: _startSearch),
+                Expanded(
+                  child: _searching
+                      ? InlineMusicSearch(onClose: _stopSearch)
+                      : widget.navigationShell,
+                ),
+              ],
             ),
-          ],
+          ),
+          bottomBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const MiniPlayer(),
+              if (showBar)
+                _ShellNavigationBar(
+                  onSelected: _goToBranch,
+                  currentIndex: widget.navigationShell.currentIndex,
+                ),
+            ],
+          ),
         ),
-      ),
-      bottomBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const MiniPlayer(),
-          if (showBar)
-            _ShellNavigationBar(
-              onSelected: _goToBranch,
-              currentIndex: widget.navigationShell.currentIndex,
-            ),
-        ],
       ),
     );
   }
@@ -95,7 +107,7 @@ class _ShellNavigationBar extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: t.colors.surface,
+        color: t.colors.surface.withValues(alpha: .7),
         border: Border(top: BorderSide(color: t.colors.border)),
       ),
       child: NavigationBar(

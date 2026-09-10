@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
@@ -55,6 +56,20 @@ Future<void> _pumpMusic(
 }
 
 void main() {
+  testWidgets('Windows offers refresh without a touch gesture', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final music = FakeMusicLibraryRepository()
+      ..artistList = [testArtist('a1', name: 'Before refresh')];
+    await _pumpMusic(tester, music);
+    await tester.pumpAndSettle();
+    music.artistList = [testArtist('a2', name: 'After refresh')];
+    await tester.tap(find.byTooltip('Refresh'));
+    await tester.pumpAndSettle();
+    expect(find.text('After refresh'), findsOneWidget);
+    expect(find.text('Before refresh'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
+  });
   setUp(() {
     // Never let a widget test reach the artwork cache or the network.
     MediaArtwork.imageBuilderOverride = (_, _) => const SizedBox.shrink();

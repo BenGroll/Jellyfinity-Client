@@ -80,7 +80,7 @@ class _FavoritesView extends StatelessWidget {
           children: [
             TabBar(
               isScrollable: true,
-              tabAlignment: TabAlignment.start,
+              tabAlignment: TabAlignment.center,
               labelColor: t.colors.textPrimary,
               unselectedLabelColor: t.colors.textSecondary,
               indicatorColor: t.colors.accent,

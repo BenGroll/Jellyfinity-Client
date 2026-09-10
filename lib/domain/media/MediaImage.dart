@@ -5,7 +5,7 @@ import 'MediaId.dart';
 /// The role an image plays for an item.
 ///
 /// Only the roles Jellyfinity actually renders. Jellyfin serves many more
-/// (thumb, banner, art, disc, ...); they can be added when a view needs
+/// (thumb, art, disc, ...); they can be added when a view needs
 /// one.
 enum MediaImageKind {
   /// Cover art / poster — the image shown in lists and grids.
@@ -16,6 +16,9 @@ enum MediaImageKind {
 
   /// Transparent title treatment, overlaid on a backdrop.
   logo,
+
+  /// Wide artist header artwork, distinct from a backdrop in Jellyfin.
+  banner,
 }
 
 /// A pointer to one image belonging to one item.

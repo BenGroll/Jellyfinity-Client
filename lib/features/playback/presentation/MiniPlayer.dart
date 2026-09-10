@@ -8,6 +8,7 @@ import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/media/media.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
+import 'ArtistArtworkColor.dart';
 
 /// The persistent bar in [AppShell] above the bottom navigation — a
 /// glance at what's playing and play/pause, from any tab. Renders
@@ -35,76 +36,80 @@ class MiniPlayer extends StatelessWidget {
               )
             : 0.0;
 
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: t.colors.surface,
-            border: Border(top: BorderSide(color: t.colors.border)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 2,
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 2,
-                  backgroundColor: Colors.transparent,
-                  valueColor: AlwaysStoppedAnimation(t.colors.accent),
-                ),
-              ),
-              InkWell(
-                onTap: () => context.pushNamed(RouteNames.nowPlaying),
-                child: SizedBox(
-                  height: height - 2,
-                  child: Row(
-                    children: [
-                      SizedBox(width: t.spacing.sm),
-                      MediaArtwork(
-                        image: entry.image,
-                        kind: MediaKind.track,
-                        size: 40,
-                      ),
-                      SizedBox(width: t.spacing.sm),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entry.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.typography.bodyMedium.copyWith(
-                                color: t.colors.textPrimary,
-                              ),
-                            ),
-                            if (entry.artist != null)
-                              Text(
-                                entry.artist!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: t.typography.caption.copyWith(
-                                  color: t.colors.textSecondary,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          state.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                        ),
-                        color: t.colors.textPrimary,
-                        onPressed: cubit.togglePlayPause,
-                      ),
-                      SizedBox(width: t.spacing.xxs),
-                    ],
+        return ArtistArtworkColor(
+          artistId: entry.artists.primary?.id,
+          cover: entry.image,
+          builder: (context, color) => DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              border: Border(top: BorderSide(color: t.colors.border)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 2,
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 2,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation(t.colors.accent),
                   ),
                 ),
-              ),
-            ],
+                InkWell(
+                  onTap: () => context.pushNamed(RouteNames.nowPlaying),
+                  child: SizedBox(
+                    height: height - 2,
+                    child: Row(
+                      children: [
+                        SizedBox(width: t.spacing.sm),
+                        MediaArtwork(
+                          image: entry.image,
+                          kind: MediaKind.track,
+                          size: 40,
+                        ),
+                        SizedBox(width: t.spacing.sm),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: t.typography.bodyMedium.copyWith(
+                                  color: t.colors.textPrimary,
+                                ),
+                              ),
+                              if (entry.artist != null)
+                                Text(
+                                  entry.artist!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.typography.caption.copyWith(
+                                    color: t.colors.textSecondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            state.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                          ),
+                          color: t.colors.textPrimary,
+                          onPressed: cubit.togglePlayPause,
+                        ),
+                        SizedBox(width: t.spacing.xxs),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

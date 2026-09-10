@@ -15,6 +15,19 @@ LyricsDto _lyricsDto(Map<String, dynamic> json) => LyricsDto.fromJson(json);
 const int _minuteInTicks = 600000000;
 
 void main() {
+  test('artist Banner artwork takes precedence over a backdrop', () {
+    final artist = _mapper.toArtist(
+      _dto({
+        'Id': 'artist',
+        'Name': 'Artist',
+        'Type': 'MusicArtist',
+        'ImageTags': {'Banner': 'banner-tag', 'Primary': 'portrait'},
+        'BackdropImageTags': ['backdrop'],
+      }),
+    )!;
+    expect(artist.banner!.kind, MediaImageKind.banner);
+    expect(artist.banner!.tag, 'banner-tag');
+  });
   group('identity', () {
     test('stamps every entity with the server it came from', () {
       final album = _mapper.toAlbum(

@@ -57,6 +57,10 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# WinRT media controls require standard coroutines on recent MSVC versions.
+# Keep this scoped to the plugin rather than changing every native dependency.
+set_target_properties(audio_service_win_plugin PROPERTIES CXX_STANDARD 20)
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

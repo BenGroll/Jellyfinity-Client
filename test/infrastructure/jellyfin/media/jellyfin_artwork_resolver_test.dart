@@ -40,6 +40,7 @@ void main() {
       MediaImageKind.primary: 'Primary',
       MediaImageKind.backdrop: 'Backdrop',
       MediaImageKind.logo: 'Logo',
+      MediaImageKind.banner: 'Banner',
     }.entries) {
       final url = resolver.imageUrl(
         MediaImage(itemId: _image.itemId, kind: entry.key, tag: 'tag-1'),

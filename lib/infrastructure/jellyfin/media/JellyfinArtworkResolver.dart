@@ -56,5 +56,6 @@ class JellyfinArtworkResolver implements ArtworkResolver {
     MediaImageKind.primary => 'Primary',
     MediaImageKind.backdrop => 'Backdrop',
     MediaImageKind.logo => 'Logo',
+    MediaImageKind.banner => 'Banner',
   };
 }

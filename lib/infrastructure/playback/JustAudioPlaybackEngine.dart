@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:audio_service/audio_service.dart' as audio_service;
@@ -190,6 +191,20 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
 
     if (sources.isEmpty) {
       await stop();
+      return;
+    }
+
+    // The Windows media_kit adapter's incremental insertion/move indices
+    // differ from just_audio's. Replace the native list with the already
+    // computed application order so Play Next, shuffle and reorder cannot
+    // silently play a different track. Preserve the requested position.
+    if (Platform.isWindows) {
+      await setSources(
+        sources,
+        initialIndex: initialIndex,
+        initialPosition: initialPosition,
+      );
+      if (resumePlaying) unawaited(play());
       return;
     }
 
