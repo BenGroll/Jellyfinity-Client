@@ -15,6 +15,7 @@ import 'package:jellyfinity/features/playback/presentation/LyricsPage.dart';
 import 'package:jellyfinity/features/playback/presentation/MiniPlayer.dart';
 import 'package:jellyfinity/features/playback/presentation/QueuePage.dart';
 
+import '../../support/download_fakes.dart';
 import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
 import '../../support/pump_app.dart';
@@ -253,6 +254,42 @@ void main() {
       expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
       expect(favorites.calls.single.id, track.id);
       expect(favorites.calls.single.favorite, isTrue);
+
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('Now Playing offers to keep the track offline (v0.3.6)', (
+      tester,
+    ) async {
+      final track = Track(
+        id: const MediaId(serverId: 's1', itemId: 'a'),
+        name: 'So What',
+        duration: const Duration(minutes: 3),
+      );
+      registerNowPlayingDetailsCubit(
+        metadata: FakeMediaMetadataRepository()..items = [track],
+      );
+
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final downloads = fakeDownloadsCubit();
+      addTearDown(downloads.close);
+      await downloads.restore();
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        downloads: downloads,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      await playback.playNow([track], startIndex: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('So What'));
+      await tester.pumpAndSettle();
+
+      // The same download control every track row carries, on the player.
+      expect(find.byIcon(Icons.download_outlined), findsOneWidget);
 
       await playback.togglePlayPause();
     });

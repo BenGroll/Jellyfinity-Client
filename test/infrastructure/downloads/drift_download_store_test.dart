@@ -288,6 +288,78 @@ void main() {
     );
   });
 
+  group('reclaiming a removed profile or server (v0.3.6)', () {
+    test('purgeProfile forgets that profile and nothing else', () async {
+      await store.save(record('t1', state: DownloadState.completed));
+      await store.savePlaylistMembers(mediaId('pl-1'), [
+        (position: 0, trackId: mediaId('t1')),
+      ]);
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(mediaId('al-1')),
+          name: 'Alice Album',
+        ),
+      );
+      // Bob, same server, keeps his own copy of t1 plus a track of his own.
+      session.userId = 'user-2';
+      await store.save(record('t1', state: DownloadState.completed));
+      await store.save(record('t2', state: DownloadState.completed));
+      session.userId = 'user-1';
+
+      final reclaimable = await store.purgeProfile(
+        serverId: 'server-1',
+        userId: 'user-1',
+      );
+
+      // t1 is still Bob's, so it is not reclaimable; Alice's rows are gone.
+      expect(reclaimable.valueOrNull, isEmpty);
+      expect((await store.all()).valueOrNull, isEmpty);
+      expect((await store.allPlaylistMembers()).valueOrNull, isEmpty);
+      expect((await store.collections()).valueOrNull!.items, isEmpty);
+
+      // Bob is untouched.
+      session.userId = 'user-2';
+      expect(
+        (await store.all()).valueOrNull!.map((r) => r.id.itemId),
+        containsAll(['t1', 't2']),
+      );
+    });
+
+    test(
+      'purgeProfile reports a file no one else keeps as reclaimable',
+      () async {
+        await store.save(record('lonely', state: DownloadState.completed));
+
+        final reclaimable = await store.purgeProfile(
+          serverId: 'server-1',
+          userId: 'user-1',
+        );
+
+        expect(reclaimable.valueOrNull!.map((id) => id.itemId), ['lonely']);
+      },
+    );
+
+    test('purgeServer wipes every profile on that server', () async {
+      await store.save(record('t1', state: DownloadState.completed));
+      session.userId = 'user-2';
+      await store.save(record('t2', state: DownloadState.completed));
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(mediaId('al-2')),
+          name: 'Bob Album',
+        ),
+      );
+
+      final purged = await store.purgeServer('server-1');
+      expect(purged.isOk, isTrue);
+
+      expect((await store.all()).valueOrNull, isEmpty);
+      expect((await store.collections()).valueOrNull!.items, isEmpty);
+      session.userId = 'user-1';
+      expect((await store.all()).valueOrNull, isEmpty);
+    });
+  });
+
   group('offline discovery (v0.2.3)', () {
     test(
       'saveCollection / collections round-trips identity, filtered by kind',

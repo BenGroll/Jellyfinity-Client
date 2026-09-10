@@ -110,4 +110,30 @@ abstract class DownloadStore {
   /// open the app after the upgrade adopts them. A no-op with no profile
   /// signed in, or once nothing unscoped remains.
   Future<Result<int>> claimLegacyDownloads();
+
+  // ---- Reclaiming a removed profile's or server's downloads (v0.3.6) ----
+
+  /// Forgets every download record — tracks, owners, playlist snapshots
+  /// and collection identities — belonging to the profile
+  /// [serverId]/[userId], regardless of which profile is signed in.
+  ///
+  /// Called when that saved profile is removed. Returns the ids whose
+  /// files are now **unreferenced by any remaining profile** — a second
+  /// profile on the same server can have downloaded the same track, and
+  /// its copy shares the one file directory (`DownloadStorage` keys by
+  /// server and item, not by account), so a file is only the caller's to
+  /// delete once nothing else keeps it.
+  Future<Result<List<MediaId>>> purgeProfile({
+    required String serverId,
+    required String userId,
+  });
+
+  /// Forgets every download record for [serverId] outright — every
+  /// profile on it, every table.
+  ///
+  /// Called when a whole saved server is removed. Unlike [purgeProfile]
+  /// there is no reference-counting to do: every profile on the server is
+  /// going with it, so every file for the server is the caller's to
+  /// delete.
+  Future<Result<void>> purgeServer(String serverId);
 }

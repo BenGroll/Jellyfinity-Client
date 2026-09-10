@@ -117,4 +117,26 @@ abstract class MusicLibraryRepository {
   /// — their total running time. Read live; not part of the offline cache
   /// (see `ArtistStats.totalDuration`).
   Future<Result<ArtistStats>> artistStats(MediaId artistId);
+
+  /// Artists the server considers related to [artistId], and albums it
+  /// considers similar to [albumId] (v0.3.5) — a way to move from one
+  /// thing to the next without leaving the user's own library.
+  ///
+  /// Both come straight from Jellyfin's own similarity endpoints; there is
+  /// no external recommendation service behind them (`PHILOSOPHY.md`,
+  /// `OUTLOOK.md` §13). They are bounded top-N lists rather than pageable
+  /// collections — hence `List`, not `Page`, and a [limit] instead of a
+  /// [PageRequest].
+  ///
+  /// Read **live only**, like [artistStats]: nothing is cached, so an
+  /// unreachable or deliberately-offline server surfaces its failure and
+  /// the section that shows this is simply absent. An empty list is a
+  /// perfectly normal answer — a server with nothing useful to say — and
+  /// the section is absent then too, never broken.
+  Future<Result<List<Artist>>> relatedArtists(
+    MediaId artistId, {
+    int limit = 12,
+  });
+
+  Future<Result<List<Album>>> similarAlbums(MediaId albumId, {int limit = 12});
 }

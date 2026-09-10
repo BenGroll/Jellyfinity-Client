@@ -215,10 +215,17 @@ class AuthSessionManager {
   }
 
   /// Removes a saved profile and its token. If it was active, signs out.
-  Future<void> removeAccount(String accountId) async {
+  ///
+  /// Returns the profile that was removed (or `null` if there was no such
+  /// saved profile), so the caller can reclaim its downloads — the store
+  /// that owns those cannot be a dependency here without a DI cycle
+  /// through the session context.
+  Future<JellyfinAccount?> removeAccount(String accountId) async {
+    final account = await _accounts.byId(accountId);
     await _credentials.deleteToken(accountId);
     await _accounts.remove(accountId);
     if (_current?.account.id == accountId) _current = null;
+    return account;
   }
 
   /// Removes a saved server, every profile on it, and their tokens. If
@@ -226,7 +233,9 @@ class AuthSessionManager {
   ///
   /// Also drops the cached metadata for that server's library: every
   /// `MediaId` in it names a server that no longer exists, so the rows
-  /// could never be shown or refreshed again.
+  /// could never be shown or refreshed again. Reclaiming that server's
+  /// downloads is the caller's job, for the DI reason [removeAccount]
+  /// notes.
   Future<void> removeServer(String serverId) async {
     for (final account in await _accounts.forServer(serverId)) {
       await _credentials.deleteToken(account.id);

@@ -120,6 +120,42 @@ void main() {
     expect(find.byTooltip('Waiting for Wi-Fi'), findsOneWidget);
   });
 
+  testWidgets('the app-bar menu removes every download at once (v0.3.6)', (
+    tester,
+  ) async {
+    final store = InMemoryDownloadStore();
+    final track = mediaId('t1');
+    store.records[track] = _record(
+      't1',
+      state: DownloadState.completed,
+      owner: DownloadOwner.track(track),
+      totalBytes: 1000,
+    );
+    final engine = FakeDownloadEngine()
+      ..stored[track] = Uri.file('/downloads/t1/audio.flac');
+    final downloads = fakeDownloadsCubit(store: store, engine: engine);
+    addTearDown(downloads.close);
+    await downloads.restore();
+
+    await pumpThemed(tester, const DownloadsPage(), downloads: downloads);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byIcon(Icons.more_vert_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove all downloads'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove all'));
+    await tester.pumpAndSettle();
+
+    expect(downloads.state.downloads, isEmpty);
+    expect(find.text('Nothing downloaded yet'), findsOneWidget);
+  });
+
   testWidgets('tapping a downloaded song plays it (v0.2.3)', (tester) async {
     final store = InMemoryDownloadStore();
     final track = mediaId('t1');

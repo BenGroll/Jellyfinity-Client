@@ -41,6 +41,7 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
     this.unavailableBuilder,
     this.offlineGapNoun = 'item',
     this.headerSlivers = const [],
+    this.footerSlivers = const [],
     this.padding,
   });
 
@@ -77,6 +78,13 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
   /// Slivers pinned above the collection: a detail header, a filter row.
   final List<Widget> headerSlivers;
 
+  /// Slivers after the collection: a "related" strip that follows the
+  /// list rather than replacing any of its states (v0.3.5). They sit
+  /// below the content on a loaded screen and scroll off the bottom of an
+  /// error or empty one, so a footer widget still manages its own
+  /// visibility.
+  final List<Widget> footerSlivers;
+
   final EdgeInsetsGeometry? padding;
 
   /// How far from the end to start loading the next window. Big enough
@@ -100,6 +108,7 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
         slivers: [
           ...headerSlivers,
           ..._content(context, insets),
+          ...footerSlivers,
         ],
       ),
     );

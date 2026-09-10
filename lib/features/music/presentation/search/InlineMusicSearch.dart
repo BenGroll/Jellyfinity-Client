@@ -11,6 +11,7 @@ import '../../../../app/settings/SettingsCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/connectivity/OfflineLibraryScope.dart';
 import '../../../../domain/media/media.dart';
+import '../widgets/download_controls.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import 'music_search_cubit.dart';
@@ -362,6 +363,13 @@ class _SearchResults extends StatelessWidget {
                   onAddToQueue: playable
                       ? () => context.read<PlaybackCubit>().addToQueue(track)
                       : null,
+                  // A search result can be kept for offline right from
+                  // here (v0.3.6) — a track the server could not describe
+                  // has nothing to fetch, so it gets no control.
+                  downloadAction:
+                      track.availability == MediaAvailability.remoteUnavailable
+                      ? null
+                      : TrackDownloadButton(track: track),
                 );
               },
             ),

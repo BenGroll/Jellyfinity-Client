@@ -80,6 +80,8 @@ import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubi
     as _i824;
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart'
     as _i213;
+import 'package:jellyfinity/features/music/presentation/detail/related_media_cubits.dart'
+    as _i468;
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart'
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
@@ -291,9 +293,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i346.JellyfinSessionContext>(
       () => _i139.SessionJellyfinContext(gh<_i56.AuthSessionManager>()),
     );
-    gh.lazySingleton<_i809.SessionCubit>(
-      () => _i809.SessionCubit(gh<_i56.AuthSessionManager>()),
-    );
     gh.lazySingleton<_i922.AudioSourceResolver>(
       () => _i860.JellyfinAudioSourceResolver(
         gh<_i346.JellyfinSessionContext>(),
@@ -324,14 +323,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i612.Logger>(),
       ),
     );
-    gh.factory<_i1045.LoginCubit>(
-      () => _i1045.LoginCubit(gh<_i809.SessionCubit>()),
-    );
-    gh.lazySingleton<_i587.AppRouter>(
-      () => _i587.AppRouter(gh<_i809.SessionCubit>()),
-    );
     gh.factory<_i952.ServerSetupCubit>(
       () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
+    );
+    gh.lazySingleton<_i809.SessionCubit>(
+      () => _i809.SessionCubit(
+        gh<_i56.AuthSessionManager>(),
+        gh<_i853.DownloadStore>(),
+        gh<_i855.DownloadStorage>(),
+        gh<_i612.Logger>(),
+      ),
     );
     gh.lazySingleton<_i186.LocalAudioSource>(
       () => _i212.StoredAudioSource(
@@ -384,6 +385,12 @@ extension GetItInjectableX on _i174.GetIt {
         ),
         gh<_i186.LocalAudioSource>(),
       ),
+    );
+    gh.factory<_i1045.LoginCubit>(
+      () => _i1045.LoginCubit(gh<_i809.SessionCubit>()),
+    );
+    gh.lazySingleton<_i587.AppRouter>(
+      () => _i587.AppRouter(gh<_i809.SessionCubit>()),
     );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
       () => _i912.CachedMediaMetadataRepository(
@@ -443,6 +450,18 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i213.AlbumDetailCubit>(
       () => _i213.AlbumDetailCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.factory<_i468.RelatedArtistsCubit>(
+      () => _i468.RelatedArtistsCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.factory<_i468.SimilarAlbumsCubit>(
+      () => _i468.SimilarAlbumsCubit(
         gh<_i747.MusicLibraryRepository>(),
         gh<_i797.OfflineMode>(),
       ),

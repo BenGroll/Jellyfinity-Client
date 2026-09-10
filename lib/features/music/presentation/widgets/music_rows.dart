@@ -195,6 +195,11 @@ class TrackRow extends StatelessWidget {
         subtitle: joinDetails([
           formatArtists(track.artists),
           if (showArtwork) track.albumName,
+          // The server has dropped this track but the file is still here
+          // (v0.2.3 tracked it, v0.3.6 finally says so). Kept and
+          // playable, shown as such rather than as a remote failure.
+          if (track.availability == MediaAvailability.localOnly)
+            'Only on this device',
         ]),
         trailing: (duration == null && !showMenu && downloadAction == null)
             ? null

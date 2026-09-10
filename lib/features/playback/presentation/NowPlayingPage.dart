@@ -19,6 +19,7 @@ import '../../../domain/playback/repeat_mode.dart';
 import '../../../domain/playback/stream_quality.dart';
 import '../../../domain/playback/TrackSourceInfo.dart';
 import '../../../infrastructure/artwork/ArtworkCache.dart';
+import '../../music/presentation/widgets/download_controls.dart';
 import '../../music/presentation/widgets/favorite_actions.dart';
 import '../../music/presentation/widgets/FavoriteButton.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
@@ -298,16 +299,26 @@ class _PlayerTopBar extends StatelessWidget {
               builder: (context, details) {
                 final track = details.track;
                 if (track == null) return const SizedBox.shrink();
-                return FavoriteButton(
-                  isFavorite: track.isFavorite,
-                  unselectedColor: Colors.white,
-                  iconSize: 30,
-                  onChanged: (favorite) => applyFavorite(
-                    context,
-                    track.id,
-                    MediaKind.track,
-                    favorite: favorite,
-                  ),
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // "Keep this on my device" belongs on the screen a
+                    // user is looking at when they think it (v0.3.6). The
+                    // control shows the state and is the action, the same
+                    // one every track row uses.
+                    TrackDownloadButton(track: track),
+                    FavoriteButton(
+                      isFavorite: track.isFavorite,
+                      unselectedColor: Colors.white,
+                      iconSize: 30,
+                      onChanged: (favorite) => applyFavorite(
+                        context,
+                        track.id,
+                        MediaKind.track,
+                        favorite: favorite,
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

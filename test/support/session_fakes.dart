@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:get_it/get_it.dart';
 import 'package:jellyfinity/app/session/AuthSessionManager.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/session/SessionState.dart';
+import 'package:jellyfinity/infrastructure/downloads/DownloadStorage.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
 import 'package:jellyfinity/domain/session/session.dart';
@@ -15,6 +18,7 @@ import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.d
 import 'package:jellyfinity/infrastructure/jellyfin/server/ServerVersion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'download_fakes.dart';
 import 'media_fakes.dart';
 import 'TestLogger.dart';
 
@@ -160,6 +164,11 @@ class TestSessionScope {
     this.credentials = credentials ?? InMemoryCredentialStore();
     authenticator = FakeJellyfinAuthenticator(result: authResult);
     mediaCache = RecordingMediaCacheStore();
+    downloadStore = InMemoryDownloadStore();
+    downloadStorage = DownloadStorage(
+      rootDirectory: () async =>
+          Directory.systemTemp.createTempSync('jellyfinity_session_test_'),
+    );
     manager = AuthSessionManager(
       this.servers,
       this.accounts,
@@ -170,7 +179,7 @@ class TestSessionScope {
     );
     var counter = 0;
     manager.newId = () => 'id-${++counter}';
-    cubit = SessionCubit(manager);
+    cubit = SessionCubit(manager, downloadStore, downloadStorage, TestLogger());
   }
 
   late final InMemoryServerRegistry servers;
@@ -178,6 +187,8 @@ class TestSessionScope {
   late final InMemoryCredentialStore credentials;
   late final FakeJellyfinAuthenticator authenticator;
   late final RecordingMediaCacheStore mediaCache;
+  late final InMemoryDownloadStore downloadStore;
+  late final DownloadStorage downloadStorage;
   late final AuthSessionManager manager;
   late final SessionCubit cubit;
 

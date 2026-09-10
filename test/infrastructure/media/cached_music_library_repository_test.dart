@@ -400,4 +400,32 @@ void main() {
       expect(cache.savedPages, [MediaCollectionKey.albums]);
     });
   });
+
+  group('related artists and albums (v0.3.5)', () {
+    test('passes the server answer straight through, uncached', () async {
+      final (:repository, :cache) = _repository(
+        _answering([
+          {'Id': 'artist-2', 'Name': 'John Coltrane', 'Type': 'MusicArtist'},
+        ]),
+      );
+
+      final result = await repository.relatedArtists(_artistId);
+
+      expect(result.valueOrNull!.single.name, 'John Coltrane');
+      expect(cache.savedPages, isEmpty);
+    });
+
+    test('working offline, it fails without a request', () async {
+      final adapter = _offline();
+      final (:repository, cache: _) = _repository(
+        adapter,
+        offline: FakeOfflineMode(manual: true),
+      );
+
+      final result = await repository.similarAlbums(_albumId);
+
+      expect(result.failureOrNull, isA<RecoverableFailure>());
+      expect(adapter.callCount, isZero);
+    });
+  });
 }
