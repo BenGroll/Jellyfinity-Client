@@ -37,6 +37,11 @@ published Git tag.
 | v0.3.5 | Related artists and albums | Implemented | [spec](Roadmap%20to%20v0.4.md#v035--related-artists-and-albums) |
 | v0.3.6 | Offline music completion, finished | Implemented | [spec](Roadmap%20to%20v0.3.md#v030--offline-music-completion) |
 | v0.4.0 | Home completion | Planned | [spec](Roadmap%20to%20v0.4.md#v040--home-completion) |
+| v0.4.1 | Music listening perfection | Implemented | [spec](Roadmap%20to%20v0.5md#v040--music-listening-perfection) |
+| v0.4.2 | Playlist mastery | Planned | [spec](Roadmap%20to%20v0.5md#v041--playlist-mastery) |
+| v0.4.3 | Offline Favorites | Planned | [spec](Roadmap%20to%20v0.5md#v042--offline-favorites) |
+| v0.4.4 | Library exploration | Planned | [spec](Roadmap%20to%20v0.5md#v043--library-exploration) |
+| v0.5.0 | Personal music discovery | Planned | [spec](Roadmap%20to%20v0.5md#v044--personal-music-discovery) |
 
 v0.1.2 is complete but for reorder. v0.3.0 shipped the rest of it and left
 reorder out deliberately: Jellyfin's move endpoint takes an absolute

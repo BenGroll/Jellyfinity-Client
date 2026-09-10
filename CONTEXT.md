@@ -49,6 +49,11 @@ UI -> presentation -> domain contracts <- infrastructure implementations
 ## Engineering invariants
 
 - Use TDD where meaningful and test behavior/contracts rather than coverage.
+- Every new feature must support Android and Windows. Verify equivalent
+  user-visible behavior on both; account for Android touch/background-media
+  conventions and Windows pointer, keyboard, windowed-layout, and media-session
+  conventions where relevant. Preserve iOS support unless scope explicitly says
+  otherwise.
 - Preserve useful partial state and normalize failures; never leak raw
   exceptions into UI.
 - Record significant, durable architecture choices as concise ADRs.

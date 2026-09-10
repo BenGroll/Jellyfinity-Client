@@ -46,6 +46,93 @@ All notable changes to Jellyfinity are documented here.
 - Document setup, packaging and device acceptance in `docs/windows.md`, and
   the platform decisions in ADR-0029.
 
+## v0.4.1 — Music listening perfection
+
+An audit and hardening pass over everyday playback, adding no new place
+to go. Everything below already existed; what changed is that these
+things now agree with one another, and with what the listener was told.
+
+### The queue tells the truth (ADR-0031)
+
+- **The queue screen lists rows in the order they will actually play.**
+  It listed the queue's own order, which under shuffle is not what comes
+  next — the one question a queue screen exists to answer. Dragging a row
+  moves it in play order; the entries list is reordered from nowhere else
+  and, when it is, play order deliberately stays put.
+- **A structural edit no longer reshuffles.** Adding, removing or
+  reordering regenerated the entire shuffled order, so adding one track
+  rearranged everything the listener had not heard yet, and "play next"
+  landed the track wherever chance put it. Edits now amend the existing
+  order, and the only thing that reshuffles is the shuffle button.
+- **The queue says when nothing follows the last track**, instead of
+  leaving a listener to find out when the music stops. Absent under
+  repeat all, where something always follows.
+
+### A restart is the same queue (schema v9)
+
+- **The shuffled play order survives a restart.** It was never saved, so
+  every launch generated a fresh random order: the up-next list a
+  listener left was never the one they came back to. A saved order that
+  no longer matches the saved rows is discarded rather than trusted.
+- **Volume normalization works on a restored queue.** The loudness gain
+  had no column, so normalization (v0.1.4) silently stopped applying to
+  every queue that survived a restart — on every install, since v0.1.4.
+- **A track that failed still says so, and why**, after a restart.
+
+### Failures explain themselves and can be retried
+
+- **A failed queue row shows the reason and "Tap to try again".** It
+  greyed out with no explanation and no way to retry: "unavailable" is a
+  state, not an explanation. A row stays tappable while online, because
+  trying again is the action; offline with no local file is the one case
+  where there is genuinely nothing to try, and it says that.
+- **A failure gets one automatic re-resolve before the entry is called
+  unavailable**, and the cached address is dropped first — which is what
+  recovers a track whose download was deleted while it sat in the queue
+  (it falls back to the stream), and a newly downloaded one (it stops
+  streaming). This widens ADR-0015's retry, which applied only to a
+  transcoded stream; the original-quality pin is unchanged.
+- **A queue that has recovered stops claiming it is broken.** The failure
+  mark, the explanation, the one-off notice and the run-of-failures count
+  are all cleared the moment the engine reports it is playing. The count
+  previously survived any manual recovery and kept counting towards the
+  give-up cap.
+
+### Every playback entry point means the same thing
+
+- **Album, artist, playlist and Favorites headers gain "Play next"**,
+  queueing the whole collection in its own order directly after the
+  current track. Play, Shuffle and Add to queue were already there; this
+  was the one action a collection could not do that a track row could.
+- **Shuffling a collection no longer disturbs the queue it replaces.**
+  Turning shuffle on was a queue edit, so it reshuffled, re-saved and
+  re-loaded the outgoing queue half a frame before discarding it.
+
+### Features say when they cannot apply
+
+- Now Playing states, in place and only when it holds, that a downloaded
+  file is played as the file it is so the streaming-quality setting does
+  not apply; that normalization is on but the server has no loudness data
+  for this track; and that crossfade is paused because repeat-one leaves
+  no next track to fade into. A feature that quietly does nothing reads
+  as a feature that does not work.
+
+### Jellyfin hears about playback
+
+- **A manually started track opens a play session.** Sessions were
+  reported only from an engine-driven track change, which every
+  `playNow`, every skip and every tap on a queue row bypassed — so the
+  server saw nothing for a track the listener chose by hand.
+- **Position is reported while a track plays**, on the same five-second
+  tick that already saved it locally. Pausing reports the session as
+  paused rather than ending it; emptying the queue closes it.
+
+### Platform
+
+- Queue reordering is covered by a pointer drag for Windows alongside the
+  existing touch handle, and no interaction added here is exclusive to
+  either platform. Background and media-session behavior is unchanged.
+
 ## v0.3.6 — Offline music completion, finished
 
 The offline **feature** deliverables `Roadmap to v0.3.md`'s v0.3.0

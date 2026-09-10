@@ -4,9 +4,9 @@ Read this file first. It defines the complete context-loading workflow.
 
 ## Where the repository is right now
 
-**The current line is 0.3.x.** Unless you were given a different version,
-that is the one you are working on, and `Roadmap to v0.3.md` is your
-specification.
+**The current planned line is v0.4.x–v0.5.x.** Unless you were given a
+different version, work from `Roadmap to v0.4.md` for v0.3.1-v0.3.6 and `Roadmap to
+v0.5md` for v0.4.0–v0.5.0.
 
 - v0.2.0–v0.2.3 (the offline-music arc) are implemented and merged.
 - v0.3.0 is **implemented**. Its hardening half and the playlist curation
@@ -44,14 +44,38 @@ specification.
   batch retry and batch removal on the Downloads screen; the
   `MediaAvailability.localOnly` "Only on this device" label; and reclaiming
   a removed profile's or server's downloaded files. No schema change.
-- v0.3.7 onwards (playlist reorder, playlist history context, the offline
-  favorite heart) and v0.4.0 (Home completion) are **planned, not
-  started**. Read a section only if you were assigned that version. v0.4.0
-  is Home completion — an audit and hardening pass over the whole arc, not
-  a new arc.
+- v0.4.0 (Home completion) is **planned, not started**. It is an audit and
+  hardening pass over the Home arc, not a new content arc.
+- v0.4.1 (music listening perfection, ADR-0031) is **implemented**: the
+  same audit and hardening pass over playback. The queue screen shows
+  play order rather than the entry list; a structural edit amends the
+  shuffled order instead of regenerating it, so "play next" means next;
+  schema v9 carries the loudness gain and failure reason a restart was
+  losing, and `KeyValueStore` carries the play order; a failed entry says
+  why and retries on a tap after one automatic re-resolve; Now Playing
+  states when a feature cannot apply to this source; and every manually
+  started track now opens a Jellyfin play session.
+- v0.4.2–v0.5.0 are **planned, not started**: Playlist mastery, Offline
+  Favorites, Library exploration, and Personal music discovery. Their
+  specifications live in `Roadmap to v0.5md`, whose own headings number
+  this arc v0.4.0–v0.4.4 — the roadmap section titled "v0.4.0 — Music
+  Listening Perfection" is the one v0.4.1 implemented, and each later
+  heading is likewise one release ahead of its number. `ROADMAP.md`'s
+  table is the authority on which version is which.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.
+
+## Required platform support
+
+Android and Windows are required targets for every new feature. Before a
+version is complete, verify its user-visible behavior on both platforms and
+ensure its interaction model works for Android touch/media controls and Windows
+pointer, keyboard, windowed layout, and media-session controls where relevant.
+Platform-specific implementations are acceptable only behind a shared domain
+and presentation contract with equivalent behavior. Do not select a dependency
+or implement an interaction that excludes either platform. Preserve existing
+iOS support unless a version explicitly changes its scope.
 
 ## Minimal context workflow
 
@@ -90,6 +114,8 @@ the source of truth for current state.
 - Add or update behavior-focused tests with behavior changes.
 - Update an ADR only for a significant architectural decision.
 - Update `CHANGELOG.md` when the feature is complete.
+- Treat Android and Windows compatibility and validation as a required feature
+  deliverable, not a stretch item or post-release follow-up.
 - Do not overwrite unrelated working-tree changes.
 - **Never attribute work to an AI assistant, coding agent, or their tooling.**
   No `Co-Authored-By` trailer or "Generated with …" line in a commit or PR; no
