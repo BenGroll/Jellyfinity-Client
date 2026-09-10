@@ -12,6 +12,7 @@ import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
 import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/playback/presentation/LyricsPage.dart';
+import 'package:jellyfinity/features/playback/presentation/MiniPlayer.dart';
 import 'package:jellyfinity/features/playback/presentation/QueuePage.dart';
 
 import '../../support/music_fakes.dart';
@@ -56,7 +57,9 @@ void main() {
     ], startIndex: 0);
     await tester.pumpAndSettle();
     expect(
-      tester.widget<ArtworkBackground>(find.byType(ArtworkBackground)).image,
+      tester
+          .widget<ArtworkBackground>(find.byType(ArtworkBackground).first)
+          .image,
       first,
     );
     await playback.togglePlayPause();
@@ -67,7 +70,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(playback.state.isPlaying, isFalse);
     expect(
-      tester.widget<ArtworkBackground>(find.byType(ArtworkBackground)).image,
+      tester
+          .widget<ArtworkBackground>(find.byType(ArtworkBackground).first)
+          .image,
       second,
     );
     for (final scaffold in tester.widgetList<Scaffold>(find.byType(Scaffold))) {
@@ -127,6 +132,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('So What'), findsOneWidget);
+    expect(tester.getSize(find.byType(MiniPlayer)).height, MiniPlayer.height);
+    expect(tester.takeException(), isNull);
     expect(
       find.byIcon(Icons.pause_rounded),
       findsOneWidget,

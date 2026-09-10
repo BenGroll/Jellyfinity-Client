@@ -36,77 +36,80 @@ class MiniPlayer extends StatelessWidget {
               )
             : 0.0;
 
-        return ArtworkBackground(
-          image: entry.image,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: t.colors.border)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 2,
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 2,
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation(t.colors.accent),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => context.pushNamed(RouteNames.nowPlaying),
-                  child: SizedBox(
-                    height: height - 2,
-                    child: Row(
-                      children: [
-                        SizedBox(width: t.spacing.sm),
-                        MediaArtwork(
-                          image: entry.image,
-                          kind: MediaKind.track,
-                          size: 40,
-                        ),
-                        SizedBox(width: t.spacing.sm),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                entry.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: t.typography.bodyMedium.copyWith(
-                                  color: t.colors.textPrimary,
-                                ),
-                              ),
-                              if (entry.artist != null)
-                                Text(
-                                  entry.artist!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t.typography.caption.copyWith(
-                                    color: t.colors.textSecondary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            state.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                          ),
-                          color: t.colors.textPrimary,
-                          onPressed: cubit.togglePlayPause,
-                        ),
-                        SizedBox(width: t.spacing.xxs),
-                      ],
+        return SizedBox(
+          height: height,
+          child: ArtworkBackground(
+            image: entry.image,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: t.colors.border)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 2,
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 2,
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation(t.colors.accent),
                     ),
                   ),
-                ),
-              ],
+                  InkWell(
+                    onTap: () => context.pushNamed(RouteNames.nowPlaying),
+                    child: SizedBox(
+                      height: height - 2,
+                      child: Row(
+                        children: [
+                          SizedBox(width: t.spacing.sm),
+                          MediaArtwork(
+                            image: entry.image,
+                            kind: MediaKind.track,
+                            size: 40,
+                          ),
+                          SizedBox(width: t.spacing.sm),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  entry.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.typography.bodyMedium.copyWith(
+                                    color: t.colors.textPrimary,
+                                  ),
+                                ),
+                                if (entry.artist != null)
+                                  Text(
+                                    entry.artist!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.typography.caption.copyWith(
+                                      color: t.colors.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              state.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                            ),
+                            color: t.colors.textPrimary,
+                            onPressed: cubit.togglePlayPause,
+                          ),
+                          SizedBox(width: t.spacing.xxs),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
