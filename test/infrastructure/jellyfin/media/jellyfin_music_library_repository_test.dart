@@ -376,4 +376,77 @@ void main() {
       },
     );
   });
+
+  group('related artists and albums (v0.3.5)', () {
+    test('reads the /Similar route and maps the same-typed rows', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'artist-2', 'Name': 'John Coltrane', 'Type': 'MusicArtist'},
+            {'Id': 'artist-3', 'Name': 'Bill Evans', 'Type': 'MusicArtist'},
+          ]),
+        ),
+      );
+
+      final result = await _repository(adapter).relatedArtists(_artistId);
+
+      expect(
+        adapter.requests.single.path,
+        JellyfinMediaApi.similarItemsPath('artist-1'),
+      );
+      expect(result.valueOrNull!.map((a) => a.name), [
+        'John Coltrane',
+        'Bill Evans',
+      ]);
+    });
+
+    test('drops a row that is not of the kind asked for', () async {
+      // The similar-albums call comes back with a playlist mixed in; it is
+      // left out rather than shown as a broken card.
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'al2', 'Name': 'Milestones', 'Type': 'MusicAlbum'},
+            {'Id': 'pl1', 'Name': 'A playlist', 'Type': 'Playlist'},
+          ]),
+        ),
+      );
+
+      final result = await _repository(adapter).similarAlbums(_albumId);
+
+      expect(result.valueOrNull!.map((a) => a.name), ['Milestones']);
+    });
+
+    test('an empty answer is Ok with an empty list', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+
+      final result = await _repository(adapter).similarAlbums(_albumId);
+
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull, isEmpty);
+    });
+
+    test('a server without the endpoint surfaces its failure', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody({}, statusCode: 404),
+      );
+
+      final result = await _repository(adapter).relatedArtists(_artistId);
+
+      expect(result.failureOrNull, isA<UnavailableFailure>());
+    });
+
+    test('an id from another server never queries this one', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+
+      final result = await _repository(adapter).similarAlbums(_elsewhere);
+
+      expect(result.failureOrNull, isA<UnavailableFailure>());
+      expect(adapter.callCount, isZero);
+    });
+  });
 }

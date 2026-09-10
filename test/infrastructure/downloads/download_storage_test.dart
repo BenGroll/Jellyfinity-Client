@@ -69,6 +69,24 @@ void main() {
     expect(await storage.completedFile(_id), isNull);
   });
 
+  test(
+    'discardServer removes every directory for that server (v0.3.6)',
+    () async {
+      const other = MediaId(serverId: 'server-2', itemId: 'track-9');
+      for (final id in [_id, other]) {
+        final partial = await storage.partialFile(id);
+        await partial.writeAsBytes([1]);
+        await storage.complete(id, partial, extension: 'flac');
+      }
+
+      await storage.discardServer('server-1');
+
+      expect(await storage.completedFile(_id), isNull);
+      // A different server's downloads are untouched.
+      expect(await storage.completedFile(other), isNotNull);
+    },
+  );
+
   test('two ids never share a directory', () async {
     const other = MediaId(serverId: 'server-1', itemId: 'track-2');
     final partial = await storage.partialFile(_id);

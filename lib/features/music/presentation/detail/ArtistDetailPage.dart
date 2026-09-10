@@ -21,8 +21,10 @@ import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import '../widgets/RelatedMediaStrip.dart';
 import 'artist_stats_cubit.dart';
 import 'media_detail_cubit.dart';
+import 'related_media_cubits.dart';
 
 /// One artist: who they are, then what they released, newest release
 /// order last — the discography a music app opens an artist for.
@@ -33,12 +35,14 @@ class ArtistDetailPage extends StatelessWidget {
     this.detail,
     this.albums,
     this.stats,
+    this.related,
   });
 
   final MediaId artistId;
   final ArtistDetailCubit? detail;
   final AlbumsCubit? albums;
   final ArtistStatsCubit? stats;
+  final RelatedArtistsCubit? related;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +56,10 @@ class ArtistDetailPage extends StatelessWidget {
         ),
         BlocProvider<ArtistStatsCubit>(
           create: (_) => (stats ?? getIt<ArtistStatsCubit>())..open(artistId),
+        ),
+        BlocProvider<RelatedArtistsCubit>(
+          create: (_) =>
+              (related ?? getIt<RelatedArtistsCubit>())..open(artistId),
         ),
       ],
       child: _ArtistPresenceReconciler(
@@ -145,6 +153,9 @@ class _ArtistDetailView extends StatelessWidget {
                 gridDelegate: albumGridDelegate,
                 headerSlivers: [
                   SliverToBoxAdapter(child: _ArtistHeader(state: header)),
+                ],
+                footerSlivers: const [
+                  SliverToBoxAdapter(child: _RelatedArtists()),
                 ],
                 skeleton: const AlbumGridSkeleton(
                   gridDelegate: albumGridDelegate,
@@ -359,5 +370,34 @@ class _ArtistStatsRow extends StatelessWidget {
   String? _formatAlbumCount(int count) {
     if (count <= 0) return null;
     return count == 1 ? '1 album' : '$count albums';
+  }
+}
+
+/// "Related artists" under the discography (v0.3.5, ADR-0029): where to go
+/// next, drawn from the server's own similarity endpoint. Absent while
+/// loading and whenever the server had nothing — a bonus section, never a
+/// spinner or an error.
+class _RelatedArtists extends StatelessWidget {
+  const _RelatedArtists();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<RelatedArtistsCubit, RelatedMediaState<Artist>>(
+      builder: (context, state) {
+        if (state.items.isEmpty) return const SizedBox.shrink();
+        final t = context.tokens;
+        return Padding(
+          padding: EdgeInsets.only(top: t.spacing.lg, bottom: t.spacing.xxl),
+          child: RelatedMediaStrip(
+            title: 'Related artists',
+            items: state.items,
+            onOpen: (item) => context.pushNamed(
+              RouteNames.libraryArtist,
+              pathParameters: {'id': item.id.key},
+            ),
+          ),
+        );
+      },
+    );
   }
 }

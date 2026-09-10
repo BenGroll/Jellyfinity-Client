@@ -2,6 +2,64 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## v0.3.6 — Offline music completion, finished
+
+The offline **feature** deliverables `Roadmap to v0.3.md`'s v0.3.0
+listed and left outstanding — v0.3.0 shipped only its hardening half.
+With these, offline is the "trust it for travel" experience the roadmap
+asked for.
+
+### Offline music completion (ADR-0030)
+
+- **Every music surface now shows download and offline state.** Now
+  Playing gains the same one-tap "keep this on my device" control every
+  track row has. Inline search results gain a download button (the full
+  search page already had one). The queue and the mini-player show a
+  "downloaded" mark, and — offline, with no downloaded copy — a track
+  reads **"Not available offline"** and is dimmed rather than silently
+  un-playable.
+- **"Only on this device"** now appears on a downloaded track the server
+  has since dropped (`MediaAvailability.localOnly`). v0.2.3 tracked that
+  state; nothing drew it until now.
+- **Batch actions on the Downloads screen.** An app-bar menu with
+  **"Retry failed downloads"** (one tap to recover every part-finished
+  collection after a spell offline) and **"Remove all downloads"** —
+  behind a confirmation that names the songs and bytes freed and repeats
+  that nothing changes on your server.
+- **Removing a saved profile or server now reclaims its downloads.**
+  Its records are forgotten and its files deleted — except a file a
+  second profile on the same server still keeps, which stays. Before
+  this, a removed identity left downloaded audio on disk that nothing
+  could ever play or clean up.
+- No schema change: the download tables already carried the columns the
+  new purge queries read.
+
+## v0.3.5 — Related artists and albums
+
+Finishing an album, or landing on an artist, now offers somewhere
+obvious to go next — drawn entirely from your own server.
+
+### Related artists and albums (ADR-0029)
+
+- **A "Related artists" strip under an artist's discography** and a
+  **"Similar albums" strip under an album's track list**, from Jellyfin's
+  own similarity endpoint (`/Items/{id}/Similar`). No external
+  recommendation service, no tracking backend — the suggestions never
+  leave your library.
+- **Absent, never broken.** A server with nothing to suggest, one that
+  predates the endpoint, or one that cannot be reached simply shows no
+  strip — no spinner, no error row. Coming back online fills a strip that
+  was empty offline.
+- **Live only.** Nothing is cached and there is no schema change: the
+  strips are a bonus over the detail page, which already renders and owns
+  its own offline state.
+- No Home section: Home already opens on four strong sections, and a
+  "more like this" strip would need the app to *guess* which artist or
+  album to seed it with — the kind of guessing the project's philosophy
+  rules out. The album page is where "somewhere to go next" belongs.
+- Genre and decade entry points (a stretch goal) are not included — they
+  are a browsing surface of their own, not a section.
+
 ## v0.3.4 — Favorites as a place
 
 The star gets a destination. A track, album or artist could be favorited
@@ -254,7 +312,9 @@ download action); batch retry and batch removal on the Downloads screen;
 rendering `MediaAvailability.localOnly` as "Only on this device", which
 v0.2.3 promised and no widget yet does; and reclaiming downloaded files
 when an account or server is removed, which today leaves them on disk and
-unreachable.
+unreachable. **All four shipped in v0.3.6 (ADR-0030); v0.3.0's offline
+specification is now complete.** Device validation across the whole
+offline story remains part of a later release's hardening pass.
 
 ## v0.0.1 – v0.1.0 — Proof of concept
 

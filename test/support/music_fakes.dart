@@ -9,6 +9,7 @@ import 'package:jellyfinity/features/home/presentation/HomeFavoritesCubit.dart';
 import 'package:jellyfinity/features/home/presentation/RecentlyAddedCubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
+import 'package:jellyfinity/features/music/presentation/detail/related_media_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
@@ -111,6 +112,17 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
   List<Artist> favoriteArtistList = [];
   List<Album> favoriteAlbumList = [];
   List<Track> favoriteTrackList = [];
+
+  /// What [relatedArtists] and [similarAlbums] answer with (v0.3.5) —
+  /// their own lists so a test can give the detail-page "you might also
+  /// like" strips something, or leave them empty so the section is simply
+  /// absent.
+  List<Artist> relatedArtistList = [];
+  List<Album> similarAlbumList = [];
+
+  /// Fails only the similarity reads — the shape of a server that answers
+  /// queries but has no `/Similar` endpoint (older-but-supported).
+  Failure? similarityFailure;
 
   /// Per-album and per-artist track lists, consulted before [trackList]
   /// when a scoped `tracks` read names one — lets a test give an album
@@ -261,6 +273,38 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
       return const Result.err(UnavailableFailure('No stats set.'));
     }
     return Result.ok(value);
+  }
+
+  @override
+  Future<Result<List<Artist>>> relatedArtists(
+    MediaId artistId, {
+    int limit = 12,
+  }) async {
+    calls.add((
+      method: 'relatedArtists',
+      page: const PageRequest.first(),
+      searchTerm: null,
+    ));
+    await _pause();
+    final failed = similarityFailure ?? failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(relatedArtistList.take(limit).toList());
+  }
+
+  @override
+  Future<Result<List<Album>>> similarAlbums(
+    MediaId albumId, {
+    int limit = 12,
+  }) async {
+    calls.add((
+      method: 'similarAlbums',
+      page: const PageRequest.first(),
+      searchTerm: null,
+    ));
+    await _pause();
+    final failed = similarityFailure ?? failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(similarAlbumList.take(limit).toList());
   }
 
   /// Lets a widget test see the loading frame before the answer lands.
@@ -608,8 +652,14 @@ void registerMusicCubits({
     ..registerFactory<ArtistStatsCubit>(
       () => ArtistStatsCubit(music, offlineMode),
     )
+    ..registerFactory<RelatedArtistsCubit>(
+      () => RelatedArtistsCubit(music, offlineMode),
+    )
     ..registerFactory<AlbumDetailCubit>(
       () => AlbumDetailCubit(music, offlineMode),
+    )
+    ..registerFactory<SimilarAlbumsCubit>(
+      () => SimilarAlbumsCubit(music, offlineMode),
     )
     ..registerFactory<PlaylistDetailCubit>(
       () => PlaylistDetailCubit(metadataRepository, offlineMode),

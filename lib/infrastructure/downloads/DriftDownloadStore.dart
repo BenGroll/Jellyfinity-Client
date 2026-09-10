@@ -537,6 +537,97 @@ class DriftDownloadStore implements DownloadStore {
     }
   }
 
+  // ---- Reclaiming a removed profile's or server's downloads (v0.3.6) ----
+
+  @override
+  Future<Result<List<MediaId>>> purgeProfile({
+    required String serverId,
+    required String userId,
+  }) async {
+    final key = '$serverId/$userId';
+    try {
+      final reclaimable = <MediaId>[];
+      await _db.transaction(() async {
+        // The tracks this profile had asked for, before its rows go.
+        final owned =
+            await (_db.selectOnly(_db.trackDownloads, distinct: true)
+                  ..addColumns([_db.trackDownloads.itemId])
+                  ..where(_db.trackDownloads.accountKey.equals(key)))
+                .get();
+        final ownedItemIds = [
+          for (final row in owned) row.read(_db.trackDownloads.itemId)!,
+        ];
+
+        for (final table in <TableInfo<Table, dynamic>>[
+          _db.downloadOwners,
+          _db.trackDownloads,
+          _db.playlistDownloadMembers,
+          _db.downloadedCollections,
+        ]) {
+          await _db.customStatement(
+            'DELETE FROM ${table.actualTableName} WHERE account_key = ?',
+            [key],
+          );
+        }
+
+        // A file is only ours to delete once no other profile keeps the
+        // same track — `DownloadStorage` keys the file by server + item,
+        // not by account.
+        for (final itemId in ownedItemIds) {
+          final stillKept =
+              await (_db.selectOnly(_db.trackDownloads)
+                    ..addColumns([_db.trackDownloads.itemId])
+                    ..where(
+                      _db.trackDownloads.serverId.equals(serverId) &
+                          _db.trackDownloads.itemId.equals(itemId),
+                    )
+                    ..limit(1))
+                  .get();
+          if (stillKept.isEmpty) {
+            reclaimable.add(MediaId(serverId: serverId, itemId: itemId));
+          }
+        }
+      });
+      return Result.ok(reclaimable);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          "Could not clear that profile's downloads.",
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void>> purgeServer(String serverId) async {
+    try {
+      await _db.transaction(() async {
+        for (final table in <TableInfo<Table, dynamic>>[
+          _db.downloadOwners,
+          _db.trackDownloads,
+          _db.playlistDownloadMembers,
+          _db.downloadedCollections,
+        ]) {
+          await _db.customStatement(
+            'DELETE FROM ${table.actualTableName} WHERE server_id = ?',
+            [serverId],
+          );
+        }
+      });
+      return const Result.ok(null);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          "Could not clear that server's downloads.",
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
   // ---- Helpers ----
 
   Future<void> _clearPlaylistMembers(String key, MediaId playlistId) =>

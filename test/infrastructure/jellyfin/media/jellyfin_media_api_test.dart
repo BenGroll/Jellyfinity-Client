@@ -155,6 +155,53 @@ void main() {
     });
   });
 
+  group('similarItems (v0.3.5)', () {
+    test('asks the /Similar route for a bounded window', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'album-2', 'Name': 'Milestones', 'Type': 'MusicAlbum'},
+          ]),
+        ),
+      );
+
+      final result = await testMediaApi(
+        adapter,
+      ).similarItems('album-1', limit: 8);
+
+      final request = adapter.requests.single;
+      expect(request.path, JellyfinMediaApi.similarItemsPath('album-1'));
+      expect(request.path, '/Items/album-1/Similar');
+      expect(request.queryParameters['userId'], 'user-1');
+      expect(request.queryParameters['limit'], 8);
+      expect(result.valueOrNull!.items!.single.name, 'Milestones');
+    });
+
+    test('an empty list is a normal answer, not a failure', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+
+      final result = await testMediaApi(adapter).similarItems('artist-1');
+
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.items, isEmpty);
+    });
+
+    test('fails as unauthorized when signed out, without a request', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));
+      final api = testMediaApi(
+        adapter,
+        context: FakeSessionContext.signedOut(),
+      );
+
+      final result = await api.similarItems('album-1');
+
+      expect(result.failureOrNull, isA<UnauthorizedFailure>());
+      expect(adapter.callCount, isZero);
+    });
+  });
+
   group('played flag', () {
     test('posts to set it and deletes to clear it', () async {
       final adapter = FakeDioAdapter((_) async => jsonResponseBody({}));

@@ -2,8 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/session/session_status.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/result.dart';
+import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/session/AuthenticatedUser.dart';
 
+import '../../support/download_fakes.dart';
 import '../../support/session_fakes.dart';
 
 void main() {
@@ -106,5 +108,45 @@ void main() {
 
     expect(scope.cubit.state.status, SessionStatus.unauthenticated);
     expect(scope.cubit.activeSession, isNull);
+  });
+
+  group('reclaiming downloads on removal (v0.3.6)', () {
+    Future<({String serverId, String userId})> signInWithADownload(
+      TestSessionScope scope,
+    ) async {
+      await scope.signIn();
+      final account = scope.cubit.activeSession!.account;
+      scope.downloadStore.accountKey = '${account.serverId}/${account.userId}';
+      await scope.downloadStore.save(
+        downloadRecord(
+          MediaId(serverId: account.serverId, itemId: 'track-1'),
+          state: DownloadState.completed,
+        ),
+      );
+      return (serverId: account.serverId, userId: account.userId);
+    }
+
+    test('removeAccount clears that profile\'s download records', () async {
+      final scope = TestSessionScope();
+      addTearDown(scope.cubit.close);
+      final ids = await signInWithADownload(scope);
+      final accountId = scope.cubit.activeSession!.account.id;
+
+      await scope.cubit.removeAccount(accountId);
+
+      scope.downloadStore.accountKey = '${ids.serverId}/${ids.userId}';
+      expect((await scope.downloadStore.all()).valueOrNull, isEmpty);
+    });
+
+    test('removeServer clears every download for the server', () async {
+      final scope = TestSessionScope();
+      addTearDown(scope.cubit.close);
+      final ids = await signInWithADownload(scope);
+
+      await scope.cubit.removeServer(ids.serverId);
+
+      scope.downloadStore.accountKey = '${ids.serverId}/${ids.userId}';
+      expect((await scope.downloadStore.all()).valueOrNull, isEmpty);
+    });
   });
 }

@@ -325,6 +325,55 @@ void main() {
     });
   });
 
+  group('batch actions on the Downloads screen (v0.3.6)', () {
+    test(
+      'retryFailedDownloads re-queues every failed or paused record',
+      () async {
+        final t1 = testTrack('t1');
+        final t2 = testTrack('t2');
+        resolver.unresolvable
+          ..add(t1.id.itemId)
+          ..add(t2.id.itemId);
+        await cubit.downloadTrack(t1);
+        await cubit.downloadTrack(t2);
+        await pumpEventQueue();
+        expect(
+          cubit.state.downloads.values.map((r) => r.state),
+          everyElement(DownloadState.failed),
+        );
+
+        resolver.unresolvable.clear();
+        await cubit.retryFailedDownloads();
+        await pumpEventQueue();
+
+        expect(
+          cubit.state.downloads.values.map((r) => r.state),
+          everyElement(DownloadState.completed),
+        );
+      },
+    );
+
+    test(
+      'removeAllDownloads clears every track, collection and snapshot',
+      () async {
+        final album = testAlbum('album-1');
+        library.trackList = [testTrack('t1', albumId: 'album-1')];
+        playlists.tracksByPlaylist['pl-1'] = [testPlaylistTrack('t2')];
+        await cubit.downloadAlbum(album);
+        await cubit.downloadPlaylist(testPlaylist('pl-1'));
+        await pumpEventQueue();
+        expect(cubit.state.downloads, isNotEmpty);
+
+        await cubit.removeAllDownloads();
+
+        expect(cubit.state.downloads, isEmpty);
+        expect(cubit.state.collections, isEmpty);
+        expect(cubit.state.playlistSnapshots, isEmpty);
+        expect(store.records, isEmpty);
+      },
+    );
+  });
+
   group('restart recovery', () {
     test('an interrupted download resumes from its partial bytes', () async {
       final track = testTrack('t1');

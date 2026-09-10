@@ -1,8 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../core/logging/Logger.dart';
 import '../../core/result/result.dart';
+import '../../domain/downloads/DownloadStore.dart';
 import '../../domain/session/AuthSession.dart';
+import '../../infrastructure/downloads/DownloadStorage.dart';
 import '../../infrastructure/jellyfin/server/JellyfinServerInfo.dart';
 import 'AuthSessionManager.dart';
 import 'SessionState.dart';
@@ -22,9 +25,23 @@ import 'session_status.dart';
 /// plugs into is unchanged.
 @lazySingleton
 class SessionCubit extends Cubit<SessionState> {
-  SessionCubit(this._sessions) : super(const SessionState.restoring());
+  SessionCubit(
+    this._sessions,
+    this._downloadStore,
+    this._downloadStorage,
+    this._logger,
+  ) : super(const SessionState.restoring());
 
   final AuthSessionManager _sessions;
+
+  /// Removing a saved profile or server reclaims its downloaded files
+  /// (v0.3.6): records and files that name an identity the app no longer
+  /// has are dead storage nothing can reach or play. Lives here rather
+  /// than in [AuthSessionManager] because the store reads the session
+  /// context, and that context reads the manager — a DI cycle.
+  final DownloadStore _downloadStore;
+  final DownloadStorage _downloadStorage;
+  final Logger _logger;
 
   /// The active session, or `null` when signed out.
   AuthSession? get activeSession => state.session;
@@ -84,19 +101,60 @@ class SessionCubit extends Cubit<SessionState> {
     emit(SessionState.signedOut(lastAccountId: accountId));
   }
 
-  /// Removes a saved profile. Signs out first if it was the active one.
+  /// Removes a saved profile. Signs out first if it was the active one,
+  /// and reclaims its downloaded files (v0.3.6).
   Future<void> removeAccount(String accountId) async {
     final wasActive = state.session?.account.id == accountId;
-    await _sessions.removeAccount(accountId);
+    final removed = await _sessions.removeAccount(accountId);
     if (wasActive) emit(const SessionState.signedOut());
+    if (removed != null) {
+      await _reclaimAccountDownloads(removed.serverId, removed.userId);
+    }
   }
 
   /// Removes a saved server and every profile on it. Signs out first if
-  /// the active profile was one of them.
+  /// the active profile was one of them, and reclaims every download for
+  /// that server (v0.3.6).
   Future<void> removeServer(String serverId) async {
     final wasActive = state.session?.server.id == serverId;
     await _sessions.removeServer(serverId);
     if (wasActive) emit(const SessionState.signedOut());
+    await _reclaimServerDownloads(serverId);
+  }
+
+  /// Forgets one removed profile's download records and deletes any file
+  /// no surviving profile on the same server still keeps — the file
+  /// directory is shared per server, not per profile.
+  Future<void> _reclaimAccountDownloads(String serverId, String userId) async {
+    final purged = await _downloadStore.purgeProfile(
+      serverId: serverId,
+      userId: userId,
+    );
+    switch (purged) {
+      case Ok(:final value):
+        for (final id in value) {
+          await _downloadStorage.discard(id);
+        }
+      case Err(:final failure):
+        _logger.warning(
+          "Could not fully reclaim a removed profile's downloads: "
+          '${failure.message}',
+        );
+    }
+  }
+
+  /// Forgets every download record for a removed server and deletes its
+  /// files wholesale — no reference counting, since every profile on the
+  /// server went with it.
+  Future<void> _reclaimServerDownloads(String serverId) async {
+    final purged = await _downloadStore.purgeServer(serverId);
+    if (purged case Err(:final failure)) {
+      _logger.warning(
+        "Could not clear a removed server's download records: "
+        '${failure.message}',
+      );
+    }
+    await _downloadStorage.discardServer(serverId);
   }
 }
 

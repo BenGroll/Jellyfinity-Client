@@ -142,6 +142,24 @@ class DownloadStorage {
     if (await directory.exists()) await directory.delete(recursive: true);
   }
 
+  /// Deletes every download directory belonging to [serverId] (v0.3.6) —
+  /// each is named `<server id>_<item id>`. Called when a whole saved
+  /// server is removed, so there is no per-profile file to keep: every
+  /// profile on that server is going with it.
+  Future<void> discardServer(String serverId) async {
+    final downloads = await downloadsDirectory();
+    final prefix = '${serverId}_';
+    await for (final entry in downloads.list(followLinks: false)) {
+      if (entry is! Directory) continue;
+      if (entry.uri.pathSegments
+          .where((s) => s.isNotEmpty)
+          .last
+          .startsWith(prefix)) {
+        await entry.delete(recursive: true);
+      }
+    }
+  }
+
   /// Both halves of a [MediaId] are UUIDs, so this is unique and needs
   /// no escaping — the same reasoning `MediaId.key` uses, with `_`
   /// instead of `:` because `:` is not a portable file name character.

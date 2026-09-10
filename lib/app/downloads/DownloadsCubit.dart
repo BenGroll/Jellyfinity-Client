@@ -664,6 +664,43 @@ class DownloadsCubit extends Cubit<DownloadCatalog> {
     }
   }
 
+  /// Queues every failed or paused download in the catalog again (v0.3.6)
+  /// — the Downloads screen's one-tap recovery after a spell offline or a
+  /// dropped connection left several collections part-finished. A
+  /// screen-wide [retryAll], keyed on nothing.
+  Future<void> retryFailedDownloads() async {
+    for (final record in state.downloads.values.toList()) {
+      if (record.state.isRetryable) await retry(record.id);
+    }
+  }
+
+  /// Removes every download from the device (v0.3.6) — every track, every
+  /// collection claim, every playlist snapshot. The Downloads screen's
+  /// "start over" action; it never touches server media or playlist
+  /// membership, the same guarantee every other removal here makes.
+  Future<void> removeAllDownloads() async {
+    if (_active case final MediaId active) {
+      _abandoned.add(active);
+      await _engine.abort(active);
+      _active = null;
+    }
+    for (final id in state.downloads.keys.toList()) {
+      await _release(id, null);
+    }
+    for (final owner in state.collections.keys.toList()) {
+      await _forgetCollection(owner);
+    }
+    for (final playlistId in state.playlistSnapshots.keys.toList()) {
+      await _store.deletePlaylistMembers(playlistId);
+    }
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        playlistSnapshots: const <MediaId, List<PlaylistDownloadMember>>{},
+      ),
+    );
+  }
+
   /// Removes [id] from the device.
   ///
   /// With no [owner], this is the user pointing at one song and saying
