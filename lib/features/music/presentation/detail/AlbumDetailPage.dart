@@ -78,6 +78,16 @@ class _AlbumDetailView extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh',
+              onPressed: () async {
+                await context.read<AlbumDetailCubit>().retry();
+                if (context.mounted) await context.read<SongsCubit>().refresh();
+              },
+            ),
+          ],
           background: ArtworkBackground(
             image: album?.image,
             child: const SizedBox.expand(),

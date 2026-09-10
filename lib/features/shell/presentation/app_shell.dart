@@ -49,6 +49,10 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final showBar = shellDestinations.length > 1;
+    final location = GoRouterState.of(context).uri.path;
+    final isDetail = location.contains('/artist/') ||
+        location.contains('/album/') ||
+        location.contains('/playlist/');
 
     return CallbackShortcuts(
       bindings: {
@@ -66,7 +70,8 @@ class _AppShellState extends State<AppShell> {
             bottom: false,
             child: Column(
               children: [
-                if (!_searching) HomeLibraryHeader(onSearchTap: _startSearch),
+                if (!_searching && !isDetail)
+                  HomeLibraryHeader(onSearchTap: _startSearch),
                 Expanded(
                   child: _searching
                       ? InlineMusicSearch(onClose: _stopSearch)
@@ -107,7 +112,7 @@ class _ShellNavigationBar extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: t.colors.surface.withValues(alpha: .7),
+        color: t.colors.surface.withValues(alpha: .32),
         border: Border(top: BorderSide(color: t.colors.border)),
       ),
       child: NavigationBar(

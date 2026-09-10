@@ -4,6 +4,14 @@ All notable changes to Jellyfinity are documented here.
 
 ## Unreleased — Windows support
 
+- Extend album and artist artwork through their detail surfaces, add detail
+  refresh actions, give artists the collection playback controls, remove
+  desktop list refresh buttons, and use blurred artwork in the mini-player
+  with a more transparent bottom navigation bar.
+
+- Add a native `build_exe.bat` entry point for building and exporting the
+  Windows desktop bundle from Command Prompt or PowerShell.
+
 - Add `build_exe.sh` for labeled Windows executable exports with their complete
   runtime, plus optional clean, dependency refresh and build-mode selection.
 

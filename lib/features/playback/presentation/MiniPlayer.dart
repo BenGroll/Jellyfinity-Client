@@ -7,8 +7,8 @@ import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/media/media.dart';
+import '../../music/presentation/widgets/ArtworkBackground.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
-import 'ArtistArtworkColor.dart';
 
 /// The persistent bar in [AppShell] above the bottom navigation — a
 /// glance at what's playing and play/pause, from any tab. Renders
@@ -36,12 +36,10 @@ class MiniPlayer extends StatelessWidget {
               )
             : 0.0;
 
-        return ArtistArtworkColor(
-          artistId: entry.artists.primary?.id,
-          cover: entry.image,
-          builder: (context, color) => DecoratedBox(
+        return ArtworkBackground(
+          image: entry.image,
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: color,
               border: Border(top: BorderSide(color: t.colors.border)),
             ),
             child: Column(

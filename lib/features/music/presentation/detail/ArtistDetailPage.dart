@@ -16,6 +16,7 @@ import '../widgets/favorite_actions.dart';
 import '../widgets/FavoriteButton.dart';
 import '../widgets/MediaArtwork.dart';
 import '../widgets/ArtworkBackground.dart';
+import '../widgets/MediaPlaybackActionsRow.dart';
 import '../widgets/media_formatting.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
@@ -31,12 +32,14 @@ class ArtistDetailPage extends StatelessWidget {
     required this.artistId,
     this.detail,
     this.albums,
+    this.songs,
     this.stats,
   });
 
   final MediaId artistId;
   final ArtistDetailCubit? detail;
   final AlbumsCubit? albums;
+  final SongsCubit? songs;
   final ArtistStatsCubit? stats;
 
   @override
@@ -48,6 +51,9 @@ class ArtistDetailPage extends StatelessWidget {
         ),
         BlocProvider<AlbumsCubit>(
           create: (_) => (albums ?? getIt<AlbumsCubit>())..forArtist(artistId),
+        ),
+        BlocProvider<SongsCubit>(
+          create: (_) => (songs ?? getIt<SongsCubit>())..forArtist(artistId),
         ),
         BlocProvider<ArtistStatsCubit>(
           create: (_) => (stats ?? getIt<ArtistStatsCubit>())..open(artistId),
@@ -116,25 +122,19 @@ class _ArtistDetailView extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
-          actions: artist == null
-              ? const []
-              : [
-                  BlocBuilder<ArtistStatsCubit, ArtistStatsState>(
-                    builder: (context, stats) => ArtistDownloadButton(
-                      artist: artist,
-                      trackCount: stats.stats?.songCount,
-                    ),
-                  ),
-                  FavoriteButton(
-                    isFavorite: artist.isFavorite,
-                    onChanged: (favorite) => applyFavorite(
-                      context,
-                      artist.id,
-                      MediaKind.artist,
-                      favorite: favorite,
-                    ),
-                  ),
-                ],
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh',
+              onPressed: () async {
+                await context.read<ArtistDetailCubit>().retry();
+                await context.read<AlbumsCubit>().refresh();
+                if (context.mounted) {
+                  await context.read<SongsCubit>().refresh();
+                }
+              },
+            ),
+          ],
           background: ArtworkBackground(
             image: artist?.banner ?? artist?.image,
             child: const SizedBox.expand(),
@@ -146,7 +146,14 @@ class _ArtistDetailView extends StatelessWidget {
                 state: state,
                 gridDelegate: albumGridDelegate,
                 headerSlivers: [
-                  SliverToBoxAdapter(child: _ArtistHeader(state: header)),
+                  SliverToBoxAdapter(
+                    child: BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
+                      builder: (context, tracks) => _ArtistHeader(
+                        state: header,
+                        tracks: tracks.items,
+                      ),
+                    ),
+                  ),
                 ],
                 skeleton: const AlbumGridSkeleton(
                   gridDelegate: albumGridDelegate,
@@ -182,9 +189,10 @@ class _ArtistDetailView extends StatelessWidget {
 }
 
 class _ArtistHeader extends StatelessWidget {
-  const _ArtistHeader({required this.state});
+  const _ArtistHeader({required this.state, required this.tracks});
 
   final MediaDetailState<Artist> state;
+  final List<Track> tracks;
 
   @override
   Widget build(BuildContext context) {
@@ -254,6 +262,25 @@ class _ArtistHeader extends StatelessWidget {
               SizedBox(height: t.spacing.sm),
               const _ArtistStatsRow(),
               _ArtistDownloadSummary(artistId: artist.id),
+              SizedBox(height: t.spacing.md),
+              MediaPlaybackActionsRow(
+                tracks: tracks,
+                download: BlocBuilder<ArtistStatsCubit, ArtistStatsState>(
+                  builder: (context, stats) => ArtistDownloadButton(
+                    artist: artist,
+                    trackCount: stats.stats?.songCount,
+                  ),
+                ),
+                favorite: FavoriteButton(
+                  isFavorite: artist.isFavorite,
+                  onChanged: (favorite) => applyFavorite(
+                    context,
+                    artist.id,
+                    MediaKind.artist,
+                    favorite: favorite,
+                  ),
+                ),
+              ),
               SizedBox(height: t.spacing.md),
             ],
           ),

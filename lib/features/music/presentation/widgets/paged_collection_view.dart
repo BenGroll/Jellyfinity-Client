@@ -98,21 +98,6 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
         // an error or an empty state too.
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          if ({
-            TargetPlatform.windows,
-            TargetPlatform.linux,
-            TargetPlatform.macOS,
-          }.contains(Theme.of(context).platform))
-            SliverToBoxAdapter(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: onRefresh,
-                  icon: const Icon(Icons.refresh_rounded),
-                ),
-              ),
-            ),
           ...headerSlivers,
           ..._content(context, insets),
         ],
