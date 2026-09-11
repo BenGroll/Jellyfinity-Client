@@ -13,8 +13,8 @@ void main() {
     setUp(() => db = newTestDatabase());
     tearDown(() => db.close());
 
-    test('is at schema version 9', () {
-      expect(db.schemaVersion, 9);
+    test('is at schema version 10', () {
+      expect(db.schemaVersion, 10);
     });
 
     test('creates every declared table', () async {
@@ -42,6 +42,7 @@ void main() {
           'playlist_download_members',
           'listening_history_entries',
           'cached_favorites',
+          'pending_favorite_intents',
         ]),
       );
     });
@@ -62,6 +63,7 @@ void main() {
       expect(indexes, contains('idx_playlist_download_members_playlist'));
       expect(indexes, contains('idx_listening_history_account'));
       expect(indexes, contains('idx_cached_favorites_account'));
+      expect(indexes, contains('idx_pending_favorite_intents_account'));
     });
 
     test('enables foreign-key enforcement on open', () async {
@@ -90,6 +92,6 @@ void main() {
       second.keyValueEntries,
     )..where((t) => t.key.equals('k'))).getSingle();
     expect(row.value, 'v');
-    expect(second.schemaVersion, 9);
+    expect(second.schemaVersion, 10);
   });
 }

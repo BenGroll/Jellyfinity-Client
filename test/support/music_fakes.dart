@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:jellyfinity/app/favorites/PendingFavoritesCubit.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/core/result/result.dart';
@@ -14,6 +15,8 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
 
+import 'FakeSessionContext.dart';
+import 'media_fakes.dart';
 import 'offline_fakes.dart';
 
 const String testServerId = 'server-1';
@@ -727,6 +730,15 @@ void registerMusicCubits({
       () => FavoriteTracksCubit(music, offlineMode),
     )
     ..registerFactory<HomeFavoritesCubit>(() => HomeFavoritesCubit(music))
+    // The Favorites destination's "waiting to sync" banner (v0.4.3); no
+    // test using this registration path exercises offline favoriting
+    // directly, so an empty store is enough to let it build.
+    ..registerFactory<PendingFavoritesCubit>(
+      () => PendingFavoritesCubit(
+        RecordingMediaCacheStore(),
+        FakeSessionContext(),
+      ),
+    )
     ..registerSingleton<PlaylistRepository>(playlistRepository)
     ..registerSingleton<FavoritesRepository>(favoritesRepository);
   addTearDown(getIt.reset);
@@ -752,11 +764,15 @@ void registerRecentlyAddedCubit({FakeMusicLibraryRepository? music}) {
 /// Favorites destination reads the three paged cubits. Guarded like
 /// [registerRecentlyAddedCubit]; [pumpApp] calls it by default. Pass
 /// [music] to control what favorites show.
-void registerFavoritesCubits({FakeMusicLibraryRepository? music}) {
+void registerFavoritesCubits({
+  FakeMusicLibraryRepository? music,
+  RecordingMediaCacheStore? cache,
+}) {
   final getIt = GetIt.instance;
   if (getIt.isRegistered<HomeFavoritesCubit>()) return;
   final repository = music ?? FakeMusicLibraryRepository();
   final offlineMode = FakeOfflineMode();
+  final mediaCache = cache ?? RecordingMediaCacheStore();
   getIt
     ..registerFactory<HomeFavoritesCubit>(() => HomeFavoritesCubit(repository))
     ..registerFactory<FavoriteArtistsCubit>(
@@ -767,6 +783,11 @@ void registerFavoritesCubits({FakeMusicLibraryRepository? music}) {
     )
     ..registerFactory<FavoriteTracksCubit>(
       () => FavoriteTracksCubit(repository, offlineMode),
+    )
+    // Reads a signed-in profile's pending offline favorites (v0.4.3): the
+    // Favorites destination's "waiting to sync" banner.
+    ..registerFactory<PendingFavoritesCubit>(
+      () => PendingFavoritesCubit(mediaCache, FakeSessionContext()),
     );
   addTearDown(getIt.reset);
 }

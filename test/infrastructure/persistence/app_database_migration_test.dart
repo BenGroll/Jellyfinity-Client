@@ -12,6 +12,7 @@ import '../../support/drift_schemas/schema_v4.dart' as v4;
 import '../../support/drift_schemas/schema_v5.dart' as v5;
 import '../../support/drift_schemas/schema_v6.dart' as v6;
 import '../../support/drift_schemas/schema_v7.dart' as v7;
+import '../../support/drift_schemas/schema_v9.dart' as v9;
 
 /// The forward-only migration policy ADR-0010 committed to: a schema
 /// change never drops the database, and an install on any past version
@@ -66,7 +67,7 @@ void main() {
     final schema = await verifier.schemaAt(2);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     // Purely additive at v3: the queue table exists and starts empty, same
     // as the v1 -> v2 cache tables did.
@@ -79,7 +80,7 @@ void main() {
     final schema = await verifier.schemaAt(3);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     // An install that upgrades from before downloads existed starts with
     // nothing downloaded rather than losing what it had.
@@ -104,7 +105,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
 
       final entries = await db.select(db.queueEntries).get();
       expect(entries.single.title, 'So What');
@@ -121,7 +122,7 @@ void main() {
     final schema = await verifier.schemaAt(4);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     // Additive at v5 (v0.2.1): the snapshot table exists and starts
     // empty; an upgrading install keeps every track and album download
@@ -150,7 +151,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
 
       final downloads = await db.select(db.trackDownloads).get();
       expect(downloads.single.title, 'So What');
@@ -164,7 +165,7 @@ void main() {
     final schema = await verifier.schemaAt(5);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     // The downloaded-collection identity table is new and starts empty;
     // a collection's name and artwork fill in the next time it is
@@ -198,7 +199,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
 
       // Data is preserved; the new account_key defaults to empty, which
       // `DownloadsCubit.restore` then claims for the first profile to sign
@@ -221,7 +222,7 @@ void main() {
     final schema = await verifier.schemaAt(6);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     // Listening history is new and starts empty; it begins accruing from
     // the next qualifying play.
@@ -241,7 +242,7 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final entries = await db.select(db.queueEntries).get();
     expect(entries.single.title, 'So What');
@@ -255,7 +256,7 @@ void main() {
     final schema = await verifier.schemaAt(7);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     // The favorites cache is new and starts empty; it fills in the first
     // time the Favorites screen is opened online (ADR-0028).
@@ -282,13 +283,47 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     expect((await db.select(db.queueEntries).get()).single.title, 'So What');
     expect(
       (await db.select(db.listeningHistoryEntries).get()).single.name,
       'Kind of Blue',
     );
+
+    await db.close();
+  });
+
+  test('upgrades a v9 database to the v10 pending-favorites schema', () async {
+    final schema = await verifier.schemaAt(9);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 10);
+
+    // Pending favorite intents are new and start empty; nothing was
+    // toggled offline before this version existed.
+    expect(await db.select(db.pendingFavoriteIntents).get(), isEmpty);
+
+    await db.close();
+  });
+
+  test('an upgrade from v9 keeps a favorite an install already had', () async {
+    final schema = await verifier.schemaAt(9);
+
+    final old = v9.DatabaseAtV9(schema.newConnection());
+    await old.customStatement(
+      'INSERT INTO cached_favorites '
+      '(account_key, server_id, item_id, kind, updated_at) '
+      "VALUES ('server-1/user-1', 'server-1', 'album-1', 'album', 1)",
+    );
+    await old.close();
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 10);
+
+    final favorites = await db.select(db.cachedFavorites).get();
+    expect(favorites.single.itemId, 'album-1');
+    expect(await db.select(db.pendingFavoriteIntents).get(), isEmpty);
 
     await db.close();
   });

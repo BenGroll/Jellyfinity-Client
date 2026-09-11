@@ -46,6 +46,32 @@ All notable changes to Jellyfinity are documented here.
 - Document setup, packaging and device acceptance in `docs/windows.md`, and
   the platform decisions in ADR-0029.
 
+## v0.4.3 — Offline Favorites
+
+The heart stays a reliable local promise when connectivity is
+intermittent, instead of an attempt that could only fail.
+
+### A favorite made offline is never lost or lied about (ADR-0033)
+
+- **Favoriting or unfavoriting works while offline.** The change shows
+  immediately — in Favorites, its Home strip, and on the item itself,
+  including if the item is reopened later while still offline or after a
+  restart — as a pending intent rather than a claim that the server has
+  already heard about it.
+- **It reaches the server as soon as it can.** Reconnecting, or signing
+  back into a profile that has something pending, replays every
+  outstanding change automatically. Toggling the same item several times
+  offline coalesces into one eventual write — the latest tap always wins.
+- **A change that still cannot reach the server stays visible and
+  retryable.** The Favorites destination shows "N favorites waiting to
+  sync" for as long as anything is pending, and tries again on the next
+  reconnect rather than giving up silently.
+- **Nothing crosses between profiles or servers.** A pending change is
+  scoped to the profile that made it and replayed only while that profile
+  is the one signed in.
+- No user-visible change online: a favorite toggled with a live
+  connection behaves exactly as before.
+
 ## v0.4.2 — Playlist mastery
 
 Playlists stop being lists that still need Jellyfin Web for basic

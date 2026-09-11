@@ -15,6 +15,9 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart' as _i45;
+import 'package:jellyfinity/app/favorites/FavoritesRevisionCubit.dart' as _i525;
+import 'package:jellyfinity/app/favorites/PendingFavoritesCubit.dart' as _i195;
+import 'package:jellyfinity/app/favorites/PendingFavoritesSync.dart' as _i153;
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart' as _i84;
 import 'package:jellyfinity/app/playback/LocalFirstAudioSourceResolver.dart'
     as _i620;
@@ -184,6 +187,9 @@ extension GetItInjectableX on _i174.GetIt {
     final secureStorageModule = _$SecureStorageModule();
     final jellyfinTransportModule = _$JellyfinTransportModule();
     gh.factory<_i84.MediaScopeCubit>(() => _i84.MediaScopeCubit());
+    gh.lazySingleton<_i525.FavoritesRevisionCubit>(
+      () => _i525.FavoritesRevisionCubit(),
+    );
     gh.lazySingleton<_i855.DownloadStorage>(
       () => _i855.DownloadStorage.platform(),
     );
@@ -323,6 +329,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i612.Logger>(),
       ),
     );
+    gh.factory<_i195.PendingFavoritesCubit>(
+      () => _i195.PendingFavoritesCubit(
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i346.JellyfinSessionContext>(),
+      ),
+    );
     gh.factory<_i952.ServerSetupCubit>(
       () => _i952.ServerSetupCubit(gh<_i906.JellyfinServerProbe>()),
     );
@@ -369,6 +381,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i621.TrackSourceInfoResolver>(
       () => _i89.JellyfinTrackSourceInfoResolver(gh<_i963.JellyfinMediaApi>()),
     );
+    gh.lazySingleton<_i153.PendingFavoritesSync>(
+      () => _i153.PendingFavoritesSync(
+        gh<_i545.JellyfinFavoritesRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i797.OfflineMode>(),
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i525.FavoritesRevisionCubit>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.factory<_i148.LyricsCubit>(
       () => _i148.LyricsCubit(gh<_i392.LyricsResolver>()),
     );
@@ -391,20 +414,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i587.AppRouter>(
       () => _i587.AppRouter(gh<_i809.SessionCubit>()),
-    );
-    gh.lazySingleton<_i747.MediaMetadataRepository>(
-      () => _i912.CachedMediaMetadataRepository(
-        gh<_i830.JellyfinMediaMetadataRepository>(),
-        gh<_i1018.MediaCacheStore>(),
-        gh<_i797.OfflineMode>(),
-        gh<_i720.DownloadsLibrarySource>(),
-      ),
-    );
-    gh.factory<_i213.PlaylistDetailCubit>(
-      () => _i213.PlaylistDetailCubit(
-        gh<_i747.MediaMetadataRepository>(),
-        gh<_i797.OfflineMode>(),
-      ),
     );
     gh.lazySingleton<_i747.PlaylistRepository>(
       () => _i246.CachedPlaylistRepository(
@@ -470,6 +479,16 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i278.CachedFavoritesRepository(
         gh<_i545.JellyfinFavoritesRepository>(),
         gh<_i1018.MediaCacheStore>(),
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.lazySingleton<_i747.MediaMetadataRepository>(
+      () => _i912.CachedMediaMetadataRepository(
+        gh<_i830.JellyfinMediaMetadataRepository>(),
+        gh<_i1018.MediaCacheStore>(),
+        gh<_i797.OfflineMode>(),
+        gh<_i720.DownloadsLibrarySource>(),
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
@@ -559,6 +578,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.NetworkCondition>(),
         gh<_i809.SessionCubit>(),
         gh<_i306.DownloadStorageProbe>(),
+      ),
+    );
+    gh.factory<_i213.PlaylistDetailCubit>(
+      () => _i213.PlaylistDetailCubit(
+        gh<_i747.MediaMetadataRepository>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
     return this;

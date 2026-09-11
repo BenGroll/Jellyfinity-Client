@@ -75,7 +75,17 @@ class MediaCacheMapper {
   /// `remoteUnavailable`: the metadata is real, the media is not
   /// reachable, and the user is entitled to see exactly that rather than
   /// a row that looks playable and is not.
-  MediaItem? toItem(CachedMediaItemRow row, {MediaAvailability? availability}) {
+  ///
+  /// [isFavorite] overrides the field's `false` default for Artist/Album/
+  /// Track. `cached_media_items` itself still carries nothing about it
+  /// (ADR-0019); a caller that wants an honest answer looks it up in
+  /// `cached_favorites` — which a favorite toggled offline (v0.4.3, ADR-
+  /// 0033) also updates — and passes it in here.
+  MediaItem? toItem(
+    CachedMediaItemRow row, {
+    MediaAvailability? availability,
+    bool isFavorite = false,
+  }) {
     final kind = _kind(row.kind);
     if (kind == null) return null;
 
@@ -90,6 +100,7 @@ class MediaCacheMapper {
       MediaKind.artist => Artist(
         id: id,
         name: row.name,
+        isFavorite: isFavorite,
         availability: state,
         image: image,
       ),
@@ -100,6 +111,7 @@ class MediaCacheMapper {
         productionYear: row.productionYear,
         duration: _micros(row.durationMicros),
         trackCount: row.childCount,
+        isFavorite: isFavorite,
         availability: state,
         image: image,
       ),
@@ -114,6 +126,7 @@ class MediaCacheMapper {
         trackNumber: row.trackNumber,
         discNumber: row.discNumber,
         duration: _micros(row.durationMicros),
+        isFavorite: isFavorite,
         availability: state,
         image: image,
       ),

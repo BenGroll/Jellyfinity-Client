@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
+import 'package:jellyfinity/app/favorites/FavoritesRevisionCubit.dart';
 import 'package:jellyfinity/app/JellyfinityApp.dart';
 import 'package:jellyfinity/app/navigation/MediaScopeCubit.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
@@ -83,6 +84,8 @@ Future<TestSessionScope> pumpApp(
   addTearDown(downloadsCubit.close);
   final offlineCubit = offline ?? fakeOfflineCubit();
   addTearDown(offlineCubit.close);
+  final favoritesRevisionCubit = FavoritesRevisionCubit();
+  addTearDown(favoritesRevisionCubit.close);
   // NowPlayingPage is a root route the router builds with no constructor
   // args, reading TrackSourceInfoCubit straight from getIt — reachable
   // from every pumpApp test via the mini-player, so this is registered
@@ -112,6 +115,7 @@ Future<TestSessionScope> pumpApp(
       mediaScope: mediaScopeCubit,
       downloads: downloadsCubit,
       offline: offlineCubit,
+      favoritesRevision: favoritesRevisionCubit,
     ),
   );
   if (restore) {

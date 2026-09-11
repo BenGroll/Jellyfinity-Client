@@ -30,13 +30,14 @@ Work within the current roadmap milestone. Do not add speculative features or ab
 
 ## Branches
 
-Name a branch `vX.X.X-description-with-hyphens`, tying it to the roadmap
-version it serves, e.g. `v0.0.7-media-domain` or
-`v0.0.6-persistence-and-cache-foundation`. Always branch from an
-up-to-date `main`:
+Before editing an implementation task, use a dedicated branch named
+`vX.X.X-description-with-hyphens`, tying it to the roadmap version it serves,
+e.g. `v0.0.7-media-domain` or `v0.0.6-persistence-and-cache-foundation`. If
+already on the correct dedicated branch, keep using it; never create a nested
+branch. Start from a clean base branch when possible:
 
 ```bash
-git switch main && git pull
+git switch main
 git switch -c v0.0.8-music-library
 ```
 
@@ -49,7 +50,8 @@ branch.
 vX.X.X - (feature/bug/fix/chore) - actual message
 ```
 
-Every commit ties to the roadmap version it belongs to, unless the
+Every implementation task must finish with its in-scope changes committed on
+the dedicated branch. Every commit ties to the roadmap version it belongs to, unless the
 maintainer says otherwise for a given commit. The type is one of
 `feature`, `bug`, `fix`, or `chore`. The message itself should read
 naturally and vary between commits — avoid an obviously templated,

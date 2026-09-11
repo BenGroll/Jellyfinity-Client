@@ -225,9 +225,39 @@ class RecordingMediaCacheStore implements MediaCacheStore {
   }
 
   @override
-  Future<MediaItem?> readItem(MediaId id) async {
+  Future<MediaItem?> readItem(MediaId id, {String? accountKey}) async {
     final item = _items[id.key];
-    return item == null ? null : _offline(item);
+    if (item == null) return null;
+    final isFavorite =
+        accountKey != null &&
+        (_favorites[accountKey]?.values.any((ids) => ids.contains(id.itemId)) ??
+            false);
+    return _offline(item, isFavorite: isFavorite);
+  }
+
+  /// `accountKey -> itemId -> intent`. A second offline toggle of the same
+  /// item overwrites the first, the same upsert the real store does.
+  final Map<String, Map<String, PendingFavoriteIntent>> _pending = {};
+
+  @override
+  Future<void> recordPendingFavorite(
+    String accountKey,
+    MediaId id,
+    MediaKind kind, {
+    required bool favorite,
+  }) async {
+    _pending.putIfAbsent(accountKey, () => {})[id.itemId] =
+        PendingFavoriteIntent(id: id, kind: kind, favorite: favorite);
+  }
+
+  @override
+  Future<List<PendingFavoriteIntent>> pendingFavorites(
+    String accountKey,
+  ) async => List.unmodifiable(_pending[accountKey]?.values ?? const []);
+
+  @override
+  Future<void> clearPendingFavorite(String accountKey, MediaId id) async {
+    _pending[accountKey]?.remove(id.itemId);
   }
 
   @override
@@ -235,6 +265,7 @@ class RecordingMediaCacheStore implements MediaCacheStore {
     clearedServers.add(serverId);
     _items.removeWhere((_, item) => item.id.serverId == serverId);
     _collections.removeWhere((key, _) => key.startsWith('$serverId|'));
+    _pending.removeWhere((accountKey, _) => accountKey.split('/').first == serverId);
   }
 
   static const _cachedKinds = {
@@ -249,45 +280,53 @@ class RecordingMediaCacheStore implements MediaCacheStore {
 
   /// The real store hands cached media back as unreachable; anything
   /// built on top of it has to cope with that, so the fake does it too.
-  static MediaItem _offline(MediaItem item) => switch (item) {
-    Artist() => Artist(
-      id: item.id,
-      name: item.name,
-      availability: MediaAvailability.remoteUnavailable,
-      image: item.image,
-    ),
-    Album() => Album(
-      id: item.id,
-      name: item.name,
-      artists: item.artists,
-      productionYear: item.productionYear,
-      duration: item.duration,
-      trackCount: item.trackCount,
-      availability: MediaAvailability.remoteUnavailable,
-      image: item.image,
-    ),
-    Track() => Track(
-      id: item.id,
-      name: item.name,
-      artists: item.artists,
-      albumId: item.albumId,
-      albumName: item.albumName,
-      trackNumber: item.trackNumber,
-      discNumber: item.discNumber,
-      duration: item.duration,
-      availability: MediaAvailability.remoteUnavailable,
-      image: item.image,
-    ),
-    Playlist() => Playlist(
-      id: item.id,
-      name: item.name,
-      itemCount: item.itemCount,
-      duration: item.duration,
-      availability: MediaAvailability.remoteUnavailable,
-      image: item.image,
-    ),
-    _ => item,
-  };
+  ///
+  /// [isFavorite] defaults to `false` — the same "not persisted" default
+  /// `MediaCacheMapper.toItem` falls back to — and is overridden only by
+  /// [readItem] with an [accountKey] to overlay (v0.4.3).
+  static MediaItem _offline(MediaItem item, {bool isFavorite = false}) =>
+      switch (item) {
+        Artist() => Artist(
+          id: item.id,
+          name: item.name,
+          isFavorite: isFavorite,
+          availability: MediaAvailability.remoteUnavailable,
+          image: item.image,
+        ),
+        Album() => Album(
+          id: item.id,
+          name: item.name,
+          artists: item.artists,
+          productionYear: item.productionYear,
+          duration: item.duration,
+          trackCount: item.trackCount,
+          isFavorite: isFavorite,
+          availability: MediaAvailability.remoteUnavailable,
+          image: item.image,
+        ),
+        Track() => Track(
+          id: item.id,
+          name: item.name,
+          artists: item.artists,
+          albumId: item.albumId,
+          albumName: item.albumName,
+          trackNumber: item.trackNumber,
+          discNumber: item.discNumber,
+          duration: item.duration,
+          isFavorite: isFavorite,
+          availability: MediaAvailability.remoteUnavailable,
+          image: item.image,
+        ),
+        Playlist() => Playlist(
+          id: item.id,
+          name: item.name,
+          itemCount: item.itemCount,
+          duration: item.duration,
+          availability: MediaAvailability.remoteUnavailable,
+          image: item.image,
+        ),
+        _ => item,
+      };
 }
 
 class _Entry {

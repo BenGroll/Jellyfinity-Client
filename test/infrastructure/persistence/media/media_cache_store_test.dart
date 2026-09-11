@@ -245,6 +245,41 @@ void main() {
     expect(await store.readItem(_id('nope')), isNull);
   });
 
+  test(
+    'overlays the profile\'s current favorite onto a cached read (v0.4.3)',
+    () async {
+      await store.saveItem(_album('album-1'));
+
+      final beforeFavoriting = await store.readItem(
+        _id('album-1'),
+        accountKey: '$_server/user-1',
+      );
+      expect((beforeFavoriting as Album).isFavorite, isFalse);
+
+      await store.setFavorite(
+        '$_server/user-1',
+        _id('album-1'),
+        MediaKind.album,
+        favorite: true,
+      );
+
+      final favorited = await store.readItem(
+        _id('album-1'),
+        accountKey: '$_server/user-1',
+      );
+      expect((favorited as Album).isFavorite, isTrue);
+
+      // No account given, and another profile's read: neither sees it.
+      final noAccount = await store.readItem(_id('album-1'));
+      expect((noAccount as Album).isFavorite, isFalse);
+      final otherProfile = await store.readItem(
+        _id('album-1'),
+        accountKey: '$_server/user-2',
+      );
+      expect((otherProfile as Album).isFavorite, isFalse);
+    },
+  );
+
   test('does not cache media it has no columns for', () async {
     // Movies and episodes arrive with the release that browses them, and
     // with the columns their entities need.
@@ -411,6 +446,95 @@ void main() {
         ),
         isNull,
       );
+    });
+  });
+
+  group('pending favorite intents (v0.4.3)', () {
+    const account = '$_server/user-1';
+    const otherAccount = '$_server/user-2';
+
+    test('has nothing pending for a profile that never went offline', () async {
+      expect(await store.pendingFavorites(account), isEmpty);
+    });
+
+    test('records and returns an intent', () async {
+      await store.recordPendingFavorite(
+        account,
+        _id('album-1'),
+        MediaKind.album,
+        favorite: true,
+      );
+
+      final pending = await store.pendingFavorites(account);
+      expect(pending.single.id, _id('album-1'));
+      expect(pending.single.kind, MediaKind.album);
+      expect(pending.single.favorite, isTrue);
+    });
+
+    test(
+      'a second offline toggle of the same item overwrites the first',
+      () async {
+        await store.recordPendingFavorite(
+          account,
+          _id('album-1'),
+          MediaKind.album,
+          favorite: true,
+        );
+        await store.recordPendingFavorite(
+          account,
+          _id('album-1'),
+          MediaKind.album,
+          favorite: false,
+        );
+
+        final pending = await store.pendingFavorites(account);
+        expect(pending, hasLength(1));
+        expect(pending.single.favorite, isFalse);
+      },
+    );
+
+    test('clearing an intent removes exactly that one', () async {
+      await store.recordPendingFavorite(
+        account,
+        _id('album-1'),
+        MediaKind.album,
+        favorite: true,
+      );
+      await store.recordPendingFavorite(
+        account,
+        _id('album-2'),
+        MediaKind.album,
+        favorite: true,
+      );
+
+      await store.clearPendingFavorite(account, _id('album-1'));
+
+      final pending = await store.pendingFavorites(account);
+      expect(pending.single.id, _id('album-2'));
+    });
+
+    test("one profile's pending intents never surface under another's", () async {
+      await store.recordPendingFavorite(
+        account,
+        _id('album-1'),
+        MediaKind.album,
+        favorite: true,
+      );
+
+      expect(await store.pendingFavorites(otherAccount), isEmpty);
+    });
+
+    test('clearing the server forgets its pending intents too', () async {
+      await store.recordPendingFavorite(
+        account,
+        _id('album-1'),
+        MediaKind.album,
+        favorite: true,
+      );
+
+      await store.clearServer(_server);
+
+      expect(await store.pendingFavorites(account), isEmpty);
     });
   });
 }
