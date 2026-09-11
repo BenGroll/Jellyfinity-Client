@@ -22,22 +22,49 @@ class RecordingMediaCacheStore implements MediaCacheStore {
   Future<void> savePage(String collectionKey, Page<MediaItem> page) async {
     savedPages.add(collectionKey);
     String? serverId;
-    var position = page.startIndex;
     final entries = <_Entry>[];
+
+    // The same interleaving rule the real store follows (v0.4.2): an
+    // entry that recorded its slot keeps it, and the readable rows fill
+    // what is left in order.
+    final reserved = <int, UnavailableItem>{};
+    final floating = <UnavailableItem>[];
+    for (final missing in page.unavailable) {
+      final at = missing.position;
+      if (at != null && at >= page.startIndex && !reserved.containsKey(at)) {
+        reserved[at] = missing;
+      } else {
+        floating.add(missing);
+      }
+    }
+
+    var position = page.startIndex;
+    int nextFree() {
+      while (reserved.containsKey(position)) {
+        position++;
+      }
+      return position++;
+    }
 
     for (final item in page.items) {
       serverId ??= item.id.serverId;
       _items[item.id.key] = item;
-      entries.add(_Entry(position: position++, itemId: item.id.itemId));
+      entries.add(_Entry(position: nextFree(), itemId: item.id.itemId));
     }
-    for (final missing in page.unavailable) {
+    for (final missing in floating) {
       entries.add(
         _Entry(
-          position: position++,
+          position: nextFree(),
           itemId: missing.id,
           reason: missing.reason,
         ),
       );
+    }
+    for (final MapEntry(key: at, value: missing) in reserved.entries) {
+      entries.add(
+        _Entry(position: at, itemId: missing.id, reason: missing.reason),
+      );
+      if (at >= position) position = at + 1;
     }
     if (serverId == null) return;
 
@@ -76,7 +103,13 @@ class RecordingMediaCacheStore implements MediaCacheStore {
     for (final entry in window) {
       final reason = entry.reason;
       if (reason != null) {
-        unavailable.add(UnavailableItem(id: entry.itemId, reason: reason));
+        unavailable.add(
+          UnavailableItem(
+            id: entry.itemId,
+            reason: reason,
+            position: entry.position,
+          ),
+        );
         continue;
       }
       final item =
@@ -88,6 +121,7 @@ class RecordingMediaCacheStore implements MediaCacheStore {
           UnavailableItem(
             id: entry.itemId,
             reason: 'This item is not saved on this device.',
+            position: entry.position,
           ),
         );
       }

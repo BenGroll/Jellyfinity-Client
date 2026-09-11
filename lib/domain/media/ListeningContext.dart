@@ -23,6 +23,13 @@ enum ListeningContextKind {
   /// A song played with no album to attribute it to (a single, a search
   /// result). The context [id] is the track's own id.
   track,
+
+  /// A playlist played as a playlist (v0.4.2). Unlike the three above,
+  /// this one cannot be derived from the track that played — nothing
+  /// about a song says which playlist it was picked from — so it comes
+  /// from the queue's own `QueueOrigin`, and it wins over the album or
+  /// artist the same play would otherwise have counted towards.
+  playlist,
 }
 
 class ListeningContext extends Equatable {

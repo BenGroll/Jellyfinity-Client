@@ -95,11 +95,61 @@ class CachedPlaylistRepository implements PlaylistRepository {
         return result;
       case Err<Page<Track>>(:final failure):
         if (!canServeFromCache(failure)) return result;
-        return await _saved<Track>(key, page) ??
-            await _downloaded(playlistId, page) ??
-            result;
+        final saved = await _saved<Track>(key, page);
+        if (saved != null) return saved.map(_positioned);
+        return await _downloaded(playlistId, page) ?? result;
     }
   }
+
+  /// The saved window with every readable row told where it sits in the
+  /// playlist (v0.4.2).
+  ///
+  /// The cache keeps each window's order, unreadable entries included, so
+  /// the true position of a readable row is simply the next slot no
+  /// unreadable entry has claimed. Restoring it here rather than in
+  /// [MediaCacheStore] keeps the store collection-agnostic: a playlist is
+  /// the one collection whose members' indices are part of what they are.
+  ///
+  /// The rows come back as [PlaylistTrack]s with no entry id, which is
+  /// the honest answer offline — numbered like the playlist, playable,
+  /// and not editable (ADR-0024's rule, carried forward).
+  Page<Track> _positioned(Page<Track> page) {
+    final reserved = {
+      for (final missing in page.unavailable)
+        if (missing.position != null) missing.position!,
+    };
+    var position = page.startIndex;
+    final tracks = <Track>[];
+    for (final track in page.items) {
+      while (reserved.contains(position)) {
+        position++;
+      }
+      tracks.add(_asPlaylistTrack(track, position++));
+    }
+    return Page<Track>(
+      content: Partial(available: tracks, unavailable: page.unavailable),
+      startIndex: page.startIndex,
+      totalCount: page.totalCount,
+      source: page.source,
+    );
+  }
+
+  static PlaylistTrack _asPlaylistTrack(Track track, int position) =>
+      PlaylistTrack(
+        position: position,
+        id: track.id,
+        name: track.name,
+        artists: track.artists,
+        albumId: track.albumId,
+        albumName: track.albumName,
+        trackNumber: track.trackNumber,
+        discNumber: track.discNumber,
+        duration: track.duration,
+        normalizationGain: track.normalizationGain,
+        isFavorite: track.isFavorite,
+        availability: track.availability,
+        image: track.image,
+      );
 
   /// A window of [playlistId]'s downloaded snapshot, or `null` when the
   /// playlist has not been downloaded. Marked [PageSource.cache] like any
@@ -116,32 +166,33 @@ class CachedPlaylistRepository implements PlaylistRepository {
     final start = page.startIndex.clamp(0, members.length);
     final end = (start + page.limit).clamp(0, members.length);
     final tracks = <Track>[];
-    for (final member in members.sublist(start, end)) {
+    // A member of this window whose file never finished downloading is
+    // part of the playlist the user built but cannot play offline — shown
+    // as "N not available offline" rather than dropped (v0.2.3). Both it
+    // and the members around it keep their place in the snapshot's order,
+    // which is the playlist's order (v0.4.2).
+    final gaps = <UnavailableItem>[];
+    for (var i = start; i < end; i++) {
+      final member = members[i];
       final record = await _downloads.find(member.trackId);
       if (record case Ok<TrackDownload?>(
         :final value?,
       ) when value.state == DownloadState.completed) {
-        tracks.add(value.toTrack());
+        tracks.add(_asPlaylistTrack(value.toTrack(), i));
+      } else {
+        gaps.add(
+          UnavailableItem(
+            id: 'offline-gap-$i',
+            reason: offlineUnavailableReason,
+            position: i,
+          ),
+        );
       }
     }
 
-    // A member of this window whose file never finished downloading is
-    // part of the playlist the user built but cannot play offline — shown
-    // as "N not available offline" rather than dropped (v0.2.3).
-    final missing = (end - start) - tracks.length;
-
     return Result.ok(
       Page<Track>(
-        content: Partial(
-          available: tracks,
-          unavailable: [
-            for (var i = 0; i < missing; i++)
-              UnavailableItem(
-                id: 'offline-gap-$i',
-                reason: offlineUnavailableReason,
-              ),
-          ],
-        ),
+        content: Partial(available: tracks, unavailable: gaps),
         startIndex: start,
         totalCount: members.length,
         source: PageSource.cache,
@@ -185,6 +236,13 @@ class CachedPlaylistRepository implements PlaylistRepository {
     MediaId playlistId,
     List<String> entryIds,
   ) => _remote.removeEntries(playlistId, entryIds);
+
+  @override
+  Future<Result<void>> moveEntry(
+    MediaId playlistId,
+    String entryId,
+    int newIndex,
+  ) => _remote.moveEntry(playlistId, entryId, newIndex);
 
   /// The saved window, or `null` when there is nothing saved to show —
   /// in which case the caller returns the server's failure, because an

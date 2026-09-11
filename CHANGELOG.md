@@ -46,6 +46,60 @@ All notable changes to Jellyfinity are documented here.
 - Document setup, packaging and device acceptance in `docs/windows.md`, and
   the platform decisions in ADR-0029.
 
+## v0.4.2 — Playlist mastery
+
+Playlists stop being lists that still need Jellyfin Web for basic
+curation. The two things standing in the way were both deferred on
+purpose by earlier releases, and both are the same kind of problem: a
+fact the server has that Jellyfinity's model was throwing away.
+
+### Reorder, correctly (ADR-0032)
+
+- **A playlist can be rearranged from inside Jellyfinity.** Drag a row by
+  its grip — touch on Android, pointer on Windows — or use "Move up" /
+  "Move down" in the row's menu, which is the same reorder without a
+  drag and the path that works from a keyboard.
+- **The read model carries true positions, which is why this is safe.**
+  Jellyfin's move endpoint takes an absolute index into the playlist, and
+  every entry counts — including the ones Jellyfinity cannot read. Rows
+  now know where they sit, so a move is aimed at the row it displaces
+  rather than at a position on screen. v0.1.2 left reorder out precisely
+  because the difference was invisible and would have moved the wrong
+  entry (ADR-0024); it is now complete.
+- **A playlist is numbered the way its server numbers it.** A film or a
+  deleted track sitting in a music playlist keeps its number, and the
+  songs around it keep theirs, online and offline alike.
+- **The same song listed twice is two rows**, and moving or removing one
+  names that appearance — never "that song".
+- **A move the server refuses puts the list back** and says what
+  happened. A move it accepts is followed by a re-read, so the numbering
+  comes from the playlist rather than from the drag.
+
+### A playlist you can come back to
+
+- **Listening history knows what a playlist is.** Playing a playlist is
+  now one thing the listener did, not nine albums' worth — the queue
+  carries what started it (the "queue origin" ADR-0026 deferred), so
+  Home's "Recently played" shows playlists alongside albums and artists,
+  and opens them.
+- **A playlist offers to carry on the queue it started**, across a
+  restart: "Continue 'Blue in Green'". It knows it is the same session
+  because the queue says so, not because that song happens to appear in
+  the list.
+- No new table and no schema change: the origin rides the same key-value
+  store the shuffled play order does.
+
+### Honest offline
+
+- **A saved playlist is numbered, playable, and visibly not
+  editable.** No drag grips, no move or remove in the menu — editing
+  reaches the server or fails (ADR-0024), and offering an action that
+  cannot work is worse than not offering it.
+- **The local copy keeps a window's order exactly as the server sent
+  it.** Unreadable entries used to land at the end of the window they
+  came from, which quietly renumbered every offline playlist containing
+  one. This applies to every cached collection, not only playlists.
+
 ## v0.4.1 — Music listening perfection
 
 An audit and hardening pass over everyday playback, adding no new place

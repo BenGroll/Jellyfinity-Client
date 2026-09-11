@@ -158,15 +158,19 @@ Future<bool> deletePlaylist(BuildContext context, Playlist playlist) async {
 ///
 /// Takes the [PlaylistTrack] rather than a track id: it is one appearance
 /// of a song that is being removed, and a playlist may list that song
-/// more than once.
+/// more than once. A row with no entry id — read from the saved copy or a
+/// download snapshot — is not removable at all, and the caller is
+/// expected not to have offered it (v0.4.2).
 Future<bool> removeFromPlaylist(
   BuildContext context, {
   required MediaId playlistId,
   required PlaylistTrack row,
 }) async {
+  final entryId = row.entryId;
+  if (entryId == null) return false;
   final messenger = ScaffoldMessenger.of(context);
   final result = await getIt<PlaylistRepository>().removeEntries(playlistId, [
-    row.entryId,
+    entryId,
   ]);
   if (result case Err<void>(:final failure)) {
     messenger.showSnackBar(

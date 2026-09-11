@@ -169,11 +169,101 @@ void main() {
 
       final result = await _repository(adapter).tracks(_playlistId);
 
-      final track = result.valueOrNull!.items.single;
+      final track = result.valueOrNull!.items.single as PlaylistTrack;
       expect(track.name, 'So What');
-      // Not editable, but present — dropping it would lose a song from
-      // the list the user built.
-      expect(track, isNot(isA<PlaylistTrack>()));
+      // Present and numbered, because it occupies a slot in the
+      // playlist — but with nothing to name it by in a write, so not
+      // editable (v0.4.2). Dropping it would lose a song from the list
+      // the user built.
+      expect(track.position, 0);
+      expect(track.entryId, isNull);
+      expect(track.isEditable, isFalse);
+    });
+  });
+
+  group('true positions (v0.4.2)', () {
+    test('a row knows its index in the playlist, not in the readable '
+        'rows', () async {
+      // The playlist the whole feature waited for: a film sitting between
+      // two songs. Numbering around it would renumber the user's list.
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {
+              'Id': 't1',
+              'Name': 'So What',
+              'Type': 'Audio',
+              'PlaylistItemId': 'entry-a',
+            },
+            {'Id': 'm1', 'Name': 'A film', 'Type': 'Movie'},
+            {
+              'Id': 't2',
+              'Name': 'Blue in Green',
+              'Type': 'Audio',
+              'PlaylistItemId': 'entry-c',
+            },
+          ]),
+        ),
+      );
+
+      final page = (await _repository(
+        adapter,
+      ).tracks(_playlistId)).valueOrNull!;
+
+      final rows = page.items.cast<PlaylistTrack>();
+      expect(rows.map((row) => row.position), [0, 2]);
+      expect(page.unavailable.single.position, 1);
+    });
+
+    test('positions continue across windows', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse(
+            [
+              {
+                'Id': 't5',
+                'Name': 'Flamenco Sketches',
+                'Type': 'Audio',
+                'PlaylistItemId': 'entry-e',
+              },
+            ],
+            startIndex: 40,
+            totalRecordCount: 41,
+          ),
+        ),
+      );
+
+      final page = (await _repository(adapter).tracks(
+        _playlistId,
+        page: const PageRequest(startIndex: 40, limit: 20),
+      )).valueOrNull!;
+
+      expect((page.items.single as PlaylistTrack).position, 40);
+    });
+  });
+
+  group('reorder (v0.4.2)', () {
+    test('moves a row by entry id to an absolute index', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody(null));
+
+      final result = await _repository(
+        adapter,
+      ).moveEntry(_playlistId, 'entry-c', 4);
+
+      expect(result.isOk, isTrue);
+      final request = adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/Playlists/pl-1/Items/entry-c/Move/4');
+    });
+
+    test('a row with no entry id is refused rather than guessed at', () async {
+      final adapter = FakeDioAdapter((_) async => jsonResponseBody(null));
+
+      final result = await _repository(adapter).moveEntry(_playlistId, '', 2);
+
+      expect(result.isOk, isFalse);
+      // Nothing was sent: there is no index that would be right.
+      expect(adapter.requests, isEmpty);
     });
   });
 

@@ -12,6 +12,7 @@ import 'package:jellyfinity/domain/playback/CrossfadeSettings.dart';
 import 'package:jellyfinity/domain/playback/NormalizationSettings.dart';
 import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
+import 'package:jellyfinity/domain/playback/QueueOrigin.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
@@ -981,6 +982,79 @@ void main() {
       duration: duration,
       availability: availability,
     );
+
+    const playlistOrigin = QueueOrigin.playlist(
+      playlistId: MediaId(serverId: 's1', itemId: 'pl-1'),
+      name: 'Late Night',
+    );
+
+    test(
+      'a playlist played as a playlist is recorded as one (v0.4.2)',
+      () async {
+        // The attribution ADR-0026 deferred: nothing about the track says
+        // it was played from Late Night, so the queue carries it.
+        await cubit.playNow(
+          [albumTrack('a'), albumTrack('b')],
+          startIndex: 0,
+          origin: playlistOrigin,
+        );
+        engine.emitPosition(const Duration(seconds: 25));
+        await _pump();
+
+        await cubit.next();
+        await _pump();
+
+        final context = history.plays.single.context;
+        expect(context.kind, ListeningContextKind.playlist);
+        expect(context.id.itemId, 'pl-1');
+        expect(context.name, 'Late Night');
+      },
+    );
+
+    test('the whole playlist collapses into one history entry', () async {
+      // Two tracks from two different albums, played from one playlist:
+      // one thing the listener did, not two.
+      await cubit.playNow(
+        [
+          albumTrack('a', album: 'album-1'),
+          albumTrack('b', album: 'album-2'),
+          albumTrack('c', album: 'album-3'),
+        ],
+        startIndex: 0,
+        origin: playlistOrigin,
+      );
+      engine.emitPosition(const Duration(seconds: 25));
+      await _pump();
+      await cubit.next();
+      await _pump();
+      engine.emitPosition(const Duration(seconds: 25));
+      await _pump();
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays, hasLength(2));
+      expect(history.plays.map((play) => play.context.id.itemId), [
+        'pl-1',
+        'pl-1',
+      ]);
+    });
+
+    test('a queue started from anywhere else still counts by album', () async {
+      // The origin belongs to the queue, and starting a different queue
+      // replaces it — including with nothing.
+      await cubit.playNow(
+        [albumTrack('a')],
+        startIndex: 0,
+        origin: playlistOrigin,
+      );
+      await cubit.playNow([albumTrack('c'), albumTrack('d')], startIndex: 0);
+      engine.emitPosition(const Duration(seconds: 25));
+      await _pump();
+      await cubit.next();
+      await _pump();
+
+      expect(history.plays.single.context.kind, ListeningContextKind.album);
+    });
 
     test('a track skipped after two seconds is not recorded', () async {
       await cubit.playNow([albumTrack('a'), albumTrack('b')], startIndex: 0);

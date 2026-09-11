@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
+import '../../../../app/router/route_paths.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
+import '../../../../domain/playback/QueueOrigin.dart';
 import '../library/music_collection_cubits.dart';
 import '../library/paged_collection_cubit.dart';
 import '../widgets/download_controls.dart';
@@ -20,12 +22,15 @@ import '../widgets/playlist_actions.dart';
 import '../widgets/paged_collection_view.dart';
 import 'media_detail_cubit.dart';
 
-/// One playlist, in the order the user arranged it.
+/// One playlist, in the order the user arranged it — and, online, the
+/// place that order is changed.
 ///
-/// Position numbers come from the list, not from the tracks: a playlist
-/// entry that is not a song, or no longer in the library, still occupies
-/// its number here. Renumbering around it would quietly change the
-/// playlist the user made.
+/// Position numbers come from the playlist, not from the list on screen
+/// (v0.4.2): a playlist entry that is not a song, or no longer in the
+/// library, still occupies its number here, and the rows around it are
+/// numbered as if it were there, because to the server it is. The same
+/// number is what a drag moves a row to, which is why reorder could not
+/// ship until the read model carried it (ADR-0024, ADR-0032).
 class PlaylistDetailPage extends StatelessWidget {
   const PlaylistDetailPage({
     super.key,
@@ -142,6 +147,21 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
     await navigator.maybePop();
   }
 
+  /// Moves the row at [from] to [to], both indices into the rows on
+  /// screen. The cubit turns that into the playlist's own index and puts
+  /// the list back if the server refuses.
+  Future<void> _moveRow(int from, int to) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final failure = await context.read<PlaylistTracksCubit>().moveEntry(
+      from: from,
+      to: to,
+    );
+    if (failure == null || !mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text('Could not move that song. ${failure.message}')),
+    );
+  }
+
   /// Removes one row, then reloads so the numbering closes up behind it.
   Future<void> _removeRow(PlaylistTrack row) async {
     final playlist = context.read<PlaylistDetailCubit>().state.item;
@@ -195,8 +215,23 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
             builder: (context, state) {
               final cubit = context.read<PlaylistTracksCubit>();
               final catalog = context.watch<DownloadsCubit>().state;
+              final playlist = header.item;
+              // Editing a playlist reaches the server or fails
+              // (ADR-0024), so a saved copy is a list to play, not one to
+              // rearrange. Every row of a server-read page carries the
+              // entry id a move names; a row that somehow does not simply
+              // goes without a grip.
+              final canReorder = !state.isCached && state.items.length > 1;
+              final origin = playlist == null
+                  ? null
+                  : QueueOrigin.playlist(
+                      playlistId: playlist.id,
+                      name: playlist.name,
+                      image: playlist.image,
+                    );
               return PagedCollectionView<Track>(
                 state: state,
+                onReorder: canReorder ? _moveRow : null,
                 headerSlivers: [
                   SliverToBoxAdapter(
                     child: Padding(
@@ -219,22 +254,56 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
                 onRetry: cubit.reload,
                 onRetryLoadMore: cubit.retryLoadMore,
                 offlineGapNoun: 'song',
-                unavailableBuilder: (context, item) =>
-                    UnavailableRow(item: item),
+                unavailableBuilder: (context, item) => UnavailableRow(
+                  item: item,
+                  // Numbered like every other row: an entry Jellyfinity
+                  // cannot read is still the playlist's fourth entry.
+                  position: item.position == null ? null : item.position! + 1,
+                ),
                 itemBuilder: (context, track, index) {
                   final playable =
                       track.availability !=
                           MediaAvailability.remoteUnavailable ||
                       catalog.isDownloaded(track.id);
+                  // Only a row that came from the server carries the entry
+                  // id a removal or a move names (v0.1.2's completion,
+                  // v0.4.2's reorder). One read from the saved copy or a
+                  // download snapshot does not, and editing needs the
+                  // server anyway.
+                  final entry = track is PlaylistTrack ? track : null;
+                  final editable = entry != null && entry.isEditable;
+                  final canDrag = canReorder && editable;
                   return TrackRow(
+                    // Keyed by the entry, not by where the row sits: a
+                    // playlist may list the same song three times, and two
+                    // identical keys make a drag move the wrong one.
+                    key: ValueKey(
+                      entry?.entryId ?? 'row-$index-${track.id.itemId}',
+                    ),
                     track: track,
                     showArtwork: false,
-                    position: index + 1,
+                    position: (entry?.position ?? index) + 1,
                     playable: playable,
+                    dragHandle: canDrag
+                        ? ReorderableDragStartListener(
+                            index: index,
+                            child: Icon(
+                              Icons.drag_indicator_rounded,
+                              color: t.colors.textSecondary,
+                            ),
+                          )
+                        : null,
+                    onMoveUp: canDrag && index > 0
+                        ? () => _moveRow(index, index - 1)
+                        : null,
+                    onMoveDown: canDrag && index < state.items.length - 1
+                        ? () => _moveRow(index, index + 1)
+                        : null,
                     onTap: playable
                         ? () => context.read<PlaybackCubit>().playNow(
                             state.items,
                             startIndex: index,
+                            origin: origin,
                           )
                         : null,
                     onPlayNext: playable
@@ -243,12 +312,8 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
                     onAddToQueue: playable
                         ? () => context.read<PlaybackCubit>().addToQueue(track)
                         : null,
-                    // Only a row that came from the server carries the
-                    // entry id removal names (v0.1.2's completion). One
-                    // read from the saved copy or a download snapshot
-                    // does not, and editing needs the server anyway.
-                    onRemoveFromPlaylist: track is PlaylistTrack
-                        ? () => _removeRow(track)
+                    onRemoveFromPlaylist: editable
+                        ? () => _removeRow(entry)
                         : null,
                     downloadAction:
                         track.availability ==
@@ -335,13 +400,75 @@ class _PlaylistHeader extends StatelessWidget {
             );
           },
         ),
+        _PlaylistSessionNote(playlist: playlist),
         SizedBox(height: t.spacing.md),
         MediaPlaybackActionsRow(
           tracks: tracks,
           download: PlaylistDownloadButton(playlist: playlist),
+          origin: QueueOrigin.playlist(
+            playlistId: playlist.id,
+            name: playlist.name,
+            image: playlist.image,
+          ),
         ),
         SizedBox(height: t.spacing.md),
       ],
+    );
+  }
+}
+
+/// "Continue — Blue in Green", when the queue that is sitting there was
+/// started from this playlist (v0.4.2).
+///
+/// The playlist session ADR-0026 could not offer, built from the two
+/// things that already exist: the restored queue and the origin it now
+/// carries. It knows this is the same session because the queue says so,
+/// not because the track happens to appear in the list — the same song in
+/// two playlists is not two sessions.
+///
+/// Absent whenever there is nothing to carry on: another queue is loaded,
+/// the queue is already playing, or this playlist was never the one
+/// playing.
+class _PlaylistSessionNote extends StatelessWidget {
+  const _PlaylistSessionNote({required this.playlist});
+
+  final Playlist playlist;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final playback = context.watch<PlaybackCubit>().state;
+    final origin = playback.queue.origin;
+    final entry = playback.queue.currentEntry;
+    if (origin == null || origin.playlistId != playlist.id || entry == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Already playing: say where it is, and offer nothing — the transport
+    // controls are a tap away and starting it again would only restart
+    // the track.
+    if (playback.isPlaying) {
+      return Padding(
+        padding: EdgeInsets.only(top: t.spacing.xs),
+        child: Text(
+          'Playing "${entry.title}" from this playlist',
+          textAlign: TextAlign.center,
+          style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(top: t.spacing.xs),
+      child: AppButton(
+        label: 'Continue "${entry.title}"',
+        icon: Icons.play_arrow_rounded,
+        variant: AppButtonVariant.secondary,
+        onPressed: () {
+          context.read<PlaybackCubit>().resume();
+          context.pushNamed(RouteNames.nowPlaying);
+        },
+      ),
     );
   }
 }

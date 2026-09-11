@@ -36,7 +36,11 @@ const String offlineUnavailableReason = 'Not available offline';
 /// Describes one item that could not be resolved as part of a [Partial]
 /// result.
 class UnavailableItem extends Equatable {
-  const UnavailableItem({required this.id, required this.reason});
+  const UnavailableItem({
+    required this.id,
+    required this.reason,
+    this.position,
+  });
 
   /// An identifier for the missing item, meaningful to the caller (e.g. a
   /// Jellyfin item id). Not necessarily presentable to the user as-is.
@@ -46,6 +50,19 @@ class UnavailableItem extends Equatable {
   /// contain credentials, tokens, or other sensitive data.
   final String reason;
 
+  /// Where this entry sat in the collection it came from — a zero-based
+  /// index into the whole collection, not into the window (v0.4.2).
+  ///
+  /// [Partial] separates the rows a source could read from the rows it
+  /// could not, which loses how the two were interleaved. That is
+  /// harmless for a grid of covers and wrong for an ordered list the user
+  /// built: a playlist's fourth entry is its fourth entry whether or not
+  /// Jellyfinity can read it, and Jellyfin's own move endpoint counts it.
+  /// A source that knows the slot says so here; `null` where it genuinely
+  /// does not (a gap standing in for a member whose file never
+  /// downloaded, say).
+  final int? position;
+
   @override
-  List<Object?> get props => [id, reason];
+  List<Object?> get props => [id, reason, position];
 }

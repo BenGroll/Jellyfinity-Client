@@ -67,19 +67,10 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
       page: page,
     );
 
-    return response.map(
-      (dto) => mapper.toPage(
-        dto,
-        request: page,
-        // Playlist rows, not bare tracks: each carries the entry id
-        // `removeEntries` needs to name one appearance of a song.
-        map: mapper.toPlaylistTrack,
-        // A playlist can hold anything, and can outlive the items in it.
-        // Either way the entry stays in place, marked, so the list the
-        // user built still looks like the list they built.
-        reason: 'This entry is not an available song.',
-      ),
-    );
+    // Playlist rows, not bare tracks: each carries its true position and
+    // the entry id `removeEntries` and `moveEntry` name one appearance of
+    // a song by.
+    return response.map((dto) => mapper.toPlaylistPage(dto, request: page));
   }
 
   @override
@@ -163,6 +154,34 @@ class JellyfinPlaylistRepository implements PlaylistRepository {
     final itemId = _api.localItemId(playlistId);
     if (itemId case Err<String>(:final failure)) return Result.err(failure);
     return _api.removePlaylistItems((itemId as Ok<String>).value, entryIds);
+  }
+
+  @override
+  Future<Result<void>> moveEntry(
+    MediaId playlistId,
+    String entryId,
+    int newIndex,
+  ) async {
+    if (entryId.isEmpty) {
+      // A row with no entry id is one the server never named; it cannot
+      // be the subject of a move, and saying so beats a request the
+      // server would reject with something less explicable.
+      return const Result.err(
+        UnexpectedFailure('That row cannot be moved from here.'),
+      );
+    }
+    if (newIndex < 0) {
+      return const Result.err(
+        UnexpectedFailure('That is not a position in this playlist.'),
+      );
+    }
+    final itemId = _api.localItemId(playlistId);
+    if (itemId case Err<String>(:final failure)) return Result.err(failure);
+    return _api.movePlaylistItem(
+      (itemId as Ok<String>).value,
+      entryId,
+      newIndex,
+    );
   }
 
   /// Every id resolved against the signed-in server, or the first reason

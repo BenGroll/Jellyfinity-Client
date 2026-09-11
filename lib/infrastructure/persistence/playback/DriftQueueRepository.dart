@@ -11,6 +11,7 @@ import '../../../domain/media/MediaId.dart';
 import '../../../domain/media/MediaImage.dart';
 import '../../../domain/playback/PlaybackQueue.dart';
 import '../../../domain/playback/QueueEntry.dart';
+import '../../../domain/playback/QueueOrigin.dart';
 import '../../../domain/playback/QueueRepository.dart';
 import '../../../domain/playback/repeat_mode.dart';
 import '../database/AppDatabase.dart';
@@ -46,6 +47,14 @@ class DriftQueueRepository implements QueueRepository {
   /// order, so the Up Next list a listener left was never the one they
   /// came back to.
   static const String _shuffleOrderKey = 'playback.queue.shuffleOrder';
+
+  /// The playlist this queue was started from, as JSON (v0.4.2).
+  ///
+  /// Beside the play order for the same reason: it is one fact about the
+  /// queue as a whole, not a property of any entry. Without it a restart
+  /// forgot what a listener was in the middle of, which is exactly what
+  /// "resume this playlist" has to know.
+  static const String _originKey = 'playback.queue.origin';
 
   @override
   Future<Result<RestoredQueue>> load() async {
@@ -87,6 +96,9 @@ class DriftQueueRepository implements QueueRepository {
             _decodeShuffleOrder(
               await _keyValueStore.getString(_shuffleOrderKey),
             ),
+          )
+          .withOrigin(
+            _decodeOrigin(await _keyValueStore.getString(_originKey)),
           );
 
       return Result.ok((
@@ -124,6 +136,7 @@ class DriftQueueRepository implements QueueRepository {
         _shuffleOrderKey,
         (queue.shuffleOrder ?? const []).join(','),
       );
+      await _keyValueStore.setString(_originKey, _encodeOrigin(queue.origin));
       return const Result.ok(null);
     } catch (error, stackTrace) {
       return Result.err(
@@ -274,6 +287,69 @@ class DriftQueueRepository implements QueueRepository {
       order.add(index);
     }
     return order;
+  }
+
+  /// The queue's origin as JSON, or an empty string for a queue that has
+  /// none — which is also what clears a previously saved one.
+  static String _encodeOrigin(QueueOrigin? origin) {
+    if (origin == null) return '';
+    final image = origin.image;
+    return jsonEncode(<String, Object?>{
+      'serverId': origin.playlistId.serverId,
+      'itemId': origin.playlistId.itemId,
+      'name': origin.name,
+      if (image != null) ...<String, Object?>{
+        'imageItemId': image.itemId.itemId,
+        'imageKind': image.kind.name,
+        'imageTag': image.tag,
+        'imageAspectRatio': image.aspectRatio,
+      },
+    });
+  }
+
+  /// The saved origin, or `null` for anything missing or unreadable — a
+  /// queue with no remembered playlist behaves exactly as every queue did
+  /// before v0.4.2, which is the right way for a corrupt value to fail.
+  static QueueOrigin? _decodeOrigin(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final serverId = decoded['serverId'];
+      final itemId = decoded['itemId'];
+      final name = decoded['name'];
+      if (serverId is! String || itemId is! String || name is! String) {
+        return null;
+      }
+      return QueueOrigin.playlist(
+        playlistId: MediaId(serverId: serverId, itemId: itemId),
+        name: name,
+        image: _decodeOriginImage(decoded, serverId),
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static MediaImage? _decodeOriginImage(
+    Map<String, dynamic> decoded,
+    String serverId,
+  ) {
+    final owner = decoded['imageItemId'];
+    final tag = decoded['imageTag'];
+    final kindName = decoded['imageKind'];
+    if (owner is! String || tag is! String || kindName is! String) return null;
+    for (final kind in MediaImageKind.values) {
+      if (kind.name != kindName) continue;
+      final ratio = decoded['imageAspectRatio'];
+      return MediaImage(
+        itemId: MediaId(serverId: serverId, itemId: owner),
+        kind: kind,
+        tag: tag,
+        aspectRatio: ratio is num ? ratio.toDouble() : null,
+      );
+    }
+    return null;
   }
 
   RepeatMode _repeatModeFrom(String? name) {

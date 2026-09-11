@@ -21,6 +21,7 @@ import '../../domain/playback/PlaybackQueue.dart';
 import '../../domain/playback/PlaybackSource.dart';
 import '../../domain/playback/playback_status.dart';
 import '../../domain/playback/QueueEntry.dart';
+import '../../domain/playback/QueueOrigin.dart';
 import '../../domain/playback/QueueRepository.dart';
 import '../../domain/playback/repeat_mode.dart';
 import '../../domain/playback/stream_quality.dart';
@@ -199,8 +200,17 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   // Do not serialize this behind queue edits: just_audio's play() Future stays
   // pending for the lifetime of playback. Queue edits are serialized with one
   // another, but must remain available while a new queue is playing.
-  Future<void> playNow(List<Track> tracks, {required int startIndex}) =>
-      _playNow(tracks, startIndex: startIndex);
+  ///
+  /// [origin] is what the listener started, when the tracks alone cannot
+  /// say it — a playlist (v0.4.2). It travels with the queue: listening
+  /// history attributes these plays to it, and a restart can offer to
+  /// carry the session on. Left out, the queue has no origin, which is
+  /// right for an album or an artist (every entry already names both).
+  Future<void> playNow(
+    List<Track> tracks, {
+    required int startIndex,
+    QueueOrigin? origin,
+  }) => _playNow(tracks, startIndex: startIndex, origin: origin);
 
   /// Replaces the queue with [tracks], shuffled, starting from a random
   /// entry (v0.1.6's Album/Playlist shuffle button).
@@ -214,10 +224,15 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// by toggling first (v0.4.1): `toggleShuffle` is a queue edit, so it
   /// reshuffled, re-persisted and re-loaded the queue being replaced
   /// half a frame before it was thrown away.
-  Future<void> playShuffled(List<Track> tracks) async {
+  Future<void> playShuffled(List<Track> tracks, {QueueOrigin? origin}) async {
     if (tracks.isEmpty) return;
     final startIndex = tracks.length == 1 ? 0 : Random().nextInt(tracks.length);
-    await _playNow(tracks, startIndex: startIndex, shuffle: true);
+    await _playNow(
+      tracks,
+      startIndex: startIndex,
+      shuffle: true,
+      origin: origin,
+    );
   }
 
   /// Queues every one of [tracks] to play after the current one, in their
@@ -251,6 +266,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     List<Track> tracks, {
     required int startIndex,
     bool? shuffle,
+    QueueOrigin? origin,
   }) async {
     if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
       return;
@@ -259,7 +275,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     final queue = PlaybackQueue.empty
         .withShuffle(shuffle ?? state.queue.shuffleEnabled)
         .withRepeatMode(state.queue.repeatMode)
-        .withEntries(entries, startIndex: startIndex);
+        .withEntries(entries, startIndex: startIndex, origin: origin);
 
     _retriedIds.clear();
     _retriedAtOriginal.clear();
@@ -870,10 +886,27 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     );
   }
 
-  /// What a play of [entry] is about: its album if it has one, else its
-  /// artist, else the track on its own. This is what history collapses on
-  /// — an album played straight through is one thing the user did.
+  /// What a play of [entry] is about: the playlist it is being played
+  /// from if there is one, else its album, else its artist, else the
+  /// track on its own. This is what history collapses on — an album
+  /// played straight through is one thing the user did, and so is a
+  /// playlist.
+  ///
+  /// The queue's origin wins over the album (v0.4.2) because it is the
+  /// more specific answer to "what did you listen to": a listener who put
+  /// on *Late Night* listened to *Late Night*, not to the nine albums it
+  /// draws from. It is also the only attribution the entry itself cannot
+  /// supply, which is why the queue has to carry it (ADR-0026 deferred
+  /// exactly this).
   ListeningContext _listeningContextFor(QueueEntry entry) {
+    if (state.queue.origin case final QueueOrigin origin) {
+      return ListeningContext(
+        kind: ListeningContextKind.playlist,
+        id: origin.playlistId,
+        name: origin.name,
+        image: origin.image,
+      );
+    }
     if (entry.albumId case final MediaId albumId) {
       return ListeningContext(
         kind: ListeningContextKind.album,

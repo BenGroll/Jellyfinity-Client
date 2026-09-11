@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/result/failure.dart';
+import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/PlaylistDetailPage.dart';
@@ -8,7 +9,11 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/music_rows.dart';
 
+import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
+import 'package:jellyfinity/domain/playback/QueueOrigin.dart';
+
 import '../../support/music_fakes.dart';
+import '../../support/playback_fakes.dart';
 import '../../support/offline_fakes.dart';
 import '../../support/pump_app.dart';
 
@@ -18,8 +23,14 @@ import '../../support/pump_app.dart';
 Future<FakePlaylistRepository> _pumpPlaylist(
   WidgetTester tester, {
   required List<Track> tracks,
+  List<UnavailableItem> unavailable = const [],
+  PageSource source = PageSource.server,
+  PlaybackCubit? playback,
 }) async {
-  final playlists = FakePlaylistRepository()..trackList = tracks;
+  final playlists = FakePlaylistRepository()
+    ..trackList = tracks
+    ..unavailable = unavailable
+    ..source = source;
   final metadata = FakeMediaMetadataRepository()
     ..items = [testPlaylist('pl1', name: 'Late Night')];
   registerMusicCubits(
@@ -35,6 +46,7 @@ Future<FakePlaylistRepository> _pumpPlaylist(
       detail: PlaylistDetailCubit(metadata, FakeOfflineMode()),
       tracks: PlaylistTracksCubit(playlists, FakeOfflineMode()),
     ),
+    playback: playback,
   );
   await tester.pumpAndSettle();
   return playlists;
@@ -229,6 +241,168 @@ void main() {
 
       expect(find.textContaining('Could not remove "So What"'), findsOneWidget);
       expect(find.text('So What'), findsWidgets);
+    });
+  });
+
+  group('reorder (v0.4.2)', () {
+    testWidgets('numbers rows the way the playlist does', (tester) async {
+      // A film between two songs. Numbering the rows 1 and 2 would tell
+      // the user their playlist is something it is not.
+      await _pumpPlaylist(
+        tester,
+        tracks: [
+          testPlaylistTrack('t1', name: 'So What', position: 0),
+          testPlaylistTrack('t2', name: 'Blue in Green', position: 2),
+        ],
+        unavailable: const [
+          UnavailableItem(
+            id: 'm1',
+            reason: 'This entry is not an available song.',
+            position: 1,
+          ),
+        ],
+      );
+
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+      // The unreadable entry is listed at its own number, not hidden and
+      // not counted as one of the songs.
+      expect(find.text('2'), findsOneWidget);
+      expect(find.byType(UnavailableRow), findsOneWidget);
+    });
+
+    testWidgets('moves a row from the menu, without a drag', (tester) async {
+      // The Windows path, and the accessible path everywhere: pointer or
+      // keyboard, no press-and-hold.
+      final playlists = await _pumpPlaylist(
+        tester,
+        tracks: [
+          testPlaylistTrack('t1', position: 0),
+          testPlaylistTrack('t2', position: 2),
+        ],
+        unavailable: const [
+          UnavailableItem(id: 'm1', reason: 'Not a song.', position: 1),
+        ],
+      );
+
+      await _openRowMenu(tester, 0);
+      await tester.tap(find.text('Move down'));
+      await tester.pumpAndSettle();
+
+      expect(playlists.moveCalls.single.entryId, 'entry-t1');
+      // Entry 2, past the entry Jellyfinity cannot read.
+      expect(playlists.moveCalls.single.newIndex, 2);
+    });
+
+    testWidgets('the ends of the list offer only the move that exists', (
+      tester,
+    ) async {
+      await _pumpPlaylist(
+        tester,
+        tracks: [
+          testPlaylistTrack('t1', position: 0),
+          testPlaylistTrack('t2', position: 1),
+        ],
+      );
+
+      await _openRowMenu(tester, 0);
+      expect(find.text('Move up'), findsNothing);
+      expect(find.text('Move down'), findsOneWidget);
+    });
+
+    testWidgets('a drag handle appears only where the playlist can be '
+        'edited', (tester) async {
+      await _pumpPlaylist(
+        tester,
+        tracks: [
+          testPlaylistTrack('t1', position: 0),
+          testPlaylistTrack('t2', position: 1),
+        ],
+      );
+
+      expect(find.byIcon(Icons.drag_indicator_rounded), findsNWidgets(2));
+    });
+
+    testWidgets('a saved copy is playable but not rearrangeable', (
+      tester,
+    ) async {
+      await _pumpPlaylist(
+        tester,
+        tracks: [
+          testPlaylistTrack('t1', entryId: null, position: 0),
+          testPlaylistTrack('t2', entryId: null, position: 1),
+        ],
+        source: PageSource.cache,
+      );
+
+      expect(find.byIcon(Icons.drag_indicator_rounded), findsNothing);
+      await _openRowMenu(tester, 0);
+      expect(find.text('Move down'), findsNothing);
+      expect(find.text('Play Next'), findsOneWidget);
+    });
+
+    testWidgets('a refused move says so', (tester) async {
+      final playlists = await _pumpPlaylist(
+        tester,
+        tracks: [
+          testPlaylistTrack('t1', position: 0),
+          testPlaylistTrack('t2', position: 1),
+        ],
+      );
+      playlists.moveFailure = const RecoverableFailure('Server unreachable.');
+
+      await _openRowMenu(tester, 0);
+      await tester.tap(find.text('Move down'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Could not move that song'), findsOneWidget);
+    });
+  });
+
+  group('the playlist session (v0.4.2)', () {
+    testWidgets('offers to carry on the queue this playlist started', (
+      tester,
+    ) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      await playback.playNow(
+        [testTrack('t1', name: 'So What')],
+        startIndex: 0,
+        origin: QueueOrigin.playlist(
+          playlistId: mediaId('pl1'),
+          name: 'Late Night',
+        ),
+      );
+      // Paused, which is the state a queue is in when the listener comes
+      // back to the playlist it was started from.
+      await playback.togglePlayPause();
+
+      await _pumpPlaylist(
+        tester,
+        tracks: [testPlaylistTrack('t1', name: 'So What', position: 0)],
+        playback: playback,
+      );
+
+      expect(find.textContaining('Continue "So What"'), findsOneWidget);
+    });
+
+    testWidgets('says nothing when the queue came from somewhere else', (
+      tester,
+    ) async {
+      // The same song, playing, but not from this playlist. A song
+      // appearing in a list is not a session in it.
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      await playback.playNow([testTrack('t1', name: 'So What')], startIndex: 0);
+      await playback.togglePlayPause();
+
+      await _pumpPlaylist(
+        tester,
+        tracks: [testPlaylistTrack('t1', name: 'So What', position: 0)],
+        playback: playback,
+      );
+
+      expect(find.textContaining('Continue'), findsNothing);
     });
   });
 }
