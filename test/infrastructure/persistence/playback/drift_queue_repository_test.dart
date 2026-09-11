@@ -3,7 +3,9 @@ import 'package:jellyfinity/domain/media/artist.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
+import 'package:jellyfinity/domain/media/MediaImage.dart';
 import 'package:jellyfinity/domain/playback/QueueEntry.dart';
+import 'package:jellyfinity/domain/playback/QueueOrigin.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/repeat_mode.dart';
 import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart';
@@ -161,11 +163,7 @@ void main() {
 
   test('the shuffled play order survives a restart (v0.4.1)', () async {
     final queue = PlaybackQueue.empty
-        .withEntries([
-          _entry('a'),
-          _entry('b'),
-          _entry('c'),
-        ], startIndex: 0)
+        .withEntries([_entry('a'), _entry('b'), _entry('c')], startIndex: 0)
         .withShuffle(true);
     final savedOrder = queue.shuffleOrder;
 
@@ -232,6 +230,49 @@ void main() {
       restored.entries.first.availability,
       MediaAvailability.remoteUnavailable,
     );
+  });
+
+  test('the playlist a queue was started from survives a restart '
+      '(v0.4.2)', () async {
+    const origin = QueueOrigin.playlist(
+      playlistId: MediaId(serverId: 's1', itemId: 'pl-1'),
+      name: 'Late Night',
+      image: MediaImage(
+        itemId: MediaId(serverId: 's1', itemId: 'pl-1'),
+        kind: MediaImageKind.primary,
+        tag: 'tag-1',
+      ),
+    );
+
+    await repository.replace(
+      PlaybackQueue.empty.withEntries(
+        [_entry('a'), _entry('b')],
+        startIndex: 1,
+        origin: origin,
+      ),
+    );
+
+    // Without this a restart forgets what the listener was in the middle
+    // of, which is the one thing "continue this playlist" has to know.
+    expect((await repository.load()).valueOrNull!.queue.origin, origin);
+  });
+
+  test('a queue started from nothing clears a remembered playlist', () async {
+    await repository.replace(
+      PlaybackQueue.empty.withEntries(
+        [_entry('a')],
+        startIndex: 0,
+        origin: const QueueOrigin.playlist(
+          playlistId: MediaId(serverId: 's1', itemId: 'pl-1'),
+          name: 'Late Night',
+        ),
+      ),
+    );
+    await repository.replace(
+      PlaybackQueue.empty.withEntries([_entry('b')], startIndex: 0),
+    );
+
+    expect((await repository.load()).valueOrNull!.queue.origin, isNull);
   });
 
   test('replacing with an empty queue clears the saved entries', () async {

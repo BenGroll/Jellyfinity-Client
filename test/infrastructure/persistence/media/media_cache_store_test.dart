@@ -182,6 +182,32 @@ void main() {
     expect(page.consumed, 2);
   });
 
+  test('an unreadable row keeps the slot it was sent in (v0.4.2)', () async {
+    // A film between two songs. Before positions, [Partial] lost how the
+    // window was interleaved and the film came back after both songs —
+    // so an offline playlist numbered itself differently from the one
+    // the user made.
+    final key = MediaCollectionKey.tracksOfPlaylist('pl-1');
+    await store.savePage(
+      key,
+      _page(
+        [_track('t1', trackNumber: 1), _track('t3', trackNumber: 3)],
+        unavailable: const [
+          UnavailableItem(id: 'm1', reason: 'Not a song.', position: 1),
+        ],
+      ),
+    );
+
+    final page = await store.readPage<Track>(
+      _server,
+      key,
+      const PageRequest.first(),
+    );
+
+    expect(page!.unavailable.single.position, 1);
+    expect(page.items.map((track) => track.trackNumber), [1, 3]);
+  });
+
   test('a shrunken window forgets the rows that vanished', () async {
     final key = MediaCollectionKey.tracksOfAlbum('album-1');
     await store.savePage(key, _page([_track('t1'), _track('t2')]));

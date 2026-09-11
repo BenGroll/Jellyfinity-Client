@@ -116,6 +116,9 @@ class TrackRow extends StatelessWidget {
     this.onPlayNext,
     this.onAddToQueue,
     this.onRemoveFromPlaylist,
+    this.onMoveUp,
+    this.onMoveDown,
+    this.dragHandle,
     this.downloadAction,
   });
 
@@ -150,6 +153,23 @@ class TrackRow extends StatelessWidget {
   /// to remove by.
   final VoidCallback? onRemoveFromPlaylist;
 
+  /// Moves this row one place earlier / later in the playlist it is being
+  /// shown in (v0.4.2). The same reorder a drag performs, reachable
+  /// without one: a pointer-only or keyboard-only user on Windows, and
+  /// anyone on Android who would rather not hold a row and aim.
+  ///
+  /// `null` at either end of the list, and everywhere the playlist cannot
+  /// be edited at all.
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+
+  /// The grip a drag starts from, when this row sits in a list the user
+  /// can rearrange — a `ReorderableDragStartListener` the caller builds,
+  /// because only it knows the row's index in that list. Dragging starts
+  /// here rather than anywhere on the row so a tap still plays the track
+  /// (the rule the queue screen already follows).
+  final Widget? dragHandle;
+
   /// The row's download control (v0.2.0), normally a
   /// `TrackDownloadButton`. `null` — the default — leaves the row exactly
   /// as it was, for the same reason [onPlayNext] is optional: a list
@@ -163,7 +183,9 @@ class TrackRow extends StatelessWidget {
     final showMenu =
         onPlayNext != null ||
         onAddToQueue != null ||
-        onRemoveFromPlaylist != null;
+        onRemoveFromPlaylist != null ||
+        onMoveUp != null ||
+        onMoveDown != null;
 
     return UnavailableContent(
       // Greyed out and non-interactive when it cannot play — the offline
@@ -174,23 +196,7 @@ class TrackRow extends StatelessWidget {
       child: _MusicRow(
         onTap: onTap,
         availability: track.availability,
-        leading: showArtwork
-            ? MediaArtwork(
-                image: track.image,
-                kind: MediaKind.track,
-                size: rowArtworkSize,
-              )
-            : SizedBox(
-                width: rowArtworkSize,
-                child: Center(
-                  child: Text(
-                    '${position ?? track.trackNumber ?? ''}',
-                    style: t.typography.bodyMedium.copyWith(
-                      color: t.colors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
+        leading: _leading(t),
         title: track.name,
         subtitle: joinDetails([
           formatArtists(track.artists),
@@ -219,10 +225,47 @@ class TrackRow extends StatelessWidget {
                       onPlayNext: onPlayNext,
                       onAddToQueue: onAddToQueue,
                       onRemoveFromPlaylist: onRemoveFromPlaylist,
+                      onMoveUp: onMoveUp,
+                      onMoveDown: onMoveDown,
                     ),
                 ],
               ),
       ),
+    );
+  }
+}
+
+extension on TrackRow {
+  /// The number or the artwork, with the drag grip before it when this
+  /// row can be rearranged.
+  Widget _leading(AppTokens t) {
+    final art = showArtwork
+        ? MediaArtwork(
+            image: track.image,
+            kind: MediaKind.track,
+            size: rowArtworkSize,
+          )
+        : SizedBox(
+            width: rowArtworkSize,
+            child: Center(
+              child: Text(
+                '${position ?? track.trackNumber ?? ''}',
+                style: t.typography.bodyMedium.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
+            ),
+          );
+
+    final handle = dragHandle;
+    if (handle == null) return art;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        handle,
+        SizedBox(width: t.spacing.xxs),
+        art,
+      ],
     );
   }
 }
@@ -236,11 +279,15 @@ class _TrackOverflowButton extends StatelessWidget {
     this.onPlayNext,
     this.onAddToQueue,
     this.onRemoveFromPlaylist,
+    this.onMoveUp,
+    this.onMoveDown,
   });
 
   final VoidCallback? onPlayNext;
   final VoidCallback? onAddToQueue;
   final VoidCallback? onRemoveFromPlaylist;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +305,8 @@ class _TrackOverflowButton extends StatelessWidget {
     onPlayNext: onPlayNext,
     onAddToQueue: onAddToQueue,
     onRemoveFromPlaylist: onRemoveFromPlaylist,
+    onMoveUp: onMoveUp,
+    onMoveDown: onMoveDown,
   );
 }
 
@@ -272,6 +321,8 @@ void showTrackActionsSheet(
   VoidCallback? onLyrics,
   VoidCallback? onOpenQueue,
   VoidCallback? onRemoveFromPlaylist,
+  VoidCallback? onMoveUp,
+  VoidCallback? onMoveDown,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -317,6 +368,28 @@ void showTrackActionsSheet(
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 onOpenQueue();
+              },
+            ),
+          // The last three are the playlist-editing actions, and only a
+          // playlist's own page passes them. Move up / move down are the
+          // drag handle's equivalent for anyone not dragging (v0.4.2) —
+          // required on Windows, welcome everywhere.
+          if (onMoveUp != null)
+            ListTile(
+              leading: const Icon(Icons.arrow_upward_rounded),
+              title: const Text('Move up'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onMoveUp();
+              },
+            ),
+          if (onMoveDown != null)
+            ListTile(
+              leading: const Icon(Icons.arrow_downward_rounded),
+              title: const Text('Move down'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onMoveDown();
               },
             ),
           // Last, and only on a playlist's own page (v0.1.2's

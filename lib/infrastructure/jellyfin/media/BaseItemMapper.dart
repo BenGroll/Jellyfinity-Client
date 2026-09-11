@@ -114,20 +114,21 @@ class BaseItemMapper {
     );
   }
 
-  /// A track read through a playlist, carrying that playlist's handle for
-  /// the row it occupies (v0.1.2's completion).
+  /// A track read through a playlist at [position] — its true index in
+  /// the playlist — carrying that playlist's handle for the row it
+  /// occupies (v0.1.2's completion, positioned in v0.4.2).
   ///
-  /// Falls back to a plain [Track] when the server sent no
-  /// `PlaylistItemId` — the row is still perfectly playable, it just
-  /// cannot be edited, which is the honest thing to show rather than
-  /// dropping it or offering a remove that would fail.
-  Track? toPlaylistTrack(BaseItemDto dto) {
+  /// A server row that arrived without a `PlaylistItemId` still becomes a
+  /// [PlaylistTrack], with a position and no entry id: it is playable and
+  /// it occupies a slot, it simply cannot be edited
+  /// ([PlaylistTrack.isEditable]). Dropping it, or offering a remove that
+  /// would fail, are the two dishonest alternatives.
+  PlaylistTrack? toPlaylistTrack(BaseItemDto dto, {required int position}) {
     final track = toTrack(dto);
     if (track == null) return null;
-    final entryId = _name(dto.playlistItemId);
-    if (entryId == null) return track;
     return PlaylistTrack(
-      entryId: entryId,
+      position: position,
+      entryId: _name(dto.playlistItemId),
       id: track.id,
       name: track.name,
       artists: track.artists,
@@ -324,27 +325,79 @@ class BaseItemMapper {
     String reason = 'This item is unavailable.',
   }) {
     final rows = response.items ?? const <BaseItemDto>[];
+    final start = response.startIndex ?? request.startIndex;
     final available = <T>[];
     final unavailable = <UnavailableItem>[];
 
-    for (final row in rows) {
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
       final item = map(row);
       if (item != null) {
         available.add(item);
       } else {
-        unavailable.add(UnavailableItem(id: row.id ?? '', reason: reason));
+        // The slot it occupied, not just the fact that it was there
+        // (v0.4.2): [Partial] pulls unreadable rows out of the ordered
+        // list, and without the index the order they were sent in is
+        // gone — which is what stopped a playlist from numbering itself
+        // the way its server does.
+        unavailable.add(
+          UnavailableItem(
+            id: row.id ?? '',
+            reason: reason,
+            position: start + i,
+          ),
+        );
       }
     }
 
     return Page<T>(
       content: Partial(available: available, unavailable: unavailable),
-      startIndex: response.startIndex ?? request.startIndex,
+      startIndex: start,
       // A server that omits the total is telling us nothing follows this
       // window; treating it as "everything we have" stops paging cleanly
       // instead of looping.
-      totalCount:
-          response.totalRecordCount ??
-          (response.startIndex ?? request.startIndex) + rows.length,
+      totalCount: response.totalRecordCount ?? start + rows.length,
+    );
+  }
+
+  /// One window of a playlist's entries, in the playlist's own order.
+  ///
+  /// Its own method rather than [toPage] with a different `map`, because
+  /// a playlist row is the one collection member whose *index* is part of
+  /// what it is: Jellyfin's move endpoint takes an absolute position into
+  /// the playlist, and an entry Jellyfinity cannot read still occupies
+  /// one. Every row here therefore learns where it sits, readable or not
+  /// (v0.4.2).
+  Page<Track> toPlaylistPage(
+    ItemsResponseDto response, {
+    required PageRequest request,
+    String reason = 'This entry is not an available song.',
+  }) {
+    final rows = response.items ?? const <BaseItemDto>[];
+    final start = response.startIndex ?? request.startIndex;
+    final available = <Track>[];
+    final unavailable = <UnavailableItem>[];
+
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      final position = start + i;
+      final track = toPlaylistTrack(row, position: position);
+      if (track != null) {
+        available.add(track);
+      } else {
+        // A playlist can hold anything, and can outlive the items in it.
+        // Either way the entry keeps its place, marked, so the list the
+        // user built still looks like the list they built.
+        unavailable.add(
+          UnavailableItem(id: row.id ?? '', reason: reason, position: position),
+        );
+      }
+    }
+
+    return Page<Track>(
+      content: Partial(available: available, unavailable: unavailable),
+      startIndex: start,
+      totalCount: response.totalRecordCount ?? start + rows.length,
     );
   }
 

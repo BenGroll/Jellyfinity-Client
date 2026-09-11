@@ -43,6 +43,7 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
     this.headerSlivers = const [],
     this.footerSlivers = const [],
     this.padding,
+    this.onReorder,
   });
 
   final PagedCollectionState<T> state;
@@ -86,6 +87,17 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
   final List<Widget> footerSlivers;
 
   final EdgeInsetsGeometry? padding;
+
+  /// Turns the list into one the user can rearrange (v0.4.2) — a
+  /// playlist, so far the only collection whose order is the user's to
+  /// change.
+  ///
+  /// Indices are into [PagedCollectionState.items], and `newIndex` is
+  /// where the row ends up (Flutter's `onReorderItem` convention). Every
+  /// widget [itemBuilder] returns must carry a key while this is set, or
+  /// a drag moves whichever row happens to sit in that slot. Ignored for
+  /// a grid: dragging covers around is not what this is for.
+  final void Function(int oldIndex, int newIndex)? onReorder;
 
   /// How far from the end to start loading the next window. Big enough
   /// that a fast scroll stays ahead of the user, small enough that idle
@@ -147,18 +159,38 @@ class PagedCollectionView<T extends MediaItem> extends StatelessWidget {
     }
 
     final grid = gridDelegate;
-    final delegate = SliverChildBuilderDelegate((context, index) {
+    final reorder = onReorder;
+    Widget buildItem(BuildContext context, int index) {
       _maybeLoadMore(index);
       return itemBuilder(context, state.items[index], index);
-    }, childCount: state.items.length);
+    }
+
+    final Widget sliver;
+    if (grid != null) {
+      sliver = SliverGrid(
+        delegate: SliverChildBuilderDelegate(
+          buildItem,
+          childCount: state.items.length,
+        ),
+        gridDelegate: grid,
+      );
+    } else if (reorder != null) {
+      sliver = SliverReorderableList(
+        itemCount: state.items.length,
+        itemBuilder: buildItem,
+        onReorderItem: reorder,
+      );
+    } else {
+      sliver = SliverList(
+        delegate: SliverChildBuilderDelegate(
+          buildItem,
+          childCount: state.items.length,
+        ),
+      );
+    }
 
     return [
-      SliverPadding(
-        padding: insets,
-        sliver: grid == null
-            ? SliverList(delegate: delegate)
-            : SliverGrid(delegate: delegate, gridDelegate: grid),
-      ),
+      SliverPadding(padding: insets, sliver: sliver),
       if (state.isPartial) ..._unavailable(context, insets),
       SliverToBoxAdapter(
         child: _Footer(

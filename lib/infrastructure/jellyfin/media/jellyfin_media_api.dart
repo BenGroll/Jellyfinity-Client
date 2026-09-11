@@ -106,6 +106,18 @@ class JellyfinMediaApi {
   static String playlistItemsPath(String playlistId) =>
       '/Playlists/$playlistId/Items';
 
+  /// Moving one playlist row to an absolute position (v0.4.2).
+  ///
+  /// [entryId] is a `PlaylistItemId`, and [newIndex] counts every entry
+  /// the playlist holds — including the ones Jellyfinity cannot read.
+  /// That is the whole reason reorder waited for a read model that knows
+  /// true positions (ADR-0024, ADR-0032).
+  static String playlistItemMovePath(
+    String playlistId,
+    String entryId,
+    int newIndex,
+  ) => '/Playlists/$playlistId/Items/$entryId/Move/$newIndex';
+
   /// Creating a playlist, and — with an id appended — renaming one
   /// (v0.1.2's completion). Jellyfin's `UpdatePlaylist` applies only the
   /// fields the body actually carries, so a rename that sends nothing but
@@ -516,6 +528,32 @@ class JellyfinMediaApi {
         'userId': active.userId,
         'entryIds': entryIds.join(','),
       },
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Moves the row [entryId] to [newIndex] within [playlistId].
+  ///
+  /// The server does the moving — there is no "swap these two" form, and
+  /// no way to express the move as a pair of local indices. [newIndex] is
+  /// where the row ends up once it has been lifted out of where it was,
+  /// counted across the whole playlist.
+  Future<Result<void>> movePlaylistItem(
+    String playlistId,
+    String entryId,
+    int newIndex, {
+    CancelToken? cancelToken,
+  }) async {
+    final session = _session();
+    if (session case Err<_ActiveSession>(:final failure)) {
+      return Result.err(failure);
+    }
+    final active = (session as Ok<_ActiveSession>).value;
+
+    return active.client.send(
+      playlistItemMovePath(playlistId, entryId, newIndex),
+      method: 'POST',
+      queryParameters: {'userId': active.userId},
       cancelToken: cancelToken,
     );
   }

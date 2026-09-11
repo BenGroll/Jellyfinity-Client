@@ -60,15 +60,29 @@ Track testTrack(
 Playlist testPlaylist(String id, {String? name}) =>
     Playlist(id: mediaId(id), name: name ?? 'Playlist $id', itemCount: 3);
 
-/// A track as a playlist read returns it — carrying the entry id that
-/// makes the row removable (v0.1.2's completion).
-PlaylistTrack testPlaylistTrack(String id, {String? entryId, String? name}) =>
-    PlaylistTrack(
-      entryId: entryId ?? 'entry-$id',
-      id: mediaId(id),
-      name: name ?? 'Song $id',
-      artists: const [ArtistRef(name: 'Miles Davis')],
-    );
+/// A track as a playlist read returns it — carrying its true position in
+/// the playlist (v0.4.2) and the entry id that makes the row editable
+/// (v0.1.2's completion).
+///
+/// [position] defaults to the index the caller is most likely building
+/// with; pass it explicitly whenever unreadable entries sit in the list,
+/// because that is the case every position bug hides in. `entryId: null`
+/// stands in for a row read from the saved copy or a download snapshot.
+PlaylistTrack testPlaylistTrack(
+  String id, {
+  String? entryId = _defaultEntryId,
+  String? name,
+  int position = 0,
+}) => PlaylistTrack(
+  position: position,
+  entryId: entryId == _defaultEntryId ? 'entry-$id' : entryId,
+  id: mediaId(id),
+  name: name ?? 'Song $id',
+  artists: const [ArtistRef(name: 'Miles Davis')],
+);
+
+/// Distinguishes "caller said nothing" from an explicit `entryId: null`.
+const String _defaultEntryId = '\u0000default';
 
 /// One window of [all], as the repositories would return it.
 Page<T> windowOf<T extends MediaItem>(
@@ -371,11 +385,16 @@ class FakePlaylistRepository implements PlaylistRepository {
     return Result.ok(windowOf(playlistList, page, source: source));
   }
 
+  /// How many times a playlist's tracks have been read — how a test sees
+  /// that an edit reloaded the list it changed.
+  int trackReads = 0;
+
   @override
   Future<Result<Page<Track>>> tracks(
     MediaId playlistId, {
     PageRequest page = const PageRequest.first(),
   }) async {
+    trackReads++;
     final failed = failure;
     if (failed != null) return Result.err(failed);
     final list = tracksByPlaylist[playlistId.itemId] ?? trackList;
@@ -406,6 +425,12 @@ class FakePlaylistRepository implements PlaylistRepository {
   final List<MediaId> deleteCalls = [];
   final List<({MediaId playlistId, List<String> entryIds})> removeEntryCalls =
       [];
+  final List<({MediaId playlistId, String entryId, int newIndex})> moveCalls =
+      [];
+
+  /// Set to make the next [moveEntry] fail, the way a server rejecting a
+  /// move does.
+  Failure? moveFailure;
 
   /// The id [create] answers with. A test that cares where the new
   /// playlist went sets this.
@@ -432,6 +457,22 @@ class FakePlaylistRepository implements PlaylistRepository {
   @override
   Future<Result<void>> rename(MediaId playlistId, String name) async {
     renameCalls.add((playlistId: playlistId, name: name));
+    return _write(null);
+  }
+
+  @override
+  Future<Result<void>> moveEntry(
+    MediaId playlistId,
+    String entryId,
+    int newIndex,
+  ) async {
+    moveCalls.add((
+      playlistId: playlistId,
+      entryId: entryId,
+      newIndex: newIndex,
+    ));
+    final failed = moveFailure;
+    if (failed != null) return Result.err(failed);
     return _write(null);
   }
 

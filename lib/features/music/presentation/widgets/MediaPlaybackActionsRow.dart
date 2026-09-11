@@ -5,6 +5,7 @@ import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
+import '../../../../domain/playback/QueueOrigin.dart';
 import 'PlaylistPickerSheet.dart';
 
 /// The Shuffle / Play / overflow row Album and Playlist headers share
@@ -19,9 +20,16 @@ class MediaPlaybackActionsRow extends StatelessWidget {
     required this.tracks,
     this.favorite,
     this.download,
+    this.origin,
   });
 
   final List<Track> tracks;
+
+  /// What Play and Shuffle are starting, when the tracks alone cannot say
+  /// it — a playlist (v0.4.2). Passed straight to `PlaybackCubit`, which
+  /// hands it to listening history and to the saved queue. `null` for an
+  /// album, whose tracks each already name it.
+  final QueueOrigin? origin;
 
   /// Album's heart button (v0.1.6), shown beside the overflow button
   /// rather than in the app bar. `null` for Playlist, which has none.
@@ -56,7 +64,10 @@ class MediaPlaybackActionsRow extends StatelessWidget {
                   tooltip: 'Shuffle',
                   color: t.colors.textPrimary,
                   onPressed: hasTracks
-                      ? () => context.read<PlaybackCubit>().playShuffled(tracks)
+                      ? () => context.read<PlaybackCubit>().playShuffled(
+                          tracks,
+                          origin: origin,
+                        )
                       : null,
                 ),
               ],
@@ -70,8 +81,11 @@ class MediaPlaybackActionsRow extends StatelessWidget {
           color: t.colors.accent,
           tooltip: 'Play',
           onPressed: hasTracks
-              ? () =>
-                    context.read<PlaybackCubit>().playNow(tracks, startIndex: 0)
+              ? () => context.read<PlaybackCubit>().playNow(
+                  tracks,
+                  startIndex: 0,
+                  origin: origin,
+                )
               : null,
         ),
         SizedBox(width: t.spacing.md),

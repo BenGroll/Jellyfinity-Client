@@ -100,7 +100,31 @@ class DriftMediaCacheStore implements MediaCacheStore {
     final now = DateTime.now().millisecondsSinceEpoch;
 
     String? serverId;
+
+    // A row the server sent that could not be mapped keeps a place in the
+    // collection, so the numbering the user sees offline matches the
+    // numbering they saw online. A source that recorded which slot it
+    // occupied (v0.4.2) gets that slot back; one that did not — an
+    // offline gap standing in for a member whose file never downloaded —
+    // still lands after the readable rows, as it always did.
+    final reserved = <int, UnavailableItem>{};
+    final floating = <UnavailableItem>[];
+    for (final missing in page.unavailable) {
+      final at = missing.position;
+      if (at != null && at >= page.startIndex && !reserved.containsKey(at)) {
+        reserved[at] = missing;
+      } else {
+        floating.add(missing);
+      }
+    }
+
     var position = page.startIndex;
+    int nextFreePosition() {
+      while (reserved.containsKey(position)) {
+        position++;
+      }
+      return position++;
+    }
 
     for (final item in page.items) {
       final row = _mapper.toRow(item, now: now);
@@ -111,29 +135,35 @@ class DriftMediaCacheStore implements MediaCacheStore {
         CachedCollectionEntriesCompanion.insert(
           serverId: item.id.serverId,
           collectionKey: collectionKey,
-          position: position++,
+          position: nextFreePosition(),
           itemId: item.id.itemId,
         ),
       );
     }
 
-    // A row the server sent that could not be mapped keeps a place in the
-    // collection, so the numbering the user sees offline matches the
-    // numbering they saw online. Its exact slot within the window is lost
-    // — Partial separates the usable rows from the rest and does not
-    // record how they were interleaved — so unavailable entries land at
-    // the end of the window they came from.
     if (serverId != null) {
-      for (final missing in page.unavailable) {
+      for (final missing in floating) {
         entries.add(
           CachedCollectionEntriesCompanion.insert(
             serverId: serverId,
             collectionKey: collectionKey,
-            position: position++,
+            position: nextFreePosition(),
             itemId: missing.id,
             unavailableReason: Value(missing.reason),
           ),
         );
+      }
+      for (final MapEntry(key: at, value: missing) in reserved.entries) {
+        entries.add(
+          CachedCollectionEntriesCompanion.insert(
+            serverId: serverId,
+            collectionKey: collectionKey,
+            position: at,
+            itemId: missing.id,
+            unavailableReason: Value(missing.reason),
+          ),
+        );
+        if (at >= position) position = at + 1;
       }
     }
 
@@ -223,7 +253,13 @@ class DriftMediaCacheStore implements MediaCacheStore {
     for (final entry in entries) {
       final reason = entry.unavailableReason;
       if (reason != null) {
-        unavailable.add(UnavailableItem(id: entry.itemId, reason: reason));
+        unavailable.add(
+          UnavailableItem(
+            id: entry.itemId,
+            reason: reason,
+            position: entry.position,
+          ),
+        );
         continue;
       }
       final row = items[entry.itemId];
@@ -240,6 +276,7 @@ class DriftMediaCacheStore implements MediaCacheStore {
           UnavailableItem(
             id: entry.itemId,
             reason: 'This item is not saved on this device.',
+            position: entry.position,
           ),
         );
       }

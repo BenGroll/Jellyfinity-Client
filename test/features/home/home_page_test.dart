@@ -10,6 +10,7 @@ import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
 import 'package:jellyfinity/domain/playback/QueueEntry.dart';
 import 'package:jellyfinity/features/favorites/presentation/FavoritesPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
+import 'package:jellyfinity/features/music/presentation/detail/PlaylistDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
 import 'package:jellyfinity/features/playback/presentation/NowPlayingPage.dart';
 
@@ -63,6 +64,8 @@ Future<TestSessionScope> _pumpHome(
   WidgetTester tester, {
   SeededListeningHistoryRepository? history,
   FakeMusicLibraryRepository? music,
+  FakePlaylistRepository? playlists,
+  FakeMediaMetadataRepository? metadata,
   PlaybackCubit? playback,
   OfflineLibraryScope scope = OfflineLibraryScope.unlimited,
   bool offline = false,
@@ -70,7 +73,11 @@ Future<TestSessionScope> _pumpHome(
   registerRecentlyPlayedCubit(
     history: history ?? SeededListeningHistoryRepository(),
   );
-  registerMusicCubits(music: music ?? FakeMusicLibraryRepository());
+  registerMusicCubits(
+    music: music ?? FakeMusicLibraryRepository(),
+    playlists: playlists,
+    metadata: metadata,
+  );
   final s = await pumpApp(
     tester,
     playback: playback,
@@ -129,6 +136,39 @@ void main() {
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
       0,
     );
+  });
+
+  testWidgets('a recently played playlist opens it (v0.4.2)', (tester) async {
+    // What the queue origin buys on Home: a playlist is now one of the
+    // things the profile returned to, alongside albums and artists.
+    final at = DateTime.utc(2026, 9, 8, 21);
+    final history = SeededListeningHistoryRepository()
+      ..entries = [
+        ListeningHistoryEntry(
+          context: ListeningContext(
+            kind: ListeningContextKind.playlist,
+            id: mediaId('pl1'),
+            name: 'Late Night',
+          ),
+          firstPlayedAt: at,
+          lastPlayedAt: at,
+          playCount: 9,
+        ),
+      ];
+    await _pumpHome(
+      tester,
+      history: history,
+      playlists: FakePlaylistRepository()
+        ..playlistList = [testPlaylist('pl1', name: 'Late Night')],
+      metadata: FakeMediaMetadataRepository()
+        ..items = [testPlaylist('pl1', name: 'Late Night')],
+    );
+
+    expect(find.text('Playlist'), findsOneWidget);
+    await tester.tap(find.text('Late Night').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaylistDetailPage), findsOneWidget);
   });
 
   testWidgets('Continue listening resumes the saved queue', (tester) async {

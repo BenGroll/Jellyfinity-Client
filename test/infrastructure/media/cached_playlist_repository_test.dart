@@ -81,6 +81,62 @@ void main() {
     expect(page.unavailable.single.id, 'm1');
     expect(page.consumed, 3);
     expect(page.source, PageSource.cache);
+
+    // Numbered the way the playlist is, film and all (v0.4.2) — and
+    // uneditable, because nothing offline has an entry id to write with.
+    final rows = page.items.cast<PlaylistTrack>();
+    expect(rows.map((row) => row.position), [0, 2]);
+    expect(page.unavailable.single.position, 1);
+    expect(rows.every((row) => row.isEditable), isFalse);
+  });
+
+  test('a downloaded playlist is numbered around the gaps', () async {
+    final downloads = InMemoryDownloadStore();
+    // The middle member's file never finished; the ones either side did.
+    for (final id in ['t1', 't3']) {
+      downloads.records[MediaId(
+        serverId: 'server-1',
+        itemId: id,
+      )] = downloadRecord(
+        MediaId(serverId: 'server-1', itemId: id),
+        title: id == 't1' ? 'So What' : 'All Blues',
+        state: DownloadState.completed,
+      );
+    }
+    await downloads.savePlaylistMembers(_playlistId, [
+      (position: 0, trackId: MediaId(serverId: 'server-1', itemId: 't1')),
+      (position: 1, trackId: MediaId(serverId: 'server-1', itemId: 't2')),
+      (position: 2, trackId: MediaId(serverId: 'server-1', itemId: 't3')),
+    ]);
+
+    final result = await _repository(
+      _offline(),
+      RecordingMediaCacheStore(),
+      downloads: downloads,
+    ).tracks(_playlistId);
+
+    final page = result.valueOrNull!;
+    expect(page.items.cast<PlaylistTrack>().map((row) => row.position), [0, 2]);
+    expect(page.unavailable.single.position, 1);
+  });
+
+  test('a move reaches the server rather than the local copy', () async {
+    final cache = RecordingMediaCacheStore();
+    final adapter = FakeDioAdapter((_) async => jsonResponseBody(null));
+
+    final result = await _repository(
+      adapter,
+      cache,
+    ).moveEntry(_playlistId, 'entry-a', 3);
+
+    expect(result.isOk, isTrue);
+    expect(
+      adapter.requests.single.path,
+      '/Playlists/pl-1/Items/entry-a/Move/3',
+    );
+    // A write is an instruction to the server (ADR-0024); nothing about
+    // the saved copy is rewritten behind it.
+    expect(cache.savedPages, isEmpty);
   });
 
   test('passes the failure through when nothing was ever saved', () async {

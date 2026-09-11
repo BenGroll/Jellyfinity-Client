@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/result/failure.dart';
 import '../../../../core/result/result.dart';
 import '../../../../domain/connectivity/OfflineMode.dart';
 import '../../../../domain/media/media.dart';
@@ -198,5 +199,71 @@ class PlaylistTracksCubit extends PagedCollectionCubit<Track> {
   Future<void> forPlaylist(MediaId id) {
     playlistId = id;
     return load();
+  }
+
+  /// Moves the loaded row at [from] to sit where the loaded row at [to]
+  /// is — a drag, or a "move up"/"move down" on the playlist screen
+  /// (v0.4.2). Answers with the [Failure] the server gave, or `null` when
+  /// the playlist now reads the way the screen already shows it.
+  ///
+  /// Both indices are into [PagedCollectionState.items] — what the user
+  /// is looking at. What Jellyfin needs is an absolute index into the
+  /// whole playlist, unreadable entries included, and the two are only
+  /// the same on a playlist that holds nothing but readable songs. That
+  /// gap is why ADR-0024 deferred reorder rather than shipping a drag
+  /// that silently moves the wrong entry; [PlaylistTrack.position] closes
+  /// it, so the destination is read off the row being displaced and never
+  /// computed from a screen position.
+  ///
+  /// The list is reordered locally first and put back if the server
+  /// refuses. That is presentation, not a second writer: nothing local is
+  /// saved, the server remains the only thing that decides what the
+  /// playlist is (ADR-0024), and a successful move is followed by a
+  /// reload so the numbering comes from the playlist rather than from
+  /// this guess.
+  Future<Failure?> moveEntry({required int from, required int to}) async {
+    final id = playlistId;
+    final items = state.items;
+    if (id == null || from == to) return null;
+    if (from < 0 || from >= items.length || to < 0 || to >= items.length) {
+      return null;
+    }
+
+    final moved = items[from];
+    final target = items[to];
+    if (moved is! PlaylistTrack || target is! PlaylistTrack) {
+      return const RecoverableFailure(
+        'This copy of the playlist cannot be rearranged.',
+      );
+    }
+    final entryId = moved.entryId;
+    if (entryId == null) {
+      return const RecoverableFailure('That row cannot be moved from here.');
+    }
+
+    // The row lands where the row it displaced sits. Moving down, the
+    // server first lifts this row out, so everything below shifts up one
+    // and the target's own index becomes the slot just after it; moving
+    // up, the target has not moved and the row takes its place. Either
+    // way the entries Jellyfinity cannot read keep the slots they had.
+    final destination = target.position;
+
+    final reordered = [...items];
+    reordered.insert(to, reordered.removeAt(from));
+    emit(state.copyWith(items: reordered));
+
+    final result = await _playlists.moveEntry(id, entryId, destination);
+    if (isClosed) return null;
+    switch (result) {
+      case Ok<void>():
+        // Re-read rather than trusting the local shuffle: every row after
+        // the move has a new position, and one of them may be an entry
+        // this screen never showed.
+        await refresh();
+        return null;
+      case Err<void>(:final failure):
+        if (!isClosed) emit(state.copyWith(items: items));
+        return failure;
+    }
   }
 }

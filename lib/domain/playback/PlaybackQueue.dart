@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'QueueEntry.dart';
+import 'QueueOrigin.dart';
 import 'repeat_mode.dart';
 
 /// Jellyfinity's own queue — application state, not state hidden inside
@@ -29,6 +30,7 @@ class PlaybackQueue extends Equatable {
     this.shuffleEnabled = false,
     this.repeatMode = RepeatMode.off,
     this.shuffleOrder,
+    this.origin,
   });
 
   static const PlaybackQueue empty = PlaybackQueue();
@@ -44,6 +46,15 @@ class PlaybackQueue extends Equatable {
   /// Indices into [entries] in actual play order. `null` when shuffle is
   /// off, meaning the play order is [entries]' own order.
   final List<int>? shuffleOrder;
+
+  /// The playlist this queue was started from, or `null` — see
+  /// [QueueOrigin] (v0.4.2).
+  ///
+  /// Set by whatever built the queue and carried through every edit: a
+  /// listener who queues one extra song is still listening to the
+  /// playlist they started. Only replacing the queue ([withEntries]) or
+  /// clearing it ([withCleared]) ends it.
+  final QueueOrigin? origin;
 
   bool get isEmpty => entries.isEmpty;
 
@@ -93,9 +104,14 @@ class PlaybackQueue extends Equatable {
 
   /// Replaces the whole queue, starting at [startIndex] — the result of
   /// `playNow`.
+  ///
+  /// [origin] replaces the old queue's outright, including with `null`:
+  /// the queue that was playing is gone, and so is whatever it was
+  /// started from.
   PlaybackQueue withEntries(
     List<QueueEntry> newEntries, {
     required int startIndex,
+    QueueOrigin? origin,
   }) {
     return PlaybackQueue(
       entries: newEntries,
@@ -105,6 +121,7 @@ class PlaybackQueue extends Equatable {
       shuffleOrder: shuffleEnabled
           ? _shuffled(newEntries.length, pinned: startIndex)
           : null,
+      origin: origin,
     );
   }
 
@@ -139,10 +156,8 @@ class PlaybackQueue extends Equatable {
       final playPosition = playNext && newCurrent != null
           ? shifted.indexOf(newCurrent) + 1
           : shifted.length;
-      newOrder = [...shifted]..insert(
-        playPosition.clamp(0, shifted.length),
-        insertAt,
-      );
+      newOrder = [...shifted]
+        ..insert(playPosition.clamp(0, shifted.length), insertAt);
     }
     return _with(
       entries: newEntries,
@@ -247,6 +262,8 @@ class PlaybackQueue extends Equatable {
     );
   }
 
+  /// Empties the queue. The [origin] goes with it: there is no longer a
+  /// playlist session to be in the middle of.
   PlaybackQueue withCleared() =>
       PlaybackQueue(shuffleEnabled: shuffleEnabled, repeatMode: repeatMode);
 
@@ -266,8 +283,21 @@ class PlaybackQueue extends Equatable {
       shuffleOrder: enabled
           ? _shuffled(entries.length, pinned: currentIndex)
           : null,
+      origin: origin,
     );
   }
+
+  /// This queue with [origin] as what it was started from (v0.4.2) — how
+  /// a restored queue gets its remembered playlist back, and `null` for
+  /// one that was not started from a playlist.
+  PlaybackQueue withOrigin(QueueOrigin? origin) => PlaybackQueue(
+    entries: entries,
+    currentIndex: currentIndex,
+    shuffleEnabled: shuffleEnabled,
+    repeatMode: repeatMode,
+    shuffleOrder: shuffleOrder,
+    origin: origin,
+  );
 
   /// Restores a previously saved shuffle order (v0.4.1), instead of
   /// generating a new one the way [withShuffle] does.
@@ -286,6 +316,7 @@ class PlaybackQueue extends Equatable {
       shuffleEnabled: shuffleEnabled,
       repeatMode: repeatMode,
       shuffleOrder: List<int>.unmodifiable(order!),
+      origin: origin,
     );
   }
 
@@ -305,6 +336,7 @@ class PlaybackQueue extends Equatable {
     shuffleEnabled: shuffleEnabled,
     repeatMode: mode,
     shuffleOrder: shuffleOrder,
+    origin: origin,
   );
 
   /// Jumps the current pointer to [index] directly — a tap in the queue
@@ -316,6 +348,7 @@ class PlaybackQueue extends Equatable {
     shuffleEnabled: shuffleEnabled,
     repeatMode: repeatMode,
     shuffleOrder: shuffleOrder,
+    origin: origin,
   );
 
   /// Marks the entry at [index] unavailable in place, for a source
@@ -345,6 +378,7 @@ class PlaybackQueue extends Equatable {
       shuffleEnabled: shuffleEnabled,
       repeatMode: repeatMode,
       shuffleOrder: shuffleOrder,
+      origin: origin,
     );
   }
 
@@ -401,6 +435,7 @@ class PlaybackQueue extends Equatable {
       shuffleEnabled: shuffleEnabled,
       repeatMode: repeatMode,
       shuffleOrder: shuffleEnabled ? shuffleOrder : null,
+      origin: origin,
     );
     if (shuffleEnabled && !rebuilt._isPermutationOfEntries(shuffleOrder)) {
       return rebuilt.withShuffle(true);
@@ -426,5 +461,6 @@ class PlaybackQueue extends Equatable {
     shuffleEnabled,
     repeatMode,
     shuffleOrder,
+    origin,
   ];
 }

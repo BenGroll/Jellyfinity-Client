@@ -26,10 +26,14 @@ abstract class PlaylistRepository {
   /// `unavailable` entries in the page rather than being dropped, so the
   /// numbering a user sees matches the playlist they made.
   ///
-  /// A read that reached the server yields [PlaylistTrack]s, which carry
-  /// the entry ids [removeEntries] needs. One served from the offline
-  /// cache or a download snapshot yields plain [Track]s: neither stores
-  /// entry ids, and editing a playlist needs the server regardless.
+  /// Every row that came from a source knowing the playlist's order is a
+  /// [PlaylistTrack] carrying its true [PlaylistTrack.position] — the
+  /// index Jellyfin itself counts in, with unreadable entries still
+  /// occupying their slots. A read that reached the server also carries
+  /// the [PlaylistTrack.entryId] that [removeEntries] and [moveEntry]
+  /// name a row by; one served from the offline cache or a download
+  /// snapshot does not, because neither stores entry ids and editing a
+  /// playlist needs the server regardless (v0.4.2).
   Future<Result<Page<Track>>> tracks(
     MediaId playlistId, {
     PageRequest page = const PageRequest.first(),
@@ -66,4 +70,22 @@ abstract class PlaylistRepository {
   /// song" would not say which appearance. Removes rows from the
   /// playlist; the tracks stay in the library.
   Future<Result<void>> removeEntries(MediaId playlistId, List<String> entryIds);
+
+  /// Moves the row [entryId] to [newIndex] within [playlistId].
+  ///
+  /// [newIndex] is an **absolute, zero-based index into the whole
+  /// playlist** — where the row ends up once it has been lifted out of
+  /// where it was, which is how Jellyfin's move endpoint reads it. It
+  /// counts every entry the playlist holds, including the ones
+  /// Jellyfinity could not read: the caller takes it from
+  /// [PlaylistTrack.position], never from a row's place on screen.
+  ///
+  /// Keyed on the entry id for the same reason [removeEntries] is — a
+  /// playlist may list the same song three times, and only the entry id
+  /// says which appearance is moving.
+  Future<Result<void>> moveEntry(
+    MediaId playlistId,
+    String entryId,
+    int newIndex,
+  );
 }

@@ -159,6 +159,11 @@ class _HomeBody extends StatelessWidget {
       ListeningContextKind.artist =>
         catalog.statusFor(DownloadOwner.artist(ctx.id)).completed > 0,
       ListeningContextKind.track => catalog.isDownloaded(ctx.id),
+      // A playlist plays offline on the same terms an album does
+      // (v0.4.2): some of it is on the device. A playlist nobody
+      // downloaded is a row that would reach only silence.
+      ListeningContextKind.playlist =>
+        catalog.statusFor(DownloadOwner.playlist(ctx.id)).completed > 0,
     };
   }
 
@@ -384,6 +389,11 @@ class _HomeBody extends StatelessWidget {
       case ListeningContextKind.artist:
         context.pushNamed(
           RouteNames.libraryArtist,
+          pathParameters: {'id': ctx.id.key},
+        );
+      case ListeningContextKind.playlist:
+        context.pushNamed(
+          RouteNames.libraryPlaylist,
           pathParameters: {'id': ctx.id.key},
         );
       case ListeningContextKind.track:
@@ -657,6 +667,7 @@ class _RecentlyPlayedCard extends StatelessWidget {
       ListeningContextKind.album => context.subtitle ?? 'Album',
       ListeningContextKind.artist => 'Artist',
       ListeningContextKind.track => context.subtitle ?? 'Song',
+      ListeningContextKind.playlist => 'Playlist',
     };
 
     return Opacity(
@@ -671,11 +682,12 @@ class _RecentlyPlayedCard extends StatelessWidget {
             children: [
               MediaArtwork(
                 image: context.image,
-                kind: context.kind == ListeningContextKind.artist
-                    ? MediaKind.artist
-                    : context.kind == ListeningContextKind.album
-                    ? MediaKind.album
-                    : MediaKind.track,
+                kind: switch (context.kind) {
+                  ListeningContextKind.artist => MediaKind.artist,
+                  ListeningContextKind.album => MediaKind.album,
+                  ListeningContextKind.playlist => MediaKind.playlist,
+                  ListeningContextKind.track => MediaKind.track,
+                },
                 size: _cardWidth,
                 shape: circle ? ArtworkShape.circle : ArtworkShape.rounded,
               ),
