@@ -35,6 +35,18 @@ class DriftQueueRepository implements QueueRepository {
   static const String _shuffleEnabledKey = 'playback.queue.shuffleEnabled';
   static const String _repeatModeKey = 'playback.queue.repeatMode';
 
+  /// The shuffled play order, as comma-separated indices into the saved
+  /// entry rows (v0.4.1).
+  ///
+  /// Scalar queue state on [KeyValueStore] alongside the current index,
+  /// shuffle flag and repeat mode, rather than a column on
+  /// `queue_entries`: it is one value about the queue as a whole, not a
+  /// property of any single entry, and writing it costs nothing next to
+  /// rewriting every row. Without it a restart regenerated a fresh random
+  /// order, so the Up Next list a listener left was never the one they
+  /// came back to.
+  static const String _shuffleOrderKey = 'playback.queue.shuffleOrder';
+
   @override
   Future<Result<RestoredQueue>> load() async {
     try {
@@ -65,7 +77,17 @@ class DriftQueueRepository implements QueueRepository {
             startIndex: savedIndex.clamp(0, entries.length - 1),
           )
           .withShuffle(shuffleEnabled)
-          .withRepeatMode(repeatMode);
+          .withRepeatMode(repeatMode)
+          // Applied last: `withShuffle` above generated a fresh order,
+          // and this replaces it with the saved one when that is still a
+          // valid permutation of these rows. `PlaybackQueue` rejects
+          // anything else, so a stale or corrupt value degrades to the
+          // fresh shuffle rather than to a broken play order.
+          .withRestoredShuffleOrder(
+            _decodeShuffleOrder(
+              await _keyValueStore.getString(_shuffleOrderKey),
+            ),
+          );
 
       return Result.ok((
         queue: queue,
@@ -98,6 +120,10 @@ class DriftQueueRepository implements QueueRepository {
       await _keyValueStore.setInt(_currentIndexKey, queue.currentIndex ?? 0);
       await _keyValueStore.setBool(_shuffleEnabledKey, queue.shuffleEnabled);
       await _keyValueStore.setString(_repeatModeKey, queue.repeatMode.name);
+      await _keyValueStore.setString(
+        _shuffleOrderKey,
+        (queue.shuffleOrder ?? const []).join(','),
+      );
       return const Result.ok(null);
     } catch (error, stackTrace) {
       return Result.err(
@@ -145,11 +171,13 @@ class DriftQueueRepository implements QueueRepository {
       albumItemId: Value(entry.albumId?.itemId),
       albumName: Value(entry.albumName),
       durationMicros: Value(entry.duration?.inMicroseconds),
+      normalizationGain: Value(entry.normalizationGain),
       imageItemId: Value(image?.itemId.itemId),
       imageKind: Value(image?.kind.name),
       imageTag: Value(image?.tag),
       imageAspectRatio: Value(image?.aspectRatio),
       availability: Value(entry.availability.name),
+      failureMessage: Value(entry.failureMessage),
     );
   }
 
@@ -166,8 +194,10 @@ class DriftQueueRepository implements QueueRepository {
       duration: row.durationMicros == null
           ? null
           : Duration(microseconds: row.durationMicros!),
+      normalizationGain: row.normalizationGain,
       image: _image(row),
       availability: _availabilityFrom(row.availability),
+      failureMessage: row.failureMessage,
     );
   }
 
@@ -230,6 +260,20 @@ class DriftQueueRepository implements QueueRepository {
       if (kind.name == name) return kind;
     }
     return null;
+  }
+
+  /// Parses the saved play order. Anything unparseable becomes `null` —
+  /// `PlaybackQueue.withRestoredShuffleOrder` treats that the same as an
+  /// order that no longer matches the entries, and shuffles afresh.
+  static List<int>? _decodeShuffleOrder(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final order = <int>[];
+    for (final part in raw.split(',')) {
+      final index = int.tryParse(part);
+      if (index == null) return null;
+      order.add(index);
+    }
+    return order;
   }
 
   RepeatMode _repeatModeFrom(String? name) {

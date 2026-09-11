@@ -45,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -146,11 +146,26 @@ class AppDatabase extends _$AppDatabase {
       // open its artist and album; every pre-v7 row keeps its data with
       // those null. `listening_history_entries` is new and starts empty —
       // history begins accruing from the next qualifying play.
+      //
+      // `newColumns` also names v9's two columns. `alterTable` recreates
+      // the table from its *current* definition and copies everything not
+      // listed here, so a column added to `queue_entries` in any later
+      // version has to be declared at this step too — otherwise this
+      // upgrade tries to read it out of a database that predates it. That
+      // is the `alterTable` equivalent of the frozen `CREATE TABLE`
+      // statements below, and it makes this one step produce the full
+      // widened row, which is why the v9 step skips an install coming
+      // through here.
       if (from < 7) {
         await m.alterTable(
           TableMigration(
             queueEntries,
-            newColumns: [queueEntries.artistsJson, queueEntries.albumItemId],
+            newColumns: [
+              queueEntries.artistsJson,
+              queueEntries.albumItemId,
+              queueEntries.normalizationGain,
+              queueEntries.failureMessage,
+            ],
           ),
         );
         await m.createTable(listeningHistoryEntries);
@@ -164,6 +179,28 @@ class AppDatabase extends _$AppDatabase {
       if (from < 8) {
         await m.createTable(cachedFavorites);
         await m.createIndex(_cachedFavoritesAccountIndex);
+      }
+      // v9 (v0.4.1): the two things a restored queue was losing.
+      // `queue_entries` gains `normalization_gain` — without it volume
+      // normalization (v0.1.4) silently stopped applying to every queue
+      // that survived a restart — and `failure_message`, so a track the
+      // engine could not play still says why. Both nullable and additive:
+      // every pre-v9 row keeps its data, with no gain (unity volume, as
+      // before) and no explanation until the entry next fails or plays.
+      //
+      // Only for an install already at v7 or v8: anything older got the
+      // same two columns from the v7 step above, which builds the table
+      // from its current definition.
+      if (from >= 7 && from < 9) {
+        await m.alterTable(
+          TableMigration(
+            queueEntries,
+            newColumns: [
+              queueEntries.normalizationGain,
+              queueEntries.failureMessage,
+            ],
+          ),
+        );
       }
     },
     beforeOpen: (details) async {

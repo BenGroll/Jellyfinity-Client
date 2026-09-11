@@ -245,6 +245,19 @@ class QueueEntries extends Table {
   TextColumn get availability =>
       text().withDefault(const Constant('remoteOnly'))();
 
+  /// The dB loudness gain Jellyfin reports for this track (v0.4.1),
+  /// denormalized here for the same reason [durationMicros] is: a
+  /// restored queue has to hand `PlaybackCubit` a source-ready value
+  /// without a network call. Without it, volume normalization (v0.1.4)
+  /// silently stopped applying to every restored queue.
+  RealColumn get normalizationGain => real().nullable()();
+
+  /// Why this entry could not be played (v0.4.1), from the
+  /// `PlaybackFailure` that marked [availability]. Restored alongside it
+  /// so a failed track still explains itself after a restart instead of
+  /// being greyed out for no stated reason.
+  TextColumn get failureMessage => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {position};
 }

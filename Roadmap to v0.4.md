@@ -195,14 +195,14 @@ device, in every state Jellyfinity can be in.
 - Confirm history stays bounded in practice over a long simulated run, and
   that profile switching swaps Home wholesale with no leakage between
   profiles.
-- Establish device validation for the whole arc on Android and iOS: cold
+- Establish device validation for the whole arc on Android and Windows: cold
   start, offline start, downloads-only scope, profile switch, and a
   representative large library.
 - Add regression tests for the complete primary flows, and update the ADRs
   and changelog the final architecture requires.
 
 **Done when:** Home is the screen a user is glad to land on, at any
-library size, in any connection state, on both platforms.
+library size, in any connection state, on Android and Windows.
 
 ## Non-goals for v0.3.1–v0.4.0
 

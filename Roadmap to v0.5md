@@ -1,0 +1,169 @@
+# Jellyfinity v0.5.x specifications
+
+Read only the assigned version. Each version is one complete, user-visible
+music increment. All versions require focused changes, behavior tests, a
+current changelog entry, and passing CI. Record a durable technical decision
+in an ADR.
+
+## Big goal — Music Listening Perfection
+
+After v0.5.0 finishes Home, make everyday listening feel deliberate and
+effortless: starting music always creates the queue the user expects, playback
+controls and recovery are clear, playlists are truly editable, Favorites stay
+trustworthy offline, and discovery gives a listener a private, useful next
+choice from their own library.
+
+This is still a music-only arc. It does not introduce a cloud service, user
+tracking, a generic recommendation engine, movies, television, or a
+general-purpose customization framework.
+
+## Platform acceptance for every v0.4.x release
+
+Android and Windows are required product targets. Every feature must be
+implemented, tested where feasible, and manually validated on both platforms;
+a mobile-only plugin, touch-only control, or Windows-only shortcut is not a
+completed feature. Platform-specific affordances may differ—Android media
+controls and Windows keyboard/pointer/media-session controls are appropriate—
+but their user-visible behavior must be equivalent. Existing iOS support must
+not regress.
+
+## v0.4.0 — Music Listening Perfection
+
+**Goal:** Make normal music playback predictable, continuous, and easy to
+recover when a listener moves between the library, Home, the queue, and Now
+Playing.
+
+**Required:**
+
+- Audit every playback entry point—track rows, albums, artists, playlists,
+  Favorites, search, Home, mini-player, Now Playing, and queue—and give the
+  same actions the same meaning: play now, play next, add to queue, and shuffle
+  must create or amend the expected queue without losing the current track.
+- Make the queue's current item, Up Next order, shuffle, repeat, removal, and
+  end-of-queue behavior visible and consistent with the persisted queue after
+  a restart. A manual action must never be mistaken for automatic repeat or
+  shuffle progression.
+- Harden transitions between local downloads, direct streams, and transcoded
+  sources. A failed entry remains visible with an actionable explanation and
+  playback progresses according to the existing non-destructive failure model.
+- Ensure crossfade, normalization, stream-quality selection, lyrics, and
+  playback-progress reporting continue to behave honestly for every supported
+  source. A feature unavailable for a source is stated clearly, never silently
+  ignored.
+- Test the complete listening flows, including queue restoration, source
+  failure, account switch, offline start, and mixed local/remote queues.
+  Validate the controls and background/media-session behavior on Android and
+  Windows.
+
+**Done when:** A listener can start, shape, leave, and resume a listening
+session from anywhere in the app with no surprising queue changes or silent
+playback failure on Android or Windows.
+
+## v0.4.1 — Playlist mastery
+
+**Goal:** Make playlists dependable personal listening tools rather than lists
+that still require Jellyfin Web for basic curation.
+
+**Required:**
+
+- Finish playlist reorder correctly. Replace or extend the playlist read model
+  so the UI can calculate Jellyfin's true absolute destination index even when
+  the playlist contains unmappable or unavailable entries; do not ship a drag
+  interaction that can move the wrong server entry. Carry ADR-0024's entry-id
+  and online-only mutation rules forward.
+- Add useful playlist listening context, such as the most recently played
+  playlist and a resumable playlist session, using the existing local history
+  and queue rather than introducing analytics. It must remain profile-scoped
+  and honest offline.
+- Make duplicate entries and partial/unavailable playlist rows intelligible in
+  reorder, remove, download, and playback flows. An entry is distinct from the
+  track it refers to, and an offline snapshot stays playable but uneditable.
+- Test true-position reorder with mixed mappable/unmappable rows, repeated
+  tracks, server rejection, offline affordances, history context, and refreshed
+  playlist numbering. Validate touch drag/reorder on Android and pointer/
+  keyboard-accessible reorder on Windows.
+
+**Done when:** A user can safely curate and return to a playlist from
+Jellyfinity, while every unavailable or offline limitation is clear on Android
+and Windows.
+
+## v0.4.2 — Offline Favorites
+
+**Goal:** Let the heart remain trustworthy when connectivity is intermittent.
+
+**Required:**
+
+- Let a user favorite or unfavorite supported music while offline, retaining a
+  profile- and server-scoped pending intent rather than pretending the server
+  has already changed.
+- Reconcile pending favorite intents when the matching authenticated session is
+  available. Define conflict behavior explicitly: a later local user action
+  wins; a server failure remains retryable and visible; no action can leak to
+  another profile or server.
+- Keep Favorites, Home strips, details, and search mutually consistent through
+  offline changes, reconnect, app restart, account switch, and server removal.
+  Downloads-only scope must show only items it can genuinely present/play.
+- Test persistence, coalesced rapid toggles, reconnection, server rejection,
+  account isolation, and deletion cleanup. Validate equivalent feedback and
+  recovery on Android and Windows.
+
+**Done when:** The heart is a reliable local promise that either reaches the
+server or clearly remains pending, never an ambiguous or lost interaction.
+
+## v0.4.3 — Library exploration
+
+**Goal:** Give a listener intentional ways to explore the music they already
+own without an opaque recommendation service.
+
+**Required:**
+
+- Add genre and decade entry points built from the user's Jellyfin library,
+  with separate, clearly named result categories rather than a mixed search
+  dump. Do not materialize a whole large library to construct them.
+- Add a deliberate random choice action for an album or artist from the active
+  library scope. Explain its scope and make it reproducible enough that a
+  refresh is a new choice, not a broken loading state.
+- Use cached/local metadata where it is honest offline; server-only facets say
+  when they are unavailable or stale. Downloads-only mode cannot suggest items
+  that cannot play.
+- Test empty, sparse, large, offline, cached, partial, and unavailable
+  libraries; category boundaries; and random-selection bounds. Validate the
+  browse and control experience on Android and Windows.
+
+**Done when:** A user with a large library can intentionally browse or discover
+something different to play, online or with clearly bounded offline results.
+
+## v0.4.4 — Personal music discovery
+
+**Goal:** Turn Jellyfinity's own listening context into transparent, private
+next-listen suggestions.
+
+**Required:**
+
+- Add small, independently loading discovery sections where they earn a place:
+  for example, because you listened to an artist/album, a related artist, or a
+  similar album. Each recommendation states its local/server basis rather than
+  implying an unexplained algorithm.
+- Derive candidates only from the active profile's listening history,
+  Favorites, downloaded/playable library, and Jellyfin's existing related-item
+  endpoints. Do not transmit history, add a tracking backend, or merge data
+  across profiles or servers.
+- Prefer diversity and usefulness over filler: omit a section when its seed,
+  candidates, or availability is insufficient. A failed or unsupported server
+  endpoint affects only that section.
+- Make the sections work within Home's established independent-state pattern;
+  preserve the v0.4.0 scale bounds and show honest cached/offline results.
+- Test candidate provenance, profile/server isolation, absence, partial and
+  offline states, large-library bounds, and section independence. Validate
+  Android and Windows behavior and layout.
+
+**Done when:** Jellyfinity helps a listener find a credible next album or
+artist using only their own media activity and server, without sacrificing
+privacy or responsiveness.
+
+## Non-goals for v0.4.0–v0.4.4
+
+Movies, television, video playback/downloads, external recommendation or
+tracking services, social sharing, collaborative playlists, automatic playlist
+downloads/synchronization, multi-server unified libraries, full Home editing,
+theme editing, Android TV, and a plugin system are outside this arc.

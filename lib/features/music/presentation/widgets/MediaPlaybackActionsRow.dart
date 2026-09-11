@@ -112,6 +112,19 @@ class MediaPlaybackActionsRow extends StatelessWidget {
                 _addToPlaylist(context);
               },
             ),
+            // The same four actions a `TrackRow` offers, for the whole
+            // collection (v0.4.1): Play and Shuffle are the buttons above,
+            // Play next and Add to queue live here. Play next was the one
+            // missing — an album header could start or append a queue but
+            // not put itself after the current track.
+            ListTile(
+              leading: const Icon(Icons.playlist_play_rounded),
+              title: const Text('Play next'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                playback.playNextAll(tracks);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.queue_music_rounded),
               title: const Text('Add to queue'),

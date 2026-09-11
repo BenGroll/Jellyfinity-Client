@@ -13,8 +13,8 @@ void main() {
     setUp(() => db = newTestDatabase());
     tearDown(() => db.close());
 
-    test('is at schema version 8', () {
-      expect(db.schemaVersion, 8);
+    test('is at schema version 9', () {
+      expect(db.schemaVersion, 9);
     });
 
     test('creates every declared table', () async {
@@ -90,6 +90,6 @@ void main() {
       second.keyValueEntries,
     )..where((t) => t.key.equals('k'))).getSingle();
     expect(row.value, 'v');
-    expect(second.schemaVersion, 8);
+    expect(second.schemaVersion, 9);
   });
 }

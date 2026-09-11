@@ -2,7 +2,8 @@
 
 **The Open Source Jellyfin Client that makes your Media Server feel not-self hosted.**
 
-Jellyfinity is a free and open-source Flutter client for Jellyfin, built primarily for Android and iOS.
+Jellyfinity is a free and open-source Flutter client for Jellyfin, built
+primarily for Android, Windows, and iOS.
 
 > Jellyfinity is in early development. The first music vertical slice and
 > streaming-quality support are implemented; playlist curation is the current

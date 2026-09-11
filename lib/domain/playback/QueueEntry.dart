@@ -31,6 +31,7 @@ class QueueEntry extends Equatable {
     this.image,
     this.normalizationGain,
     this.availability = MediaAvailability.remoteOnly,
+    this.failureMessage,
   });
 
   factory QueueEntry.fromTrack(Track track) => QueueEntry(
@@ -74,6 +75,18 @@ class QueueEntry extends Equatable {
   /// dropped.
   final MediaAvailability availability;
 
+  /// Why this entry could not be played, from the [PlaybackFailure] that
+  /// marked it (v0.4.1). Kept beside [availability] because "unavailable"
+  /// alone is not an explanation: a dead stream, an undecodable file and
+  /// a download that has since been deleted are three different problems
+  /// with three different things the listener can do about them.
+  ///
+  /// `null` for every entry that has not failed. Persisted with the entry
+  /// (schema v9) for the same reason [availability] is — a queue restored
+  /// after a restart must not present a track that failed as if it were
+  /// fine.
+  final String? failureMessage;
+
   /// The queued track as the rest of the app speaks about it — enough to
   /// drive a download control or a "play from here" tap on the queue and
   /// Now Playing screens (v0.3.6). The reverse of [QueueEntry.fromTrack];
@@ -91,7 +104,9 @@ class QueueEntry extends Equatable {
     image: image,
   );
 
-  QueueEntry markUnavailable() => QueueEntry(
+  /// Marks this entry as one the engine could not play, carrying
+  /// [reason] as the explanation a queue row and Now Playing show.
+  QueueEntry markUnavailable({String? reason}) => QueueEntry(
     id: id,
     title: title,
     artist: artist,
@@ -102,7 +117,33 @@ class QueueEntry extends Equatable {
     image: image,
     normalizationGain: normalizationGain,
     availability: MediaAvailability.remoteUnavailable,
+    failureMessage: reason ?? failureMessage,
   );
+
+  /// This entry with any past failure forgotten — what a successful play
+  /// of it produces (v0.4.1). A track that failed while the server was
+  /// unreachable and plays fine now must not keep wearing the old
+  /// explanation.
+  QueueEntry markPlayable() {
+    if (availability != MediaAvailability.remoteUnavailable &&
+        failureMessage == null) {
+      return this;
+    }
+    return QueueEntry(
+      id: id,
+      title: title,
+      artist: artist,
+      artists: artists,
+      albumId: albumId,
+      albumName: albumName,
+      duration: duration,
+      image: image,
+      normalizationGain: normalizationGain,
+      availability: availability == MediaAvailability.remoteUnavailable
+          ? MediaAvailability.remoteOnly
+          : availability,
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -116,5 +157,6 @@ class QueueEntry extends Equatable {
     image,
     normalizationGain,
     availability,
+    failureMessage,
   ];
 }

@@ -66,7 +66,7 @@ void main() {
     final schema = await verifier.schemaAt(2);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 9);
 
     // Purely additive at v3: the queue table exists and starts empty, same
     // as the v1 -> v2 cache tables did.
@@ -79,7 +79,7 @@ void main() {
     final schema = await verifier.schemaAt(3);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 9);
 
     // An install that upgrades from before downloads existed starts with
     // nothing downloaded rather than losing what it had.
@@ -104,7 +104,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 7);
+      await verifier.migrateAndValidate(db, 9);
 
       final entries = await db.select(db.queueEntries).get();
       expect(entries.single.title, 'So What');
@@ -121,7 +121,7 @@ void main() {
     final schema = await verifier.schemaAt(4);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 9);
 
     // Additive at v5 (v0.2.1): the snapshot table exists and starts
     // empty; an upgrading install keeps every track and album download
@@ -150,7 +150,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 7);
+      await verifier.migrateAndValidate(db, 9);
 
       final downloads = await db.select(db.trackDownloads).get();
       expect(downloads.single.title, 'So What');
@@ -164,7 +164,7 @@ void main() {
     final schema = await verifier.schemaAt(5);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 9);
 
     // The downloaded-collection identity table is new and starts empty;
     // a collection's name and artwork fill in the next time it is
@@ -198,7 +198,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 7);
+      await verifier.migrateAndValidate(db, 9);
 
       // Data is preserved; the new account_key defaults to empty, which
       // `DownloadsCubit.restore` then claims for the first profile to sign
@@ -221,7 +221,7 @@ void main() {
     final schema = await verifier.schemaAt(6);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 9);
 
     // Listening history is new and starts empty; it begins accruing from
     // the next qualifying play.
@@ -241,7 +241,7 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 9);
 
     final entries = await db.select(db.queueEntries).get();
     expect(entries.single.title, 'So What');
@@ -255,7 +255,7 @@ void main() {
     final schema = await verifier.schemaAt(7);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     // The favorites cache is new and starts empty; it fills in the first
     // time the Favorites screen is opened online (ADR-0028).
@@ -282,7 +282,7 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     expect((await db.select(db.queueEntries).get()).single.title, 'So What');
     expect(

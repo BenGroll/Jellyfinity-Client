@@ -51,6 +51,13 @@ class QueuePage extends StatelessWidget {
 }
 
 /// Reusable queue list for the full route and the Now Playing overlay.
+///
+/// Rows are listed in **play order**, not in the queue's own order
+/// (v0.4.1). Under shuffle the two differ, and showing the canonical
+/// order meant the list called "up next" was not what came next — the one
+/// thing a queue screen exists to answer. Every row therefore carries
+/// both positions: `playPosition` is where it sits on screen and what a
+/// drag moves, `entriesIndex` is what `PlaybackCubit` names it by.
 class QueueEditor extends StatelessWidget {
   const QueueEditor({super.key, required this.state, required this.cubit});
 
@@ -59,8 +66,8 @@ class QueueEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = state.queue.entries;
-    if (entries.isEmpty) {
+    final queue = state.queue;
+    if (queue.entries.isEmpty) {
       return const EmptyStateView(
         title: 'The queue is empty',
         message: 'Play something and it will show up here.',
@@ -68,28 +75,73 @@ class QueueEditor extends StatelessWidget {
       );
     }
 
+    final order = queue.playOrder;
+    final currentPlayPosition = queue.currentPlayPosition;
+
     return Column(
       children: [
-        _QueueRuntimeHeader(queue: state.queue),
+        _QueueRuntimeHeader(queue: queue),
         Expanded(
           child: ReorderableListView.builder(
-            itemCount: entries.length,
-            onReorderItem: cubit.reorder,
+            itemCount: order.length,
+            onReorderItem: cubit.reorderPlayOrder,
             buildDefaultDragHandles: false,
-            itemBuilder: (context, index) {
-              final entry = entries[index];
+            footer: queue.isAtEndOfPlayOrder
+                ? const _EndOfQueueNote()
+                : null,
+            itemBuilder: (context, playPosition) {
+              final entriesIndex = order[playPosition];
+              final entry = queue.entries[entriesIndex];
               return _QueueRow(
-                key: ValueKey(entry),
-                index: index,
+                // Keyed by position rather than by the entry: the same
+                // track can legitimately sit in a queue twice, and two
+                // identical `ValueKey`s make a reorder move the wrong row.
+                key: ValueKey('queue-$playPosition-$entriesIndex'),
+                index: playPosition,
                 entry: entry,
-                isCurrent: index == state.queue.currentIndex,
-                onTap: () => cubit.playAt(index),
-                onRemove: () => cubit.removeAt(index),
+                isCurrent: playPosition == currentPlayPosition,
+                onTap: () => cubit.playAt(entriesIndex),
+                onRemove: () => cubit.removeAt(entriesIndex),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Says that nothing follows the last row, rather than leaving a listener
+/// to find out when the music stops (v0.4.1). Absent whenever repeat will
+/// wrap the queue, since then there *is* something after it.
+class _EndOfQueueNote extends StatelessWidget {
+  const _EndOfQueueNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        t.spacing.md,
+        t.spacing.sm,
+        t.spacing.md,
+        t.spacing.lg,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.done_all_rounded,
+            size: 16,
+            color: t.colors.textSecondary,
+          ),
+          SizedBox(width: t.spacing.xs),
+          Text(
+            'End of queue',
+            style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -127,6 +179,19 @@ class _QueueRow extends StatelessWidget {
         entry.availability == MediaAvailability.remoteUnavailable ||
         notPlayableOffline;
 
+    // Why it failed, and what to do about it (v0.4.1). A row that failed
+    // while online stays tappable: trying again is the action, and the
+    // attempt re-resolves the address, which is what recovers a track
+    // whose download was deleted underneath it. Offline with no file is
+    // the one case where there is genuinely nothing to try.
+    final failureMessage = entry.failureMessage;
+    final showFailure = failureMessage != null && !notPlayableOffline;
+    final subtitle = showFailure
+        ? '$failureMessage Tap to try again.'
+        : notPlayableOffline
+        ? 'Not available offline'
+        : entry.artist;
+
     return Padding(
       key: key,
       padding: EdgeInsets.symmetric(
@@ -136,7 +201,7 @@ class _QueueRow extends StatelessWidget {
       child: SizedBox(
         height: 64,
         child: InkWell(
-          onTap: unavailable ? null : onTap,
+          onTap: notPlayableOffline ? null : onTap,
           borderRadius: t.radii.smBorder,
           child: Row(
             children: [
@@ -171,15 +236,15 @@ class _QueueRow extends StatelessWidget {
                             : t.colors.textPrimary,
                       ),
                     ),
-                    if (notPlayableOffline || entry.artist != null)
+                    if (subtitle != null)
                       Text(
-                        notPlayableOffline
-                            ? 'Not available offline'
-                            : entry.artist!,
-                        maxLines: 1,
+                        subtitle,
+                        maxLines: showFailure ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: t.typography.caption.copyWith(
-                          color: t.colors.textSecondary,
+                          color: showFailure
+                              ? t.colors.danger
+                              : t.colors.textSecondary,
                         ),
                       ),
                   ],

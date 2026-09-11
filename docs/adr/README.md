@@ -35,6 +35,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0029](ADR-0029-windows-platform-support.md) | Windows platform support |
 | [0029](ADR-0029-related-artists-and-albums.md) | Related artists and albums |
 | [0030](ADR-0030-offline-music-completion-finished.md) | Offline music completion, finished |
+| [0031](ADR-0031-music-listening-perfection.md) | Music listening perfection |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.
