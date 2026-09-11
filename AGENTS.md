@@ -75,6 +75,15 @@ starting an unrelated emulator, build, or native smoke test.
 Do not create branches, commits, pushes, pull requests, release builds, or
 network research unless the user asks or the assigned task requires them.
 
+For an implementation task, the assigned task itself requires a dedicated
+branch and a commit: after the initial status check and before editing, create
+or use a branch named `vX.X.X-short-description` for the assigned version. If
+already on the correct dedicated branch, continue there; never create a nested
+branch. Do not switch away from a dirty worktree or pull from the network just
+to create the branch. After verification, commit all in-scope changes on that
+branch using the repository's versioned commit format. Pushes and pull requests
+remain opt-in.
+
 ## Starting a version task
 
 Before editing, report in at most eight bullets:
