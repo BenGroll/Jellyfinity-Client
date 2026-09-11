@@ -40,7 +40,7 @@ published Git tag.
 | v0.4.1 | Music listening perfection | Implemented | [spec](Roadmap%20to%20v0.5md#v040--music-listening-perfection) |
 | v0.4.2 | Playlist mastery | Implemented | [spec](Roadmap%20to%20v0.5md#v041--playlist-mastery) |
 | v0.4.3 | Offline Favorites | Implemented | [spec](Roadmap%20to%20v0.5md#v042--offline-favorites) |
-| v0.4.4 | Library exploration | Planned | [spec](Roadmap%20to%20v0.5md#v043--library-exploration) |
+| v0.4.4 | Library exploration | Implemented | [spec](Roadmap%20to%20v0.5md#v043--library-exploration) |
 | v0.5.0 | Personal music discovery | Planned | [spec](Roadmap%20to%20v0.5md#v044--personal-music-discovery) |
 
 v0.1.2 is complete. v0.3.0 shipped everything but reorder, which it left

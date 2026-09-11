@@ -165,6 +165,17 @@ class JellyfinMediaApi {
   static const String playingProgressPath = '/Sessions/Playing/Progress';
   static const String playingStoppedPath = '/Sessions/Playing/Stopped';
 
+  /// The music genre facet (v0.4.4) — the same query surface as
+  /// [itemsPath] and [albumArtistsPath], so it is asked for through
+  /// [queryItems] rather than its own method.
+  static const String musicGenresPath = '/MusicGenres';
+
+  /// The production-year facet (v0.4.4), bucketed into decades by
+  /// `JellyfinMusicLibraryRepository.decades`. Generic across every media
+  /// type Jellyfin holds, so a query always scopes it with
+  /// `includeItemTypes`.
+  static const String yearsPath = '/Years';
+
   /// The mapper for the active server.
   ///
   /// A mapper cannot exist without a server to bind ids to, so this is
@@ -234,6 +245,12 @@ class JellyfinMediaApi {
   /// [favoritesOnly] narrows the result to items the signed-in user has
   /// favorited (`IsFavorite`, v0.3.4). It defaults to off, so every
   /// existing query is unchanged; only the Favorites reads pass `true`.
+  ///
+  /// [genres] and [years] narrow to albums in a genre or a decade (v0.4.4)
+  /// — Jellyfin's own `Genres` (pipe-delimited, genre names may contain
+  /// commas) and `Years` filters. Both default to empty, so every
+  /// existing query is unaffected; only Library exploration's genre and
+  /// decade browses pass one.
   Future<Result<ItemsResponseDto>> queryItems({
     String path = itemsPath,
     List<String> includeItemTypes = const [],
@@ -247,6 +264,8 @@ class JellyfinMediaApi {
     List<String> sortBy = const [],
     bool descending = false,
     bool recursive = true,
+    List<String> genres = const [],
+    List<int> years = const [],
     PageRequest? page,
     CancelToken? cancelToken,
   }) async {
@@ -268,6 +287,8 @@ class JellyfinMediaApi {
       'albumArtistIds': ?albumArtistId,
       if (favoritesOnly) 'isFavorite': true,
       'searchTerm': ?normalizeSearchTerm(searchTerm),
+      if (genres.isNotEmpty) 'genres': genres.join('|'),
+      if (years.isNotEmpty) 'years': years.join(','),
       if (sortBy.isNotEmpty) ...{
         'sortBy': sortBy.join(','),
         'sortOrder': descending ? 'Descending' : 'Ascending',

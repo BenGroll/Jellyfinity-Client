@@ -22,10 +22,15 @@ v0.5md` for v0.4.0–v0.5.0.
   once a session can reach the server again, and a reopened detail page
   overlays the same favorite state offline reads already agreed on.
   Schema v10 (`pending_favorite_intents`).
-- v0.4.4–v0.5.0 are planned: Library exploration and Personal music
-  discovery. `ROADMAP.md` is the authority for exact version-to-heading
-  mapping; the linked `Roadmap to v0.5md` headings intentionally use the
-  prior number.
+- v0.4.4 (Library exploration, ADR-0034) is implemented: genre and decade
+  entry points (a live-only facet read, `LibraryFacetsCubit`, an
+  `AlbumsCubit`-reused browse page) and a random album/artist pick that
+  draws from the server online and from downloads while offline
+  (`MusicLibraryRepository.randomAlbum`/`randomArtist`,
+  `DownloadsLibrarySource`). No schema change.
+- v0.5.0 is planned: Personal music discovery. `ROADMAP.md` is the
+  authority for exact version-to-heading mapping; the linked
+  `Roadmap to v0.5md` headings intentionally use the prior number.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

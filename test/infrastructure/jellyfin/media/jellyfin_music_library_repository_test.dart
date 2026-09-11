@@ -449,4 +449,105 @@ void main() {
       expect(adapter.callCount, isZero);
     });
   });
+
+  group('library exploration (v0.4.4)', () {
+    test('filters albums by genre and by decade, server-side', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+      final repository = _repository(adapter);
+
+      await repository.albums(genre: 'Jazz');
+      await repository.albums(decadeStart: 1990);
+
+      expect(adapter.requests[0].queryParameters['genres'], 'Jazz');
+      expect(adapter.requests[0].queryParameters.containsKey('years'), isFalse);
+      expect(
+        adapter.requests[1].queryParameters['years'],
+        '1990,1991,1992,1993,1994,1995,1996,1997,1998,1999',
+      );
+    });
+
+    test('reads the genre facet from /MusicGenres, bounded and scoped', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'g1', 'Name': 'Jazz', 'Type': 'MusicGenre'},
+            {'Id': 'g2', 'Name': 'Rock', 'Type': 'MusicGenre'},
+          ]),
+        ),
+      );
+
+      final result = await _repository(adapter).genres();
+
+      expect(adapter.requests.single.path, JellyfinMediaApi.musicGenresPath);
+      expect(result.valueOrNull, ['Jazz', 'Rock']);
+    });
+
+    test('reads the decade facet from /Years, bucketed newest first', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'y1', 'Name': '1959', 'ProductionYear': 1959},
+            {'Id': 'y2', 'Name': '1965', 'ProductionYear': 1965},
+            {'Id': 'y3', 'Name': '2021', 'ProductionYear': 2021},
+          ]),
+        ),
+      );
+
+      final result = await _repository(adapter).decades();
+
+      expect(adapter.requests.single.path, JellyfinMediaApi.yearsPath);
+      expect(
+        adapter.requests.single.queryParameters['includeItemTypes'],
+        'MusicAlbum',
+      );
+      // 1959 and 1965 both fall in the 1950s/1960s decades respectively —
+      // one decade per bucket, newest first.
+      expect(result.valueOrNull, [2020, 1960, 1950]);
+    });
+
+    test('randomAlbum asks the server for one row, sorted Random', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'album-1', 'Name': 'Kind of Blue', 'Type': 'MusicAlbum'},
+          ]),
+        ),
+      );
+
+      final result = await _repository(adapter).randomAlbum();
+
+      expect(adapter.requests.single.queryParameters['sortBy'], 'Random');
+      expect(adapter.requests.single.queryParameters['limit'], 1);
+      expect(adapter.requests.single.queryParameters['includeItemTypes'], 'MusicAlbum');
+      expect(result.valueOrNull!.name, 'Kind of Blue');
+    });
+
+    test('randomArtist asks the album-artist route, sorted Random', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(
+          itemsResponse([
+            {'Id': 'artist-1', 'Name': 'Miles Davis', 'Type': 'MusicArtist'},
+          ]),
+        ),
+      );
+
+      final result = await _repository(adapter).randomArtist();
+
+      expect(adapter.requests.single.path, JellyfinMediaApi.albumArtistsPath);
+      expect(adapter.requests.single.queryParameters['sortBy'], 'Random');
+      expect(result.valueOrNull!.name, 'Miles Davis');
+    });
+
+    test('an empty library reports random pick as unavailable', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+
+      final result = await _repository(adapter).randomAlbum();
+
+      expect(result.failureOrNull, isA<UnavailableFailure>());
+    });
+  });
 }

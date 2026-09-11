@@ -46,6 +46,24 @@ All notable changes to Jellyfinity are documented here.
 - Document setup, packaging and device acceptance in `docs/windows.md`, and
   the platform decisions in ADR-0029.
 
+## v0.4.4 — Library exploration
+
+Intentional ways into the library a listener already owns, without an
+opaque recommendation service.
+
+### Genre and decade entry points, and a random album/artist pick (ADR-0034)
+
+- **A new Explore tab on Library** lists every genre and every decade the
+  library holds, each a chip that opens a filtered album shelf, and a
+  "Surprise me" section with a random album or artist pick.
+- **The pick is a fresh choice every time**, scoped and explained: your
+  whole library online, or — since a suggestion that cannot play is worse
+  than none — what you have downloaded while offline.
+- **Genre and decade browsing is honest about needing a connection.**
+  Nothing about a genre is cached anywhere, so working offline shows
+  "needs a connection" rather than a stale or silently incomplete shelf.
+- No schema change.
+
 ## v0.4.3 — Offline Favorites
 
 The heart stays a reliable local promise when connectivity is

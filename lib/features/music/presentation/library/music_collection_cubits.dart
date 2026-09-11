@@ -78,18 +78,42 @@ class AlbumsCubit extends PagedCollectionCubit<Album>
   MediaId? artistId;
   String? searchTerm;
 
+  /// When set, only albums in this genre (v0.4.4) — mutually exclusive
+  /// with [artistId] and [decadeStart]; Library exploration never opens
+  /// this cubit with more than one filter at a time.
+  String? genre;
+
+  /// When set, only albums from this decade (v0.4.4), e.g. `1990`.
+  int? decadeStart;
+
   @override
   Future<Result<Page<Album>>> fetch(PageRequest request) =>
-      downloadedOnly && artistId == null
+      downloadedOnly && artistId == null && genre == null && decadeStart == null
       ? downloadsSource.albums(page: request, searchTerm: searchTerm)
       : _music.albums(
           page: request,
           artistId: artistId,
           searchTerm: searchTerm,
+          genre: genre,
+          decadeStart: decadeStart,
         );
 
   Future<void> forArtist(MediaId id) {
     artistId = id;
+    return load();
+  }
+
+  /// Narrows to every album in [name] and starts the list again — the
+  /// genre shelf's "show all" (v0.4.4).
+  Future<void> forGenre(String name) {
+    genre = name;
+    return load();
+  }
+
+  /// Narrows to every album released in the decade starting [startYear]
+  /// (v0.4.4).
+  Future<void> forDecade(int startYear) {
+    decadeStart = startYear;
     return load();
   }
 

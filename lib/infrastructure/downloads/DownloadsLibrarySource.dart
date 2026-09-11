@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:injectable/injectable.dart';
 
 import '../../core/result/failure.dart';
@@ -39,6 +41,8 @@ class DownloadsLibrarySource {
   DownloadsLibrarySource(this._store);
 
   final DownloadStore _store;
+
+  final Random _random = Random();
 
   /// Every artist the profile can play offline (v0.2.3): the ones
   /// downloaded whole (an explicit `downloaded_collections` row), plus any
@@ -98,6 +102,43 @@ class DownloadsLibrarySource {
       }
     },
   );
+
+  /// One of the profile's downloaded artists, chosen at random (v0.4.4) —
+  /// the scope "random pick" falls back to while offline, since there is
+  /// no honest way to ask the unreachable server for one. A
+  /// [RecoverableFailure] when nothing is downloaded yet, the same answer
+  /// [artist] gives for "not on this device": working offline with an
+  /// empty downloads catalog has nothing to suggest, which is a normal
+  /// outcome, not a broken screen.
+  Future<Result<Artist>> randomArtist() => _randomPick(artists);
+
+  /// One of the profile's downloaded albums, chosen at random (v0.4.4),
+  /// on the same terms as [randomArtist].
+  Future<Result<Album>> randomAlbum() => _randomPick(albums);
+
+  /// Picks a uniformly random row out of [read]'s whole result rather
+  /// than materializing it: one window to learn the count, then one more
+  /// windowed at the chosen index — never "load everything and pick one
+  /// in Dart", the same discipline the server-backed repository follows
+  /// for a library orders of magnitude larger than any profile's
+  /// downloads.
+  Future<Result<T>> _randomPick<T extends MediaItem>(
+    Future<Result<Page<T>>> Function({PageRequest page, String? searchTerm})
+    read,
+  ) async {
+    final first = await read(page: const PageRequest(startIndex: 0, limit: 1));
+    if (first case Err<Page<T>>(:final failure)) return Result.err(failure);
+    final total = (first as Ok<Page<T>>).value.totalCount;
+    if (total == 0) return _notDownloaded<T>();
+
+    final index = _random.nextInt(total);
+    final picked = await read(
+      page: PageRequest(startIndex: index, limit: 1),
+    );
+    if (picked case Err<Page<T>>(:final failure)) return Result.err(failure);
+    final items = (picked as Ok<Page<T>>).value.items;
+    return items.isEmpty ? _notDownloaded<T>() : Result.ok(items.first);
+  }
 
   /// Downloaded playlists. Unlike artists and albums a playlist is never
   /// implied by a loose track — it exists only as an explicit download —

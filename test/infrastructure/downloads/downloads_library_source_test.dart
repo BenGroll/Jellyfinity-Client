@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/domain/media/artist.dart';
 import 'package:jellyfinity/domain/media/media_availability.dart';
@@ -215,4 +216,31 @@ void main() {
       expect(albums.items, isEmpty);
     },
   );
+
+  group('random pick (v0.4.4)', () {
+    test('picks one of the downloaded albums', () async {
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(mediaId('al-1')),
+          name: 'Blue Train',
+        ),
+      );
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(mediaId('al-2')),
+          name: 'Milestones',
+        ),
+      );
+
+      final result = await source.randomAlbum();
+
+      expect(result.valueOrNull!.name, anyOf('Blue Train', 'Milestones'));
+    });
+
+    test('with nothing downloaded, the pick is unavailable', () async {
+      final result = await source.randomArtist();
+
+      expect(result.failureOrNull, isA<RecoverableFailure>());
+    });
+  });
 }

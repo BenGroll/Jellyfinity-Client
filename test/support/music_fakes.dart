@@ -11,6 +11,7 @@ import 'package:jellyfinity/features/home/presentation/RecentlyAddedCubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/artist_stats_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/detail/related_media_cubits.dart';
+import 'package:jellyfinity/features/music/presentation/library/library_facets_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart';
 import 'package:jellyfinity/infrastructure/downloads/DownloadsLibrarySource.dart';
@@ -179,6 +180,8 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) async {
     calls.add((method: 'albums', page: page, searchTerm: searchTerm));
     await _pause();
@@ -322,6 +325,66 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
     final failed = similarityFailure ?? failure;
     if (failed != null) return Result.err(failed);
     return Result.ok(similarAlbumList.take(limit).toList());
+  }
+
+  /// What [genres]/[decades] answer with (v0.4.4) — their own lists so a
+  /// test can give the Explore tab's shelves something, or leave them
+  /// empty so a shelf is honestly empty rather than absent.
+  List<String> genreList = [];
+  List<int> decadeList = [];
+
+  /// Fail one facet read without the other (v0.4.4) — the shape of a
+  /// server that answers ordinary queries but is missing just
+  /// `/MusicGenres` or just `/Years`. Set [facetFailure] instead to fail
+  /// both at once (working offline fails every live read the same way).
+  Failure? genresFailure;
+  Failure? decadesFailure;
+  Failure? facetFailure;
+
+  @override
+  Future<Result<List<String>>> genres() async {
+    await _pause();
+    final failed = genresFailure ?? facetFailure ?? failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(genreList);
+  }
+
+  @override
+  Future<Result<List<int>>> decades() async {
+    await _pause();
+    final failed = decadesFailure ?? facetFailure ?? failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(decadeList);
+  }
+
+  /// What [randomAlbum]/[randomArtist] answer with (v0.4.4); `null` (the
+  /// default) fails with [UnavailableFailure], the real repository's
+  /// "nothing to suggest" answer.
+  Album? randomAlbumPick;
+  Artist? randomArtistPick;
+
+  @override
+  Future<Result<Album>> randomAlbum() async {
+    await _pause();
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    final pick = randomAlbumPick;
+    if (pick == null) {
+      return const Result.err(UnavailableFailure('No album to suggest.'));
+    }
+    return Result.ok(pick);
+  }
+
+  @override
+  Future<Result<Artist>> randomArtist() async {
+    await _pause();
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    final pick = randomArtistPick;
+    if (pick == null) {
+      return const Result.err(UnavailableFailure('No artist to suggest.'));
+    }
+    return Result.ok(pick);
   }
 
   /// Lets a widget test see the loading frame before the answer lands.
@@ -656,6 +719,22 @@ class FakeDownloadsLibrarySource implements DownloadsLibrarySource {
     PageRequest page = const PageRequest.first(),
     int? knownAlbumCount,
   }) async => Result.ok(_page(albumList, null));
+
+  @override
+  Future<Result<Artist>> randomArtist() async {
+    if (artistList.isEmpty) {
+      return const Result.err(RecoverableFailure('Not on this device.'));
+    }
+    return Result.ok(artistList.first);
+  }
+
+  @override
+  Future<Result<Album>> randomAlbum() async {
+    if (albumList.isEmpty) {
+      return const Result.err(RecoverableFailure('Not on this device.'));
+    }
+    return Result.ok(albumList.first);
+  }
 }
 
 /// Mirrors `registerAuthCubits`; call it before pumping.
@@ -739,6 +818,13 @@ void registerMusicCubits({
         FakeSessionContext(),
       ),
     )
+    // Library exploration (v0.4.4): the Explore tab's shelves, plus the
+    // "surprise me" actions, which read the repository straight from
+    // getIt the way the favorite toggle does (`explore_actions.dart`).
+    ..registerFactory<LibraryFacetsCubit>(
+      () => LibraryFacetsCubit(music, offlineMode),
+    )
+    ..registerSingleton<MusicLibraryRepository>(music)
     ..registerSingleton<PlaylistRepository>(playlistRepository)
     ..registerSingleton<FavoritesRepository>(favoritesRepository);
   addTearDown(getIt.reset);
