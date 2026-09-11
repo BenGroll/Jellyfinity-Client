@@ -42,7 +42,14 @@ abstract class MediaCacheStore {
 
   /// The cached form of [id], marked unavailable, or `null` if it was
   /// never read.
-  Future<MediaItem?> readItem(MediaId id);
+  ///
+  /// [accountKey], when given, overlays that profile's current favorite
+  /// state (`cached_favorites` — which a favorite toggled offline also
+  /// updates, v0.4.3) onto the result, so a detail screen reopened while
+  /// offline shows the same heart it did a moment ago rather than the
+  /// unconditional `false` `cached_media_items` itself carries (ADR-0019).
+  /// Omitted by a caller with nothing to scope it to.
+  Future<MediaItem?> readItem(MediaId id, {String? accountKey});
 
   /// Replaces [accountKey]'s cached favorites of [kind] with exactly
   /// [items], recording their metadata on the way (v0.3.4, ADR-0028).
@@ -80,9 +87,49 @@ abstract class MediaCacheStore {
     required bool favorite,
   });
 
+  /// Records [accountKey]'s intent to set [id]'s favorite state, made
+  /// while the server could not be reached (v0.4.3, ADR-0033).
+  ///
+  /// One row per `(accountKey, id)`: a second offline toggle of the same
+  /// item overwrites the first rather than queuing behind it, so only the
+  /// latest local intent is ever replayed once the server is reachable
+  /// again — "a later local action wins" falls out of the upsert, with no
+  /// ordering logic needed. Does not itself touch `cached_favorites`; the
+  /// caller keeps that in step so every offline-facing read stays honest.
+  Future<void> recordPendingFavorite(
+    String accountKey,
+    MediaId id,
+    MediaKind kind, {
+    required bool favorite,
+  });
+
+  /// [accountKey]'s outstanding favorite intents, oldest first — what a
+  /// reconnect replays against the server.
+  Future<List<PendingFavoriteIntent>> pendingFavorites(String accountKey);
+
+  /// Forgets [accountKey]'s pending intent for [id], once it has reached
+  /// the server (or been superseded by a fresh online change).
+  Future<void> clearPendingFavorite(String accountKey, MediaId id);
+
   /// Forgets everything belonging to [serverId]. Called when a server is
   /// removed: its metadata is meaningless without it.
   Future<void> clearServer(String serverId);
+}
+
+/// One profile's not-yet-confirmed favorite/unfavorite, as
+/// [MediaCacheStore.pendingFavorites] returns it.
+class PendingFavoriteIntent {
+  const PendingFavoriteIntent({
+    required this.id,
+    required this.kind,
+    required this.favorite,
+  });
+
+  final MediaId id;
+  final MediaKind kind;
+
+  /// The favorite state this intent asks the server to set.
+  final bool favorite;
 }
 
 /// [MediaCacheStore] over the `cached_*` tables (schema v2).
@@ -303,7 +350,7 @@ class DriftMediaCacheStore implements MediaCacheStore {
   }
 
   @override
-  Future<MediaItem?> readItem(MediaId id) async {
+  Future<MediaItem?> readItem(MediaId id, {String? accountKey}) async {
     final row =
         await (_db.select(_db.cachedMediaItems)..where(
               (t) =>
@@ -311,9 +358,23 @@ class DriftMediaCacheStore implements MediaCacheStore {
             ))
             .getSingleOrNull();
     if (row == null) return null;
+
+    var isFavorite = false;
+    if (accountKey != null) {
+      final favorite =
+          await (_db.select(_db.cachedFavorites)..where(
+                (t) =>
+                    t.accountKey.equals(accountKey) &
+                    t.itemId.equals(id.itemId),
+              ))
+              .getSingleOrNull();
+      isFavorite = favorite != null;
+    }
+
     return _mapper.toItem(
       row,
       availability: MediaAvailability.remoteUnavailable,
+      isFavorite: isFavorite,
     );
   }
 
@@ -474,6 +535,70 @@ class DriftMediaCacheStore implements MediaCacheStore {
   }
 
   @override
+  Future<void> recordPendingFavorite(
+    String accountKey,
+    MediaId id,
+    MediaKind kind, {
+    required bool favorite,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db
+        .into(_db.pendingFavoriteIntents)
+        .insert(
+          PendingFavoriteIntentsCompanion.insert(
+            accountKey: accountKey,
+            serverId: id.serverId,
+            itemId: id.itemId,
+            kind: kind.name,
+            favorite: favorite,
+            updatedAt: now,
+          ),
+          onConflict: DoUpdate(
+            (_) => PendingFavoriteIntentsCompanion(
+              kind: Value(kind.name),
+              favorite: Value(favorite),
+              updatedAt: Value(now),
+            ),
+          ),
+        );
+  }
+
+  @override
+  Future<List<PendingFavoriteIntent>> pendingFavorites(
+    String accountKey,
+  ) async {
+    final rows =
+        await (_db.select(_db.pendingFavoriteIntents)
+              ..where((t) => t.accountKey.equals(accountKey))
+              ..orderBy([(t) => OrderingTerm.asc(t.updatedAt)]))
+            .get();
+    return [
+      for (final row in rows)
+        if (_kind(row.kind) case final kind?)
+          PendingFavoriteIntent(
+            id: MediaId(serverId: row.serverId, itemId: row.itemId),
+            kind: kind,
+            favorite: row.favorite,
+          ),
+    ];
+  }
+
+  @override
+  Future<void> clearPendingFavorite(String accountKey, MediaId id) async {
+    await (_db.delete(_db.pendingFavoriteIntents)..where(
+          (t) => t.accountKey.equals(accountKey) & t.itemId.equals(id.itemId),
+        ))
+        .go();
+  }
+
+  MediaKind? _kind(String name) {
+    for (final kind in MediaKind.values) {
+      if (kind.name == name) return kind;
+    }
+    return null;
+  }
+
+  @override
   Future<void> clearServer(String serverId) async {
     await _db.transaction(() async {
       await (_db.delete(
@@ -487,6 +612,9 @@ class DriftMediaCacheStore implements MediaCacheStore {
       )..where((t) => t.serverId.equals(serverId))).go();
       await (_db.delete(
         _db.cachedFavorites,
+      )..where((t) => t.serverId.equals(serverId))).go();
+      await (_db.delete(
+        _db.pendingFavoriteIntents,
       )..where((t) => t.serverId.equals(serverId))).go();
     });
   }

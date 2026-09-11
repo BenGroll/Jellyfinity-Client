@@ -44,6 +44,7 @@ class JellyfinityApp extends StatelessWidget {
     required this.mediaScope,
     required this.downloads,
     required this.offline,
+    required this.favoritesRevision,
   });
 
   final GoRouter router;
@@ -53,6 +54,12 @@ class JellyfinityApp extends StatelessWidget {
   final MediaScopeCubit mediaScope;
   final DownloadsCubit downloads;
   final OfflineCubit offline;
+
+  /// The one instance both the widget tree and `PendingFavoritesSync`
+  /// (v0.4.3) bump — resolved once at the composition root like every
+  /// other cross-cutting cubit here, rather than created inline the way
+  /// v0.3.4 originally did before anything outside the tree needed it.
+  final FavoritesRevisionCubit favoritesRevision;
 
   @override
   Widget build(BuildContext context) {
@@ -64,12 +71,10 @@ class JellyfinityApp extends StatelessWidget {
         BlocProvider<MediaScopeCubit>.value(value: mediaScope),
         BlocProvider<DownloadsCubit>.value(value: downloads),
         BlocProvider<OfflineCubit>.value(value: offline),
-        // A zero-dependency signal every "favorites changed" listener
-        // watches (v0.3.4); created here so it sits above the whole
-        // router, the same level the other cross-cutting cubits do.
-        BlocProvider<FavoritesRevisionCubit>(
-          create: (_) => FavoritesRevisionCubit(),
-        ),
+        // The signal every "favorites changed" listener watches (v0.3.4);
+        // sits above the whole router, the same level the other
+        // cross-cutting cubits do.
+        BlocProvider<FavoritesRevisionCubit>.value(value: favoritesRevision),
       ],
       child: MaterialApp.router(
         title: 'Jellyfinity',

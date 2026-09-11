@@ -584,3 +584,35 @@ class CachedFavorites extends Table {
   @override
   Set<Column<Object>> get primaryKey => {accountKey, itemId};
 }
+
+/// A favorite/unfavorite a profile made while the server could not be
+/// reached, still waiting to reach it (v0.4.3).
+///
+/// One row per `(accountKey, itemId)`, the same key [CachedFavorites]
+/// uses: a second offline toggle of the same item overwrites the first
+/// rather than queuing behind it, so only the latest local intent is ever
+/// replayed — "a later local action wins" without any ordering logic of
+/// its own. [favorite] is the intent itself (add or remove), not merely a
+/// marker that one exists, since either direction can be made offline.
+/// Cleared once the write reaches the server, or the owning server is
+/// removed ([AppDatabase.removeServer]-driven cleanup, alongside
+/// [CachedFavorites]).
+@DataClassName('PendingFavoriteIntentRow')
+class PendingFavoriteIntents extends Table {
+  TextColumn get accountKey => text()();
+  TextColumn get serverId => text()();
+  TextColumn get itemId => text()();
+
+  /// `MediaKind.name` — `artist`, `album` or `track`.
+  TextColumn get kind => text()();
+
+  /// The favorite state this profile asked for while offline, still
+  /// unconfirmed by the server.
+  BoolColumn get favorite => boolean()();
+
+  /// When this intent was last (re)recorded (milliseconds since epoch).
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {accountKey, itemId};
+}

@@ -18,6 +18,7 @@ import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'di/service_locator.dart';
 import 'downloads/DownloadsCubit.dart';
+import 'favorites/PendingFavoritesSync.dart';
 import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
 import 'settings/SettingsCubit.dart';
@@ -152,6 +153,12 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // two restores above are: it touches storage, not the network, and the
   // first frame should not wait on it.
   unawaited(getIt<DownloadsCubit>().restore());
+
+  // Replays any favorite/unfavorite made offline (v0.4.3) once the
+  // restoring session is online. `start()` wires its own triggers and
+  // does not need awaiting — the first frame renders regardless of
+  // whether anything was pending.
+  getIt<PendingFavoritesSync>().start();
 
   FlutterError.onError = (details) {
     logger.error(

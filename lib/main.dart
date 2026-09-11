@@ -3,6 +3,7 @@ import 'app/bootstrap.dart';
 import 'app/connectivity/OfflineCubit.dart';
 import 'app/di/service_locator.dart';
 import 'app/downloads/DownloadsCubit.dart';
+import 'app/favorites/FavoritesRevisionCubit.dart';
 import 'app/navigation/MediaScopeCubit.dart';
 import 'app/playback/PlaybackCubit.dart';
 import 'app/router/AppRouter.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
       mediaScope: getIt<MediaScopeCubit>(),
       downloads: getIt<DownloadsCubit>(),
       offline: getIt<OfflineCubit>(),
+      favoritesRevision: getIt<FavoritesRevisionCubit>(),
     ),
   );
 }

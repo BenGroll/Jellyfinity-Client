@@ -7778,6 +7778,436 @@ class CachedFavoritesCompanion extends UpdateCompanion<CachedFavoriteRow> {
   }
 }
 
+class $PendingFavoriteIntentsTable extends PendingFavoriteIntents
+    with TableInfo<$PendingFavoriteIntentsTable, PendingFavoriteIntentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingFavoriteIntentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _favoriteMeta = const VerificationMeta(
+    'favorite',
+  );
+  @override
+  late final GeneratedColumn<bool> favorite = GeneratedColumn<bool>(
+    'favorite',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("favorite" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    accountKey,
+    serverId,
+    itemId,
+    kind,
+    favorite,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_favorite_intents';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingFavoriteIntentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountKeyMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('favorite')) {
+      context.handle(
+        _favoriteMeta,
+        favorite.isAcceptableOrUnknown(data['favorite']!, _favoriteMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_favoriteMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {accountKey, itemId};
+  @override
+  PendingFavoriteIntentRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingFavoriteIntentRow(
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      favorite: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}favorite'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingFavoriteIntentsTable createAlias(String alias) {
+    return $PendingFavoriteIntentsTable(attachedDatabase, alias);
+  }
+}
+
+class PendingFavoriteIntentRow extends DataClass
+    implements Insertable<PendingFavoriteIntentRow> {
+  final String accountKey;
+  final String serverId;
+  final String itemId;
+
+  /// `MediaKind.name` — `artist`, `album` or `track`.
+  final String kind;
+
+  /// The favorite state this profile asked for while offline, still
+  /// unconfirmed by the server.
+  final bool favorite;
+
+  /// When this intent was last (re)recorded (milliseconds since epoch).
+  final int updatedAt;
+  const PendingFavoriteIntentRow({
+    required this.accountKey,
+    required this.serverId,
+    required this.itemId,
+    required this.kind,
+    required this.favorite,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['account_key'] = Variable<String>(accountKey);
+    map['server_id'] = Variable<String>(serverId);
+    map['item_id'] = Variable<String>(itemId);
+    map['kind'] = Variable<String>(kind);
+    map['favorite'] = Variable<bool>(favorite);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  PendingFavoriteIntentsCompanion toCompanion(bool nullToAbsent) {
+    return PendingFavoriteIntentsCompanion(
+      accountKey: Value(accountKey),
+      serverId: Value(serverId),
+      itemId: Value(itemId),
+      kind: Value(kind),
+      favorite: Value(favorite),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PendingFavoriteIntentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingFavoriteIntentRow(
+      accountKey: serializer.fromJson<String>(json['accountKey']),
+      serverId: serializer.fromJson<String>(json['serverId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      favorite: serializer.fromJson<bool>(json['favorite']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'accountKey': serializer.toJson<String>(accountKey),
+      'serverId': serializer.toJson<String>(serverId),
+      'itemId': serializer.toJson<String>(itemId),
+      'kind': serializer.toJson<String>(kind),
+      'favorite': serializer.toJson<bool>(favorite),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  PendingFavoriteIntentRow copyWith({
+    String? accountKey,
+    String? serverId,
+    String? itemId,
+    String? kind,
+    bool? favorite,
+    int? updatedAt,
+  }) => PendingFavoriteIntentRow(
+    accountKey: accountKey ?? this.accountKey,
+    serverId: serverId ?? this.serverId,
+    itemId: itemId ?? this.itemId,
+    kind: kind ?? this.kind,
+    favorite: favorite ?? this.favorite,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PendingFavoriteIntentRow copyWithCompanion(
+    PendingFavoriteIntentsCompanion data,
+  ) {
+    return PendingFavoriteIntentRow(
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      favorite: data.favorite.present ? data.favorite.value : this.favorite,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingFavoriteIntentRow(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('kind: $kind, ')
+          ..write('favorite: $favorite, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(accountKey, serverId, itemId, kind, favorite, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingFavoriteIntentRow &&
+          other.accountKey == this.accountKey &&
+          other.serverId == this.serverId &&
+          other.itemId == this.itemId &&
+          other.kind == this.kind &&
+          other.favorite == this.favorite &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PendingFavoriteIntentsCompanion
+    extends UpdateCompanion<PendingFavoriteIntentRow> {
+  final Value<String> accountKey;
+  final Value<String> serverId;
+  final Value<String> itemId;
+  final Value<String> kind;
+  final Value<bool> favorite;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const PendingFavoriteIntentsCompanion({
+    this.accountKey = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.favorite = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PendingFavoriteIntentsCompanion.insert({
+    required String accountKey,
+    required String serverId,
+    required String itemId,
+    required String kind,
+    required bool favorite,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : accountKey = Value(accountKey),
+       serverId = Value(serverId),
+       itemId = Value(itemId),
+       kind = Value(kind),
+       favorite = Value(favorite),
+       updatedAt = Value(updatedAt);
+  static Insertable<PendingFavoriteIntentRow> custom({
+    Expression<String>? accountKey,
+    Expression<String>? serverId,
+    Expression<String>? itemId,
+    Expression<String>? kind,
+    Expression<bool>? favorite,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (accountKey != null) 'account_key': accountKey,
+      if (serverId != null) 'server_id': serverId,
+      if (itemId != null) 'item_id': itemId,
+      if (kind != null) 'kind': kind,
+      if (favorite != null) 'favorite': favorite,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PendingFavoriteIntentsCompanion copyWith({
+    Value<String>? accountKey,
+    Value<String>? serverId,
+    Value<String>? itemId,
+    Value<String>? kind,
+    Value<bool>? favorite,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return PendingFavoriteIntentsCompanion(
+      accountKey: accountKey ?? this.accountKey,
+      serverId: serverId ?? this.serverId,
+      itemId: itemId ?? this.itemId,
+      kind: kind ?? this.kind,
+      favorite: favorite ?? this.favorite,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (favorite.present) {
+      map['favorite'] = Variable<bool>(favorite.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingFavoriteIntentsCompanion(')
+          ..write('accountKey: $accountKey, ')
+          ..write('serverId: $serverId, ')
+          ..write('itemId: $itemId, ')
+          ..write('kind: $kind, ')
+          ..write('favorite: $favorite, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7805,6 +8235,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CachedFavoritesTable cachedFavorites = $CachedFavoritesTable(
     this,
   );
+  late final $PendingFavoriteIntentsTable pendingFavoriteIntents =
+      $PendingFavoriteIntentsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7823,6 +8255,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     downloadedCollections,
     listeningHistoryEntries,
     cachedFavorites,
+    pendingFavoriteIntents,
   ];
 }
 
@@ -11635,6 +12068,246 @@ typedef $$CachedFavoritesTableProcessedTableManager =
       CachedFavoriteRow,
       PrefetchHooks Function()
     >;
+typedef $$PendingFavoriteIntentsTableCreateCompanionBuilder =
+    PendingFavoriteIntentsCompanion Function({
+      required String accountKey,
+      required String serverId,
+      required String itemId,
+      required String kind,
+      required bool favorite,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$PendingFavoriteIntentsTableUpdateCompanionBuilder =
+    PendingFavoriteIntentsCompanion Function({
+      Value<String> accountKey,
+      Value<String> serverId,
+      Value<String> itemId,
+      Value<String> kind,
+      Value<bool> favorite,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$PendingFavoriteIntentsTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingFavoriteIntentsTable> {
+  $$PendingFavoriteIntentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get favorite => $composableBuilder(
+    column: $table.favorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PendingFavoriteIntentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingFavoriteIntentsTable> {
+  $$PendingFavoriteIntentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get favorite => $composableBuilder(
+    column: $table.favorite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PendingFavoriteIntentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingFavoriteIntentsTable> {
+  $$PendingFavoriteIntentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<bool> get favorite =>
+      $composableBuilder(column: $table.favorite, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$PendingFavoriteIntentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingFavoriteIntentsTable,
+          PendingFavoriteIntentRow,
+          $$PendingFavoriteIntentsTableFilterComposer,
+          $$PendingFavoriteIntentsTableOrderingComposer,
+          $$PendingFavoriteIntentsTableAnnotationComposer,
+          $$PendingFavoriteIntentsTableCreateCompanionBuilder,
+          $$PendingFavoriteIntentsTableUpdateCompanionBuilder,
+          (
+            PendingFavoriteIntentRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PendingFavoriteIntentsTable,
+              PendingFavoriteIntentRow
+            >,
+          ),
+          PendingFavoriteIntentRow,
+          PrefetchHooks Function()
+        > {
+  $$PendingFavoriteIntentsTableTableManager(
+    _$AppDatabase db,
+    $PendingFavoriteIntentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingFavoriteIntentsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PendingFavoriteIntentsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PendingFavoriteIntentsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> accountKey = const Value.absent(),
+                Value<String> serverId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<bool> favorite = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PendingFavoriteIntentsCompanion(
+                accountKey: accountKey,
+                serverId: serverId,
+                itemId: itemId,
+                kind: kind,
+                favorite: favorite,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String accountKey,
+                required String serverId,
+                required String itemId,
+                required String kind,
+                required bool favorite,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PendingFavoriteIntentsCompanion.insert(
+                accountKey: accountKey,
+                serverId: serverId,
+                itemId: itemId,
+                kind: kind,
+                favorite: favorite,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PendingFavoriteIntentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingFavoriteIntentsTable,
+      PendingFavoriteIntentRow,
+      $$PendingFavoriteIntentsTableFilterComposer,
+      $$PendingFavoriteIntentsTableOrderingComposer,
+      $$PendingFavoriteIntentsTableAnnotationComposer,
+      $$PendingFavoriteIntentsTableCreateCompanionBuilder,
+      $$PendingFavoriteIntentsTableUpdateCompanionBuilder,
+      (
+        PendingFavoriteIntentRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PendingFavoriteIntentsTable,
+          PendingFavoriteIntentRow
+        >,
+      ),
+      PendingFavoriteIntentRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -11674,4 +12347,9 @@ class $AppDatabaseManager {
       );
   $$CachedFavoritesTableTableManager get cachedFavorites =>
       $$CachedFavoritesTableTableManager(_db, _db.cachedFavorites);
+  $$PendingFavoriteIntentsTableTableManager get pendingFavoriteIntents =>
+      $$PendingFavoriteIntentsTableTableManager(
+        _db,
+        _db.pendingFavoriteIntents,
+      );
 }

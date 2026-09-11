@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/di/service_locator.dart';
 import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/favorites/FavoritesRevisionCubit.dart';
+import '../../../app/favorites/PendingFavoritesCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
@@ -31,13 +32,20 @@ import 'favorites_cubits.dart';
 /// playlist. When a favorite is toggled anywhere else in the app,
 /// [FavoritesRevisionCubit] ticks and every tab re-reads.
 class FavoritesPage extends StatelessWidget {
-  const FavoritesPage({super.key, this.artists, this.albums, this.songs});
+  const FavoritesPage({
+    super.key,
+    this.artists,
+    this.albums,
+    this.songs,
+    this.pending,
+  });
 
   /// Injectable seams for widget tests; the graph supplies these in the
   /// app, the same pattern as [LibraryPage].
   final FavoriteArtistsCubit? artists;
   final FavoriteAlbumsCubit? albums;
   final FavoriteTracksCubit? songs;
+  final PendingFavoritesCubit? pending;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +59,10 @@ class FavoritesPage extends StatelessWidget {
         ),
         BlocProvider<FavoriteTracksCubit>(
           create: (_) => (songs ?? getIt<FavoriteTracksCubit>())..load(),
+        ),
+        BlocProvider<PendingFavoritesCubit>(
+          create: (_) =>
+              (pending ?? getIt<PendingFavoritesCubit>())..refresh(),
         ),
       ],
       child: const _FavoritesView(),
@@ -66,18 +78,21 @@ class _FavoritesView extends StatelessWidget {
     final t = context.tokens;
 
     return BlocListener<FavoritesRevisionCubit, int>(
-      // A star toggled on any other screen: re-read every tab so the
+      // A star toggled on any other screen — or a reconnect that just
+      // replayed one made offline (v0.4.3) — re-reads every tab so the
       // destination is never out of step with the heart buttons.
       listenWhen: (previous, current) => current != previous,
       listener: (context, _) {
         context.read<FavoriteArtistsCubit>().refresh();
         context.read<FavoriteAlbumsCubit>().refresh();
         context.read<FavoriteTracksCubit>().refresh();
+        context.read<PendingFavoritesCubit>().refresh();
       },
       child: DefaultTabController(
         length: 3,
         child: Column(
           children: [
+            const _PendingFavoritesBanner(),
             TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.center,
@@ -104,6 +119,59 @@ class _FavoritesView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "N favorites waiting to sync" (v0.4.3, ADR-0033) — absent whenever the
+/// active profile has nothing pending, so it never becomes a permanent
+/// fixture of the screen. Sits above the tabs rather than inside one of
+/// them: a pending intent can belong to any of the three kinds, and this
+/// is a fact about the profile's Favorites as a whole.
+///
+/// This is what keeps an offline heart from being an ambiguous promise
+/// (`CONTEXT.md`): the toggle already looks right the moment it is made
+/// (the optimistic heart, and `cached_favorites` agreeing everywhere
+/// else); this is the one place that says, plainly, that the server has
+/// not actually heard about it yet.
+class _PendingFavoritesBanner extends StatelessWidget {
+  const _PendingFavoritesBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return BlocBuilder<PendingFavoritesCubit, PendingFavoritesState>(
+      builder: (context, state) {
+        if (!state.hasPending) return const SizedBox.shrink();
+        return Container(
+          width: double.infinity,
+          color: t.colors.surface,
+          padding: EdgeInsets.symmetric(
+            horizontal: t.spacing.md,
+            vertical: t.spacing.sm,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.sync_rounded,
+                size: 16,
+                color: t.colors.textSecondary,
+              ),
+              SizedBox(width: t.spacing.xs),
+              Expanded(
+                child: Text(
+                  state.count == 1
+                      ? '1 favorite waiting to sync'
+                      : '${state.count} favorites waiting to sync',
+                  style: t.typography.caption.copyWith(
+                    color: t.colors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

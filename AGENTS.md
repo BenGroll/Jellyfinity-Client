@@ -16,10 +16,16 @@ v0.5md` for v0.4.0–v0.5.0.
   finished correctly on a read model that carries true positions, and a
   playlist listening context over the queue's new origin. It completes
   v0.1.2, which ADR-0024 had left open. No schema change.
-- v0.4.3–v0.5.0 are planned: Offline Favorites, Library exploration, and
-  Personal music discovery. `ROADMAP.md` is the authority for exact
-  version-to-heading mapping; the linked `Roadmap to v0.5md` headings
-  intentionally use the prior number.
+- v0.4.3 (Offline Favorites, ADR-0033) is implemented: favoriting while
+  offline records a profile- and server-scoped pending intent instead of
+  attempting a write that can only fail, `PendingFavoritesSync` replays it
+  once a session can reach the server again, and a reopened detail page
+  overlays the same favorite state offline reads already agreed on.
+  Schema v10 (`pending_favorite_intents`).
+- v0.4.4–v0.5.0 are planned: Library exploration and Personal music
+  discovery. `ROADMAP.md` is the authority for exact version-to-heading
+  mapping; the linked `Roadmap to v0.5md` headings intentionally use the
+  prior number.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

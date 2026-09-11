@@ -39,13 +39,14 @@ part 'AppDatabase.g.dart';
     DownloadedCollections,
     ListeningHistoryEntries,
     CachedFavorites,
+    PendingFavoriteIntents,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +60,7 @@ class AppDatabase extends _$AppDatabase {
       await m.createIndex(_downloadedCollectionsAccountIndex);
       await m.createIndex(_listeningHistoryAccountIndex);
       await m.createIndex(_cachedFavoritesAccountIndex);
+      await m.createIndex(_pendingFavoriteIntentsAccountIndex);
     },
     onUpgrade: (m, from, to) async {
       // v2 (v0.0.8): the media metadata cache. Purely additive — three
@@ -202,6 +204,14 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
       }
+      // v10 (v0.4.3): favorites toggled while the server could not be
+      // reached. Purely additive — one new table, nothing existing
+      // touched, so an upgrading install keeps everything it had and
+      // simply has nothing pending yet.
+      if (from < 10) {
+        await m.createTable(pendingFavoriteIntents);
+        await m.createIndex(_pendingFavoriteIntentsAccountIndex);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -336,5 +346,14 @@ class AppDatabase extends _$AppDatabase {
     'idx_cached_favorites_account',
     'CREATE INDEX IF NOT EXISTS idx_cached_favorites_account '
         'ON cached_favorites (account_key, kind)',
+  );
+
+  /// Reconciling (v0.4.3) always starts from "everything pending for the
+  /// active profile" — the whole reason this table is account-scoped like
+  /// [_cachedFavoritesAccountIndex].
+  static final Index _pendingFavoriteIntentsAccountIndex = Index(
+    'idx_pending_favorite_intents_account',
+    'CREATE INDEX IF NOT EXISTS idx_pending_favorite_intents_account '
+        'ON pending_favorite_intents (account_key)',
   );
 }

@@ -334,7 +334,7 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
         return result;
       case Err<T>(:final failure):
         if (!canServeFromCache(failure)) return result;
-        final saved = await _cache.readItem(id);
+        final saved = await _cache.readItem(id, accountKey: _accountKey);
         if (saved is T) return Result.ok(saved);
         return await _itemFromDownloads<T>(id) ?? result;
     }

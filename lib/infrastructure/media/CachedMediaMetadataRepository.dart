@@ -5,6 +5,7 @@ import '../../core/result/result.dart';
 import '../../domain/connectivity/OfflineMode.dart';
 import '../../domain/media/media.dart';
 import '../downloads/DownloadsLibrarySource.dart';
+import '../jellyfin/identity/JellyfinSessionContext.dart';
 import '../jellyfin/media/JellyfinMediaMetadataRepository.dart';
 import '../persistence/media/media_cache_store.dart';
 import 'cache_fallback.dart';
@@ -27,12 +28,14 @@ class CachedMediaMetadataRepository implements MediaMetadataRepository {
     this._cache,
     this._offline,
     this._downloads,
+    this._context,
   );
 
   final JellyfinMediaMetadataRepository _remote;
   final MediaCacheStore _cache;
   final OfflineMode _offline;
   final DownloadsLibrarySource _downloads;
+  final JellyfinSessionContext _context;
 
   @override
   Future<Result<MediaItem>> item(MediaId id) async {
@@ -46,10 +49,19 @@ class CachedMediaMetadataRepository implements MediaMetadataRepository {
         return result;
       case Err<MediaItem>(:final failure):
         if (!canServeFromCache(failure)) return result;
-        final saved = await _cache.readItem(id);
+        final saved = await _cache.readItem(id, accountKey: _accountKey);
         if (saved != null) return Result.ok(saved);
         return await _fromDownloads(id) ?? result;
     }
+  }
+
+  /// `server_id/user_id`, or `null` with nobody signed in — see
+  /// `CachedMusicLibraryRepository._accountKey`.
+  String? get _accountKey {
+    final serverId = _context.serverId;
+    final userId = _context.userId;
+    if (serverId == null || userId == null) return null;
+    return '$serverId/$userId';
   }
 
   /// A downloaded collection's stored identity, tried playlist-first (the
