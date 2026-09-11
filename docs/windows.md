@@ -35,6 +35,12 @@ download preference as it does on mobile.
 
 ## Automated checks
 
+Run `flutter analyze` and `flutter test` for behavior changes. Run the native
+Windows smoke test below when a change touches Windows integration, playback,
+storage, downloads, input, or layout, and during a version's final platform
+acceptance. Documentation-only and pure-domain changes still require Windows
+compatibility by design, but do not need an unrelated native test run.
+
 ```powershell
 flutter analyze
 flutter test

@@ -1,6 +1,9 @@
 # Contributing to Jellyfinity
 
-Read `CONTEXT.md`, `ROADMAP.md`, `PHILOSOPHY.md`, and `OUTLOOK.md` before making significant changes.
+For versioned feature work, follow `AGENTS.md`: read `CONTEXT.md`, locate the
+assigned row in `ROADMAP.md`, read only its linked specification, inspect the
+relevant code/tests, and then read only related ADRs. `PHILOSOPHY.md` and
+`OUTLOOK.md` are decision references, not required session pre-reading.
 
 ## Attribution
 
@@ -73,24 +76,20 @@ Everything else keeps `lower_case_with_underscores`:
 
 ## Before committing
 
-Run:
+Use proportionate checks while iterating: format touched Dart files, run focused
+tests for behavior changes, and use `git diff --check` for documentation-only
+changes. Before a version-completing commit or a change with broad/shared
+impact, run the full checks:
 
 ```bash
 dart format --output=none --set-exit-if-changed .
 flutter analyze
 flutter test
+```
 
-Run flutter build apk --debug when Android build configuration changes.
-Changes
-Keep commits focused. Update relevant documentation when behavior, setup, or architecture changes. Never commit credentials, tokens, local IDE settings, or agent state.
-
-Create `CHANGELOG.md`:
-
-```markdown
-# Changelog
-
-## Unreleased
-
-- Initialized the Flutter Android and iOS application.
-- Added the reproducible development container.
-- Added Windows-hosted Android emulator support through ADB.
+Run `flutter build apk --debug` only when Android build configuration changes.
+Run the Windows native test from `docs/windows.md` when a change touches
+Windows integration, playback, storage, downloads, input, or layout, and for a
+version's final platform acceptance. Keep commits focused. Update relevant
+documentation when behavior, setup, or architecture changes. Never commit
+credentials, tokens, local IDE settings, or agent state.

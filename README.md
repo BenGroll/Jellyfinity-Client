@@ -287,8 +287,8 @@ context needed for a specific version:
 * `docs/adr/README.md` — architecture decision index
 * `PHILOSOPHY.md` and `OUTLOOK.md` — optional rationale and future ideas
 
-Do not read every document or ADR before starting a feature. The current
-milestone is **v0.1.2 — Playlist Curation**.
+Do not read every document or ADR before starting a feature. `ROADMAP.md` is
+the authority for the current milestone and its exact specification.
 
 ## Repository Structure
 
