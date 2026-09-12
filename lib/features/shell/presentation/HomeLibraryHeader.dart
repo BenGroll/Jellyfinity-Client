@@ -26,11 +26,13 @@ class HomeLibraryHeader extends StatelessWidget {
     required this.onSearchTap,
     this.onMenuTap,
     this.onNavigationTap,
+    this.searchFocusNode,
   });
 
   final VoidCallback onSearchTap;
   final VoidCallback? onMenuTap;
   final VoidCallback? onNavigationTap;
+  final FocusNode? searchFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +68,8 @@ class HomeLibraryHeader extends StatelessWidget {
                 ),
               Expanded(
                 child: InkWell(
+                  key: const Key('shell-search'),
+                  focusNode: searchFocusNode,
                   onTap: onSearchTap,
                   borderRadius: BorderRadius.circular(t.radii.pill),
                   child: Container(

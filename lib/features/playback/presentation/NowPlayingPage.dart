@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart' hide RepeatMode;
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -822,20 +823,66 @@ class _PlaybackNotes extends StatelessWidget {
   }
 }
 
-class _SeekBar extends StatelessWidget {
+class _SeekBar extends StatefulWidget {
   const _SeekBar({required this.state});
 
   final PlaybackUiState state;
 
   @override
+  State<_SeekBar> createState() => _SeekBarState();
+}
+
+class _SeekBarState extends State<_SeekBar> {
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(
+      debugLabel: 'Now Playing seek bar',
+      onKeyEvent: _leaveSeekBarVertically,
+    );
+  }
+
+  KeyEventResult _leaveSeekBarVertically(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final direction = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+      LogicalKeyboardKey.arrowDown => TraversalDirection.down,
+      _ => null,
+    };
+    if (direction == null) return KeyEventResult.ignored;
+
+    // Material Slider maps vertical arrows to value changes by default.
+    // On a remote that traps focus on the timeline, so reserve those arrows
+    // for leaving it and keep Left/Right as the deliberate seek controls.
+    final moved = node.focusInDirection(direction);
+    if (!moved) {
+      direction == TraversalDirection.up
+          ? node.previousFocus()
+          : node.nextFocus();
+    }
+    return KeyEventResult.handled;
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final cubit = context.read<PlaybackCubit>();
-    final duration = state.duration;
+    final duration = widget.state.duration;
     final hasDuration = duration != null && duration > Duration.zero;
     final max = hasDuration ? duration.inMilliseconds.toDouble() : 1.0;
     final value = hasDuration
-        ? state.position.inMilliseconds.toDouble().clamp(0.0, max)
+        ? widget.state.position.inMilliseconds.toDouble().clamp(0.0, max)
         : 0.0;
 
     return Column(
@@ -850,6 +897,7 @@ class _SeekBar extends StatelessWidget {
             thumbColor: t.colors.accent,
           ),
           child: Slider(
+            focusNode: _focusNode,
             value: value,
             max: max,
             onChanged: hasDuration
@@ -861,7 +909,7 @@ class _SeekBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              formatDuration(state.position),
+              formatDuration(widget.state.position),
               style: t.typography.caption.copyWith(
                 fontSize: 14,
                 color: Colors.white,

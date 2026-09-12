@@ -27,6 +27,10 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byKey(const Key('television-navigation')), findsOneWidget);
     expect(
+      tester.getRect(find.byKey(const Key('television-navigation'))).left,
+      0,
+    );
+    expect(
       tester
           .widget<InkWell>(
             find.byKey(const ValueKey('television-destination-Home')),
@@ -106,6 +110,33 @@ void main() {
       );
     },
   );
+
+  testWidgets('Up opens Search at Library’s top focus edge', (tester) async {
+    registerMusicCubits(music: FakeMusicLibraryRepository());
+    final scope = await pumpApp(
+      tester,
+      televisionMode: true,
+      viewportSize: const Size(1280, 720),
+    );
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('television-destination-Library')),
+    );
+    await tester.pumpAndSettle();
+
+    // The common Library header is at the shell's top focus edge.
+    final search = tester.widget<InkWell>(
+      find.byKey(const Key('shell-search')),
+    );
+    search.focusNode!.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InlineMusicSearch), findsOneWidget);
+  });
 
   testWidgets('rail exposes and activates Now Playing for an active queue', (
     tester,
@@ -203,5 +234,43 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
     await tester.pump();
     expect(engine.calls, contains('seek(0:00:55.000000)'));
+  });
+
+  testWidgets('Up and Down leave the Now Playing timeline without seeking', (
+    tester,
+  ) async {
+    final playback = fakePlaybackCubit();
+    final scope = await pumpApp(
+      tester,
+      playback: playback,
+      televisionMode: true,
+      viewportSize: const Size(1280, 720),
+    );
+    await scope.signIn();
+    await playback.playNow([
+      Track(
+        id: const MediaId(serverId: 'server', itemId: 'song'),
+        name: 'Timeline song',
+        duration: const Duration(minutes: 3),
+      ),
+    ], startIndex: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Timeline song'));
+    await tester.pumpAndSettle();
+
+    final slider = tester.widget<Slider>(find.byType(Slider));
+    final sliderFocus = slider.focusNode!;
+    sliderFocus.requestFocus();
+    await tester.pump();
+    final initialPosition = playback.state.position;
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+
+    expect(sliderFocus.hasFocus, isFalse);
+    expect(playback.state.position, initialPosition);
+
+    // Prevent the active-playback timer from outliving the widget test.
+    await playback.togglePlayPause();
   });
 }

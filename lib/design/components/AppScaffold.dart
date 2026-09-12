@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/platform/television_mode.dart';
 import '../theme/theme_context.dart';
 import 'ArtworkBackdropScope.dart';
 
@@ -52,7 +51,6 @@ class AppScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final television = TelevisionModeScope.of(context);
 
     final scaffold = Scaffold(
       key: scaffoldKey,
@@ -88,14 +86,12 @@ class AppScaffold extends StatelessWidget {
       drawer: drawer,
       body: SafeArea(
         top: false,
-        minimum: television
-            ? EdgeInsets.fromLTRB(
-                t.spacing.md,
-                t.spacing.sm,
-                t.spacing.md,
-                t.spacing.md,
-              )
-            : EdgeInsets.zero,
+        // TV chrome owns its internal spacing. Applying a second, large
+        // overscan margin here leaves an awkward background frame around the
+        // complete application (including the persistent navigation rail).
+        // SafeArea still honours real system insets where a device exposes
+        // them, without inventing a visible border on Fire TV.
+        minimum: EdgeInsets.zero,
         child: Padding(
           padding: padded
               ? EdgeInsets.symmetric(horizontal: t.spacing.md)

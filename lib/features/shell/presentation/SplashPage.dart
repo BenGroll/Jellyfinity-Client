@@ -15,13 +15,47 @@ class SplashPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return AppScaffold(
-      body: Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: t.colors.accent,
+      padded: false,
+      body: ColoredBox(
+        key: const Key('splash-background'),
+        color: t.colors.background,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [
+                    Color(0xFFFF3FD8),
+                    Color(0xFF7A5CFF),
+                    Color(0xFF16E1FF),
+                  ],
+                ).createShader(bounds),
+                child: const Icon(
+                  Icons.all_inclusive_rounded,
+                  key: Key('splash-logo'),
+                  size: 112,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: t.spacing.md),
+              Text(
+                'Jellyfinity',
+                style: t.typography.headlineLarge.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+              ),
+              SizedBox(height: t.spacing.lg),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: t.colors.accent,
+                ),
+              ),
+            ],
           ),
         ),
       ),

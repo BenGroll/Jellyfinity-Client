@@ -18,6 +18,10 @@ All notable changes to Jellyfinity are documented here.
 - Put Menu, Search and (when a queue is active) Now Playing directly on the
   television rail. Add a visible return-to-navigation control, smooth D-pad
   focus scrolling in shelves and lists, and directional branch transitions.
+- Remove the artificial outer TV frame; add top-edge Search from every shell
+  branch; replace the white startup screen with dark Jellyfinity branding;
+  enlarge the adaptive launcher mark; and let Up/Down leave the player
+  timeline while Left/Right remain seek controls.
 - Add widget and platform contract tests for automatic mode selection, D-pad
   navigation, sidebar and playback shortcuts, manifest eligibility, native
 

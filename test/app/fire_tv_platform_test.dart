@@ -56,4 +56,27 @@ void main() {
     expect(activity, contains('amazon.hardware.fire_tv'));
     expect(activity, contains('"isTelevision"'));
   });
+
+  test(
+    'Android launch surface is dark and the adaptive icon expands its mark',
+    () {
+      final splash = File(
+        'android/app/src/main/res/drawable-v21/launch_background.xml',
+      ).readAsStringSync();
+      final adaptiveIcon = File(
+        'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
+      ).readAsStringSync();
+      final foreground = File(
+        'android/app/src/main/res/drawable/ic_launcher_foreground_expanded.xml',
+      ).readAsStringSync();
+
+      expect(splash, contains('@color/splash_background'));
+      expect(splash, contains('@mipmap/ic_launcher_foreground'));
+      expect(
+        adaptiveIcon,
+        contains('@drawable/ic_launcher_foreground_expanded'),
+      );
+      expect(foreground, contains('android:insetLeft="-28dp"'));
+    },
+  );
 }

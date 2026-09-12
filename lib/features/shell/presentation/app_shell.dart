@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/platform/television_focus_traversal.dart';
 import '../../../app/platform/television_mode.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/router/route_paths.dart';
@@ -44,6 +45,7 @@ class _AppShellState extends State<AppShell> {
   final _televisionRailFocusNode = FocusNode(
     debugLabel: 'TV current destination',
   );
+  final _televisionSearchFocusNode = FocusNode(debugLabel: 'TV shell search');
   int _branchTransition = 0;
   int _branchDirection = 1;
 
@@ -53,6 +55,20 @@ class _AppShellState extends State<AppShell> {
   void _openNowPlaying() => context.pushNamed(RouteNames.nowPlaying);
 
   void _focusTelevisionNavigation() => _televisionRailFocusNode.requestFocus();
+
+  bool _isAtTelevisionContentEdge(
+    FocusNode node,
+    TraversalDirection direction,
+  ) {
+    final box = _televisionContentKey.currentContext?.findRenderObject();
+    if (box is! RenderBox) return false;
+    final origin = box.localToGlobal(Offset.zero);
+    return switch (direction) {
+      TraversalDirection.up => node.rect.top <= origin.dy + 60,
+      TraversalDirection.left => node.rect.left <= origin.dx + 48,
+      TraversalDirection.down || TraversalDirection.right => false,
+    };
+  }
 
   void _goToBranch(int index) {
     final previousIndex = widget.navigationShell.currentIndex;
@@ -69,28 +85,10 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  KeyEventResult _handleTelevisionContentKey(FocusNode _, KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.arrowLeft) {
-      return KeyEventResult.ignored;
-    }
-
-    final contentBox = _televisionContentKey.currentContext?.findRenderObject();
-    final focused = FocusManager.instance.primaryFocus;
-    if (contentBox is! RenderBox || focused == null) {
-      return KeyEventResult.ignored;
-    }
-
-    final contentLeft = contentBox.localToGlobal(Offset.zero).dx;
-    if (focused.rect.left > contentLeft + 48) return KeyEventResult.ignored;
-
-    _focusTelevisionNavigation();
-    return KeyEventResult.handled;
-  }
-
   @override
   void dispose() {
     _televisionRailFocusNode.dispose();
+    _televisionSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -114,6 +112,7 @@ class _AppShellState extends State<AppShell> {
             onSearchTap: _startSearch,
             onMenuTap: _openMenu,
             onNavigationTap: television ? _focusTelevisionNavigation : null,
+            searchFocusNode: television ? _televisionSearchFocusNode : null,
           ),
         Expanded(
           child: _searching
@@ -173,10 +172,14 @@ class _AppShellState extends State<AppShell> {
                           color: context.tokens.colors.border,
                         ),
                         Expanded(
-                          child: Focus(
-                            key: _televisionContentKey,
-                            onKeyEvent: _handleTelevisionContentKey,
+                          child: FocusTraversalGroup(
+                            policy: _TelevisionShellFocusTraversalPolicy(
+                              onTopEdge: _startSearch,
+                              onLeftEdge: _focusTelevisionNavigation,
+                              isAtEdge: _isAtTelevisionContentEdge,
+                            ),
                             child: _TelevisionBranchTransition(
+                              key: _televisionContentKey,
                               transition: _branchTransition,
                               direction: _branchDirection,
                               child: Column(
@@ -212,8 +215,46 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
+/// Adds the shell's two D-pad edge affordances to the smooth TV policy.
+///
+/// This sits around the shell's header, branch and mini-player—not around a
+/// pushed detail route—so top-edge Search stays available from Home,
+/// Favorites and Library without changing full-player controls.
+class _TelevisionShellFocusTraversalPolicy
+    extends TelevisionFocusTraversalPolicy {
+  _TelevisionShellFocusTraversalPolicy({
+    required this.onTopEdge,
+    required this.onLeftEdge,
+    required this.isAtEdge,
+  });
+
+  final VoidCallback onTopEdge;
+  final VoidCallback onLeftEdge;
+  final bool Function(FocusNode node, TraversalDirection direction) isAtEdge;
+
+  @override
+  bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    if (isAtEdge(currentNode, direction)) {
+      switch (direction) {
+        case TraversalDirection.up:
+          onTopEdge();
+          return true;
+        case TraversalDirection.left:
+          onLeftEdge();
+          return true;
+        case TraversalDirection.down:
+        case TraversalDirection.right:
+          break;
+      }
+    }
+
+    return super.inDirection(currentNode, direction);
+  }
+}
+
 class _TelevisionBranchTransition extends StatefulWidget {
   const _TelevisionBranchTransition({
+    super.key,
     required this.transition,
     required this.direction,
     required this.child,
