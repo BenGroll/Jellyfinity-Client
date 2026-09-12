@@ -44,6 +44,16 @@ published Git tag.
 | v0.4.5 | Random discovery and a personal mix | Implemented | [ADR-only](docs/adr/ADR-0035-random-discovery-and-personal-mix.md) |
 | v0.4.6 | Fire TV platform support | Implemented (device acceptance pending) | [ADR-only](docs/adr/ADR-0036-fire-tv-platform-support.md) |
 | v0.5.0 | Personal music discovery | Planned (its Home-mix entry point shipped early, in v0.4.5) | [spec](Roadmap%20to%20v0.5md#v044--personal-music-discovery) |
+| v0.5.1 | Connected playback contract | Planned | [spec](Roadmap%20to%20v0.6.md#v051---connected-playback-contract) |
+| v0.5.2 | Device presence and capability transport | Planned | [spec](Roadmap%20to%20v0.6.md#v052---device-presence-and-capability-transport) |
+| v0.5.3 | Remote state and command execution | Planned | [spec](Roadmap%20to%20v0.6.md#v053---remote-state-and-command-execution) |
+| v0.5.4 | Atomic playback handoff | Planned | [spec](Roadmap%20to%20v0.6.md#v054---atomic-playback-handoff) |
+| v0.5.5 | Device picker and ownership UI | Planned | [spec](Roadmap%20to%20v0.6.md#v055---device-picker-and-ownership-ui) |
+| v0.5.6 | Remote Now Playing and queue controls | Planned | [spec](Roadmap%20to%20v0.6.md#v056---remote-now-playing-and-queue-controls) |
+| v0.5.7 | Windows connected playback | Planned | [spec](Roadmap%20to%20v0.6.md#v057---windows-connected-playback) |
+| v0.5.8 | Android connected playback | Planned | [spec](Roadmap%20to%20v0.6.md#v058---android-connected-playback) |
+| v0.5.9 | Android TV and Fire TV connected playback | Planned | [spec](Roadmap%20to%20v0.6.md#v059---android-tv-and-fire-tv-connected-playback) |
+| v0.6.0 | True cross-device playback | Planned | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback) |
 
 v0.1.2 is complete. v0.3.0 shipped everything but reorder, which it left
 out deliberately: Jellyfin's move endpoint takes an absolute playlist

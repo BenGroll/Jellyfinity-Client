@@ -4,9 +4,10 @@ Read this file first. It defines the complete context-loading workflow.
 
 ## Where the repository is right now
 
-**The current planned line is v0.4.x–v0.5.x.** Unless you were given a
-different version, work from `Roadmap to v0.4.md` for v0.3.1-v0.3.6 and `Roadmap to
-v0.5md` for v0.4.0–v0.5.0.
+**The current planned line is v0.4.x-v0.6.0.** Unless you were given a
+different version, work from `Roadmap to v0.4.md` for v0.3.1-v0.3.6,
+`Roadmap to v0.5md` for v0.4.0-v0.5.0, and `Roadmap to v0.6.md` for
+v0.5.1-v0.6.0.
 
 - v0.2.0–v0.3.6 are implemented. Their detailed behavior and decisions are
   in the linked roadmap sections and ADRs; do not load them unless assigned.
@@ -48,6 +49,10 @@ v0.5md` for v0.4.0–v0.5.0.
 - v0.5.0 is planned: Personal music discovery. `ROADMAP.md` is the
   authority for exact version-to-heading mapping; the linked
   `Roadmap to v0.5md` headings intentionally use the prior number.
+- v0.5.1-v0.6.0 are planned: true cross-device music playback and controls,
+  built as a shared foundation, then shared UI, then completed for Windows,
+  Android, and the Android TV/Fire TV capability path. See
+  `Roadmap to v0.6.md` for the bounded specifications.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.
