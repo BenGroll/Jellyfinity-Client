@@ -15,6 +15,9 @@ All notable changes to Jellyfinity are documented here.
 - Support D-pad center/select, controller A, Back and Fire TV Menu, plus remote
   play/pause, previous/next and ten-second rewind/fast-forward through the
   shared playback queue.
+- Put Menu, Search and (when a queue is active) Now Playing directly on the
+  television rail. Add a visible return-to-navigation control, smooth D-pad
+  focus scrolling in shelves and lists, and directional branch transitions.
 - Add widget and platform contract tests for automatic mode selection, D-pad
   navigation, sidebar and playback shortcuts, manifest eligibility, native
 

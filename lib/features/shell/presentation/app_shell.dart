@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/platform/television_mode.dart';
+import '../../../app/playback/PlaybackCubit.dart';
+import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../music/presentation/search/InlineMusicSearch.dart';
 import '../../playback/presentation/MiniPlayer.dart';
@@ -37,17 +40,58 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   bool _searching = false;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _televisionContentKey = GlobalKey();
+  final _televisionRailFocusNode = FocusNode(
+    debugLabel: 'TV current destination',
+  );
+  int _branchTransition = 0;
+  int _branchDirection = 1;
 
   void _startSearch() => setState(() => _searching = true);
   void _stopSearch() => setState(() => _searching = false);
   void _openMenu() => _scaffoldKey.currentState?.openDrawer();
+  void _openNowPlaying() => context.pushNamed(RouteNames.nowPlaying);
+
+  void _focusTelevisionNavigation() => _televisionRailFocusNode.requestFocus();
 
   void _goToBranch(int index) {
+    final previousIndex = widget.navigationShell.currentIndex;
+    if (index != previousIndex) {
+      setState(() {
+        _branchDirection = index > previousIndex ? 1 : -1;
+        _branchTransition++;
+      });
+    }
     widget.navigationShell.goBranch(
       index,
       // Tapping the active tab again pops it back to its root.
       initialLocation: index == widget.navigationShell.currentIndex,
     );
+  }
+
+  KeyEventResult _handleTelevisionContentKey(FocusNode _, KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.arrowLeft) {
+      return KeyEventResult.ignored;
+    }
+
+    final contentBox = _televisionContentKey.currentContext?.findRenderObject();
+    final focused = FocusManager.instance.primaryFocus;
+    if (contentBox is! RenderBox || focused == null) {
+      return KeyEventResult.ignored;
+    }
+
+    final contentLeft = contentBox.localToGlobal(Offset.zero).dx;
+    if (focused.rect.left > contentLeft + 48) return KeyEventResult.ignored;
+
+    _focusTelevisionNavigation();
+    return KeyEventResult.handled;
+  }
+
+  @override
+  void dispose() {
+    _televisionRailFocusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -60,10 +104,17 @@ class _AppShellState extends State<AppShell> {
         location.contains('/playlist/');
 
     final television = TelevisionModeScope.of(context);
+    final hasNowPlaying = context.select<PlaybackCubit, bool>(
+      (playback) => playback.state.currentEntry != null,
+    );
     final mainContent = Column(
       children: [
         if (!_searching && !isDetail)
-          HomeLibraryHeader(onSearchTap: _startSearch, onMenuTap: _openMenu),
+          HomeLibraryHeader(
+            onSearchTap: _startSearch,
+            onMenuTap: _openMenu,
+            onNavigationTap: television ? _focusTelevisionNavigation : null,
+          ),
         Expanded(
           child: _searching
               ? InlineMusicSearch(onClose: _stopSearch)
@@ -111,17 +162,30 @@ class _AppShellState extends State<AppShell> {
                         TelevisionNavigationRail(
                           currentIndex: widget.navigationShell.currentIndex,
                           onSelected: _goToBranch,
+                          onMenu: _openMenu,
+                          onSearch: _startSearch,
+                          onNowPlaying: _openNowPlaying,
+                          currentDestinationFocusNode: _televisionRailFocusNode,
+                          hasNowPlaying: hasNowPlaying,
                         ),
                         VerticalDivider(
                           width: 1,
                           color: context.tokens.colors.border,
                         ),
                         Expanded(
-                          child: Column(
-                            children: [
-                              Expanded(child: mainContent),
-                              const MiniPlayer(),
-                            ],
+                          child: Focus(
+                            key: _televisionContentKey,
+                            onKeyEvent: _handleTelevisionContentKey,
+                            child: _TelevisionBranchTransition(
+                              transition: _branchTransition,
+                              direction: _branchDirection,
+                              child: Column(
+                                children: [
+                                  Expanded(child: mainContent),
+                                  const MiniPlayer(),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -144,6 +208,69 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TelevisionBranchTransition extends StatefulWidget {
+  const _TelevisionBranchTransition({
+    required this.transition,
+    required this.direction,
+    required this.child,
+  });
+
+  final int transition;
+  final int direction;
+  final Widget child;
+
+  @override
+  State<_TelevisionBranchTransition> createState() =>
+      _TelevisionBranchTransitionState();
+}
+
+class _TelevisionBranchTransitionState
+    extends State<_TelevisionBranchTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 240),
+      vsync: this,
+    )..value = 1;
+  }
+
+  @override
+  void didUpdateWidget(covariant _TelevisionBranchTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.transition != widget.transition) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final motion = context.tokens.motion;
+    final curve = CurvedAnimation(
+      parent: _controller,
+      curve: motion.emphasizedCurve,
+    );
+    final offset = Tween<Offset>(
+      begin: Offset(.04 * widget.direction, 0),
+      end: Offset.zero,
+    ).animate(curve);
+
+    return SlideTransition(
+      position: offset,
+      child: FadeTransition(opacity: curve, child: widget.child),
     );
   }
 }

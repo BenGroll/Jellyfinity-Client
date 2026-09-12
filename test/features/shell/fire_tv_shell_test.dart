@@ -70,6 +70,74 @@ void main() {
     expect(scaffold.isDrawerOpen, isTrue);
   });
 
+  testWidgets(
+    'rail gives the remote a Search action and a way back to Browse',
+    (tester) async {
+      registerMusicCubits(music: FakeMusicLibraryRepository());
+      final scope = await pumpApp(
+        tester,
+        televisionMode: true,
+        viewportSize: const Size(1280, 720),
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('television-search')), findsOneWidget);
+      expect(
+        find.byKey(const Key('television-primary-navigation')),
+        findsOneWidget,
+      );
+
+      // Home has initial focus. One step up reaches Search on the rail.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      expect(find.byType(InlineMusicSearch), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      // The visible Browse control returns focus to the current rail section.
+      await tester.tap(find.byKey(const Key('television-primary-navigation')));
+      await tester.pump();
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'TV current destination',
+      );
+    },
+  );
+
+  testWidgets('rail exposes and activates Now Playing for an active queue', (
+    tester,
+  ) async {
+    final currentDestination = FocusNode();
+    addTearDown(currentDestination.dispose);
+    var openedNowPlaying = false;
+
+    await pumpThemed(
+      tester,
+      Scaffold(
+        body: SizedBox(
+          height: 720,
+          child: TelevisionNavigationRail(
+            currentIndex: 0,
+            currentDestinationFocusNode: currentDestination,
+            hasNowPlaying: true,
+            onSelected: (_) {},
+            onMenu: () {},
+            onSearch: () {},
+            onNowPlaying: () => openedNowPlaying = true,
+          ),
+        ),
+      ),
+    );
+
+    final action = find.byKey(const Key('television-now-playing'));
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(openedNowPlaying, isTrue);
+  });
+
   testWidgets('remote Back closes inline search before leaving the app', (
     tester,
   ) async {

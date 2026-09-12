@@ -14,6 +14,7 @@ import 'downloads/DownloadsCubit.dart';
 import 'favorites/FavoritesRevisionCubit.dart';
 import 'navigation/MediaScopeCubit.dart';
 import 'platform/television_mode.dart';
+import 'platform/television_focus_traversal.dart';
 import 'playback/PlaybackCubit.dart';
 import 'session/SessionCubit.dart';
 import 'settings/SettingsCubit.dart';
@@ -156,7 +157,9 @@ class _JellyfinityAppState extends State<JellyfinityApp> {
         builder: (context, child) => TelevisionModeScope(
           isTelevision: _isTelevision,
           child: FocusTraversalGroup(
-            policy: ReadingOrderTraversalPolicy(),
+            policy: _isTelevision
+                ? TelevisionFocusTraversalPolicy()
+                : ReadingOrderTraversalPolicy(),
             child: CallbackShortcuts(
               bindings: {
                 const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):

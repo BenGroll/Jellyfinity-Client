@@ -25,10 +25,12 @@ class HomeLibraryHeader extends StatelessWidget {
     super.key,
     required this.onSearchTap,
     this.onMenuTap,
+    this.onNavigationTap,
   });
 
   final VoidCallback onSearchTap;
   final VoidCallback? onMenuTap;
+  final VoidCallback? onNavigationTap;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +57,13 @@ class HomeLibraryHeader extends StatelessWidget {
                       onMenuTap ?? () => Scaffold.of(context).openDrawer(),
                 ),
               ),
+              if (onNavigationTap != null)
+                IconButton(
+                  key: const Key('television-primary-navigation'),
+                  icon: const Icon(Icons.space_dashboard_rounded),
+                  tooltip: 'Primary navigation',
+                  onPressed: onNavigationTap,
+                ),
               Expanded(
                 child: InkWell(
                   onTap: onSearchTap,
