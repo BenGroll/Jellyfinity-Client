@@ -4,7 +4,7 @@ import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/features/music/presentation/detail/AlbumDetailPage.dart';
 import 'package:jellyfinity/features/music/presentation/detail/ArtistDetailPage.dart';
-import 'package:jellyfinity/features/music/presentation/library/LibraryFacetAlbumsPage.dart';
+import 'package:jellyfinity/features/music/presentation/library/LibraryFacetPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
 
 import '../../support/music_fakes.dart';
@@ -95,7 +95,11 @@ void main() {
     await tester.tap(find.text('Jazz'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(LibraryFacetAlbumsPage), findsOneWidget);
+    expect(find.byType(LibraryFacetPage), findsOneWidget);
+    // A genre page opens on Artists (matching Library's own tab order);
+    // Albums is the second tab.
+    await tester.tap(find.text('Albums'));
+    await tester.pumpAndSettle();
     expect(find.text('Kind of Blue'), findsOneWidget);
   });
 
@@ -108,8 +112,36 @@ void main() {
     await tester.tap(find.text('1990s'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(LibraryFacetAlbumsPage), findsOneWidget);
+    expect(find.byType(LibraryFacetPage), findsOneWidget);
     expect(find.text('Blue Train'), findsOneWidget);
+  });
+
+  testWidgets('a genre page opens on Artists, and has no Decade-only tabs', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository()
+      ..genreList = ['Jazz']
+      ..artistList = [testArtist('a1', name: 'Miles Davis')];
+
+    await _openExplore(tester, music);
+    await tester.tap(find.text('Jazz'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Miles Davis'), findsOneWidget);
+    expect(find.text('Artists'), findsOneWidget);
+    expect(find.text('Albums'), findsOneWidget);
+    expect(find.text('Songs'), findsOneWidget);
+  });
+
+  testWidgets('a decade page has no Artists tab', (tester) async {
+    final music = FakeMusicLibraryRepository()..decadeList = [1990];
+
+    await _openExplore(tester, music);
+    await tester.tap(find.text('1990s'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Artists'), findsNothing);
+    expect(find.text('Albums'), findsOneWidget);
   });
 
   testWidgets('a random album pick opens that album', (tester) async {
@@ -136,17 +168,16 @@ void main() {
     expect(find.byType(ArtistDetailPage), findsOneWidget);
   });
 
-  testWidgets(
-    'an empty scope reports the random pick could not be made',
-    (tester) async {
-      final music = FakeMusicLibraryRepository();
+  testWidgets('an empty scope reports the random pick could not be made', (
+    tester,
+  ) async {
+    final music = FakeMusicLibraryRepository();
 
-      await _openExplore(tester, music);
-      await tester.tap(find.text('Album'));
-      await tester.pumpAndSettle();
+    await _openExplore(tester, music);
+    await tester.tap(find.text('Album'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(AlbumDetailPage), findsNothing);
-      expect(find.byType(SnackBar), findsOneWidget);
-    },
-  );
+    expect(find.byType(AlbumDetailPage), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
+  });
 }

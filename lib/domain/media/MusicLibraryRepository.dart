@@ -40,9 +40,13 @@ import 'Track.dart';
 abstract class MusicLibraryRepository {
   /// The library's album artists — the artists a music app lists, rather
   /// than every performer credited anywhere.
+  ///
+  /// [genre] narrows to artists tagged with it (v0.4.5, ADR-0034) — read
+  /// live only, on the same terms [albums]' `genre` is.
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   });
 
   /// Albums, optionally only those by [artistId], in [genre], or from the
@@ -104,15 +108,20 @@ abstract class MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
   });
 
-  /// Tracks, optionally only those on [albumId] or by [artistId].
+  /// Tracks, optionally only those on [albumId], by [artistId], in
+  /// [genre], or from the decade starting [decadeStart] (v0.4.5).
   ///
   /// Album tracks come back in disc/track order; anything else is in the
-  /// source's own order.
+  /// source's own order. [genre]/[decadeStart] are read live only, on the
+  /// same terms [albums]' are — at most one of them is expected at a
+  /// time, alongside at most one of [albumId]/[artistId].
   Future<Result<Page<Track>>> tracks({
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   });
 
   /// One artist.
@@ -155,11 +164,14 @@ abstract class MusicLibraryRepository {
   /// shelf from.
   ///
   /// A bounded facet list, not a browsable collection: like
-  /// [relatedArtists], there is no paging and it is read **live only**.
-  /// Nothing about a genre is stored anywhere in the offline cache or the
-  /// downloads catalog, so a deliberately- or actually-offline read fails
-  /// honestly instead of showing a stale or empty shelf; the entry point
-  /// is then simply absent, the same way a related-media strip is.
+  /// [relatedArtists], there is no paging. Read from the server while
+  /// online; while deliberately or actually offline
+  /// (`CachedMusicLibraryRepository`, v0.4.5, ADR-0034), it degrades to
+  /// the genres captured on the profile's downloaded tracks instead of
+  /// failing outright — a smaller, honestly-labeled answer rather than no
+  /// answer at all. A profile with nothing downloaded, or downloads with
+  /// no genre captured, gets the same failure a server-only facet always
+  /// did.
   Future<Result<List<String>>> genres();
 
   /// The decades the library's albums span, newest first — `2020`,
@@ -189,4 +201,15 @@ abstract class MusicLibraryRepository {
 
   /// One artist, chosen at random, on the same terms as [randomAlbum].
   Future<Result<Artist>> randomArtist();
+
+  /// One track, chosen at random, on the same terms as [randomAlbum]
+  /// (v0.4.5).
+  Future<Result<Track>> randomTrack();
+
+  /// A bounded pool of tracks chosen at random, on the same terms as
+  /// [randomAlbum] (v0.4.5) — the fallback a "for you" mix tops itself up
+  /// with once it has used what a listener's favorites can offer. Unlike
+  /// [randomTrack] this is never shown as a suggestion on its own; it is
+  /// always blended with something more targeted.
+  Future<Result<List<Track>>> randomTracks({int limit = 30});
 }

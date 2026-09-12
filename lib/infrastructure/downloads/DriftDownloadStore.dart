@@ -755,6 +755,7 @@ class DriftDownloadStore implements DownloadStore {
         discNumber: Value(download.discNumber),
         durationMicros: Value(download.duration?.inMicroseconds),
         normalizationGain: Value(download.normalizationGain),
+        genresJson: Value(_encodeGenres(download.genres)),
         imageItemId: Value(download.image?.itemId.itemId),
         imageKind: Value(download.image?.kind.name),
         imageTag: Value(download.image?.tag),
@@ -789,6 +790,7 @@ class DriftDownloadStore implements DownloadStore {
           ? null
           : Duration(microseconds: row.durationMicros!),
       normalizationGain: row.normalizationGain,
+      genres: _decodeGenres(row.genresJson),
       image: _decodeImage(row),
       receivedBytes: row.receivedBytes,
       totalBytes: row.totalBytes,
@@ -821,6 +823,24 @@ class DriftDownloadStore implements DownloadStore {
       for (final credit in artists)
         <String, Object?>{'name': credit.name, 'id': credit.id?.itemId},
     ]);
+  }
+
+  /// Encoded as a plain JSON array of strings — genre names carry no
+  /// structure worth a shape like [_encodeArtists]'s.
+  static String? _encodeGenres(List<String> genres) {
+    if (genres.isEmpty) return null;
+    return jsonEncode(genres);
+  }
+
+  static List<String> _decodeGenres(String? json) {
+    if (json == null || json.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const [];
+      return decoded.whereType<String>().toList(growable: false);
+    } on FormatException {
+      return const [];
+    }
   }
 
   static List<ArtistRef> _decodeArtists(String? json, String serverId) {

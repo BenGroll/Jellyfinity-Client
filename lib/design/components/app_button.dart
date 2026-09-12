@@ -80,10 +80,19 @@ class _AppButtonState extends State<AppButton> {
           ),
           SizedBox(width: t.spacing.xs),
         ],
-        Text(
-          widget.label,
-          style: t.typography.label.copyWith(
-            color: enabled ? fg : colors.textDisabled,
+        // Flexible so a label that does not quite fit the space this
+        // button was given (several side by side, a narrow phone) ellipses
+        // instead of overflowing the row (v0.4.5) — harmless when there is
+        // room to spare, since a `Flexible` that fits its child costs it
+        // nothing.
+        Flexible(
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.typography.label.copyWith(
+              color: enabled ? fg : colors.textDisabled,
+            ),
           ),
         ),
       ],

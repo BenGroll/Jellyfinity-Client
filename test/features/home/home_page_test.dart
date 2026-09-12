@@ -343,4 +343,59 @@ void main() {
 
     expect(find.byType(AlbumDetailPage), findsOneWidget);
   });
+
+  group("Play something you'll like (v0.4.5)", () {
+    testWidgets('plays a mix built from favorites', (tester) async {
+      final music = FakeMusicLibraryRepository()
+        ..favoriteTrackList = [testTrack('t1', name: 'So What')];
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      await _pumpHome(tester, music: music, playback: playback);
+
+      await tester.tap(find.text("Play something you'll like"));
+      await tester.pumpAndSettle();
+
+      expect(playback.state.currentEntry?.title, 'So What');
+      expect(find.textContaining('A mix from your favorites'), findsOneWidget);
+
+      // Settle playback so its position-save timer does not outlive the
+      // test.
+      await playback.togglePlayPause();
+    });
+
+    testWidgets('falls back to a random mix, and says so, with no favorites', (
+      tester,
+    ) async {
+      final music = FakeMusicLibraryRepository()
+        ..randomTracksPool = [testTrack('t1', name: 'Random Song')];
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      await _pumpHome(tester, music: music, playback: playback);
+
+      await tester.tap(find.text("Play something you'll like"));
+      await tester.pumpAndSettle();
+
+      expect(playback.state.currentEntry?.title, 'Random Song');
+      expect(
+        find.textContaining("don't have any favorites yet"),
+        findsOneWidget,
+      );
+
+      // Settle playback so its position-save timer does not outlive
+      // the test.
+      await playback.togglePlayPause();
+    });
+
+    testWidgets(
+      'an empty library says there is nothing to mix, without crashing',
+      (tester) async {
+        await _pumpHome(tester);
+
+        await tester.tap(find.text("Play something you'll like"));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Nothing to mix yet'), findsOneWidget);
+      },
+    );
+  });
 }

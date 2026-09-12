@@ -82,6 +82,17 @@ class JellyfinMediaApi {
   /// a time, on demand.
   static const List<String> trackSourceFields = ['MediaSources'];
 
+  /// [defaultFields] plus `Genres` (v0.4.5) — what a *scoped* track read
+  /// (one album, one artist's discography: dozens of rows, not 130k) asks
+  /// for, so a download started from it can capture the track's genre for
+  /// offline genre browsing (`DownloadsLibrarySource.genres`). Never used
+  /// for an unscoped library browse — see `JellyfinMusicLibraryRepository
+  /// .tracks`.
+  static const List<String> trackDownloadFields = [
+    'PrimaryImageAspectRatio',
+    'Genres',
+  ];
+
   /// The image kinds Jellyfinity renders; asking for only these keeps
   /// image tags out of the response for the dozen kinds it does not.
   static const List<String> imageTypes = [

@@ -11,7 +11,7 @@ import '../../features/home/presentation/HomePage.dart';
 import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
 import '../../features/music/presentation/detail/PlaylistDetailPage.dart';
-import '../../features/music/presentation/library/LibraryFacetAlbumsPage.dart';
+import '../../features/music/presentation/library/LibraryFacetPage.dart';
 import '../../features/music/presentation/library/LibraryPage.dart';
 import '../../features/music/presentation/search/music_search_cubit.dart';
 import '../../features/music/presentation/search/SearchCategoryPage.dart';
@@ -246,7 +246,7 @@ class AppRouter {
         if (name == null || name.isEmpty) {
           return NotFoundPage(location: state.uri.toString());
         }
-        return LibraryFacetAlbumsPage(genre: name);
+        return LibraryFacetPage(genre: name);
       },
     ),
     GoRoute(
@@ -257,7 +257,7 @@ class AppRouter {
         if (decadeStart == null) {
           return NotFoundPage(location: state.uri.toString());
         }
-        return LibraryFacetAlbumsPage(decadeStart: decadeStart);
+        return LibraryFacetPage(decadeStart: decadeStart);
       },
     ),
   ];

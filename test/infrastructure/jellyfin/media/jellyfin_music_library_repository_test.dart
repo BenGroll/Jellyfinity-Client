@@ -312,6 +312,37 @@ void main() {
     expect(query['searchTerm'], 'blue');
   });
 
+  group('track genre capture for downloads (v0.4.5)', () {
+    test('asks for Genres on a scoped read (an album, an artist)', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+      final repository = _repository(adapter);
+
+      await repository.tracks(albumId: _albumId);
+      await repository.tracks(artistId: _artistId);
+
+      expect(adapter.requests[0].queryParameters['fields'], contains('Genres'));
+      expect(adapter.requests[1].queryParameters['fields'], contains('Genres'));
+    });
+
+    test(
+      'does not ask for Genres on the unscoped whole-library browse',
+      () async {
+        final adapter = FakeDioAdapter(
+          (_) async => jsonResponseBody(itemsResponse(const [])),
+        );
+
+        await _repository(adapter).tracks();
+
+        expect(
+          adapter.requests.single.queryParameters['fields'],
+          isNot(contains('Genres')),
+        );
+      },
+    );
+  });
+
   group('artistStats (v0.1.6)', () {
     test('reports album and song counts, and their summed runtime', () async {
       final adapter = FakeDioAdapter((options) async {
@@ -468,21 +499,96 @@ void main() {
       );
     });
 
-    test('reads the genre facet from /MusicGenres, bounded and scoped', () async {
+    test('filters artists by genre, server-side (v0.4.5)', () async {
+      final adapter = FakeDioAdapter(
+        (_) async => jsonResponseBody(itemsResponse(const [])),
+      );
+
+      await _repository(adapter).artists(genre: 'Jazz');
+
+      expect(adapter.requests.single.path, JellyfinMediaApi.albumArtistsPath);
+      expect(adapter.requests.single.queryParameters['genres'], 'Jazz');
+    });
+
+    test(
+      'filters songs by genre and by decade, server-side (v0.4.5)',
+      () async {
+        final adapter = FakeDioAdapter(
+          (_) async => jsonResponseBody(itemsResponse(const [])),
+        );
+        final repository = _repository(adapter);
+
+        await repository.tracks(genre: 'Jazz');
+        await repository.tracks(decadeStart: 1990);
+
+        expect(adapter.requests[0].queryParameters['genres'], 'Jazz');
+        expect(
+          adapter.requests[1].queryParameters['years'],
+          '1990,1991,1992,1993,1994,1995,1996,1997,1998,1999',
+        );
+      },
+    );
+
+    test('randomTrack asks the server for one row, sorted Random', () async {
       final adapter = FakeDioAdapter(
         (_) async => jsonResponseBody(
           itemsResponse([
-            {'Id': 'g1', 'Name': 'Jazz', 'Type': 'MusicGenre'},
-            {'Id': 'g2', 'Name': 'Rock', 'Type': 'MusicGenre'},
+            {'Id': 't1', 'Name': 'So What', 'Type': 'Audio'},
           ]),
         ),
       );
 
-      final result = await _repository(adapter).genres();
+      final result = await _repository(adapter).randomTrack();
 
-      expect(adapter.requests.single.path, JellyfinMediaApi.musicGenresPath);
-      expect(result.valueOrNull, ['Jazz', 'Rock']);
+      expect(adapter.requests.single.queryParameters['sortBy'], 'Random');
+      expect(
+        adapter.requests.single.queryParameters['includeItemTypes'],
+        'Audio',
+      );
+      expect(result.valueOrNull!.name, 'So What');
     });
+
+    test(
+      'randomTracks asks for a bounded random pool in one request',
+      () async {
+        final adapter = FakeDioAdapter(
+          (_) async => jsonResponseBody(
+            itemsResponse([
+              {'Id': 't1', 'Name': 'So What', 'Type': 'Audio'},
+              {'Id': 't2', 'Name': 'Freddie Freeloader', 'Type': 'Audio'},
+            ]),
+          ),
+        );
+
+        final result = await _repository(adapter).randomTracks(limit: 20);
+
+        expect(adapter.requests.single.queryParameters['sortBy'], 'Random');
+        expect(adapter.requests.single.queryParameters['limit'], 20);
+        expect(result.valueOrNull!.map((t) => t.name), [
+          'So What',
+          'Freddie Freeloader',
+        ]);
+      },
+    );
+
+    test(
+      'reads the genre facet from /MusicGenres, bounded and scoped',
+      () async {
+        final adapter = FakeDioAdapter(
+          (_) async => jsonResponseBody(
+            itemsResponse([
+              {'Id': 'g1', 'Name': 'Jazz', 'Type': 'MusicGenre'},
+              {'Id': 'g2', 'Name': 'Rock', 'Type': 'MusicGenre'},
+            ]),
+          ),
+        );
+
+        final result = await _repository(adapter).genres();
+
+        expect(adapter.requests.single.path, JellyfinMediaApi.musicGenresPath);
+        expect(result.valueOrNull, ['Jazz', 'Rock']);
+      },
+    );
 
     test('reads the decade facet from /Years, bucketed newest first', () async {
       final adapter = FakeDioAdapter(
@@ -520,7 +626,10 @@ void main() {
 
       expect(adapter.requests.single.queryParameters['sortBy'], 'Random');
       expect(adapter.requests.single.queryParameters['limit'], 1);
-      expect(adapter.requests.single.queryParameters['includeItemTypes'], 'MusicAlbum');
+      expect(
+        adapter.requests.single.queryParameters['includeItemTypes'],
+        'MusicAlbum',
+      );
       expect(result.valueOrNull!.name, 'Kind of Blue');
     });
 

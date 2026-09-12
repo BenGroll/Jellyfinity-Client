@@ -18,6 +18,7 @@ import '../../../domain/downloads/downloads.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/QueueEntry.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
+import 'for_you_mix_actions.dart';
 import 'HomeFavoritesCubit.dart';
 import 'RecentlyAddedCubit.dart';
 import 'RecentlyPlayedCubit.dart';
@@ -363,6 +364,10 @@ class _HomeBody extends StatelessWidget {
       return _EmptyHome(offline: offline);
     }
 
+    // "Play something you'll like" (v0.4.5) leads every populated Home;
+    // `_EmptyHome` carries its own copy for the fresh-install case.
+    children.insert(0, const _ForYouMixCard());
+
     return ListView(
       padding: EdgeInsets.symmetric(vertical: t.spacing.md),
       children: [
@@ -482,6 +487,110 @@ class _SectionHeader extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Play something you'll like" (v0.4.5) — Home's own entry into a mix
+/// built from the profile's favorites (`for_you_mix_actions.dart`). A
+/// `StatefulWidget` only for its own "building your mix" spinner, the
+/// same shape Explore's random-pick buttons use; the mix logic itself
+/// holds no state between taps.
+class _ForYouMixCard extends StatefulWidget {
+  const _ForYouMixCard();
+
+  @override
+  State<_ForYouMixCard> createState() => _ForYouMixCardState();
+}
+
+class _ForYouMixCardState extends State<_ForYouMixCard> {
+  bool _building = false;
+
+  Future<void> _play() async {
+    setState(() => _building = true);
+    await playForYouMix(context);
+    if (mounted) setState(() => _building = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+      child: Material(
+        color: t.colors.surface,
+        borderRadius: t.radii.mdBorder,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _building ? null : _play,
+          child: Padding(
+            padding: EdgeInsets.all(t.spacing.sm),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: t.colors.accent.withValues(alpha: 0.15),
+                    borderRadius: t.radii.smBorder,
+                  ),
+                  child: Icon(
+                    Icons.shuffle_rounded,
+                    color: t.colors.accent,
+                    size: 28,
+                  ),
+                ),
+                SizedBox(width: t.spacing.sm),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Play something you\'ll like',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.typography.bodyLarge.copyWith(
+                          color: t.colors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Built from what you love, with a surprise if not',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.typography.caption.copyWith(
+                          color: t.colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: t.spacing.xs),
+                if (_building)
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: t.colors.accent,
+                    ),
+                  )
+                else
+                  // A distinct icon from every other play affordance on
+                  // screen at once — Continue Listening's
+                  // `play_circle_fill_rounded` and the mini-player's
+                  // `play_arrow_rounded`/`pause_rounded` — so a widget test
+                  // locating "the play button" can tell them apart.
+                  Icon(
+                    Icons.play_circle_outline_rounded,
+                    color: t.colors.accent,
+                    size: 36,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1021,7 +1130,11 @@ class _SectionError extends StatelessWidget {
 
 /// The whole of Home before there is anything to resume or replay — a
 /// fresh install, or a profile that has only ever browsed. Keeps the
-/// explicit route to the library that the sections otherwise replace.
+/// explicit route to the library that the sections otherwise replace, and
+/// — since a brand-new profile is exactly who most needs a nudge to press
+/// play — the same "Play something you'll like" mix card every populated
+/// Home leads with (v0.4.5). With no favorites yet, that mix is an honest
+/// random one; that is `_ForYouMixCard`'s call to make, not this widget's.
 class _EmptyHome extends StatelessWidget {
   const _EmptyHome({required this.offline});
 
@@ -1029,14 +1142,26 @@ class _EmptyHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EmptyStateView(
-      icon: Icons.library_music_outlined,
-      title: 'Nothing to pick up yet',
-      message: offline
-          ? 'Play something and it will wait for you here.'
-          : 'Play an album or a track and Home will open on it next time.',
-      actionLabel: 'Browse music',
-      onAction: () => context.goNamed(RouteNames.library),
+    final t = context.tokens;
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: t.spacing.md),
+          child: const _ForYouMixCard(),
+        ),
+        Expanded(
+          child: EmptyStateView(
+            icon: Icons.library_music_outlined,
+            title: 'Nothing to pick up yet',
+            message: offline
+                ? 'Play something and it will wait for you here.'
+                : 'Play an album or a track and Home will open on it next '
+                      'time.',
+            actionLabel: 'Browse music',
+            onAction: () => context.goNamed(RouteNames.library),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -78,12 +78,16 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   }) {
+    // A genre browse is live only (ADR-0034) — see [albums]'s.
     return _collection(
       page: page,
       searchTerm: searchTerm,
+      live: genre != null,
       collectionKey: MediaCollectionKey.artists,
-      read: () => _remote.artists(page: page, searchTerm: searchTerm),
+      read: () =>
+          _remote.artists(page: page, searchTerm: searchTerm, genre: genre),
     );
   }
 
@@ -215,10 +219,15 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) {
+    // A genre or decade browse is live only (ADR-0034) — see [albums]'s.
+    final isFiltered = genre != null || decadeStart != null;
     return _collection(
       page: page,
       searchTerm: searchTerm,
+      live: isFiltered,
       collectionKey: switch ((albumId, artistId)) {
         (final MediaId album, _) => MediaCollectionKey.tracksOfAlbum(
           album.itemId,
@@ -233,8 +242,10 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
         albumId: albumId,
         artistId: artistId,
         searchTerm: searchTerm,
+        genre: genre,
+        decadeStart: decadeStart,
       ),
-      downloadsFallback: albumId == null
+      downloadsFallback: (albumId == null || isFiltered)
           ? null
           : () => _albumTracksOffline(albumId, page),
     );
@@ -278,22 +289,26 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     return _remote.similarAlbums(albumId, limit: limit);
   }
 
-  /// Live only, on the same terms as [relatedArtists] (v0.4.4, ADR-0034):
-  /// nothing about a genre or a decade is cached, so working offline is
-  /// short-circuited rather than left to time out. The caller shows the
-  /// entry point as unavailable rather than absent — unlike a related-
-  /// media strip, this is a primary way into the library, not a bonus.
-  @override
-  Future<Result<List<String>>> genres() async {
-    if (_offline.status.isOffline) return _offlineFailure<List<String>>();
-    return _remote.genres();
-  }
-
+  /// Decades stay live only, on the same terms as [relatedArtists]
+  /// (v0.4.4, ADR-0034): nothing about a decade is cached anywhere, so
+  /// working offline is short-circuited rather than left to time out. The
+  /// caller shows the entry point as unavailable rather than absent —
+  /// unlike a related-media strip, this is a primary way into the
+  /// library, not a bonus.
   @override
   Future<Result<List<int>>> decades() async {
     if (_offline.status.isOffline) return _offlineFailure<List<int>>();
     return _remote.decades();
   }
+
+  /// Genres degrade to the profile's downloads while offline (v0.4.5,
+  /// ADR-0034) instead of failing outright, the same "offline is a
+  /// different scope" treatment [randomAlbum] gets: a genre captured on a
+  /// downloaded track (`DownloadsLibrarySource.genres`) is honest local
+  /// data, unlike a decade, which nothing on the device carries.
+  @override
+  Future<Result<List<String>>> genres() =>
+      _offline.status.isOffline ? _downloads.genres() : _remote.genres();
 
   /// Working offline, "random" draws from the signed-in profile's
   /// downloads instead of asking the unreachable server — the one place
@@ -310,6 +325,20 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<Artist>> randomArtist() => _offline.status.isOffline
       ? _downloads.randomArtist()
       : _remote.randomArtist();
+
+  @override
+  Future<Result<Track>> randomTrack() => _offline.status.isOffline
+      ? _downloads.randomTrack()
+      : _remote.randomTrack();
+
+  /// Working offline, the fallback pool is the profile's own downloaded
+  /// tracks (v0.4.5) — the same scope every other random read uses
+  /// offline, so a "for you" mix never proposes a track it cannot play.
+  @override
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) =>
+      _offline.status.isOffline
+      ? _downloads.randomTracks(limit: limit)
+      : _remote.randomTracks(limit: limit);
 
   Future<Result<Page<T>>> _collection<T extends MediaItem>({
     required PageRequest page,

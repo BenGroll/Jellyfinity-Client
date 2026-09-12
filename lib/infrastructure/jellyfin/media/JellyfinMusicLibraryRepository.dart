@@ -40,6 +40,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -50,6 +51,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     final response = await _api.queryItems(
       path: JellyfinMediaApi.albumArtistsPath,
       searchTerm: searchTerm,
+      genres: genre == null ? const [] : [genre],
       sortBy: const ['SortName'],
       page: page,
       recursive: false,
@@ -240,6 +242,8 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -261,11 +265,21 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
       trackArtistId = (id as Ok<String>).value;
     }
 
+    // A bounded scope (an album, an artist's discography) is small enough
+    // to carry its genre on every row; the unscoped whole-library browse
+    // (potentially 130k rows) never does (v0.4.5).
+    final scoped = parentId != null || trackArtistId != null;
+
     final response = await _api.queryItems(
       includeItemTypes: const [BaseItemMapper.trackType],
       parentId: parentId,
       artistId: trackArtistId,
       searchTerm: searchTerm,
+      genres: genre == null ? const [] : [genre],
+      years: decadeStart == null ? const [] : _yearsOfDecade(decadeStart),
+      fields: scoped
+          ? JellyfinMediaApi.trackDownloadFields
+          : JellyfinMediaApi.defaultFields,
       sortBy: switch ((parentId, trackArtistId)) {
         // An album plays in disc/track order, not alphabetically.
         (final String _, _) => const ['ParentIndexNumber', 'IndexNumber'],
@@ -409,6 +423,36 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     map: (mapper, dto) => mapper.toArtist(dto),
     label: 'artist',
   );
+
+  @override
+  Future<Result<Track>> randomTrack() => _randomSingle(
+    path: JellyfinMediaApi.itemsPath,
+    includeItemTypes: const [BaseItemMapper.trackType],
+    recursive: true,
+    map: (mapper, dto) => mapper.toTrack(dto),
+    label: 'song',
+  );
+
+  @override
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.trackType],
+      sortBy: const ['Random'],
+      page: PageRequest(limit: limit),
+    );
+    return response.map(
+      (dto) => (dto.items ?? const <BaseItemDto>[])
+          .map(mapper.toTrack)
+          .whereType<Track>()
+          .toList(growable: false),
+    );
+  }
 
   /// Asks the server for one random item and maps it, the shape
   /// [randomAlbum]/[randomArtist] share: `SortBy=Random`, one row, mapped

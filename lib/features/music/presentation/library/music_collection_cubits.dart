@@ -46,15 +46,28 @@ class ArtistsCubit extends PagedCollectionCubit<Artist>
   /// Set to search within artists instead of listing all of them.
   String? searchTerm;
 
+  /// When set, only artists tagged with this genre (v0.4.5) — a decade
+  /// has no artists equivalent (`MusicLibraryRepository.artists`'
+  /// `genre`-only doc comment).
+  String? genre;
+
   @override
-  Future<Result<Page<Artist>>> fetch(PageRequest request) => downloadedOnly
+  Future<Result<Page<Artist>>> fetch(PageRequest request) =>
+      downloadedOnly && genre == null
       ? downloadsSource.artists(page: request, searchTerm: searchTerm)
-      : _music.artists(page: request, searchTerm: searchTerm);
+      : _music.artists(page: request, searchTerm: searchTerm, genre: genre);
 
   /// Narrows to [term] and starts the list again.
   Future<void> searchFor(String? term) {
     searchTerm = term;
     return reload();
+  }
+
+  /// Narrows to every artist tagged with [name] and starts the list again
+  /// — the genre shelf's "show all" (v0.4.5).
+  Future<void> forGenre(String name) {
+    genre = name;
+    return load();
   }
 }
 
@@ -144,15 +157,29 @@ class SongsCubit extends PagedCollectionCubit<Track>
   MediaId? artistId;
   String? searchTerm;
 
+  /// When set, only songs in this genre (v0.4.5) — mutually exclusive
+  /// with [albumId]/[artistId]/[decadeStart], the same rule [AlbumsCubit]
+  /// follows.
+  String? genre;
+
+  /// When set, only songs from this decade (v0.4.5).
+  int? decadeStart;
+
   @override
   Future<Result<Page<Track>>> fetch(PageRequest request) =>
-      downloadedOnly && albumId == null && artistId == null
+      downloadedOnly &&
+          albumId == null &&
+          artistId == null &&
+          genre == null &&
+          decadeStart == null
       ? downloadsSource.tracks(page: request, searchTerm: searchTerm)
       : _music.tracks(
           page: request,
           albumId: albumId,
           artistId: artistId,
           searchTerm: searchTerm,
+          genre: genre,
+          decadeStart: decadeStart,
         );
 
   Future<void> forAlbum(MediaId id) {
@@ -162,6 +189,20 @@ class SongsCubit extends PagedCollectionCubit<Track>
 
   Future<void> forArtist(MediaId id) {
     artistId = id;
+    return load();
+  }
+
+  /// Narrows to every song in [name] and starts the list again — the
+  /// genre shelf's "show all" (v0.4.5).
+  Future<void> forGenre(String name) {
+    genre = name;
+    return load();
+  }
+
+  /// Narrows to every song released in the decade starting [startYear]
+  /// (v0.4.5).
+  Future<void> forDecade(int startYear) {
+    decadeStart = startYear;
     return load();
   }
 

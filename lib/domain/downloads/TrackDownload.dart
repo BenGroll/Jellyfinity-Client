@@ -32,6 +32,7 @@ class TrackDownload extends Equatable {
     this.discNumber,
     this.duration,
     this.normalizationGain,
+    this.genres = const [],
     this.image,
     this.receivedBytes = 0,
     this.totalBytes,
@@ -57,6 +58,7 @@ class TrackDownload extends Equatable {
     discNumber: track.discNumber,
     duration: track.duration,
     normalizationGain: track.normalizationGain,
+    genres: track.genres,
     image: track.image,
   );
 
@@ -81,6 +83,14 @@ class TrackDownload extends Equatable {
   final int? discNumber;
   final Duration? duration;
   final double? normalizationGain;
+
+  /// This track's genre tags, captured at download time when the read
+  /// that fetched it asked for them (v0.4.5) — see
+  /// `JellyfinMediaApi.trackDownloadFields`. Often empty: most download
+  /// paths do not ask, so this is honest partial coverage, not a
+  /// complete record of every downloaded track's genres.
+  final List<String> genres;
+
   final MediaImage? image;
 
   /// How many bytes are on the device so far. Survives a restart, so a
@@ -134,6 +144,7 @@ class TrackDownload extends Equatable {
     discNumber: discNumber,
     duration: duration,
     normalizationGain: normalizationGain,
+    genres: genres,
     availability: availability ?? _availability,
     image: image,
   );
@@ -167,6 +178,7 @@ class TrackDownload extends Equatable {
     discNumber: discNumber,
     duration: duration,
     normalizationGain: normalizationGain,
+    genres: genres,
     image: image,
     receivedBytes: receivedBytes ?? this.receivedBytes,
     totalBytes: clearTotalBytes ? null : (totalBytes ?? this.totalBytes),
@@ -190,6 +202,7 @@ class TrackDownload extends Equatable {
     discNumber,
     duration,
     normalizationGain,
+    genres,
     image,
     receivedBytes,
     totalBytes,

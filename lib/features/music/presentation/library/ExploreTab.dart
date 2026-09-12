@@ -77,6 +77,7 @@ class _RandomPickSection extends StatefulWidget {
 class _RandomPickSectionState extends State<_RandomPickSection> {
   bool _pickingAlbum = false;
   bool _pickingArtist = false;
+  bool _pickingSong = false;
 
   Future<void> _pickAlbum() async {
     setState(() => _pickingAlbum = true);
@@ -90,20 +91,24 @@ class _RandomPickSectionState extends State<_RandomPickSection> {
     if (mounted) setState(() => _pickingArtist = false);
   }
 
+  Future<void> _pickSong() async {
+    setState(() => _pickingSong = true);
+    await pickRandomTrack(context);
+    if (mounted) setState(() => _pickingSong = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final offline = context.watch<OfflineCubit>().state.isOffline;
-    final busy = _pickingAlbum || _pickingArtist;
+    final busy = _pickingAlbum || _pickingArtist || _pickingSong;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           'Surprise me',
-          style: t.typography.titleMedium.copyWith(
-            color: t.colors.textPrimary,
-          ),
+          style: t.typography.titleMedium.copyWith(color: t.colors.textPrimary),
         ),
         SizedBox(height: t.spacing.xxs),
         Text(
@@ -115,12 +120,23 @@ class _RandomPickSectionState extends State<_RandomPickSection> {
           ),
         ),
         SizedBox(height: t.spacing.sm),
+        // No icons here, unlike most `AppButton`s: three of them side by
+        // side at phone width leaves no room for one — the labels alone
+        // are unambiguous next to the "Surprise me" heading above them.
         Row(
           children: [
             Expanded(
               child: AppButton(
+                label: _pickingSong ? 'Picking…' : 'Song',
+                variant: AppButtonVariant.secondary,
+                expand: true,
+                onPressed: busy ? null : _pickSong,
+              ),
+            ),
+            SizedBox(width: t.spacing.sm),
+            Expanded(
+              child: AppButton(
                 label: _pickingAlbum ? 'Picking…' : 'Album',
-                icon: Icons.album_outlined,
                 variant: AppButtonVariant.secondary,
                 expand: true,
                 onPressed: busy ? null : _pickAlbum,
@@ -130,7 +146,6 @@ class _RandomPickSectionState extends State<_RandomPickSection> {
             Expanded(
               child: AppButton(
                 label: _pickingArtist ? 'Picking…' : 'Artist',
-                icon: Icons.person_outline_rounded,
                 variant: AppButtonVariant.secondary,
                 expand: true,
                 onPressed: busy ? null : _pickArtist,
@@ -233,9 +248,7 @@ class _FacetShelf extends StatelessWidget {
       children: [
         Text(
           title,
-          style: t.typography.titleMedium.copyWith(
-            color: t.colors.textPrimary,
-          ),
+          style: t.typography.titleMedium.copyWith(color: t.colors.textPrimary),
         ),
         SizedBox(height: t.spacing.sm),
         if (isLoading)

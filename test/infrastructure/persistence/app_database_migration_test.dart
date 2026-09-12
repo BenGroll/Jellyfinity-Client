@@ -13,6 +13,7 @@ import '../../support/drift_schemas/schema_v5.dart' as v5;
 import '../../support/drift_schemas/schema_v6.dart' as v6;
 import '../../support/drift_schemas/schema_v7.dart' as v7;
 import '../../support/drift_schemas/schema_v9.dart' as v9;
+import '../../support/drift_schemas/schema_v10.dart' as v10;
 
 /// The forward-only migration policy ADR-0010 committed to: a schema
 /// change never drops the database, and an install on any past version
@@ -67,7 +68,7 @@ void main() {
     final schema = await verifier.schemaAt(2);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // Purely additive at v3: the queue table exists and starts empty, same
     // as the v1 -> v2 cache tables did.
@@ -80,7 +81,7 @@ void main() {
     final schema = await verifier.schemaAt(3);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // An install that upgrades from before downloads existed starts with
     // nothing downloaded rather than losing what it had.
@@ -105,7 +106,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 10);
+      await verifier.migrateAndValidate(db, 11);
 
       final entries = await db.select(db.queueEntries).get();
       expect(entries.single.title, 'So What');
@@ -122,7 +123,7 @@ void main() {
     final schema = await verifier.schemaAt(4);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // Additive at v5 (v0.2.1): the snapshot table exists and starts
     // empty; an upgrading install keeps every track and album download
@@ -151,7 +152,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 10);
+      await verifier.migrateAndValidate(db, 11);
 
       final downloads = await db.select(db.trackDownloads).get();
       expect(downloads.single.title, 'So What');
@@ -165,7 +166,7 @@ void main() {
     final schema = await verifier.schemaAt(5);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // The downloaded-collection identity table is new and starts empty;
     // a collection's name and artwork fill in the next time it is
@@ -199,7 +200,7 @@ void main() {
       await old.close();
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 10);
+      await verifier.migrateAndValidate(db, 11);
 
       // Data is preserved; the new account_key defaults to empty, which
       // `DownloadsCubit.restore` then claims for the first profile to sign
@@ -222,7 +223,7 @@ void main() {
     final schema = await verifier.schemaAt(6);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // Listening history is new and starts empty; it begins accruing from
     // the next qualifying play.
@@ -242,7 +243,7 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     final entries = await db.select(db.queueEntries).get();
     expect(entries.single.title, 'So What');
@@ -256,7 +257,7 @@ void main() {
     final schema = await verifier.schemaAt(7);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // The favorites cache is new and starts empty; it fills in the first
     // time the Favorites screen is opened online (ADR-0028).
@@ -283,7 +284,7 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     expect((await db.select(db.queueEntries).get()).single.title, 'So What');
     expect(
@@ -298,7 +299,7 @@ void main() {
     final schema = await verifier.schemaAt(9);
     final db = AppDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     // Pending favorite intents are new and start empty; nothing was
     // toggled offline before this version existed.
@@ -319,7 +320,7 @@ void main() {
     await old.close();
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 10);
+    await verifier.migrateAndValidate(db, 11);
 
     final favorites = await db.select(db.cachedFavorites).get();
     expect(favorites.single.itemId, 'album-1');
@@ -327,4 +328,40 @@ void main() {
 
     await db.close();
   });
+
+  test('upgrades a v10 database to the v11 download-genres schema', () async {
+    final schema = await verifier.schemaAt(10);
+    final db = AppDatabase(schema.newConnection());
+
+    await verifier.migrateAndValidate(db, 11);
+
+    await db.close();
+  });
+
+  test(
+    'an upgrade from v10 keeps a download and adds no genre it never had',
+    () async {
+      final schema = await verifier.schemaAt(10);
+
+      final old = v10.DatabaseAtV10(schema.newConnection());
+      await old.customStatement(
+        'INSERT INTO track_downloads '
+        '(account_key, server_id, item_id, state, title, requested_at) '
+        "VALUES ('server-1/user-1', 'server-1', 'track-1', 'completed', "
+        "'So What', 0)",
+      );
+      await old.close();
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 11);
+
+      final downloads = await db.select(db.trackDownloads).get();
+      expect(downloads.single.title, 'So What');
+      // Genre was never captured for this row — the v11 column is added
+      // nullable, so it stays null rather than a guessed value.
+      expect(downloads.single.genresJson, isNull);
+
+      await db.close();
+    },
+  );
 }

@@ -4027,6 +4027,17 @@ class $TrackDownloadsTable extends TrackDownloads
         type: DriftSqlType.double,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _genresJsonMeta = const VerificationMeta(
+    'genresJson',
+  );
+  @override
+  late final GeneratedColumn<String> genresJson = GeneratedColumn<String>(
+    'genres_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _imageItemIdMeta = const VerificationMeta(
     'imageItemId',
   );
@@ -4100,6 +4111,7 @@ class $TrackDownloadsTable extends TrackDownloads
     discNumber,
     durationMicros,
     normalizationGain,
+    genresJson,
     imageItemId,
     imageKind,
     imageTag,
@@ -4243,6 +4255,12 @@ class $TrackDownloadsTable extends TrackDownloads
         ),
       );
     }
+    if (data.containsKey('genres_json')) {
+      context.handle(
+        _genresJsonMeta,
+        genresJson.isAcceptableOrUnknown(data['genres_json']!, _genresJsonMeta),
+      );
+    }
     if (data.containsKey('image_item_id')) {
       context.handle(
         _imageItemIdMeta,
@@ -4357,6 +4375,10 @@ class $TrackDownloadsTable extends TrackDownloads
         DriftSqlType.double,
         data['${effectivePrefix}normalization_gain'],
       ),
+      genresJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}genres_json'],
+      ),
       imageItemId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}image_item_id'],
@@ -4428,6 +4450,14 @@ class TrackDownloadRow extends DataClass
   final int? discNumber;
   final int? durationMicros;
   final double? normalizationGain;
+
+  /// This track's genre tags as a JSON array of strings, captured when
+  /// the read that fetched it asked for them (v0.4.5,
+  /// `JellyfinMediaApi.trackDownloadFields`). Null on most rows — most
+  /// download paths do not ask — which is honest partial coverage, not a
+  /// missing feature; `DownloadsLibrarySource.genres` reads whatever this
+  /// column happens to carry.
+  final String? genresJson;
   final String? imageItemId;
   final String? imageKind;
   final String? imageTag;
@@ -4455,6 +4485,7 @@ class TrackDownloadRow extends DataClass
     this.discNumber,
     this.durationMicros,
     this.normalizationGain,
+    this.genresJson,
     this.imageItemId,
     this.imageKind,
     this.imageTag,
@@ -4497,6 +4528,9 @@ class TrackDownloadRow extends DataClass
     }
     if (!nullToAbsent || normalizationGain != null) {
       map['normalization_gain'] = Variable<double>(normalizationGain);
+    }
+    if (!nullToAbsent || genresJson != null) {
+      map['genres_json'] = Variable<String>(genresJson);
     }
     if (!nullToAbsent || imageItemId != null) {
       map['image_item_id'] = Variable<String>(imageItemId);
@@ -4550,6 +4584,9 @@ class TrackDownloadRow extends DataClass
       normalizationGain: normalizationGain == null && nullToAbsent
           ? const Value.absent()
           : Value(normalizationGain),
+      genresJson: genresJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(genresJson),
       imageItemId: imageItemId == null && nullToAbsent
           ? const Value.absent()
           : Value(imageItemId),
@@ -4590,6 +4627,7 @@ class TrackDownloadRow extends DataClass
       normalizationGain: serializer.fromJson<double?>(
         json['normalizationGain'],
       ),
+      genresJson: serializer.fromJson<String?>(json['genresJson']),
       imageItemId: serializer.fromJson<String?>(json['imageItemId']),
       imageKind: serializer.fromJson<String?>(json['imageKind']),
       imageTag: serializer.fromJson<String?>(json['imageTag']),
@@ -4617,6 +4655,7 @@ class TrackDownloadRow extends DataClass
       'discNumber': serializer.toJson<int?>(discNumber),
       'durationMicros': serializer.toJson<int?>(durationMicros),
       'normalizationGain': serializer.toJson<double?>(normalizationGain),
+      'genresJson': serializer.toJson<String?>(genresJson),
       'imageItemId': serializer.toJson<String?>(imageItemId),
       'imageKind': serializer.toJson<String?>(imageKind),
       'imageTag': serializer.toJson<String?>(imageTag),
@@ -4642,6 +4681,7 @@ class TrackDownloadRow extends DataClass
     Value<int?> discNumber = const Value.absent(),
     Value<int?> durationMicros = const Value.absent(),
     Value<double?> normalizationGain = const Value.absent(),
+    Value<String?> genresJson = const Value.absent(),
     Value<String?> imageItemId = const Value.absent(),
     Value<String?> imageKind = const Value.absent(),
     Value<String?> imageTag = const Value.absent(),
@@ -4670,6 +4710,7 @@ class TrackDownloadRow extends DataClass
     normalizationGain: normalizationGain.present
         ? normalizationGain.value
         : this.normalizationGain,
+    genresJson: genresJson.present ? genresJson.value : this.genresJson,
     imageItemId: imageItemId.present ? imageItemId.value : this.imageItemId,
     imageKind: imageKind.present ? imageKind.value : this.imageKind,
     imageTag: imageTag.present ? imageTag.value : this.imageTag,
@@ -4718,6 +4759,9 @@ class TrackDownloadRow extends DataClass
       normalizationGain: data.normalizationGain.present
           ? data.normalizationGain.value
           : this.normalizationGain,
+      genresJson: data.genresJson.present
+          ? data.genresJson.value
+          : this.genresJson,
       imageItemId: data.imageItemId.present
           ? data.imageItemId.value
           : this.imageItemId,
@@ -4751,6 +4795,7 @@ class TrackDownloadRow extends DataClass
           ..write('discNumber: $discNumber, ')
           ..write('durationMicros: $durationMicros, ')
           ..write('normalizationGain: $normalizationGain, ')
+          ..write('genresJson: $genresJson, ')
           ..write('imageItemId: $imageItemId, ')
           ..write('imageKind: $imageKind, ')
           ..write('imageTag: $imageTag, ')
@@ -4778,6 +4823,7 @@ class TrackDownloadRow extends DataClass
     discNumber,
     durationMicros,
     normalizationGain,
+    genresJson,
     imageItemId,
     imageKind,
     imageTag,
@@ -4804,6 +4850,7 @@ class TrackDownloadRow extends DataClass
           other.discNumber == this.discNumber &&
           other.durationMicros == this.durationMicros &&
           other.normalizationGain == this.normalizationGain &&
+          other.genresJson == this.genresJson &&
           other.imageItemId == this.imageItemId &&
           other.imageKind == this.imageKind &&
           other.imageTag == this.imageTag &&
@@ -4828,6 +4875,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
   final Value<int?> discNumber;
   final Value<int?> durationMicros;
   final Value<double?> normalizationGain;
+  final Value<String?> genresJson;
   final Value<String?> imageItemId;
   final Value<String?> imageKind;
   final Value<String?> imageTag;
@@ -4851,6 +4899,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     this.discNumber = const Value.absent(),
     this.durationMicros = const Value.absent(),
     this.normalizationGain = const Value.absent(),
+    this.genresJson = const Value.absent(),
     this.imageItemId = const Value.absent(),
     this.imageKind = const Value.absent(),
     this.imageTag = const Value.absent(),
@@ -4875,6 +4924,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     this.discNumber = const Value.absent(),
     this.durationMicros = const Value.absent(),
     this.normalizationGain = const Value.absent(),
+    this.genresJson = const Value.absent(),
     this.imageItemId = const Value.absent(),
     this.imageKind = const Value.absent(),
     this.imageTag = const Value.absent(),
@@ -4903,6 +4953,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     Expression<int>? discNumber,
     Expression<int>? durationMicros,
     Expression<double>? normalizationGain,
+    Expression<String>? genresJson,
     Expression<String>? imageItemId,
     Expression<String>? imageKind,
     Expression<String>? imageTag,
@@ -4927,6 +4978,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
       if (discNumber != null) 'disc_number': discNumber,
       if (durationMicros != null) 'duration_micros': durationMicros,
       if (normalizationGain != null) 'normalization_gain': normalizationGain,
+      if (genresJson != null) 'genres_json': genresJson,
       if (imageItemId != null) 'image_item_id': imageItemId,
       if (imageKind != null) 'image_kind': imageKind,
       if (imageTag != null) 'image_tag': imageTag,
@@ -4953,6 +5005,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     Value<int?>? discNumber,
     Value<int?>? durationMicros,
     Value<double?>? normalizationGain,
+    Value<String?>? genresJson,
     Value<String?>? imageItemId,
     Value<String?>? imageKind,
     Value<String?>? imageTag,
@@ -4977,6 +5030,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
       discNumber: discNumber ?? this.discNumber,
       durationMicros: durationMicros ?? this.durationMicros,
       normalizationGain: normalizationGain ?? this.normalizationGain,
+      genresJson: genresJson ?? this.genresJson,
       imageItemId: imageItemId ?? this.imageItemId,
       imageKind: imageKind ?? this.imageKind,
       imageTag: imageTag ?? this.imageTag,
@@ -5037,6 +5091,9 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
     if (normalizationGain.present) {
       map['normalization_gain'] = Variable<double>(normalizationGain.value);
     }
+    if (genresJson.present) {
+      map['genres_json'] = Variable<String>(genresJson.value);
+    }
     if (imageItemId.present) {
       map['image_item_id'] = Variable<String>(imageItemId.value);
     }
@@ -5077,6 +5134,7 @@ class TrackDownloadsCompanion extends UpdateCompanion<TrackDownloadRow> {
           ..write('discNumber: $discNumber, ')
           ..write('durationMicros: $durationMicros, ')
           ..write('normalizationGain: $normalizationGain, ')
+          ..write('genresJson: $genresJson, ')
           ..write('imageItemId: $imageItemId, ')
           ..write('imageKind: $imageKind, ')
           ..write('imageTag: $imageTag, ')
@@ -10179,6 +10237,7 @@ typedef $$TrackDownloadsTableCreateCompanionBuilder =
       Value<int?> discNumber,
       Value<int?> durationMicros,
       Value<double?> normalizationGain,
+      Value<String?> genresJson,
       Value<String?> imageItemId,
       Value<String?> imageKind,
       Value<String?> imageTag,
@@ -10204,6 +10263,7 @@ typedef $$TrackDownloadsTableUpdateCompanionBuilder =
       Value<int?> discNumber,
       Value<int?> durationMicros,
       Value<double?> normalizationGain,
+      Value<String?> genresJson,
       Value<String?> imageItemId,
       Value<String?> imageKind,
       Value<String?> imageTag,
@@ -10298,6 +10358,11 @@ class $$TrackDownloadsTableFilterComposer
 
   ColumnFilters<double> get normalizationGain => $composableBuilder(
     column: $table.normalizationGain,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get genresJson => $composableBuilder(
+    column: $table.genresJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10416,6 +10481,11 @@ class $$TrackDownloadsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get genresJson => $composableBuilder(
+    column: $table.genresJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get imageItemId => $composableBuilder(
     column: $table.imageItemId,
     builder: (column) => ColumnOrderings(column),
@@ -10521,6 +10591,11 @@ class $$TrackDownloadsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get genresJson => $composableBuilder(
+    column: $table.genresJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get imageItemId => $composableBuilder(
     column: $table.imageItemId,
     builder: (column) => column,
@@ -10596,6 +10671,7 @@ class $$TrackDownloadsTableTableManager
                 Value<int?> discNumber = const Value.absent(),
                 Value<int?> durationMicros = const Value.absent(),
                 Value<double?> normalizationGain = const Value.absent(),
+                Value<String?> genresJson = const Value.absent(),
                 Value<String?> imageItemId = const Value.absent(),
                 Value<String?> imageKind = const Value.absent(),
                 Value<String?> imageTag = const Value.absent(),
@@ -10619,6 +10695,7 @@ class $$TrackDownloadsTableTableManager
                 discNumber: discNumber,
                 durationMicros: durationMicros,
                 normalizationGain: normalizationGain,
+                genresJson: genresJson,
                 imageItemId: imageItemId,
                 imageKind: imageKind,
                 imageTag: imageTag,
@@ -10644,6 +10721,7 @@ class $$TrackDownloadsTableTableManager
                 Value<int?> discNumber = const Value.absent(),
                 Value<int?> durationMicros = const Value.absent(),
                 Value<double?> normalizationGain = const Value.absent(),
+                Value<String?> genresJson = const Value.absent(),
                 Value<String?> imageItemId = const Value.absent(),
                 Value<String?> imageKind = const Value.absent(),
                 Value<String?> imageTag = const Value.absent(),
@@ -10667,6 +10745,7 @@ class $$TrackDownloadsTableTableManager
                 discNumber: discNumber,
                 durationMicros: durationMicros,
                 normalizationGain: normalizationGain,
+                genresJson: genresJson,
                 imageItemId: imageItemId,
                 imageKind: imageKind,
                 imageTag: imageTag,

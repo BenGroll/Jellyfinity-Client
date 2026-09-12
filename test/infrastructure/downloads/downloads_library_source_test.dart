@@ -242,5 +242,87 @@ void main() {
 
       expect(result.failureOrNull, isA<RecoverableFailure>());
     });
+
+    test('picks one of the downloaded songs (v0.4.5)', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.completed,
+      );
+
+      final result = await source.randomTrack();
+
+      expect(result.valueOrNull!.name, 'So What');
+    });
+
+    test('samples a bounded pool of downloaded songs (v0.4.5)', () async {
+      for (var i = 0; i < 5; i++) {
+        store.records[mediaId('t$i')] = downloadRecord(
+          mediaId('t$i'),
+          title: 'Track $i',
+          state: DownloadState.completed,
+        );
+      }
+
+      final result = await source.randomTracks(limit: 3);
+
+      expect(result.valueOrNull, hasLength(3));
+      expect(
+        result.valueOrNull!.map((t) => t.name).toSet(),
+        everyElement(startsWith('Track ')),
+      );
+    });
+
+    test('an empty catalog samples to an empty pool, not a failure', () async {
+      final result = await source.randomTracks();
+
+      expect(result.valueOrNull, isEmpty);
+    });
+  });
+
+  group('offline genre browsing (v0.4.5)', () {
+    test('lists the genres captured on completed downloads', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.completed,
+        genres: ['Jazz', 'Modal'],
+      );
+      store.records[mediaId('t2')] = downloadRecord(
+        mediaId('t2'),
+        title: 'Freddie Freeloader',
+        state: DownloadState.completed,
+        genres: ['Jazz'],
+      );
+
+      final result = await source.genres();
+
+      expect(result.valueOrNull, ['Jazz', 'Modal']);
+    });
+
+    test('a download with no captured genre contributes nothing', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.completed,
+      );
+
+      final result = await source.genres();
+
+      expect(result.valueOrNull, isEmpty);
+    });
+
+    test('an incomplete download never contributes a genre', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.downloading,
+        genres: ['Jazz'],
+      );
+
+      final result = await source.genres();
+
+      expect(result.valueOrNull, isEmpty);
+    });
   });
 }

@@ -46,6 +46,7 @@ class BaseItemDto {
     this.userData,
     this.mediaSources,
     this.normalizationGain,
+    this.genres,
   });
 
   factory BaseItemDto.fromJson(Map<String, dynamic> json) =>
@@ -129,6 +130,11 @@ class BaseItemDto {
   /// server on every item response, unlike [mediaSources]; no extra
   /// `fields` entry is needed for it.
   final double? normalizationGain;
+
+  /// The item's genre tags, when requested via `Genres` in `fields`
+  /// (v0.4.5) — not part of a list's default fields; see
+  /// `JellyfinMediaApi.trackDownloadFields`.
+  final List<String>? genres;
 }
 
 /// One file behind an item — Jellyfin supports multiple versions per

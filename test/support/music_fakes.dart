@@ -49,6 +49,7 @@ Track testTrack(
   int? trackNumber,
   bool isFavorite = false,
   MediaAvailability availability = MediaAvailability.remoteOnly,
+  List<String> genres = const [],
 }) => Track(
   id: mediaId(id),
   name: name ?? 'Song $id',
@@ -59,6 +60,7 @@ Track testTrack(
   duration: const Duration(minutes: 3, seconds: 42),
   isFavorite: isFavorite,
   availability: availability,
+  genres: genres,
 );
 
 Playlist testPlaylist(String id, {String? name}) =>
@@ -169,6 +171,7 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   }) async {
     calls.add((method: 'artists', page: page, searchTerm: searchTerm));
     await _pause();
@@ -248,6 +251,8 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) async {
     calls.add((method: 'tracks', page: page, searchTerm: searchTerm));
     await _pause();
@@ -385,6 +390,35 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
       return const Result.err(UnavailableFailure('No artist to suggest.'));
     }
     return Result.ok(pick);
+  }
+
+  /// What [randomTrack] answers with (v0.4.5); `null` (the default) fails
+  /// with [UnavailableFailure], on the same terms as [randomAlbumPick].
+  Track? randomTrackPick;
+
+  @override
+  Future<Result<Track>> randomTrack() async {
+    await _pause();
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    final pick = randomTrackPick;
+    if (pick == null) {
+      return const Result.err(UnavailableFailure('No song to suggest.'));
+    }
+    return Result.ok(pick);
+  }
+
+  /// What [randomTracks] answers with (v0.4.5) — its own list so a test
+  /// can give a "for you" mix a random-fallback pool distinct from
+  /// [trackList].
+  List<Track> randomTracksPool = [];
+
+  @override
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) async {
+    await _pause();
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    return Result.ok(randomTracksPool.take(limit).toList());
   }
 
   /// Lets a widget test see the loading frame before the answer lands.
@@ -734,6 +768,28 @@ class FakeDownloadsLibrarySource implements DownloadsLibrarySource {
       return const Result.err(RecoverableFailure('Not on this device.'));
     }
     return Result.ok(albumList.first);
+  }
+
+  @override
+  Future<Result<Track>> randomTrack() async {
+    if (trackList.isEmpty) {
+      return const Result.err(RecoverableFailure('Not on this device.'));
+    }
+    return Result.ok(trackList.first);
+  }
+
+  @override
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) async =>
+      Result.ok(trackList.take(limit).toList());
+
+  @override
+  Future<Result<List<String>>> genres() async {
+    final names = <String>{};
+    for (final track in trackList) {
+      names.addAll(track.genres);
+    }
+    final sorted = names.toList()..sort();
+    return Result.ok(sorted);
   }
 }
 

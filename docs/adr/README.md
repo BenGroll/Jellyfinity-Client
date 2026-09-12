@@ -39,6 +39,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0032](ADR-0032-playlist-mastery.md) | Playlist mastery |
 | [0033](ADR-0033-offline-favorites.md) | Offline favorites |
 | [0034](ADR-0034-library-exploration.md) | Library exploration |
+| [0035](ADR-0035-random-discovery-and-personal-mix.md) | Random discovery and a personal mix |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

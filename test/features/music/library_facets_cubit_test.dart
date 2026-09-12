@@ -57,17 +57,20 @@ void main() {
       },
     );
 
-    test('working offline, both shelves report their failure honestly', () async {
-      final music = FakeMusicLibraryRepository()
-        ..facetFailure = const RecoverableFailure('You are offline.');
-      final cubit = LibraryFacetsCubit(music, FakeOfflineMode());
-      addTearDown(cubit.close);
+    test(
+      'working offline, both shelves report their failure honestly',
+      () async {
+        final music = FakeMusicLibraryRepository()
+          ..facetFailure = const RecoverableFailure('You are offline.');
+        final cubit = LibraryFacetsCubit(music, FakeOfflineMode());
+        addTearDown(cubit.close);
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state.genresFailure, isA<RecoverableFailure>());
-      expect(cubit.state.decadesFailure, isA<RecoverableFailure>());
-    });
+        expect(cubit.state.genresFailure, isA<RecoverableFailure>());
+        expect(cubit.state.decadesFailure, isA<RecoverableFailure>());
+      },
+    );
 
     test('coming back online re-reads shelves that failed offline', () async {
       final music = FakeMusicLibraryRepository()

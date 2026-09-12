@@ -443,64 +443,99 @@ void main() {
       expect(cache.savedPages, isEmpty);
     });
 
-    test('working offline, genres and decades fail without a request', () async {
+    test('working offline, decades fail without a request', () async {
       final adapter = _offline();
       final (:repository, cache: _) = _repository(
         adapter,
         offline: FakeOfflineMode(manual: true),
       );
 
-      final genres = await repository.genres();
       final decades = await repository.decades();
 
-      expect(genres.failureOrNull, isA<RecoverableFailure>());
       expect(decades.failureOrNull, isA<RecoverableFailure>());
       expect(adapter.callCount, isZero);
     });
 
-    test('a genre browse is never saved to, or served from, the cache', () async {
-      final cache = RecordingMediaCacheStore();
-      await _repository(
-        _answering([_albumRow]),
-        cache: cache,
-      ).repository.albums(genre: 'Jazz');
-      expect(cache.savedPages, isEmpty);
+    test(
+      'working offline, genres come from the profile\'s downloads instead (v0.4.5)',
+      () async {
+        final adapter = _offline();
+        final store = InMemoryDownloadStore();
+        store.records[const MediaId(
+          serverId: 'server-1',
+          itemId: 't1',
+        )] = TrackDownload(
+          id: const MediaId(serverId: 'server-1', itemId: 't1'),
+          title: 'So What',
+          state: DownloadState.completed,
+          owners: {
+            const DownloadOwner.track(
+              MediaId(serverId: 'server-1', itemId: 't1'),
+            ),
+          },
+          requestedAt: DateTime.utc(2026),
+          genres: const ['Jazz'],
+        );
+        final repository = _repository(
+          adapter,
+          offline: FakeOfflineMode(manual: true),
+          downloads: DownloadsLibrarySource(store),
+        ).repository;
 
-      // Prime the cache with the whole-library read, then confirm a
-      // genre browse still fails offline instead of quietly serving the
-      // whole-library window under a filter it never asked for.
-      await _repository(
-        _answering([_albumRow]),
-        cache: cache,
-      ).repository.albums();
-      final result = await _repository(
-        _offline(),
-        cache: cache,
-      ).repository.albums(genre: 'Jazz');
+        final result = await repository.genres();
 
-      expect(result.isErr, isTrue);
-    });
+        expect(result.valueOrNull, ['Jazz']);
+        expect(adapter.callCount, isZero);
+      },
+    );
 
-    test('a decade browse is never saved to, or served from, the cache', () async {
-      final cache = RecordingMediaCacheStore();
-      await _repository(
-        _answering([_albumRow]),
-        cache: cache,
-      ).repository.albums(decadeStart: 1950);
-      expect(cache.savedPages, isEmpty);
+    test(
+      'a genre browse is never saved to, or served from, the cache',
+      () async {
+        final cache = RecordingMediaCacheStore();
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums(genre: 'Jazz');
+        expect(cache.savedPages, isEmpty);
 
-      final result = await _repository(
-        _offline(),
-        cache: cache,
-      ).repository.albums(decadeStart: 1950);
+        // Prime the cache with the whole-library read, then confirm a
+        // genre browse still fails offline instead of quietly serving the
+        // whole-library window under a filter it never asked for.
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums();
+        final result = await _repository(
+          _offline(),
+          cache: cache,
+        ).repository.albums(genre: 'Jazz');
 
-      expect(result.isErr, isTrue);
-    });
+        expect(result.isErr, isTrue);
+      },
+    );
+
+    test(
+      'a decade browse is never saved to, or served from, the cache',
+      () async {
+        final cache = RecordingMediaCacheStore();
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums(decadeStart: 1950);
+        expect(cache.savedPages, isEmpty);
+
+        final result = await _repository(
+          _offline(),
+          cache: cache,
+        ).repository.albums(decadeStart: 1950);
+
+        expect(result.isErr, isTrue);
+      },
+    );
 
     test('online, a random pick asks the server', () async {
-      final (:repository, cache: _) = _repository(
-        _answering([_albumRow]),
-      );
+      final (:repository, cache: _) = _repository(_answering([_albumRow]));
 
       final result = await repository.randomAlbum();
 

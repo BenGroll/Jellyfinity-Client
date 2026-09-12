@@ -326,6 +326,14 @@ class TrackDownloads extends Table {
   IntColumn get durationMicros => integer().nullable()();
   RealColumn get normalizationGain => real().nullable()();
 
+  /// This track's genre tags as a JSON array of strings, captured when
+  /// the read that fetched it asked for them (v0.4.5,
+  /// `JellyfinMediaApi.trackDownloadFields`). Null on most rows — most
+  /// download paths do not ask — which is honest partial coverage, not a
+  /// missing feature; `DownloadsLibrarySource.genres` reads whatever this
+  /// column happens to carry.
+  TextColumn get genresJson => text().nullable()();
+
   TextColumn get imageItemId => text().nullable()();
   TextColumn get imageKind => text().nullable()();
   TextColumn get imageTag => text().nullable()();

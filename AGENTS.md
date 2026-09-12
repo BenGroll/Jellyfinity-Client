@@ -28,6 +28,16 @@ v0.5md` for v0.4.0–v0.5.0.
   draws from the server online and from downloads while offline
   (`MusicLibraryRepository.randomAlbum`/`randomArtist`,
   `DownloadsLibrarySource`). No schema change.
+- v0.4.5 (Random discovery and a personal mix, ADR-0035; ADR-only, no
+  written spec) is implemented: genre browsing extended to artists,
+  genre/decade browsing extended to songs, a "Random song" pick, genre
+  browsing degrading to the profile's downloaded-track genres while
+  offline instead of failing (schema **v11**, `track_downloads
+  .genres_json`), and a "Play something you'll like" mix on Home built
+  from favorites with an honest random fallback
+  (`for_you_mix_actions.dart`). Its Home-mix entry point pulls forward
+  part of v0.5.0's scope early; v0.5.0 itself (discovery seeded by
+  listening *history*) remains unstarted.
 - v0.5.0 is planned: Personal music discovery. `ROADMAP.md` is the
   authority for exact version-to-heading mapping; the linked
   `Roadmap to v0.5md` headings intentionally use the prior number.
