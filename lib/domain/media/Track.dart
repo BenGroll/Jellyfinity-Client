@@ -20,6 +20,7 @@ class Track extends MediaItem {
     this.discNumber,
     this.duration,
     this.normalizationGain,
+    this.genres = const [],
     this.isFavorite = false,
     super.availability = MediaAvailability.remoteOnly,
     super.image,
@@ -43,6 +44,12 @@ class Track extends MediaItem {
   /// file's loudness nor found an embedded ReplayGain tag.
   final double? normalizationGain;
 
+  /// This track's genre tags, when the read that produced it asked for
+  /// them (v0.4.5) — see `JellyfinMediaApi.trackDownloadFields`. Empty,
+  /// not necessarily "no genre": most reads do not ask, to keep a
+  /// 130k-track library browse cheap.
+  final List<String> genres;
+
   /// Whether the signed-in user has favorited this track. See
   /// `Artist.isFavorite` for why it is not part of the offline cache.
   final bool isFavorite;
@@ -61,6 +68,7 @@ class Track extends MediaItem {
     discNumber,
     duration,
     normalizationGain,
+    genres,
     isFavorite,
     availability,
     image,

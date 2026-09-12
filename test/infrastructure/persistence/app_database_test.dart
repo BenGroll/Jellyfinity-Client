@@ -14,7 +14,7 @@ void main() {
     tearDown(() => db.close());
 
     test('is at schema version 10', () {
-      expect(db.schemaVersion, 10);
+      expect(db.schemaVersion, 11);
     });
 
     test('creates every declared table', () async {
@@ -92,6 +92,6 @@ void main() {
       second.keyValueEntries,
     )..where((t) => t.key.equals('k'))).getSingle();
     expect(row.value, 'v');
-    expect(second.schemaVersion, 10);
+    expect(second.schemaVersion, 11);
   });
 }

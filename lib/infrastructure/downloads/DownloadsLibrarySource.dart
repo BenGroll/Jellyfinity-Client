@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:injectable/injectable.dart';
 
 import '../../core/result/failure.dart';
@@ -39,6 +41,8 @@ class DownloadsLibrarySource {
   DownloadsLibrarySource(this._store);
 
   final DownloadStore _store;
+
+  final Random _random = Random();
 
   /// Every artist the profile can play offline (v0.2.3): the ones
   /// downloaded whole (an explicit `downloaded_collections` row), plus any
@@ -98,6 +102,98 @@ class DownloadsLibrarySource {
       }
     },
   );
+
+  /// One of the profile's downloaded artists, chosen at random (v0.4.4) —
+  /// the scope "random pick" falls back to while offline, since there is
+  /// no honest way to ask the unreachable server for one. A
+  /// [RecoverableFailure] when nothing is downloaded yet, the same answer
+  /// [artist] gives for "not on this device": working offline with an
+  /// empty downloads catalog has nothing to suggest, which is a normal
+  /// outcome, not a broken screen.
+  Future<Result<Artist>> randomArtist() => _randomPick(artists);
+
+  /// One of the profile's downloaded albums, chosen at random (v0.4.4),
+  /// on the same terms as [randomArtist].
+  Future<Result<Album>> randomAlbum() => _randomPick(albums);
+
+  /// One of the profile's downloaded tracks, chosen at random (v0.4.5),
+  /// on the same terms as [randomArtist].
+  Future<Result<Track>> randomTrack() => _randomPick(tracks);
+
+  /// How many of the profile's downloaded tracks [randomTracks] will read
+  /// into memory to sample from. Downloads are bounded by what the user
+  /// chose to keep, not by the library's scale (`_derived`'s doc
+  /// comment) — this is a defensive ceiling, not a realistic limit.
+  static const int _randomPoolCap = 2000;
+
+  /// A bounded, shuffled sample of the profile's downloaded tracks
+  /// (v0.4.5) — the pool a "for you" mix tops itself up with once its
+  /// favorites-derived candidates run out. Reads the whole downloaded
+  /// track catalog once rather than one windowed query per sampled
+  /// track — in memory is fine here for the same reason [_derived]'s is.
+  /// An empty pool is `Ok([])`, the same as any other "nothing to offer"
+  /// list read here — a profile with nothing downloaded has an empty mix
+  /// to top up, not a broken one.
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) async {
+    final countResult = await tracks(page: const PageRequest(limit: 1));
+    if (countResult case Err<Page<Track>>(:final failure)) {
+      return Result.err(failure);
+    }
+    final total = (countResult as Ok<Page<Track>>).value.totalCount;
+    if (total == 0) return const Result.ok([]);
+
+    final poolResult = await tracks(
+      page: PageRequest(limit: total > _randomPoolCap ? _randomPoolCap : total),
+    );
+    if (poolResult case Err<Page<Track>>(:final failure)) {
+      return Result.err(failure);
+    }
+    final pool = [...(poolResult as Ok<Page<Track>>).value.items]
+      ..shuffle(_random);
+    return Result.ok(pool.take(limit).toList(growable: false));
+  }
+
+  /// The genres captured on the profile's completed downloads (v0.4.5) —
+  /// what `CachedMusicLibraryRepository.genres` degrades to while
+  /// offline instead of failing outright. Honest partial coverage: only
+  /// a track downloaded through a path that asked for `Genres`
+  /// (`JellyfinMediaApi.trackDownloadFields`) contributes anything here,
+  /// so this can under-represent what is actually on the device — never
+  /// invent a genre a track was never tagged with.
+  Future<Result<List<String>>> genres() async {
+    final completed = await _completedRecords();
+    if (completed case Err<List<TrackDownload>>(:final failure)) {
+      return Result.err(failure);
+    }
+    final names = <String>{};
+    for (final record in (completed as Ok<List<TrackDownload>>).value) {
+      names.addAll(record.genres);
+    }
+    final sorted = names.toList()..sort();
+    return Result.ok(sorted);
+  }
+
+  /// Picks a uniformly random row out of [read]'s whole result rather
+  /// than materializing it: one window to learn the count, then one more
+  /// windowed at the chosen index — never "load everything and pick one
+  /// in Dart", the same discipline the server-backed repository follows
+  /// for a library orders of magnitude larger than any profile's
+  /// downloads.
+  Future<Result<T>> _randomPick<T extends MediaItem>(
+    Future<Result<Page<T>>> Function({PageRequest page, String? searchTerm})
+    read,
+  ) async {
+    final first = await read(page: const PageRequest(startIndex: 0, limit: 1));
+    if (first case Err<Page<T>>(:final failure)) return Result.err(failure);
+    final total = (first as Ok<Page<T>>).value.totalCount;
+    if (total == 0) return _notDownloaded<T>();
+
+    final index = _random.nextInt(total);
+    final picked = await read(page: PageRequest(startIndex: index, limit: 1));
+    if (picked case Err<Page<T>>(:final failure)) return Result.err(failure);
+    final items = (picked as Ok<Page<T>>).value.items;
+    return items.isEmpty ? _notDownloaded<T>() : Result.ok(items.first);
+  }
 
   /// Downloaded playlists. Unlike artists and albums a playlist is never
   /// implied by a loose track — it exists only as an explicit download —

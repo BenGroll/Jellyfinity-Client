@@ -4,6 +4,7 @@ import 'package:jellyfinity/app/connectivity/OfflineCubit.dart';
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart';
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/features/music/presentation/library/library_facets_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/downloaded_marker.dart';
@@ -36,6 +37,7 @@ Future<void> _pumpLibrary(
         downloads,
         offlineMode,
       ),
+      facets: LibraryFacetsCubit(music, offlineMode),
     ),
     offline: OfflineCubit(offlineMode),
     settings: fakeSettingsCubit(offlineLibraryScope: scope),

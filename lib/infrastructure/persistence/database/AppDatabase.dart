@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -115,11 +115,23 @@ class AppDatabase extends _$AppDatabase {
       // forward. `downloaded_collections` is new and starts empty; a
       // collection's name and artwork fill in the next time it is
       // downloaded or opened online.
+      //
+      // `newColumns` also names v11's `genres_json`, for the same reason
+      // v7's `queue_entries` migration below names v9's columns:
+      // `alterTable` rebuilds from the table's *current* Dart definition,
+      // so any column added after this step in any later version has to
+      // be declared here too, or this upgrade tries to copy a column the
+      // pre-v6 source table never had. The v11 step further down skips an
+      // install coming through here.
       if (from < 6) {
         await m.alterTable(
           TableMigration(
             trackDownloads,
-            newColumns: [trackDownloads.accountKey, trackDownloads.serverGone],
+            newColumns: [
+              trackDownloads.accountKey,
+              trackDownloads.serverGone,
+              trackDownloads.genresJson,
+            ],
           ),
         );
         await m.alterTable(
@@ -211,6 +223,25 @@ class AppDatabase extends _$AppDatabase {
       if (from < 10) {
         await m.createTable(pendingFavoriteIntents);
         await m.createIndex(_pendingFavoriteIntentsAccountIndex);
+      }
+      // v11 (v0.4.5): a downloaded track's genre, captured where it is
+      // cheap to (an album or artist download's own track read) so
+      // genre browsing can degrade to "what's on this device" instead of
+      // failing outright while offline. Nullable and additive: every
+      // pre-v11 row keeps its data with no genre captured, same as a row
+      // downloaded today through a path that does not ask for it.
+      //
+      // Only for an install already at v6 through v9: anything older got
+      // `genres_json` from the v6 step above, which builds the table from
+      // its current definition. (v10 added a different table, not this
+      // one, so v6..v9 and v10 are equivalent starting points here.)
+      if (from >= 6 && from < 11) {
+        await m.alterTable(
+          TableMigration(
+            trackDownloads,
+            newColumns: [trackDownloads.genresJson],
+          ),
+        );
       }
     },
     beforeOpen: (details) async {

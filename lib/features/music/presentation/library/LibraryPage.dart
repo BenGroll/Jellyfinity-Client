@@ -18,6 +18,8 @@ import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/playlist_actions.dart';
 import '../widgets/paged_collection_view.dart';
+import 'ExploreTab.dart';
+import 'library_facets_cubit.dart';
 import 'music_collection_cubits.dart';
 import 'paged_collection_cubit.dart';
 
@@ -38,6 +40,7 @@ class LibraryPage extends StatelessWidget {
     this.albums,
     this.songs,
     this.playlists,
+    this.facets,
   });
 
   // Injectable seams for widget tests; the graph supplies these in the
@@ -46,6 +49,7 @@ class LibraryPage extends StatelessWidget {
   final AlbumsCubit? albums;
   final SongsCubit? songs;
   final PlaylistsCubit? playlists;
+  final LibraryFacetsCubit? facets;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +64,9 @@ class LibraryPage extends StatelessWidget {
         BlocProvider<SongsCubit>(create: (_) => songs ?? getIt<SongsCubit>()),
         BlocProvider<PlaylistsCubit>(
           create: (_) => playlists ?? getIt<PlaylistsCubit>(),
+        ),
+        BlocProvider<LibraryFacetsCubit>(
+          create: (_) => facets ?? getIt<LibraryFacetsCubit>(),
         ),
       ],
       child: const _LibraryView(),
@@ -109,7 +116,7 @@ class _LibraryViewState extends State<_LibraryView> {
     });
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Column(
         children: [
           TabBar(
@@ -125,11 +132,18 @@ class _LibraryViewState extends State<_LibraryView> {
               Tab(text: 'Albums'),
               Tab(text: 'Songs'),
               Tab(text: 'Playlists'),
+              Tab(text: 'Explore'),
             ],
           ),
           const Expanded(
             child: TabBarView(
-              children: [ArtistsTab(), AlbumsTab(), SongsTab(), PlaylistsTab()],
+              children: [
+                ArtistsTab(),
+                AlbumsTab(),
+                SongsTab(),
+                PlaylistsTab(),
+                ExploreTab(),
+              ],
             ),
           ),
         ],

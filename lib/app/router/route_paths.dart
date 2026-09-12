@@ -46,6 +46,14 @@ abstract final class RoutePaths {
   static const libraryAlbum = 'album/:id';
   static const libraryPlaylist = 'playlist/:id';
 
+  /// Every album in one genre, from the Explore tab's genre shelf
+  /// (v0.4.4): `/library/genre/Jazz`.
+  static const libraryGenre = 'genre/:name';
+
+  /// Every album from one decade, from the Explore tab's decade shelf
+  /// (v0.4.4): `/library/decade/1990`.
+  static const libraryDecade = 'decade/:decade';
+
   /// Saved servers & profiles: switch active profile, sign out, remove.
   static const accounts = '/accounts';
 
@@ -85,6 +93,8 @@ abstract final class RouteNames {
   static const libraryArtist = 'libraryArtist';
   static const libraryAlbum = 'libraryAlbum';
   static const libraryPlaylist = 'libraryPlaylist';
+  static const libraryGenre = 'libraryGenre';
+  static const libraryDecade = 'libraryDecade';
   static const accounts = 'accounts';
   static const settings = 'settings';
   static const downloads = 'downloads';

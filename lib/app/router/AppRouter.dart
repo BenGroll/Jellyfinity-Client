@@ -11,6 +11,7 @@ import '../../features/home/presentation/HomePage.dart';
 import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
 import '../../features/music/presentation/detail/PlaylistDetailPage.dart';
+import '../../features/music/presentation/library/LibraryFacetPage.dart';
 import '../../features/music/presentation/library/LibraryPage.dart';
 import '../../features/music/presentation/search/music_search_cubit.dart';
 import '../../features/music/presentation/search/SearchCategoryPage.dart';
@@ -236,6 +237,28 @@ class AppRouter {
       name: RouteNames.libraryPlaylist,
       builder: (context, state) =>
           _withMediaId(state, (id) => PlaylistDetailPage(playlistId: id)),
+    ),
+    GoRoute(
+      path: RoutePaths.libraryGenre,
+      name: RouteNames.libraryGenre,
+      builder: (context, state) {
+        final name = state.pathParameters['name'];
+        if (name == null || name.isEmpty) {
+          return NotFoundPage(location: state.uri.toString());
+        }
+        return LibraryFacetPage(genre: name);
+      },
+    ),
+    GoRoute(
+      path: RoutePaths.libraryDecade,
+      name: RouteNames.libraryDecade,
+      builder: (context, state) {
+        final decadeStart = int.tryParse(state.pathParameters['decade'] ?? '');
+        if (decadeStart == null) {
+          return NotFoundPage(location: state.uri.toString());
+        }
+        return LibraryFacetPage(decadeStart: decadeStart);
+      },
     ),
   ];
 

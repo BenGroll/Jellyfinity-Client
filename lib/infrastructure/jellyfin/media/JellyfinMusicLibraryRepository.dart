@@ -30,10 +30,17 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
 
   final JellyfinMediaApi _api;
 
+  /// How many rows [genres] and [decades] ask for (v0.4.4). Both are
+  /// facet lists, not browsable collections — bounded well past any real
+  /// library's distinct genre or decade count, so this is "ask for
+  /// everything" without ever meaning "load the library".
+  static const int _facetLimit = 100;
+
   @override
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -44,6 +51,7 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     final response = await _api.queryItems(
       path: JellyfinMediaApi.albumArtistsPath,
       searchTerm: searchTerm,
+      genres: genre == null ? const [] : [genre],
       sortBy: const ['SortName'],
       page: page,
       recursive: false,
@@ -64,6 +72,8 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -82,6 +92,8 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
       includeItemTypes: const [BaseItemMapper.albumType],
       albumArtistId: albumArtistId,
       searchTerm: searchTerm,
+      genres: genre == null ? const [] : [genre],
+      years: decadeStart == null ? const [] : _yearsOfDecade(decadeStart),
       // A discography reads chronologically; a whole library reads
       // alphabetically.
       sortBy: albumArtistId == null
@@ -230,6 +242,8 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) async {
     final mapperResult = _api.mapper();
     if (mapperResult case Err<BaseItemMapper>(:final failure)) {
@@ -251,11 +265,21 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
       trackArtistId = (id as Ok<String>).value;
     }
 
+    // A bounded scope (an album, an artist's discography) is small enough
+    // to carry its genre on every row; the unscoped whole-library browse
+    // (potentially 130k rows) never does (v0.4.5).
+    final scoped = parentId != null || trackArtistId != null;
+
     final response = await _api.queryItems(
       includeItemTypes: const [BaseItemMapper.trackType],
       parentId: parentId,
       artistId: trackArtistId,
       searchTerm: searchTerm,
+      genres: genre == null ? const [] : [genre],
+      years: decadeStart == null ? const [] : _yearsOfDecade(decadeStart),
+      fields: scoped
+          ? JellyfinMediaApi.trackDownloadFields
+          : JellyfinMediaApi.defaultFields,
       sortBy: switch ((parentId, trackArtistId)) {
         // An album plays in disc/track order, not alphabetically.
         (final String _, _) => const ['ParentIndexNumber', 'IndexNumber'],
@@ -344,6 +368,132 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     fields: JellyfinMediaApi.detailFields,
   );
 
+  @override
+  Future<Result<List<String>>> genres() async {
+    final response = await _api.queryItems(
+      path: JellyfinMediaApi.musicGenresPath,
+      recursive: false,
+      sortBy: const ['SortName'],
+      page: const PageRequest(limit: _facetLimit),
+    );
+    return response.map(
+      (dto) => (dto.items ?? const <BaseItemDto>[])
+          .map((row) => row.name)
+          .whereType<String>()
+          .where((name) => name.isNotEmpty)
+          .toSet()
+          .toList(growable: false),
+    );
+  }
+
+  @override
+  Future<Result<List<int>>> decades() async {
+    final response = await _api.queryItems(
+      path: JellyfinMediaApi.yearsPath,
+      includeItemTypes: const [BaseItemMapper.albumType],
+      recursive: false,
+      page: const PageRequest(limit: _facetLimit),
+    );
+    return response.map((dto) {
+      final decades = (dto.items ?? const <BaseItemDto>[])
+          .map((row) => row.productionYear)
+          .whereType<int>()
+          .map((year) => year - (year % 10))
+          .toSet()
+          .toList();
+      // Newest first — the order a listener scans a decade shelf in.
+      decades.sort((a, b) => b.compareTo(a));
+      return decades;
+    });
+  }
+
+  @override
+  Future<Result<Album>> randomAlbum() => _randomSingle(
+    path: JellyfinMediaApi.itemsPath,
+    includeItemTypes: const [BaseItemMapper.albumType],
+    recursive: true,
+    map: (mapper, dto) => mapper.toAlbum(dto),
+    label: 'album',
+  );
+
+  @override
+  Future<Result<Artist>> randomArtist() => _randomSingle(
+    path: JellyfinMediaApi.albumArtistsPath,
+    recursive: false,
+    map: (mapper, dto) => mapper.toArtist(dto),
+    label: 'artist',
+  );
+
+  @override
+  Future<Result<Track>> randomTrack() => _randomSingle(
+    path: JellyfinMediaApi.itemsPath,
+    includeItemTypes: const [BaseItemMapper.trackType],
+    recursive: true,
+    map: (mapper, dto) => mapper.toTrack(dto),
+    label: 'song',
+  );
+
+  @override
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      includeItemTypes: const [BaseItemMapper.trackType],
+      sortBy: const ['Random'],
+      page: PageRequest(limit: limit),
+    );
+    return response.map(
+      (dto) => (dto.items ?? const <BaseItemDto>[])
+          .map(mapper.toTrack)
+          .whereType<Track>()
+          .toList(growable: false),
+    );
+  }
+
+  /// Asks the server for one random item and maps it, the shape
+  /// [randomAlbum]/[randomArtist] share: `SortBy=Random`, one row, mapped
+  /// or reported as [UnavailableFailure] when the scope has nothing to
+  /// offer.
+  Future<Result<T>> _randomSingle<T extends MediaItem>({
+    required String path,
+    required bool recursive,
+    required T? Function(BaseItemMapper mapper, BaseItemDto dto) map,
+    required String label,
+    List<String> includeItemTypes = const [],
+  }) async {
+    final mapperResult = _api.mapper();
+    if (mapperResult case Err<BaseItemMapper>(:final failure)) {
+      return Result.err(failure);
+    }
+    final mapper = (mapperResult as Ok<BaseItemMapper>).value;
+
+    final response = await _api.queryItems(
+      path: path,
+      includeItemTypes: includeItemTypes,
+      recursive: recursive,
+      sortBy: const ['Random'],
+      fields: JellyfinMediaApi.detailFields,
+      page: const PageRequest(limit: 1),
+    );
+    if (response case Err<ItemsResponseDto>(:final failure)) {
+      return Result.err(failure);
+    }
+
+    final rows = (response as Ok<ItemsResponseDto>).value.items;
+    final row = (rows == null || rows.isEmpty) ? null : rows.first;
+    final item = row == null ? null : map(mapper, row);
+    if (item == null) {
+      return Result.err(
+        UnavailableFailure('Your library has no $label to suggest yet.'),
+      );
+    }
+    return Result.ok(item);
+  }
+
   /// Asks the server for items similar to [id] and maps them, keeping only
   /// the ones that are of the expected type and could be read. A row the
   /// mapper cannot make sense of is dropped rather than shown as an
@@ -425,4 +575,11 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
     }
     return Result.ok(item);
   }
+
+  /// Every year in the decade starting [decadeStart], for `years:` on
+  /// [JellyfinMediaApi.queryItems] — Jellyfin filters by exact
+  /// `ProductionYear`, not a range, so a decade browse asks for all ten.
+  static List<int> _yearsOfDecade(int decadeStart) => [
+    for (var year = decadeStart; year < decadeStart + 10; year++) year,
+  ];
 }

@@ -108,6 +108,7 @@ class BaseItemMapper {
       discNumber: dto.parentIndexNumber,
       duration: _duration(dto.runTimeTicks),
       normalizationGain: dto.normalizationGain,
+      genres: dto.genres ?? const [],
       isFavorite: dto.userData?.isFavorite ?? false,
       availability: _availability(dto),
       image: _primaryImage(dto, id),

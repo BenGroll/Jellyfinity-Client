@@ -5,6 +5,7 @@ import 'package:jellyfinity/core/result/failure.dart';
 import 'package:jellyfinity/core/result/partial.dart';
 import 'package:jellyfinity/design/design.dart';
 import 'package:jellyfinity/domain/media/media.dart';
+import 'package:jellyfinity/features/music/presentation/library/library_facets_cubit.dart';
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart';
 import 'package:jellyfinity/features/music/presentation/library/LibraryPage.dart';
 import 'package:jellyfinity/features/music/presentation/widgets/MediaArtwork.dart';
@@ -51,6 +52,7 @@ Future<void> _pumpMusic(
         offline,
         pageSize: pageSize,
       ),
+      facets: LibraryFacetsCubit(music, offline),
     ),
   );
 }

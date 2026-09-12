@@ -85,6 +85,8 @@ import 'package:jellyfinity/features/music/presentation/detail/media_detail_cubi
     as _i213;
 import 'package:jellyfinity/features/music/presentation/detail/related_media_cubits.dart'
     as _i468;
+import 'package:jellyfinity/features/music/presentation/library/library_facets_cubit.dart'
+    as _i939;
 import 'package:jellyfinity/features/music/presentation/library/music_collection_cubits.dart'
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
@@ -561,6 +563,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i824.ArtistStatsCubit>(
       () => _i824.ArtistStatsCubit(
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.factory<_i939.LibraryFacetsCubit>(
+      () => _i939.LibraryFacetsCubit(
         gh<_i260.MusicLibraryRepository>(),
         gh<_i797.OfflineMode>(),
       ),

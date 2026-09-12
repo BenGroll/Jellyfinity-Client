@@ -416,6 +416,7 @@ TrackDownload downloadRecord(
   int receivedBytes = 0,
   int? totalBytes,
   DownloadFailureReason? failureReason,
+  List<String> genres = const [],
 }) => TrackDownload(
   id: id,
   title: title ?? 'Track ${id.itemId}',
@@ -425,4 +426,5 @@ TrackDownload downloadRecord(
   receivedBytes: receivedBytes,
   totalBytes: totalBytes,
   failureReason: failureReason,
+  genres: genres,
 );

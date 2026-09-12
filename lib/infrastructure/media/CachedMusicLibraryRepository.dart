@@ -78,12 +78,16 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   }) {
+    // A genre browse is live only (ADR-0034) — see [albums]'s.
     return _collection(
       page: page,
       searchTerm: searchTerm,
+      live: genre != null,
       collectionKey: MediaCollectionKey.artists,
-      read: () => _remote.artists(page: page, searchTerm: searchTerm),
+      read: () =>
+          _remote.artists(page: page, searchTerm: searchTerm, genre: genre),
     );
   }
 
@@ -92,10 +96,19 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) {
+    // A genre or decade browse is live only (ADR-0034), the same reasoning
+    // ADR-0010 gave search: nothing about it is saved, so `_collection`
+    // is told to treat it like one — no cache write on success, no cache
+    // or downloads fallback on failure, and working offline answers with
+    // a failure straight away.
+    final isFiltered = genre != null || decadeStart != null;
     return _collection(
       page: page,
       searchTerm: searchTerm,
+      live: isFiltered,
       collectionKey: artistId == null
           ? MediaCollectionKey.albums
           : MediaCollectionKey.albumsOfArtist(artistId.itemId),
@@ -103,8 +116,10 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
         page: page,
         artistId: artistId,
         searchTerm: searchTerm,
+        genre: genre,
+        decadeStart: decadeStart,
       ),
-      downloadsFallback: artistId == null
+      downloadsFallback: (artistId == null || isFiltered)
           ? null
           : () => _artistAlbumsOffline(artistId, page),
     );
@@ -204,10 +219,15 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   }) {
+    // A genre or decade browse is live only (ADR-0034) — see [albums]'s.
+    final isFiltered = genre != null || decadeStart != null;
     return _collection(
       page: page,
       searchTerm: searchTerm,
+      live: isFiltered,
       collectionKey: switch ((albumId, artistId)) {
         (final MediaId album, _) => MediaCollectionKey.tracksOfAlbum(
           album.itemId,
@@ -222,8 +242,10 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
         albumId: albumId,
         artistId: artistId,
         searchTerm: searchTerm,
+        genre: genre,
+        decadeStart: decadeStart,
       ),
-      downloadsFallback: albumId == null
+      downloadsFallback: (albumId == null || isFiltered)
           ? null
           : () => _albumTracksOffline(albumId, page),
     );
@@ -267,24 +289,77 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     return _remote.similarAlbums(albumId, limit: limit);
   }
 
+  /// Decades stay live only, on the same terms as [relatedArtists]
+  /// (v0.4.4, ADR-0034): nothing about a decade is cached anywhere, so
+  /// working offline is short-circuited rather than left to time out. The
+  /// caller shows the entry point as unavailable rather than absent —
+  /// unlike a related-media strip, this is a primary way into the
+  /// library, not a bonus.
+  @override
+  Future<Result<List<int>>> decades() async {
+    if (_offline.status.isOffline) return _offlineFailure<List<int>>();
+    return _remote.decades();
+  }
+
+  /// Genres degrade to the profile's downloads while offline (v0.4.5,
+  /// ADR-0034) instead of failing outright, the same "offline is a
+  /// different scope" treatment [randomAlbum] gets: a genre captured on a
+  /// downloaded track (`DownloadsLibrarySource.genres`) is honest local
+  /// data, unlike a decade, which nothing on the device carries.
+  @override
+  Future<Result<List<String>>> genres() =>
+      _offline.status.isOffline ? _downloads.genres() : _remote.genres();
+
+  /// Working offline, "random" draws from the signed-in profile's
+  /// downloads instead of asking the unreachable server — the one place
+  /// in this repository where offline is a different *scope* rather than
+  /// a fallback to a saved copy, because there is no saved copy of "the
+  /// whole library" to fall back to and a suggestion that cannot play
+  /// would be worse than none (v0.4.4, ADR-0034).
+  @override
+  Future<Result<Album>> randomAlbum() => _offline.status.isOffline
+      ? _downloads.randomAlbum()
+      : _remote.randomAlbum();
+
+  @override
+  Future<Result<Artist>> randomArtist() => _offline.status.isOffline
+      ? _downloads.randomArtist()
+      : _remote.randomArtist();
+
+  @override
+  Future<Result<Track>> randomTrack() => _offline.status.isOffline
+      ? _downloads.randomTrack()
+      : _remote.randomTrack();
+
+  /// Working offline, the fallback pool is the profile's own downloaded
+  /// tracks (v0.4.5) — the same scope every other random read uses
+  /// offline, so a "for you" mix never proposes a track it cannot play.
+  @override
+  Future<Result<List<Track>>> randomTracks({int limit = 30}) =>
+      _offline.status.isOffline
+      ? _downloads.randomTracks(limit: limit)
+      : _remote.randomTracks(limit: limit);
+
   Future<Result<Page<T>>> _collection<T extends MediaItem>({
     required PageRequest page,
     required String? searchTerm,
     required String collectionKey,
     required Future<Result<Page<T>>> Function() read,
     Future<Result<Page<T>>> Function()? downloadsFallback,
+    bool live = false,
   }) async {
     final isSearch = searchTerm != null && searchTerm.trim().isNotEmpty;
+    final skipsCache = isSearch || live;
     final result = _offline.status.isOffline
         ? _offlineFailure<Page<T>>()
         : await read();
 
     switch (result) {
       case Ok<Page<T>>(:final value):
-        if (!isSearch) await _cache.savePage(collectionKey, value);
+        if (!skipsCache) await _cache.savePage(collectionKey, value);
         return result;
       case Err<Page<T>>(:final failure):
-        if (isSearch || !canServeFromCache(failure)) return result;
+        if (skipsCache || !canServeFromCache(failure)) return result;
         final serverId = _context.serverId;
         if (serverId != null) {
           final saved = await _cache.readPage<T>(serverId, collectionKey, page);

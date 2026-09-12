@@ -131,6 +131,32 @@ void main() {
     expect(found.trackNumber, 4);
   });
 
+  test('preserves a captured genre across save and find (v0.4.5)', () async {
+    final original = TrackDownload.requested(
+      testTrack('track-1', genres: const ['Jazz', 'Modal']),
+      owner: DownloadOwner.track(mediaId('track-1')),
+      requestedAt: DateTime.utc(2026),
+    ).copyWith(state: DownloadState.completed);
+
+    await store.save(original);
+    final found = (await store.find(original.id)).valueOrNull!;
+
+    expect(found.genres, ['Jazz', 'Modal']);
+  });
+
+  test('a download with no captured genre round-trips as empty', () async {
+    final original = TrackDownload.requested(
+      testTrack('track-1'),
+      owner: DownloadOwner.track(mediaId('track-1')),
+      requestedAt: DateTime.utc(2026),
+    ).copyWith(state: DownloadState.completed);
+
+    await store.save(original);
+    final found = (await store.find(original.id)).valueOrNull!;
+
+    expect(found.genres, isEmpty);
+  });
+
   test('preserves a failure reason only while the state is failed', () async {
     final failed = record(
       'track-1',

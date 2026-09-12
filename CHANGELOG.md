@@ -46,6 +46,50 @@ All notable changes to Jellyfinity are documented here.
 - Document setup, packaging and device acceptance in `docs/windows.md`, and
   the platform decisions in ADR-0029.
 
+## v0.4.5 — Random discovery and a personal mix
+
+Rounds out Library exploration with the browsing it was missing, and adds
+a Home shortcut built from what a listener has actually starred.
+
+### Genre for artists, genre/decade for songs, and a "Random song" pick (ADR-0035)
+
+- **Genre browsing now covers artists and songs**, and **decade browsing
+  now covers songs**, alongside the albums v0.4.4 already had.
+- **A third "Random song" button** joins "Random album"/"Random artist"
+  on Explore — picking one plays it immediately.
+- **Genre browsing works offline for what you've downloaded.** A track's
+  genre, captured when an album or artist download reads it, lets the
+  genre shelf show downloaded results instead of just saying it needs a
+  connection. Decade browsing stays online-only — nothing on the device
+  carries a release year to build it from.
+
+### "Play something you'll like" on Home (ADR-0035)
+
+- **A new Home card fills your queue with a mix** built from your
+  favorite songs, albums and artists, topped up with a random pick from
+  your library if you have not favorited much yet. It always says which
+  it did — never a mystery about where a mix came from.
+- No listening history, no tracking, nothing sent anywhere: exactly what
+  you have already starred, and your own downloads while offline.
+
+## v0.4.4 — Library exploration
+
+Intentional ways into the library a listener already owns, without an
+opaque recommendation service.
+
+### Genre and decade entry points, and a random album/artist pick (ADR-0034)
+
+- **A new Explore tab on Library** lists every genre and every decade the
+  library holds, each a chip that opens a filtered album shelf, and a
+  "Surprise me" section with a random album or artist pick.
+- **The pick is a fresh choice every time**, scoped and explained: your
+  whole library online, or — since a suggestion that cannot play is worse
+  than none — what you have downloaded while offline.
+- **Genre and decade browsing is honest about needing a connection.**
+  Nothing about a genre is cached anywhere, so working offline shows
+  "needs a connection" rather than a stale or silently incomplete shelf.
+- No schema change.
+
 ## v0.4.3 — Offline Favorites
 
 The heart stays a reliable local promise when connectivity is

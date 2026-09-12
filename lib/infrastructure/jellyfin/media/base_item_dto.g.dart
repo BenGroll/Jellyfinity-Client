@@ -50,6 +50,7 @@ BaseItemDto _$BaseItemDtoFromJson(Map<String, dynamic> json) => BaseItemDto(
       ?.map((e) => MediaSourceInfoDto.fromJson(e as Map<String, dynamic>))
       .toList(),
   normalizationGain: (json['NormalizationGain'] as num?)?.toDouble(),
+  genres: (json['Genres'] as List<dynamic>?)?.map((e) => e as String).toList(),
 );
 
 MediaSourceInfoDto _$MediaSourceInfoDtoFromJson(Map<String, dynamic> json) =>

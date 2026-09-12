@@ -428,4 +428,153 @@ void main() {
       expect(adapter.callCount, isZero);
     });
   });
+
+  group('library exploration (v0.4.4)', () {
+    test('genres and decades pass through uncached', () async {
+      final (:repository, :cache) = _repository(
+        _answering([
+          {'Id': 'g1', 'Name': 'Jazz', 'Type': 'MusicGenre'},
+        ]),
+      );
+
+      final result = await repository.genres();
+
+      expect(result.valueOrNull, ['Jazz']);
+      expect(cache.savedPages, isEmpty);
+    });
+
+    test('working offline, decades fail without a request', () async {
+      final adapter = _offline();
+      final (:repository, cache: _) = _repository(
+        adapter,
+        offline: FakeOfflineMode(manual: true),
+      );
+
+      final decades = await repository.decades();
+
+      expect(decades.failureOrNull, isA<RecoverableFailure>());
+      expect(adapter.callCount, isZero);
+    });
+
+    test(
+      'working offline, genres come from the profile\'s downloads instead (v0.4.5)',
+      () async {
+        final adapter = _offline();
+        final store = InMemoryDownloadStore();
+        store.records[const MediaId(
+          serverId: 'server-1',
+          itemId: 't1',
+        )] = TrackDownload(
+          id: const MediaId(serverId: 'server-1', itemId: 't1'),
+          title: 'So What',
+          state: DownloadState.completed,
+          owners: {
+            const DownloadOwner.track(
+              MediaId(serverId: 'server-1', itemId: 't1'),
+            ),
+          },
+          requestedAt: DateTime.utc(2026),
+          genres: const ['Jazz'],
+        );
+        final repository = _repository(
+          adapter,
+          offline: FakeOfflineMode(manual: true),
+          downloads: DownloadsLibrarySource(store),
+        ).repository;
+
+        final result = await repository.genres();
+
+        expect(result.valueOrNull, ['Jazz']);
+        expect(adapter.callCount, isZero);
+      },
+    );
+
+    test(
+      'a genre browse is never saved to, or served from, the cache',
+      () async {
+        final cache = RecordingMediaCacheStore();
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums(genre: 'Jazz');
+        expect(cache.savedPages, isEmpty);
+
+        // Prime the cache with the whole-library read, then confirm a
+        // genre browse still fails offline instead of quietly serving the
+        // whole-library window under a filter it never asked for.
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums();
+        final result = await _repository(
+          _offline(),
+          cache: cache,
+        ).repository.albums(genre: 'Jazz');
+
+        expect(result.isErr, isTrue);
+      },
+    );
+
+    test(
+      'a decade browse is never saved to, or served from, the cache',
+      () async {
+        final cache = RecordingMediaCacheStore();
+        await _repository(
+          _answering([_albumRow]),
+          cache: cache,
+        ).repository.albums(decadeStart: 1950);
+        expect(cache.savedPages, isEmpty);
+
+        final result = await _repository(
+          _offline(),
+          cache: cache,
+        ).repository.albums(decadeStart: 1950);
+
+        expect(result.isErr, isTrue);
+      },
+    );
+
+    test('online, a random pick asks the server', () async {
+      final (:repository, cache: _) = _repository(_answering([_albumRow]));
+
+      final result = await repository.randomAlbum();
+
+      expect(result.valueOrNull!.name, 'Kind of Blue');
+    });
+
+    test('offline, a random pick draws from downloads instead', () async {
+      final store = InMemoryDownloadStore();
+      await store.saveCollection(
+        DownloadedCollection(
+          owner: DownloadOwner.album(_albumId),
+          name: 'Downloaded Only',
+        ),
+      );
+      final adapter = _offline();
+      final repository = _repository(
+        adapter,
+        offline: FakeOfflineMode(manual: true),
+        downloads: DownloadsLibrarySource(store),
+      ).repository;
+
+      final result = await repository.randomAlbum();
+
+      expect(result.valueOrNull!.name, 'Downloaded Only');
+      expect(adapter.callCount, isZero);
+    });
+
+    test(
+      'offline with nothing downloaded, a random pick is unavailable rather than empty',
+      () async {
+        final repository = _repository(
+          _offline(),
+          offline: FakeOfflineMode(manual: true),
+        ).repository;
+
+        final result = await repository.randomArtist();
+
+        expect(result.failureOrNull, isA<RecoverableFailure>());
+      },
+    );
+  });
 }

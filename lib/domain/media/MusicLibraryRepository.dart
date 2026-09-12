@@ -40,16 +40,30 @@ import 'Track.dart';
 abstract class MusicLibraryRepository {
   /// The library's album artists — the artists a music app lists, rather
   /// than every performer credited anywhere.
+  ///
+  /// [genre] narrows to artists tagged with it (v0.4.5, ADR-0034) — read
+  /// live only, on the same terms [albums]' `genre` is.
   Future<Result<Page<Artist>>> artists({
     PageRequest page = const PageRequest.first(),
     String? searchTerm,
+    String? genre,
   });
 
-  /// Albums, optionally only those by [artistId].
+  /// Albums, optionally only those by [artistId], in [genre], or from the
+  /// decade starting [decadeStart] (v0.4.4, ADR-0034).
+  ///
+  /// [genre] and [decadeStart] are read **live only**, like [genres] and
+  /// [decades] below: nothing about a browsed genre or decade is cached,
+  /// so working offline answers with a failure rather than a stale or
+  /// partial shelf. At most one of [genre] and [decadeStart] is expected
+  /// at a time — Library exploration offers them as separate entry
+  /// points, never combined.
   Future<Result<Page<Album>>> albums({
     PageRequest page = const PageRequest.first(),
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   });
 
   /// The albums most recently added to the library, newest first by the
@@ -94,15 +108,20 @@ abstract class MusicLibraryRepository {
     PageRequest page = const PageRequest.first(),
   });
 
-  /// Tracks, optionally only those on [albumId] or by [artistId].
+  /// Tracks, optionally only those on [albumId], by [artistId], in
+  /// [genre], or from the decade starting [decadeStart] (v0.4.5).
   ///
   /// Album tracks come back in disc/track order; anything else is in the
-  /// source's own order.
+  /// source's own order. [genre]/[decadeStart] are read live only, on the
+  /// same terms [albums]' are — at most one of them is expected at a
+  /// time, alongside at most one of [albumId]/[artistId].
   Future<Result<Page<Track>>> tracks({
     PageRequest page = const PageRequest.first(),
     MediaId? albumId,
     MediaId? artistId,
     String? searchTerm,
+    String? genre,
+    int? decadeStart,
   });
 
   /// One artist.
@@ -139,4 +158,58 @@ abstract class MusicLibraryRepository {
   });
 
   Future<Result<List<Album>>> similarAlbums(MediaId albumId, {int limit = 12});
+
+  /// The genre names present in the music library, alphabetical (v0.4.4,
+  /// ADR-0034) — the entry points Library exploration builds its genre
+  /// shelf from.
+  ///
+  /// A bounded facet list, not a browsable collection: like
+  /// [relatedArtists], there is no paging. Read from the server while
+  /// online; while deliberately or actually offline
+  /// (`CachedMusicLibraryRepository`, v0.4.5, ADR-0034), it degrades to
+  /// the genres captured on the profile's downloaded tracks instead of
+  /// failing outright — a smaller, honestly-labeled answer rather than no
+  /// answer at all. A profile with nothing downloaded, or downloads with
+  /// no genre captured, gets the same failure a server-only facet always
+  /// did.
+  Future<Result<List<String>>> genres();
+
+  /// The decades the library's albums span, newest first — `2020`,
+  /// `2010`, … (v0.4.4, ADR-0034) — the entry points Library exploration
+  /// builds its decade shelf from.
+  ///
+  /// Live only, for the same reason as [genres]: a production year is
+  /// part of the cached `Album` entity once one has been browsed, but
+  /// there is no honest way to answer "every decade this library spans"
+  /// from whatever happens to be cached without silently omitting
+  /// decades nobody has opened yet, which would misrepresent the
+  /// library rather than merely being incomplete.
+  Future<Result<List<int>>> decades();
+
+  /// One album, chosen at random from the active library scope (v0.4.4,
+  /// ADR-0034) — "surprise me".
+  ///
+  /// A fresh choice every call, never memoized: refreshing the action is
+  /// a new pick, not a stale one replayed. Working offline, the pick
+  /// comes from the signed-in profile's downloads instead of the server
+  /// (`CachedMusicLibraryRepository`) — a suggestion that cannot play is
+  /// worse than no suggestion, so "downloads only" is not a degraded mode
+  /// here, it is the honest scope. [UnavailableFailure] means the scope
+  /// (the server library, or the profile's downloads) currently has no
+  /// album to offer.
+  Future<Result<Album>> randomAlbum();
+
+  /// One artist, chosen at random, on the same terms as [randomAlbum].
+  Future<Result<Artist>> randomArtist();
+
+  /// One track, chosen at random, on the same terms as [randomAlbum]
+  /// (v0.4.5).
+  Future<Result<Track>> randomTrack();
+
+  /// A bounded pool of tracks chosen at random, on the same terms as
+  /// [randomAlbum] (v0.4.5) — the fallback a "for you" mix tops itself up
+  /// with once it has used what a listener's favorites can offer. Unlike
+  /// [randomTrack] this is never shown as a suggestion on its own; it is
+  /// always blended with something more targeted.
+  Future<Result<List<Track>>> randomTracks({int limit = 30});
 }
