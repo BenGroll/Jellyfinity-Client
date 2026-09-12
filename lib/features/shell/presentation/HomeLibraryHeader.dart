@@ -21,9 +21,14 @@ import '../../../domain/connectivity/OfflineMode.dart';
 /// `InlineMusicSearch` (the real field lives there, so it can own focus
 /// and its own close button).
 class HomeLibraryHeader extends StatelessWidget {
-  const HomeLibraryHeader({super.key, required this.onSearchTap});
+  const HomeLibraryHeader({
+    super.key,
+    required this.onSearchTap,
+    this.onMenuTap,
+  });
 
   final VoidCallback onSearchTap;
+  final VoidCallback? onMenuTap;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +51,8 @@ class HomeLibraryHeader extends StatelessWidget {
                 builder: (context) => IconButton(
                   icon: const Icon(Icons.menu_rounded),
                   tooltip: 'Menu',
-                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  onPressed:
+                      onMenuTap ?? () => Scaffold.of(context).openDrawer(),
                 ),
               ),
               Expanded(

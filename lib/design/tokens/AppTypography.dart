@@ -91,6 +91,42 @@ class AppTypography extends Equatable {
     ),
   );
 
+  /// Ten-foot type scale. It is deliberately not derived from screen width:
+  /// an Android tablet can be physically close even when it has many pixels.
+  static const AppTypography television = AppTypography(
+    displayLarge: TextStyle(
+      fontSize: 44,
+      height: 1.12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.5,
+    ),
+    headlineLarge: TextStyle(
+      fontSize: 30,
+      height: 1.18,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.2,
+    ),
+    titleLarge: TextStyle(
+      fontSize: 22,
+      height: 1.22,
+      fontWeight: FontWeight.w600,
+    ),
+    titleMedium: TextStyle(
+      fontSize: 18,
+      height: 1.25,
+      fontWeight: FontWeight.w600,
+    ),
+    bodyLarge: TextStyle(fontSize: 18, height: 1.35),
+    bodyMedium: TextStyle(fontSize: 16, height: 1.35),
+    label: TextStyle(
+      fontSize: 16,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.1,
+    ),
+    caption: TextStyle(fontSize: 14, height: 1.3, letterSpacing: 0.2),
+  );
+
   static AppTypography lerp(AppTypography a, AppTypography b, double t) {
     TextStyle s(TextStyle x, TextStyle y) => TextStyle.lerp(x, y, t)!;
     return AppTypography(

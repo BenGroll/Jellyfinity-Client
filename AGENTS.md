@@ -25,6 +25,13 @@ v0.5md` for v0.4.0–v0.5.0.
 - v0.4.4 (Library exploration, ADR-0034) is implemented: genre and decade
   entry points (a live-only facet read, `LibraryFacetsCubit`, an
   `AlbumsCubit`-reused browse page) and a random album/artist pick that
+- v0.4.6 (Fire TV platform support, ADR-0036; ADR-only) is implemented:
+  the Android package is visible to Leanback/Fire TV launchers, detects the
+  host's television mode without treating large tablets as TVs, and swaps in
+  a 10-foot design scale with overscan insets, a persistent D-pad navigation
+  rail, explicit initial focus, Menu/Back handling and remote media controls.
+  Automated platform/widget tests and an Android build cover the implementation;
+  physical Fire TV launcher/remote/background-playback acceptance remains.
   draws from the server online and from downloads while offline
   (`MusicLibraryRepository.randomAlbum`/`randomArtist`,
   `DownloadsLibrarySource`). No schema change.

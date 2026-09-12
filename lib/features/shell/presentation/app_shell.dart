@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/platform/television_mode.dart';
 import '../../../design/design.dart';
 import '../../music/presentation/search/InlineMusicSearch.dart';
 import '../../playback/presentation/MiniPlayer.dart';
 import 'AppSidebar.dart';
 import 'HomeLibraryHeader.dart';
 import 'ShellDestination.dart';
+import 'TelevisionNavigationRail.dart';
 
 /// The persistent frame around every authenticated screen: a shared header
 /// (search + media-type pills), a body that swaps per section, a
@@ -34,9 +36,11 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _searching = false;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _startSearch() => setState(() => _searching = true);
   void _stopSearch() => setState(() => _searching = false);
+  void _openMenu() => _scaffoldKey.currentState?.openDrawer();
 
   void _goToBranch(int index) {
     widget.navigationShell.goBranch(
@@ -50,46 +54,93 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final showBar = shellDestinations.length > 1;
     final location = GoRouterState.of(context).uri.path;
-    final isDetail = location.contains('/artist/') ||
+    final isDetail =
+        location.contains('/artist/') ||
         location.contains('/album/') ||
         location.contains('/playlist/');
 
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
-            _startSearch,
-        if (_searching)
-          const SingleActivator(LogicalKeyboardKey.escape): _stopSearch,
+    final television = TelevisionModeScope.of(context);
+    final mainContent = Column(
+      children: [
+        if (!_searching && !isDetail)
+          HomeLibraryHeader(onSearchTap: _startSearch, onMenuTap: _openMenu),
+        Expanded(
+          child: _searching
+              ? InlineMusicSearch(onClose: _stopSearch)
+              : widget.navigationShell,
+        ),
+      ],
+    );
+
+    return PopScope(
+      canPop: !_searching,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _searching) _stopSearch();
       },
-      child: FocusScope(
-        autofocus: true,
-        child: AppScaffold(
-          padded: false,
-          drawer: const AppSidebar(),
-          body: SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                if (!_searching && !isDetail)
-                  HomeLibraryHeader(onSearchTap: _startSearch),
-                Expanded(
-                  child: _searching
-                      ? InlineMusicSearch(onClose: _stopSearch)
-                      : widget.navigationShell,
-                ),
-              ],
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+              _startSearch,
+          if (_searching)
+            const SingleActivator(LogicalKeyboardKey.escape): _stopSearch,
+          if (television)
+            const SingleActivator(LogicalKeyboardKey.contextMenu): _openMenu,
+          if (television)
+            if (_searching)
+              const SingleActivator(LogicalKeyboardKey.browserBack):
+                  _stopSearch,
+          if (_searching)
+            const SingleActivator(LogicalKeyboardKey.goBack): _stopSearch,
+          const SingleActivator(LogicalKeyboardKey.mediaTopMenu): _openMenu,
+          if (television)
+            const SingleActivator(LogicalKeyboardKey.gameButtonStart):
+                _openMenu,
+        },
+        child: FocusScope(
+          autofocus: true,
+          child: AppScaffold(
+            scaffoldKey: _scaffoldKey,
+            padded: false,
+            drawer: const AppSidebar(),
+            body: SafeArea(
+              bottom: false,
+              child: television
+                  ? Row(
+                      key: const Key('television-navigation'),
+                      children: [
+                        TelevisionNavigationRail(
+                          currentIndex: widget.navigationShell.currentIndex,
+                          onSelected: _goToBranch,
+                        ),
+                        VerticalDivider(
+                          width: 1,
+                          color: context.tokens.colors.border,
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(child: mainContent),
+                              const MiniPlayer(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : mainContent,
             ),
-          ),
-          bottomBar: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const MiniPlayer(),
-              if (showBar)
-                _ShellNavigationBar(
-                  onSelected: _goToBranch,
-                  currentIndex: widget.navigationShell.currentIndex,
-                ),
-            ],
+            bottomBar: television
+                ? null
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const MiniPlayer(),
+                      if (showBar)
+                        _ShellNavigationBar(
+                          onSelected: _goToBranch,
+                          currentIndex: widget.navigationShell.currentIndex,
+                        ),
+                    ],
+                  ),
           ),
         ),
       ),

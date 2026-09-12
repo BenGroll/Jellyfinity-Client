@@ -2,6 +2,22 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Fire TV support
+
+- Make the Android package discoverable from Amazon Fire TV and Android TV
+  launchers while retaining ordinary Android phone/tablet installation. Supply
+  the required 320x180 television banner and declare touch hardware optional.
+- Detect television mode in the Android host rather than inferring it from
+  display width. Large tablets and Windows windows keep their existing layout.
+- Switch authenticated television navigation to a persistent left rail with a
+  predictable selected-item focus start, visible Material focus feedback,
+  larger typography/cards/targets and overscan-safe insets.
+- Support D-pad center/select, controller A, Back and Fire TV Menu, plus remote
+  play/pause, previous/next and ten-second rewind/fast-forward through the
+  shared playback queue.
+- Add widget and platform contract tests for automatic mode selection, D-pad
+  navigation, sidebar and playback shortcuts, manifest eligibility, native
+
 ## Unreleased — Windows support
 
 - Extend album and artist artwork through their detail surfaces, add detail

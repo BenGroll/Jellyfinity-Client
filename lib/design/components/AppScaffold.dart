@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/platform/television_mode.dart';
 import '../theme/theme_context.dart';
 import 'ArtworkBackdropScope.dart';
 
@@ -23,9 +24,12 @@ class AppScaffold extends StatelessWidget {
     this.padded = true,
     this.drawer,
     this.background,
+    this.scaffoldKey,
   });
 
   final Widget body;
+
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   /// Optional page-specific background, painted behind the body and app bar.
   final Widget? background;
@@ -48,8 +52,10 @@ class AppScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final television = TelevisionModeScope.of(context);
 
     final scaffold = Scaffold(
+      key: scaffoldKey,
       backgroundColor:
           background == null && ArtworkBackdropScope.of(context) == null
           ? t.colors.background
@@ -82,6 +88,14 @@ class AppScaffold extends StatelessWidget {
       drawer: drawer,
       body: SafeArea(
         top: false,
+        minimum: television
+            ? EdgeInsets.fromLTRB(
+                t.spacing.md,
+                t.spacing.sm,
+                t.spacing.md,
+                t.spacing.md,
+              )
+            : EdgeInsets.zero,
         child: Padding(
           padding: padded
               ? EdgeInsets.symmetric(horizontal: t.spacing.md)

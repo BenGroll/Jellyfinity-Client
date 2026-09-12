@@ -57,6 +57,9 @@ Future<TestSessionScope> pumpApp(
   TrackSourceInfoResolver? trackSourceInfoResolver,
   LyricsResolver? lyricsResolver,
   bool restore = true,
+  bool? televisionMode,
+  Future<bool> Function()? televisionDetector,
+  Size viewportSize = const Size(390, 844),
 }) async {
   // The default flutter_test surface (800x600, wider than tall) has too
   // little height for a real phone screen once the persistent header
@@ -65,7 +68,7 @@ Future<TestSessionScope> pumpApp(
   // area even though `find` still locates it, producing a `tap()` that
   // silently lands on the wrong widget. A realistic phone viewport is
   // what every one of these screens is actually built for.
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = viewportSize;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -116,6 +119,8 @@ Future<TestSessionScope> pumpApp(
       downloads: downloadsCubit,
       offline: offlineCubit,
       favoritesRevision: favoritesRevisionCubit,
+      televisionMode: televisionMode,
+      televisionDetector: televisionDetector,
     ),
   );
   if (restore) {

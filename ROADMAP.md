@@ -42,6 +42,7 @@ published Git tag.
 | v0.4.3 | Offline Favorites | Implemented | [spec](Roadmap%20to%20v0.5md#v042--offline-favorites) |
 | v0.4.4 | Library exploration | Implemented | [spec](Roadmap%20to%20v0.5md#v043--library-exploration) |
 | v0.4.5 | Random discovery and a personal mix | Implemented | [ADR-only](docs/adr/ADR-0035-random-discovery-and-personal-mix.md) |
+| v0.4.6 | Fire TV platform support | Implemented (device acceptance pending) | [ADR-only](docs/adr/ADR-0036-fire-tv-platform-support.md) |
 | v0.5.0 | Personal music discovery | Planned (its Home-mix entry point shipped early, in v0.4.5) | [spec](Roadmap%20to%20v0.5md#v044--personal-music-discovery) |
 
 v0.1.2 is complete. v0.3.0 shipped everything but reorder, which it left
