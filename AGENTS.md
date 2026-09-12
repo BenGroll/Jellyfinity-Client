@@ -61,7 +61,25 @@ v0.5.1-v0.6.0.
   Exercised by two-client contract tests over a deliberately unreliable
   in-memory network. No Flutter, audio backend, live server, schema
   change or dependency.
-- v0.5.2-v0.6.0 are planned: true cross-device music playback and controls,
+- v0.5.2 (Device presence and capability transport, ADR-0038) is
+  implemented: one lifecycle-aware `JellyfinSessionTransport` satisfying
+  both of v0.5.1's contracts, over Jellyfin's authenticated session
+  endpoints and its WebSocket (`dart:io`, behind a one-method seam; no
+  new dependency). The server answers which sessions exist and whose they
+  are; the peers answer what they speak and accept, as an
+  `EnvelopeKind.presence` advertisement, so a device is `presenceOnly`
+  until it has introduced itself. Envelopes ride in a `SendString`
+  `GeneralCommand` addressed only to Jellyfinity sessions. Presence is a
+  pure `DevicePresenceRegistry` keyed by stable install id, with platform
+  or install-id hints for duplicate names, staleness and a longer drop
+  window. Every connect and reconnect re-reads `/Sessions` in full before
+  opening the socket; backoff doubles to a two-minute ceiling for the two
+  retryable problems only, and `ConnectedSessionFailureMapper` keeps
+  unsupported-server, proxy/WebSocket, authentication, permission and
+  network failures apart. `ConnectedPlaybackLink` (`lib/app`) ties it to
+  sign-in, account switching and the app lifecycle. Android build
+  verified; no schema change. Command *execution* remains v0.5.3.
+- v0.5.3-v0.6.0 are planned: true cross-device music playback and controls,
   built on that foundation, then shared UI, then completed for Windows,
   Android, and the Android TV/Fire TV capability path. See
   `Roadmap to v0.6.md` for the bounded specifications.

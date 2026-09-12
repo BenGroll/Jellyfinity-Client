@@ -13,6 +13,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart'
+    as _i419;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart' as _i45;
 import 'package:jellyfinity/app/favorites/FavoritesRevisionCubit.dart' as _i525;
@@ -115,6 +117,10 @@ import 'package:jellyfinity/infrastructure/downloads/StoredAudioSource.dart'
     as _i212;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
     as _i833;
+import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionApi.dart'
+    as _i399;
+import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionTransport.dart'
+    as _i267;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
     as _i430;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart'
@@ -323,6 +329,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.lazySingleton<_i399.JellyfinSessionApi>(
+      () => _i399.JellyfinSessionApi(
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.lazySingleton<_i963.JellyfinMediaApi>(
       () => _i963.JellyfinMediaApi(
         gh<_i346.JellyfinSessionContext>(),
@@ -391,6 +405,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
         gh<_i809.SessionCubit>(),
         gh<_i525.FavoritesRevisionCubit>(),
+        gh<_i612.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i267.JellyfinSessionTransport>(
+      () => _i267.JellyfinSessionTransport(
+        gh<_i399.JellyfinSessionApi>(),
+        gh<_i787.JellyfinClientIdentity>(),
         gh<_i612.Logger>(),
       ),
     );
@@ -499,6 +520,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i684.RecentlyAddedCubit>(
       () => _i684.RecentlyAddedCubit(gh<_i260.MusicLibraryRepository>()),
+    );
+    gh.lazySingleton<_i419.ConnectedPlaybackLink>(
+      () => _i419.ConnectedPlaybackLink(
+        gh<_i267.JellyfinSessionTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i612.Logger>(),
+      ),
     );
     gh.factory<_i618.ArtistsCubit>(
       () => _i618.ArtistsCubit(

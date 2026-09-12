@@ -2,6 +2,42 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Device presence and capability transport
+
+- Find other Jellyfinity devices signed in to the same server and profile,
+  through the server itself. No cloud service, no account, and no local
+  network discovery, so two devices that can both reach the server can reach
+  each other — including across subnets and over a VPN.
+- Show what each device actually is before offering it: a device that the
+  server knows about but that has not yet said what it accepts is listed as
+  present rather than presented as ready, so a control is never offered and
+  then refused.
+- Keep a device's row stable when it reconnects under a new server session,
+  and distinguish devices sharing a name by their platform — "Jellyfinity
+  (Fire TV)" beside "Jellyfinity (Windows)" — or by a fixed short code where
+  the platform does not separate them.
+- Keep devices from another profile or another server entirely out of the
+  list, including on an administrator account whose server would happily
+  return every session on it.
+- Stop showing a device that has gone quiet as available, without making it
+  vanish and reappear the moment it blinks.
+- Recover from an interrupted connection on its own, with a wait that grows
+  rather than hammering a server that is still down, and re-read everything
+  before trusting it again. Devices stay listed and honestly labelled
+  throughout.
+- Tell apart the five things that can stop this working, because each needs a
+  different fix: the server is unreachable, the session needs signing in
+  again, the account is not allowed to control other devices, the server is
+  too old, and a reverse proxy in front of the server is not forwarding the
+  live connection Jellyfinity needs. The last one is the common way a
+  self-hosted server looks healthy and still cannot do this, and it now says
+  so.
+- Drop the connection when the app leaves the foreground and re-establish it
+  on return, and forget everything about a profile the moment it is signed
+  out, switched away from, or has its server removed.
+- Leave playback on this device completely unaffected by any of it: when the
+  server cannot be reached, music keeps playing and the app says exactly that.
+
 ## Unreleased — Connected playback contract
 
 - Define the vocabulary and ownership model for playing across devices: the

@@ -72,6 +72,61 @@ class JellyfinHttpClient {
     return _decode(response, parse);
   }
 
+  /// GETs [path] and decodes a JSON *array* body with [parse], applied to
+  /// each element.
+  ///
+  /// Jellyfin's item endpoints answer with an object wrapping `Items`,
+  /// but a few of its others — `/Sessions` among them — answer with a
+  /// bare array. [getJson] cannot read those at all, and the alternative
+  /// was for each caller to reach past the client to `dio`, which is the
+  /// thing this class exists to stop.
+  ///
+  /// Elements [parse] returns `null` for are skipped rather than failing
+  /// the request: a list of sessions that contains one row this build
+  /// cannot read is still a usable list of sessions.
+  Future<Result<List<T>>> getJsonList<T>(
+    String path, {
+    required T? Function(Object? element) parse,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    final Response<dynamic> response;
+    try {
+      response = await _dio.get<dynamic>(
+        path,
+        queryParameters: queryParameters,
+        cancelToken: cancelToken,
+      );
+    } catch (error, stackTrace) {
+      return Result.err(_errorMapper.map(error, stackTrace));
+    }
+
+    final body = response.data;
+    if (body is! List) {
+      return const Result.err(
+        UnexpectedFailure(
+          'The server sent a response Jellyfinity could not read.',
+        ),
+      );
+    }
+    try {
+      final values = <T>[];
+      for (final element in body) {
+        final value = parse(element);
+        if (value != null) values.add(value);
+      }
+      return Result.ok(values);
+    } catch (error, stackTrace) {
+      return Result.err(
+        UnexpectedFailure(
+          'The server sent a response Jellyfinity could not read.',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
   /// POSTs [body] as JSON to [path] and decodes the JSON object response
   /// with [parse].
   ///

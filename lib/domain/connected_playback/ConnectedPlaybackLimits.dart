@@ -50,6 +50,45 @@ abstract final class ConnectedPlaybackLimits {
   /// target, which is slower than answering a transport command.
   static const Duration handoffStepTimeout = Duration(seconds: 20);
 
+  /// How long a peer may go unheard before its row stops being trusted.
+  ///
+  /// Comfortably longer than the server's own session keep-alive, so an
+  /// idle device that is perfectly fine is never accused of having gone
+  /// away; short enough that a device that actually left stops being
+  /// offered within a listener's attention span.
+  static const Duration presenceStaleAfter = Duration(seconds: 90);
+
+  /// How long a stale peer stays in the read model before it is dropped.
+  ///
+  /// The gap between this and [presenceStaleAfter] is deliberate:
+  /// `DeviceReachability.stale` exists so a device that blinked is
+  /// labelled rather than made to vanish and reappear under the
+  /// listener's finger. Only after this does it stop being a row at all.
+  static const Duration presenceDropAfter = Duration(minutes: 5);
+
+  /// How often presence is re-read over REST while the socket is not
+  /// carrying `Sessions` updates.
+  ///
+  /// Bounded polling is what keeps a device listed as `presenceOnly`
+  /// during a reconnect instead of disappearing; it is not a substitute
+  /// for the socket, so it is slow on purpose.
+  static const Duration presencePollInterval = Duration(seconds: 20);
+
+  /// The first delay after a socket interruption, doubling up to
+  /// [reconnectMaxDelay].
+  ///
+  /// Not zero: an immediate reconnect against a server that is
+  /// restarting, or a proxy that is refusing upgrades, is a tight loop
+  /// dressed up as resilience.
+  static const Duration reconnectInitialDelay = Duration(seconds: 2);
+
+  /// The longest the backoff ever waits between reconnect attempts.
+  ///
+  /// Attempts never stop: a listener who fixes their network should not
+  /// have to restart the app, and a two-minute ceiling costs nothing
+  /// while being far too slow to matter as load.
+  static const Duration reconnectMaxDelay = Duration(minutes: 2);
+
   /// How many recently seen command ids a target remembers for duplicate
   /// suppression.
   ///

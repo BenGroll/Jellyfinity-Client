@@ -16,6 +16,7 @@ import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
+import 'connected_playback/ConnectedPlaybackLink.dart';
 import 'di/service_locator.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'favorites/PendingFavoritesSync.dart';
@@ -159,6 +160,13 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // does not need awaiting — the first frame renders regardless of
   // whether anything was pending.
   getIt<PendingFavoritesSync>().start();
+
+  // Brings the connected-playback link up for the profile being restored,
+  // and keeps it in step with sign-in, account switching and the app's
+  // own lifecycle from here on (v0.5.2). Unawaited like the restores
+  // above: it talks to the server, and the first frame should not wait on
+  // a device list nothing is showing yet.
+  unawaited(getIt<ConnectedPlaybackLink>().start());
 
   FlutterError.onError = (details) {
     logger.error(

@@ -76,6 +76,50 @@ abstract final class ConnectedPlaybackFailures {
     'is unaffected.',
   );
 
+  /// The server is reachable but cannot carry this conversation.
+  ///
+  /// Its own category because the listener's next step is completely
+  /// different from every other failure here: not "try again", not "sign
+  /// in", but "change something about your server or the proxy in front
+  /// of it". A reverse proxy that terminates HTTPS without forwarding
+  /// the WebSocket upgrade is the common case, and it looks exactly like
+  /// a working server until a client needs a socket.
+  static Failure transportUnsupported([String? detail]) =>
+      UnsupportedServerFailure(
+        detail ??
+            'Your server is reachable but will not open the live connection '
+                'Jellyfinity needs to see your other devices. A reverse proxy '
+                'in front of it may not be forwarding WebSocket connections.',
+      );
+
+  /// The server is older than the minimum this conversation needs.
+  ///
+  /// Distinct from [transportUnsupported] even though both are
+  /// [UnsupportedServerFailure]s, because "upgrade your server" and
+  /// "fix your proxy" are different jobs and a single message that
+  /// suggested both would help with neither.
+  static Failure serverTooOld(String reportedVersion) =>
+      UnsupportedServerFailure(
+        'Playing on another device needs a newer Jellyfin server than '
+        '$reportedVersion.',
+      );
+
+  /// Reached and refused: this profile may not see or control other
+  /// sessions on this server.
+  ///
+  /// Not an authentication problem, and saying so matters — signing in
+  /// again is the one thing that cannot help, and it is the first thing
+  /// a listener will try if the message is vague.
+  static Failure notPermitted() => const UnauthorizedFailure(
+    'This account is not allowed to control other devices on this server. '
+    'Ask the server owner to enable remote control for it.',
+  );
+
+  /// The session's own credentials were rejected.
+  static Failure unauthenticated() => const UnauthorizedFailure(
+    'Your session is no longer valid. Please sign in again.',
+  );
+
   /// The peer speaks a different protocol major version.
   static Failure incompatibleProtocol() => const IncompatibleClientFailure(
     'That device is running a version of Jellyfinity that cannot connect to '

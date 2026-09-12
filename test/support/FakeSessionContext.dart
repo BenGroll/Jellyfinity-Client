@@ -24,13 +24,15 @@ class FakeSessionContext implements JellyfinSessionContext {
     this.serverId = 'server-1',
     this.baseUrl = 'https://media.example.com',
     this.userId = 'user-1',
+    this.serverVersion = '10.11.6',
   });
 
   /// Nobody signed in.
   FakeSessionContext.signedOut()
     : serverId = null,
       baseUrl = null,
-      userId = null;
+      userId = null,
+      serverVersion = null;
 
   @override
   String? serverId;
@@ -41,10 +43,14 @@ class FakeSessionContext implements JellyfinSessionContext {
   @override
   String? userId;
 
+  @override
+  String? serverVersion;
+
   void signOut() {
     serverId = null;
     baseUrl = null;
     userId = null;
+    serverVersion = null;
   }
 }
 
