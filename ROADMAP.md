@@ -44,7 +44,7 @@ published Git tag.
 | v0.4.5 | Random discovery and a personal mix | Implemented | [ADR-only](docs/adr/ADR-0035-random-discovery-and-personal-mix.md) |
 | v0.4.6 | Fire TV platform support | Implemented (device acceptance pending) | [ADR-only](docs/adr/ADR-0036-fire-tv-platform-support.md) |
 | v0.5.0 | Personal music discovery | Planned (its Home-mix entry point shipped early, in v0.4.5) | [spec](Roadmap%20to%20v0.5md#v044--personal-music-discovery) |
-| v0.5.1 | Connected playback contract | Planned | [spec](Roadmap%20to%20v0.6.md#v051---connected-playback-contract) |
+| v0.5.1 | Connected playback contract | Implemented | [spec](Roadmap%20to%20v0.6.md#v051---connected-playback-contract), [ADR](docs/adr/ADR-0037-connected-playback-contract.md) |
 | v0.5.2 | Device presence and capability transport | Planned | [spec](Roadmap%20to%20v0.6.md#v052---device-presence-and-capability-transport) |
 | v0.5.3 | Remote state and command execution | Planned | [spec](Roadmap%20to%20v0.6.md#v053---remote-state-and-command-execution) |
 | v0.5.4 | Atomic playback handoff | Planned | [spec](Roadmap%20to%20v0.6.md#v054---atomic-playback-handoff) |

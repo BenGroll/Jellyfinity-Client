@@ -41,6 +41,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0034](ADR-0034-library-exploration.md) | Library exploration |
 | [0036](ADR-0036-fire-tv-platform-support.md) | Fire TV platform support |
 | [0035](ADR-0035-random-discovery-and-personal-mix.md) | Random discovery and a personal mix |
+| [0037](ADR-0037-connected-playback-contract.md) | Connected playback contract |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

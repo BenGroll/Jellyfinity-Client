@@ -79,6 +79,23 @@ final class InsufficientStorageFailure extends Failure {
   });
 }
 
+/// The other end of a Jellyfinity-to-Jellyfinity conversation cannot be
+/// talked to, because it speaks a different version of the protocol
+/// (v0.5.1, ADR-0037).
+///
+/// Added for the same reason [UnsupportedServerFailure] was: retrying is
+/// not the answer and offering one is a lie. The only fix is that one of
+/// the two installs is updated, and the message should say so. Distinct
+/// from [UnsupportedServerFailure] because the thing to update is a
+/// *client*, not the server both clients share.
+final class IncompatibleClientFailure extends Failure {
+  const IncompatibleClientFailure(
+    super.message, {
+    super.cause,
+    super.stackTrace,
+  });
+}
+
 /// Something failed in a way that was not anticipated, such as an
 /// unhandled exception surfacing from infrastructure code.
 ///

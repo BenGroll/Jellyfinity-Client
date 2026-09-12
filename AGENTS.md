@@ -49,8 +49,20 @@ v0.5.1-v0.6.0.
 - v0.5.0 is planned: Personal music discovery. `ROADMAP.md` is the
   authority for exact version-to-heading mapping; the linked
   `Roadmap to v0.5md` headings intentionally use the prior number.
-- v0.5.1-v0.6.0 are planned: true cross-device music playback and controls,
-  built as a shared foundation, then shared UI, then completed for Windows,
+- v0.5.1 (Connected playback contract, ADR-0037) is implemented: the
+  target-authoritative ownership model, the Jellyfin-mediated transport
+  decision, and the whole vocabulary in `lib/domain/connected_playback/`
+  — scope, two-part device identity, capabilities, revisioned snapshot,
+  command family, acknowledgement, four-step transfer, versioned
+  envelope, monotonic revisions, receiver-side expiry and normalized
+  failures — behind `DevicePresenceSource`,
+  `ConnectedPlaybackTransport` and `PlaybackHandoffCoordinator`, with
+  the arbitration, projection and handoff logic in three pure services.
+  Exercised by two-client contract tests over a deliberately unreliable
+  in-memory network. No Flutter, audio backend, live server, schema
+  change or dependency.
+- v0.5.2-v0.6.0 are planned: true cross-device music playback and controls,
+  built on that foundation, then shared UI, then completed for Windows,
   Android, and the Android TV/Fire TV capability path. See
   `Roadmap to v0.6.md` for the bounded specifications.
 

@@ -2,6 +2,40 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Connected playback contract
+
+- Define the vocabulary and ownership model for playing across devices: the
+  device making sound owns the queue, and every other device holds a
+  revisioned, read-only projection of it that is never merged into its own
+  saved queue.
+- Scope every device, snapshot, command and message to one server and one
+  profile, checked before a message is read, so another profile's playback is
+  never visible or controllable even where the server would allow it.
+- Keep a device's stable identity separate from its current server session,
+  and give devices sharing a name a distinguishing hint.
+- Version the messages two Jellyfinity installs exchange. A newer build's
+  extra messages, commands and fields are ignored safely; a genuinely
+  incompatible build is explained rather than retried.
+- Give commands a unique id, a target session, the state revision they were
+  composed against and a bounded lifetime, so duplicates apply once, competing
+  remotes cannot interleave a queue edit, and a late instruction is dropped
+  instead of applied to a situation that has moved on. Lifetimes are measured
+  by the receiving device's own clock, so devices that disagree about the time
+  of day still behave.
+- Make transferring playback a four-step conversation that refuses before the
+  source stops if the destination cannot reproduce the whole queue, names the
+  entries it could not resolve, and always resolves a lost confirmation to one
+  device playing — never two, never none.
+- Send only identifiers and music metadata between devices: never credentials,
+  stream addresses, file paths or audio. The destination resolves its own
+  download or stream and applies its own quality settings.
+- Normalize every connected-playback failure so the app can tell a stale
+  view, a timeout, a permission problem, an unreachable server and an
+  incompatible device apart, and only offers a retry where one could work.
+- Cover the whole discovery, control, synchronization and handoff conversation
+  with two-client tests over a deliberately unreliable in-memory network that
+  duplicates, reorders, drops and delays messages.
+
 ## Unreleased — Fire TV support
 
 - Make the Android package discoverable from Amazon Fire TV and Android TV
