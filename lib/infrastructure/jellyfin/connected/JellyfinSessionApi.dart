@@ -77,6 +77,18 @@ class JellyfinSessionApi {
   /// ephemeral, and capabilities belong to the session, so a reconnect
   /// that skipped this would leave the server describing a device that
   /// accepts nothing.
+  ///
+  /// The one request connected playback cannot survive failing, which is
+  /// why its shape is spelled out here. `/Sessions/Capabilities/Full`
+  /// takes a `ClientCapabilitiesDto` as a **required JSON body**, not
+  /// query parameters (those belong to the older `/Sessions/Capabilities`
+  /// route), and since the array change every list field is a JSON array
+  /// rather than a comma-joined string. Sent the wrong way the server
+  /// refuses the request, `SupportsMediaControl` stays false, and
+  /// `/Sessions?ControllableByUserId=` — which returns only sessions with
+  /// remote control — hides this install from every other device *and*
+  /// from itself, leaving a picker that can only ever say it found
+  /// nothing.
   Future<Result<void>> advertiseCapabilities({
     required bool supportsMediaControl,
   }) async {
@@ -85,12 +97,11 @@ class JellyfinSessionApi {
     final result = await client.send(
       capabilitiesPath,
       method: 'POST',
-      queryParameters: {
-        // Jellyfin reads these from the query string on this endpoint.
-        'playableMediaTypes': 'Audio',
-        'supportedCommands': _supportedCommandNames.join(','),
-        'supportsMediaControl': supportsMediaControl,
-        'supportsPersistentIdentifier': true,
+      body: {
+        'PlayableMediaTypes': const ['Audio'],
+        'SupportedCommands': _supportedCommandNames,
+        'SupportsMediaControl': supportsMediaControl,
+        'SupportsPersistentIdentifier': true,
       },
     );
     return result;
@@ -223,16 +234,19 @@ class JellyfinSessionApi {
   /// [envelopeCommandName] and are negotiated by `DeviceCapabilities`
   /// instead. Two vocabularies, because only one of them is Jellyfin's
   /// to define.
+  ///
+  /// Every entry must be a member of Jellyfin's `GeneralCommandType`, or
+  /// the server cannot bind the list and refuses the whole capability
+  /// post. That is a narrower vocabulary than it looks: pause, unpause,
+  /// stop, next, previous and seek are `PlaystateCommand` values, not
+  /// general commands, and a session declares it accepts all of them by
+  /// naming the single `PlayState` entry that carries them. `SetVolume`
+  /// is left out on purpose, for the reason `supportedRemoteCommands`
+  /// gives: no Jellyfinity platform exposes a settable output volume
+  /// yet, and claiming one produces a control that does nothing.
   static const List<String> _supportedCommandNames = [
     'Play',
-    'Pause',
-    'Unpause',
-    'PlayPause',
-    'Stop',
-    'NextTrack',
-    'PreviousTrack',
-    'Seek',
-    'SetVolume',
+    'PlayState',
     'SetRepeatMode',
     'SetShuffleQueue',
     envelopeCommandName,

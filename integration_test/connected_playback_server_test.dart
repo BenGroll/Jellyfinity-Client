@@ -19,7 +19,7 @@ import 'package:jellyfinity/infrastructure/jellyfin/server/JellyfinServerProbe.d
 /// Everything else about v0.5.2 is covered by tests that answer from a
 /// fake adapter and a fake socket, which is what makes them fast and
 /// deterministic. What they cannot prove is that the wire shapes are
-/// right: that `/Sessions/Capabilities/Full` accepts the query this
+/// right: that `/Sessions/Capabilities/Full` accepts the body this
 /// client sends, that `/Sessions?ControllableByUserId=…` answers with a
 /// bare array whose `DeviceId` really is the id this install reported,
 /// that `/socket` upgrades with an `api_key` and a `deviceId`, and that

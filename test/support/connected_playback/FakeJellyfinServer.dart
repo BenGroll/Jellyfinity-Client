@@ -51,6 +51,59 @@ Map<String, Object?> get localSession =>
 Map<String, Object?> get tvSession =>
     sessionJson(id: 'session-tv', deviceId: 'device-tv', name: 'Living Room');
 
+/// Jellyfin's own `GeneralCommandType`, as of the 10.11 servers
+/// Jellyfinity supports — the only vocabulary
+/// `/Sessions/Capabilities/Full` accepts for `SupportedCommands`.
+///
+/// Transcribed rather than derived because it is the server's list, not
+/// Jellyfinity's: it is here so a test can hold the capability post to
+/// the same standard the server does.
+const Set<String> generalCommandTypes = {
+  'MoveUp',
+  'MoveDown',
+  'MoveLeft',
+  'MoveRight',
+  'PageUp',
+  'PageDown',
+  'PreviousLetter',
+  'NextLetter',
+  'ToggleOsd',
+  'ToggleContextMenu',
+  'Select',
+  'Back',
+  'TakeScreenshot',
+  'SendKey',
+  'SendString',
+  'GoHome',
+  'GoToSettings',
+  'VolumeUp',
+  'VolumeDown',
+  'Mute',
+  'Unmute',
+  'ToggleMute',
+  'SetVolume',
+  'SetAudioStreamIndex',
+  'SetSubtitleStreamIndex',
+  'ToggleFullscreen',
+  'DisplayContent',
+  'GoToSearch',
+  'DisplayMessage',
+  'SetRepeatMode',
+  'ChannelUp',
+  'ChannelDown',
+  'Guide',
+  'ToggleStats',
+  'PlayMediaSource',
+  'PlayTrailers',
+  'SetShuffleQueue',
+  'PlayState',
+  'PlayNext',
+  'ToggleOsdMenu',
+  'Play',
+  'SetMaxStreamingBitrate',
+  'SetPlaybackOrder',
+};
+
 /// A Jellyfin answering only the three endpoints connected playback uses.
 class FakeJellyfinServer {
   FakeJellyfinServer({List<Map<String, Object?>>? sessions})
@@ -80,6 +133,13 @@ class FakeJellyfinServer {
 
     if (path == JellyfinSessionApi.capabilitiesPath) {
       capabilityPosts++;
+      if (!_isClientCapabilitiesDto(options.data)) {
+        // What the real endpoint does with a body it cannot bind: its
+        // `ClientCapabilitiesDto` is `[FromBody, Required]` and its list
+        // fields are enum arrays. A fake that accepted anything let a
+        // capability post that no Jellyfin would take look healthy.
+        throw _status(options, 400);
+      }
       return textResponseBody('', statusCode: 204);
     }
     if (path == JellyfinSessionApi.sessionsPath) {
@@ -113,11 +173,47 @@ class FakeJellyfinServer {
     }
   }
 
+  /// Whether [data] is a body Jellyfin's `/Sessions/Capabilities/Full`
+  /// could actually bind: an object with the four fields it reads, the
+  /// two list fields as arrays, and every command a real
+  /// `GeneralCommandType`.
+  static bool _isClientCapabilitiesDto(Object? data) {
+    if (data is! Map) return false;
+    final media = data['PlayableMediaTypes'];
+    final commands = data['SupportedCommands'];
+    if (media is! List || commands is! List) return false;
+    if (data['SupportsMediaControl'] is! bool) return false;
+    if (data['SupportsPersistentIdentifier'] is! bool) return false;
+    return commands.every(generalCommandTypes.contains);
+  }
+
   DioException _status(RequestOptions options, int status) => DioException(
     requestOptions: options,
     type: DioExceptionType.badResponse,
     response: Response<dynamic>(requestOptions: options, statusCode: status),
   );
+}
+
+/// The REST half alone, answered by [server] — what a test that is about
+/// the requests themselves needs, rather than the whole transport.
+JellyfinSessionApi testSessionApi(
+  FakeJellyfinServer server, {
+  JellyfinSessionContext? context,
+}) {
+  return JellyfinSessionApi(
+      context ?? FakeSessionContext(),
+      thisDevice,
+      const StaticAuthToken('token-1'),
+      TestLogger(),
+    )
+    ..httpClientFactory = (baseUrl) => JellyfinHttpClient(
+      baseUrl: baseUrl,
+      identity: thisDevice,
+      authTokenProvider: const NoAuthTokenProvider(),
+      logger: TestLogger(),
+      dio: Dio()..httpClientAdapter = server.adapter,
+      maxRetries: 0,
+    );
 }
 
 /// A transport wired to [server], with a socket the test drives and
@@ -132,21 +228,7 @@ JellyfinSessionTransport testSessionTransport(
   JellyfinSessionContext? context,
   Object? Function()? socketError,
 }) {
-  final api =
-      JellyfinSessionApi(
-          context ?? FakeSessionContext(),
-          thisDevice,
-          const StaticAuthToken('token-1'),
-          TestLogger(),
-        )
-        ..httpClientFactory = (baseUrl) => JellyfinHttpClient(
-          baseUrl: baseUrl,
-          identity: thisDevice,
-          authTokenProvider: const NoAuthTokenProvider(),
-          logger: TestLogger(),
-          dio: Dio()..httpClientAdapter = server.adapter,
-          maxRetries: 0,
-        );
+  final api = testSessionApi(server, context: context);
 
   return JellyfinSessionTransport(api, thisDevice, TestLogger())
     ..clock = FakeElapsedClock()
