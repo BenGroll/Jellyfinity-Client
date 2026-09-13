@@ -159,6 +159,36 @@ void main() {
       expect(engine.playing, isTrue);
     });
 
+    test('play and pause are idempotent (v0.5.3: safe to drive without '
+        'checking local state first)', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+      expect(engine.playing, isTrue);
+
+      engine.calls.clear();
+      await cubit.play();
+      expect(engine.calls, isNot(contains('play')));
+      expect(engine.playing, isTrue);
+
+      await cubit.pause();
+      expect(engine.playing, isFalse);
+
+      engine.calls.clear();
+      await cubit.pause();
+      expect(engine.calls, isNot(contains('pause')));
+      expect(engine.playing, isFalse);
+
+      await cubit.play();
+      expect(engine.playing, isTrue);
+    });
+
+    test('play and pause are no-ops with no queue', () async {
+      await cubit.play();
+      expect(engine.playing, isFalse);
+
+      await cubit.pause();
+      expect(engine.playing, isFalse);
+    });
+
     test('resume starts a restored queue (v0.3.2)', () async {
       await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
       await queueRepository.savePosition(

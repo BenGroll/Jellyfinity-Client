@@ -15,7 +15,11 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart'
     as _i419;
+import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart'
+    as _i217;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
+import 'package:jellyfinity/app/di/ConnectedPlaybackTransportModule.dart'
+    as _i1017;
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart' as _i45;
 import 'package:jellyfinity/app/favorites/FavoritesRevisionCubit.dart' as _i525;
 import 'package:jellyfinity/app/favorites/PendingFavoritesCubit.dart' as _i195;
@@ -33,6 +37,8 @@ import 'package:jellyfinity/app/settings/SettingsCubit.dart' as _i230;
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart' as _i883;
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
+import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackTransport.dart'
+    as _i231;
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
     as _i813;
 import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
@@ -194,6 +200,8 @@ extension GetItInjectableX on _i174.GetIt {
     final databaseModule = _$DatabaseModule();
     final secureStorageModule = _$SecureStorageModule();
     final jellyfinTransportModule = _$JellyfinTransportModule();
+    final connectedPlaybackTransportModule =
+        _$ConnectedPlaybackTransportModule();
     gh.factory<_i84.MediaScopeCubit>(() => _i84.MediaScopeCubit());
     gh.lazySingleton<_i525.FavoritesRevisionCubit>(
       () => _i525.FavoritesRevisionCubit(),
@@ -456,6 +464,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i720.DownloadsLibrarySource>(),
       ),
     );
+    gh.lazySingleton<_i231.ConnectedPlaybackTransport>(
+      () => connectedPlaybackTransportModule.transport(
+        gh<_i267.JellyfinSessionTransport>(),
+      ),
+    );
     gh.factory<_i413.FavoriteArtistsCubit>(
       () => _i413.FavoriteArtistsCubit(
         gh<_i747.MusicLibraryRepository>(),
@@ -616,6 +629,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.DownloadStorageProbe>(),
       ),
     );
+    gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
+      () => _i217.ConnectedPlaybackTargetLink(
+        gh<_i126.PlaybackCubit>(),
+        gh<_i231.ConnectedPlaybackTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(
         gh<_i747.MediaMetadataRepository>(),
@@ -631,3 +652,6 @@ class _$DatabaseModule extends _i923.DatabaseModule {}
 class _$SecureStorageModule extends _i318.SecureStorageModule {}
 
 class _$JellyfinTransportModule extends _i748.JellyfinTransportModule {}
+
+class _$ConnectedPlaybackTransportModule
+    extends _i1017.ConnectedPlaybackTransportModule {}

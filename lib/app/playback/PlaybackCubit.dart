@@ -296,18 +296,27 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   // ---- Transport ----
 
-  Future<void> togglePlayPause() async {
-    if (state.queue.isEmpty) return;
-    if (state.isPlaying) {
-      await _engine.pause();
-      unawaited(_savePosition());
-      // Jellyfin shows a paused session as paused rather than dropping
-      // it, so pausing is reported, not stopped (v0.4.1).
-      unawaited(_reportProgress(isPaused: true));
-    } else {
-      await _engine.play();
-      unawaited(_reportProgress(isPaused: false));
-    }
+  Future<void> togglePlayPause() => state.isPlaying ? pause() : play();
+
+  /// Resumes the current entry — a no-op with no queue or one already
+  /// playing (buffering counts as playing), so a remote "play" command
+  /// (v0.5.3) is safe to apply without first checking local state.
+  Future<void> play() async {
+    if (state.queue.isEmpty || state.isPlaying) return;
+    await _engine.play();
+    unawaited(_reportProgress(isPaused: false));
+  }
+
+  /// Pauses the current entry — a no-op with no queue or one already
+  /// paused, for the same reason [play] is: a remote "pause" must never
+  /// toggle a device that is already paused back into playing.
+  Future<void> pause() async {
+    if (state.queue.isEmpty || !state.isPlaying) return;
+    await _engine.pause();
+    unawaited(_savePosition());
+    // Jellyfin shows a paused session as paused rather than dropping it,
+    // so pausing is reported, not stopped (v0.4.1).
+    unawaited(_reportProgress(isPaused: true));
   }
 
   /// Carries on the restored queue from where it left off — Home's

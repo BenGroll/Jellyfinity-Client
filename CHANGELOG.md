@@ -2,6 +2,30 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Remote state and command execution
+
+- Let a Jellyfinity device actually drive another one's playback — play,
+  pause, previous, next, seek, jump to a queue row, shuffle and repeat —
+  through the very same queue and playback engine the listener would use
+  directly at that device, never a second path into it.
+- Publish a bounded, revisioned picture of what is playing on the device
+  producing sound — its queue, current track, position, playing/paused
+  state, shuffle and repeat — to whatever is watching it. An oversized
+  queue is windowed to the current track onward rather than sent whole and
+  silently lost.
+- Answer every command, accepted or refused, with the state it produced and
+  why, while the device being controlled keeps playing normally for the
+  listener standing at it the whole time — another device only ever holds a
+  read-only mirror of that queue, never a second, editable copy of it.
+- Serialize competing controllers so two edits that arrive together apply in
+  the order they were made rather than clobbering each other, drop a
+  duplicated delivery rather than repeating its effect, and let a device
+  reconnecting under a new session be told apart from the one it replaced.
+- Keep the server-facing play session and listening-progress reporting
+  entirely with the device that is actually producing sound; a device only
+  watching or driving another one never opens a play session of its own for
+  it.
+
 ## Unreleased — Device presence and capability transport
 
 - Find other Jellyfinity devices signed in to the same server and profile,

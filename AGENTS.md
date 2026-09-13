@@ -79,10 +79,28 @@ v0.5.1-v0.6.0.
   network failures apart. `ConnectedPlaybackLink` (`lib/app`) ties it to
   sign-in, account switching and the app lifecycle. Android build
   verified; no schema change. Command *execution* remains v0.5.3.
-- v0.5.3-v0.6.0 are planned: true cross-device music playback and controls,
-  built on that foundation, then shared UI, then completed for Windows,
-  Android, and the Android TV/Fire TV capability path. See
-  `Roadmap to v0.6.md` for the bounded specifications.
+- v0.5.3 (Remote state and command execution) is implemented: the
+  application-layer bridge v0.5.1/v0.5.2 left open. `ConnectedPlaybackTargetLink`
+  (`lib/app`) mirrors this device's real `PlaybackCubit` state into a
+  `RemotePlaybackTarget`, publishes bounded/windowed snapshots on every
+  change (queue capped and anchored at the current position past
+  `ConnectedPlaybackLimits.maxQueueEntries`), and turns an accepted command
+  into a real `PlaybackCubit` call — play, pause, previous, next, seek,
+  jump-to-queue-entry, shuffle, repeat — serialized one at a time so
+  concurrent controllers cannot interleave. `ConnectedPlaybackControllerSession`
+  drives `RemotePlaybackController` against a chosen device the same way.
+  Advertised capabilities (`SupportedRemoteCommands`) are deliberately
+  narrower than `DeviceCapabilities.fullPlayer()`: no remote queue editing
+  (`setQueue`/append/remove/move — not required this version, and
+  `setQueue`'s absence keeps `canReceiveTransfer` honestly `false` until
+  v0.5.4 wires a handoff commit), no `stop`, no `setVolume` (no Jellyfinity
+  platform exposes a settable output volume). `PlaybackCubit` gained
+  explicit `play()`/`pause()` (idempotent, unlike the toggle a remote
+  command cannot safely drive). No schema change, no new dependency, no UI.
+- v0.5.4-v0.6.0 are planned: atomic playback handoff, then a device picker
+  and remote Now Playing UI, then completed for Windows, Android, and the
+  Android TV/Fire TV capability path. See `Roadmap to v0.6.md` for the
+  bounded specifications.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

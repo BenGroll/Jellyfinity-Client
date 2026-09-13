@@ -17,6 +17,7 @@ import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'connected_playback/ConnectedPlaybackLink.dart';
+import 'connected_playback/ConnectedPlaybackTargetLink.dart';
 import 'di/service_locator.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'favorites/PendingFavoritesSync.dart';
@@ -167,6 +168,12 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // above: it talks to the server, and the first frame should not wait on
   // a device list nothing is showing yet.
   unawaited(getIt<ConnectedPlaybackLink>().start());
+
+  // Keeps this device's own RemotePlaybackTarget in step with real
+  // playback and answers commands another device sends it (v0.5.3).
+  // Every signed-in device runs this, unlike ConnectedPlaybackControllerSession
+  // (constructed only once something actually picks a device to drive).
+  unawaited(getIt<ConnectedPlaybackTargetLink>().start());
 
   FlutterError.onError = (details) {
     logger.error(

@@ -9,6 +9,8 @@ import '../../infrastructure/jellyfin/connected/JellyfinSessionTransport.dart';
 import '../platform/television_mode.dart';
 import '../session/SessionCubit.dart';
 import '../session/SessionState.dart';
+import 'ConnectedPlaybackScopeOf.dart';
+import 'SupportedRemoteCommands.dart';
 
 /// Keeps the connected-playback link in step with the two things that
 /// decide whether there should be one: who is signed in, and whether this
@@ -55,10 +57,14 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     if (await TelevisionModeDetector.detect()) {
       _transport.platformName = 'Fire TV';
     }
+    // What this build actually executes when driven remotely (v0.5.3) —
+    // see SupportedRemoteCommands for why it is narrower than
+    // DeviceCapabilities.fullPlayer().
+    _transport.capabilities = supportedRemoteCommands;
 
     WidgetsBinding.instance.addObserver(this);
     _sessionUpdates = _session.stream.listen(_onSession);
-    await _apply(_scopeOf(_session.state));
+    await _apply(connectedPlaybackScopeOf(_session.state));
   }
 
   /// Releases both triggers and the link itself.
@@ -94,7 +100,8 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     }
   }
 
-  void _onSession(SessionState state) => unawaited(_apply(_scopeOf(state)));
+  void _onSession(SessionState state) =>
+      unawaited(_apply(connectedPlaybackScopeOf(state)));
 
   Future<void> _apply(ConnectedPlaybackScope? scope) async {
     if (scope == _scope) return;
@@ -113,20 +120,5 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
         '${result.failureOrNull!.message}',
       );
     }
-  }
-
-  /// The saved server and Jellyfin user of the active profile.
-  ///
-  /// Built from the server's *local* id and the account's user id rather
-  /// than from the saved account — two saved accounts can point at the
-  /// same user on the same server, and their devices are the same
-  /// devices.
-  static ConnectedPlaybackScope? _scopeOf(SessionState state) {
-    final session = state.session;
-    if (session == null) return null;
-    return ConnectedPlaybackScope(
-      serverId: session.server.id,
-      userId: session.account.userId,
-    );
   }
 }
