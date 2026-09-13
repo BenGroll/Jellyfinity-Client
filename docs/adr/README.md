@@ -47,6 +47,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0040](ADR-0040-remote-now-playing-and-queue-controls.md) | Remote Now Playing and queue controls |
 | [0041](ADR-0041-windows-connected-playback.md) | Windows connected playback |
 | [0042](ADR-0042-android-connected-playback.md) | Android connected playback |
+| [0043](ADR-0043-android-tv-and-fire-tv-connected-playback.md) | Android TV and Fire TV connected playback |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

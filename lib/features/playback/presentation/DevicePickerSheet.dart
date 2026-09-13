@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/di/service_locator.dart';
+import '../../../app/platform/television_mode.dart';
 import '../../../design/design.dart';
 import '../../../domain/connected_playback/ConnectedDevice.dart';
 import '../../../domain/connected_playback/connection_state.dart';
@@ -126,6 +127,15 @@ class _DeviceList extends StatelessWidget {
       for (final device in state.devices)
         if (!device.isThisDevice) device,
     ];
+    // A D-pad remote needs somewhere to land the moment the sheet opens
+    // (ADR-0036's television mode only autofocuses screens reached by
+    // navigation, not overlays like this one). The row that already names
+    // remote ownership — who is controlling, or failing that this device
+    // — is the one a listener is most likely to act on next.
+    final primarySessionId =
+        state.controllingSessionId ??
+        (thisDevice.isEmpty ? null : thisDevice.first.sessionId);
+    final television = TelevisionModeScope.of(context);
 
     return Column(
       children: [
@@ -161,10 +171,20 @@ class _DeviceList extends StatelessWidget {
           child: ListView(
             children: [
               for (final device in thisDevice)
-                _DeviceRow(device: device, state: state, cubit: cubit),
+                _DeviceRow(
+                  device: device,
+                  state: state,
+                  cubit: cubit,
+                  autofocus: television && device.sessionId == primarySessionId,
+                ),
               if (others.isNotEmpty) const Divider(height: 1),
               for (final device in others)
-                _DeviceRow(device: device, state: state, cubit: cubit),
+                _DeviceRow(
+                  device: device,
+                  state: state,
+                  cubit: cubit,
+                  autofocus: television && device.sessionId == primarySessionId,
+                ),
               if (others.isEmpty)
                 Padding(
                   padding: EdgeInsets.all(t.spacing.lg),
@@ -234,11 +254,16 @@ class _DeviceRow extends StatelessWidget {
     required this.device,
     required this.state,
     required this.cubit,
+    this.autofocus = false,
   });
 
   final ConnectedDevice device;
   final DevicePickerState state;
   final DevicePickerCubit cubit;
+
+  /// Whether this row should take D-pad focus the moment the sheet opens.
+  /// Set on the one row naming current remote ownership; see `_DeviceList`.
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -300,6 +325,7 @@ class _DeviceRow extends StatelessWidget {
     }
 
     return ListTile(
+      autofocus: autofocus,
       enabled: !busy || isThisTransfer,
       leading: Icon(status.icon, color: status.color(t.colors)),
       title: Text(

@@ -191,5 +191,55 @@ void main() {
       // Leave playback paused so no position-save timer outlives the test.
       await playback.pause();
     });
+
+    testWidgets('lands D-pad focus on "This device" as soon as it opens, '
+        'with no other device controlling', (tester) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        televisionMode: true,
+        viewportSize: const Size(1920, 1080),
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+      await openPicker(tester, playback);
+
+      final thisDeviceTile = tester.widget<ListTile>(
+        find.ancestor(
+          of: find.text('This device'),
+          matching: find.byType(ListTile),
+        ),
+      );
+      expect(thisDeviceTile.autofocus, isTrue);
+
+      // Leave playback paused so no position-save timer outlives the test.
+      await playback.pause();
+    });
+
+    testWidgets('does not autofocus off television', (tester) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        viewportSize: const Size(1280, 800),
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+      await openPicker(tester, playback);
+
+      final thisDeviceTile = tester.widget<ListTile>(
+        find.ancestor(
+          of: find.text('This device'),
+          matching: find.byType(ListTile),
+        ),
+      );
+      expect(thisDeviceTile.autofocus, isFalse);
+
+      // Leave playback paused so no position-save timer outlives the test.
+      await playback.pause();
+    });
   });
 }
