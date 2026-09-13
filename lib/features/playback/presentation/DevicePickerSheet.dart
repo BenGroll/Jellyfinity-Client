@@ -136,6 +136,8 @@ class _DeviceList extends StatelessWidget {
         state.controllingSessionId ??
         (thisDevice.isEmpty ? null : thisDevice.first.sessionId);
     final television = TelevisionModeScope.of(context);
+    bool autofocusFor(ConnectedDevice device) =>
+        television && device.sessionId == primarySessionId;
 
     return Column(
       children: [
@@ -175,7 +177,7 @@ class _DeviceList extends StatelessWidget {
                   device: device,
                   state: state,
                   cubit: cubit,
-                  autofocus: television && device.sessionId == primarySessionId,
+                  autofocus: autofocusFor(device),
                 ),
               if (others.isNotEmpty) const Divider(height: 1),
               for (final device in others)
@@ -183,7 +185,7 @@ class _DeviceList extends StatelessWidget {
                   device: device,
                   state: state,
                   cubit: cubit,
-                  autofocus: television && device.sessionId == primarySessionId,
+                  autofocus: autofocusFor(device),
                 ),
               if (others.isEmpty)
                 Padding(

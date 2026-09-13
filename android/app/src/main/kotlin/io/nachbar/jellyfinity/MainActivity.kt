@@ -16,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 // own FlutterActivity subclass) provides that (ADR-0013).
 class MainActivity : AudioServiceActivity() {
     private var displayEventSink: EventChannel.EventSink? = null
+    private var displayReceiverRegistered = false
 
     // ACTION_SCREEN_ON/OFF are protected broadcasts Android refuses to
     // deliver to a manifest-declared receiver, so this has to be
@@ -48,18 +49,27 @@ class MainActivity : AudioServiceActivity() {
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                     displayEventSink = events
-                    registerReceiver(
-                        displayStateReceiver,
-                        IntentFilter().apply {
-                            addAction(Intent.ACTION_SCREEN_ON)
-                            addAction(Intent.ACTION_SCREEN_OFF)
-                        },
-                    )
+                    // configureFlutterEngine can run again on the same
+                    // Activity (an engine reattach), which would otherwise
+                    // register the same receiver instance twice.
+                    if (!displayReceiverRegistered) {
+                        registerReceiver(
+                            displayStateReceiver,
+                            IntentFilter().apply {
+                                addAction(Intent.ACTION_SCREEN_ON)
+                                addAction(Intent.ACTION_SCREEN_OFF)
+                            },
+                        )
+                        displayReceiverRegistered = true
+                    }
                 }
 
                 override fun onCancel(arguments: Any?) {
                     displayEventSink = null
-                    unregisterReceiver(displayStateReceiver)
+                    if (displayReceiverRegistered) {
+                        unregisterReceiver(displayStateReceiver)
+                        displayReceiverRegistered = false
+                    }
                 }
             },
         )

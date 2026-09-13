@@ -350,5 +350,38 @@ void main() {
         );
       },
     );
+
+    test(
+      'a resumed lifecycle callback while still asleep does not reconnect',
+      () async {
+        session.emit(signedInAs('user-1'));
+        await link.start();
+
+        television.screenOff();
+        await waitUntil(
+          () => sockets.single.closed,
+          reason: 'the asleep television to expire',
+        );
+
+        // A `resumed` callback racing or preceding the screen-on broadcast
+        // — plausible on a television, where foreground/resume state is
+        // not tightly coupled to display power — must not reconnect a
+        // target that is still reported asleep.
+        link.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        await settle();
+
+        expect(
+          sockets.length,
+          1,
+          reason: 'still asleep, so resuming must wait for the wake signal',
+        );
+
+        television.screenOn();
+        await waitUntil(
+          () => sockets.length == 2,
+          reason: 'the real wake signal to restore the target',
+        );
+      },
+    );
   });
 }

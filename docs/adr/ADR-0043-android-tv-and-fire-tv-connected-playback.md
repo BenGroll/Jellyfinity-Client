@@ -85,6 +85,22 @@ reconcile if still backgrounded, a direct `resume()` if not — rather than
 calling both, which would race `resume`'s asynchronous reconnect against a
 reconcile that might decide to suspend again.
 
+`didChangeAppLifecycleState`'s own `resumed` case (ADR-0042) calls
+`resume()` directly and does not go through `_reconcileBackgroundConnection`
+at all, so it needed the same `_televisionAsleep` check added inline: a
+`resumed` callback that races or precedes the real `ACTION_SCREEN_ON`
+broadcast — plausible on a television, where foreground/resume state is
+not tightly coupled to display power the way it is assumed to be on a
+phone — must not reconnect a target this device's own signal still says
+is asleep.
+
+On the native side, `onListen`/`onCancel` guard `registerReceiver`/
+`unregisterReceiver` with a `displayReceiverRegistered` flag:
+`configureFlutterEngine` can run more than once against the same
+`MainActivity` (an engine reattach), which would otherwise register the
+same receiver instance a second time before the first is ever
+unregistered.
+
 ## Tests
 
 - `test/features/playback/device_picker_widget_test.dart` gained two
@@ -95,9 +111,10 @@ reconcile that might decide to suspend again.
   1920x1080.
 - `test/app/connected_playback/connected_playback_link_test.dart` gained a
   `FakeTelevisionPlatform`-backed group covering an asleep television
-  expiring even while playing and restoring on wake, and an asleep,
+  expiring even while playing and restoring on wake, an asleep,
   already-backgrounded, non-playing television staying expired once it
-  wakes rather than reconnecting unconditionally.
+  wakes rather than reconnecting unconditionally, and a `resumed`
+  lifecycle callback arriving while still asleep not reconnecting.
 - `test/app/fire_tv_platform_test.dart` gained a case pinning the new
   `EventChannel` name and that the receiver is registered/unregistered at
   runtime rather than declared in the manifest.

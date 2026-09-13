@@ -127,8 +127,11 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
         // day, and a socket that is open but dead looks exactly like one
         // that is open. A no-op when playback kept it alive in the
         // background (below): [JellyfinSessionTransport.resume] only acts
-        // on a suspended or missing socket.
-        unawaited(_transport.resume());
+        // on a suspended or missing socket. Skipped while an asleep
+        // television's own signal still says it is asleep — a `resumed`
+        // callback racing or preceding `ACTION_SCREEN_ON` must not
+        // reconnect a target that is still dark (v0.5.9).
+        if (!_televisionAsleep) unawaited(_transport.resume());
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         _backgrounded = true;
