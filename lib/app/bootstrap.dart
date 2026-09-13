@@ -16,8 +16,10 @@ import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
+import 'connected_playback/ActivePlaybackRouteAdapter.dart';
 import 'connected_playback/ConnectedPlaybackLink.dart';
 import 'connected_playback/ConnectedPlaybackTargetLink.dart';
+import 'connected_playback/PlaybackControlCubit.dart';
 import 'di/service_locator.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'favorites/PendingFavoritesSync.dart';
@@ -123,7 +125,17 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // constructed here and registered with getIt directly, kept out of the
   // generated graph and everything that exercises it in tests.
   final playbackEngine = await AudioService.init(
-    builder: () => JustAudioPlaybackEngine(getIt<ArtworkResolver>()),
+    builder: () => JustAudioPlaybackEngine(
+      getIt<ArtworkResolver>(),
+      // Lets a lock-screen, Windows media-session, or hardware media-key
+      // press reach whatever this device is controlling instead of local
+      // playback (v0.5.7) — see `ActiveTransportRoute`'s own doc for why
+      // this is the one seam the engine needs for that, rather than a
+      // dependency on `PlaybackControlCubit` itself.
+      activeTransportRoute: ActivePlaybackRouteAdapter(
+        getIt<PlaybackControlCubit>(),
+      ),
+    ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'io.nachbar.jellyfinity.playback',
       androidNotificationChannelName: 'Playback',

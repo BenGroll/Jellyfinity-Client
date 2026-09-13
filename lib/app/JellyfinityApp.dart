@@ -5,11 +5,14 @@ import 'package:go_router/go_router.dart';
 
 import '../design/design.dart';
 import '../design/components/ArtworkBackdropScope.dart';
+import '../domain/connected_playback/remote_command_kind.dart';
 import '../domain/media/MediaImage.dart';
 import '../features/music/presentation/widgets/ArtworkBackground.dart';
 import 'playback/PlaybackUiState.dart';
+import 'connected_playback/PlaybackControlCubit.dart';
 import 'connectivity/OfflineCubit.dart';
 import 'DesktopScrollBehavior.dart';
+import 'di/service_locator.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'favorites/FavoritesRevisionCubit.dart';
 import 'navigation/MediaScopeCubit.dart';
@@ -129,6 +132,88 @@ class _JellyfinityAppState extends State<JellyfinityApp> {
     widget.playback.seek(target);
   }
 
+  // ---- Hardware media-key routing (v0.5.7) ----
+  //
+  // Every one of these checks `PlaybackControlCubit.isControlling` first,
+  // the same way `MiniPlayer`, `NowPlayingPage` and `QueuePage` already
+  // do, so a media key presses whichever player is actually active and
+  // never both — pressing next while this device is remote-controlling
+  // another one must reach that device, not skip a track in this
+  // device's own dormant local queue.
+
+  PlaybackControlCubit get _control => getIt<PlaybackControlCubit>();
+
+  void _mediaTogglePlayPause() {
+    final control = _control;
+    if (control.state.isControlling) {
+      if (control.state.commandAvailable(RemoteCommandKind.playPause)) {
+        control.togglePlayPause();
+      }
+      return;
+    }
+    widget.playback.togglePlayPause();
+  }
+
+  void _mediaPlay() {
+    final control = _control;
+    if (control.state.isControlling) {
+      if (!control.state.isPlaying &&
+          control.state.commandAvailable(RemoteCommandKind.play)) {
+        control.play();
+      }
+      return;
+    }
+    if (!widget.playback.state.isPlaying) widget.playback.resume();
+  }
+
+  void _mediaPause() {
+    final control = _control;
+    if (control.state.isControlling) {
+      if (control.state.isPlaying &&
+          control.state.commandAvailable(RemoteCommandKind.pause)) {
+        control.pause();
+      }
+      return;
+    }
+    if (widget.playback.state.isPlaying) widget.playback.togglePlayPause();
+  }
+
+  void _mediaNext() {
+    final control = _control;
+    if (control.state.isControlling) {
+      if (control.state.commandAvailable(RemoteCommandKind.next)) {
+        control.next();
+      }
+      return;
+    }
+    widget.playback.next();
+  }
+
+  void _mediaPrevious() {
+    final control = _control;
+    if (control.state.isControlling) {
+      if (control.state.commandAvailable(RemoteCommandKind.previous)) {
+        control.previous();
+      }
+      return;
+    }
+    widget.playback.previous();
+  }
+
+  void _mediaSeekBy(Duration delta) {
+    final control = _control;
+    if (control.state.isControlling) {
+      if (!control.state.commandAvailable(RemoteCommandKind.seek)) return;
+      final duration = control.state.duration;
+      var target = control.state.position + delta;
+      if (target < Duration.zero) target = Duration.zero;
+      if (duration != null && target > duration) target = duration;
+      control.seek(target);
+      return;
+    }
+    _seekBy(delta);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -174,27 +259,19 @@ class _JellyfinityAppState extends State<JellyfinityApp> {
                   const SingleActivator(LogicalKeyboardKey.gameButtonA):
                       _activateFocused,
                 const SingleActivator(LogicalKeyboardKey.mediaPlayPause):
-                    widget.playback.togglePlayPause,
-                const SingleActivator(LogicalKeyboardKey.mediaPlay): () {
-                  if (!widget.playback.state.isPlaying) {
-                    widget.playback.resume();
-                  }
-                },
-                const SingleActivator(LogicalKeyboardKey.mediaPause): () {
-                  if (widget.playback.state.isPlaying) {
-                    widget.playback.togglePlayPause();
-                  }
-                },
+                    _mediaTogglePlayPause,
+                const SingleActivator(LogicalKeyboardKey.mediaPlay): _mediaPlay,
+                const SingleActivator(LogicalKeyboardKey.mediaPause): _mediaPause,
                 const SingleActivator(LogicalKeyboardKey.mediaTrackNext):
-                    widget.playback.next,
+                    _mediaNext,
                 const SingleActivator(LogicalKeyboardKey.mediaTrackPrevious):
-                    widget.playback.previous,
+                    _mediaPrevious,
                 const SingleActivator(
                   LogicalKeyboardKey.mediaFastForward,
                 ): () =>
-                    _seekBy(const Duration(seconds: 10)),
+                    _mediaSeekBy(const Duration(seconds: 10)),
                 const SingleActivator(LogicalKeyboardKey.mediaRewind): () =>
-                    _seekBy(const Duration(seconds: -10)),
+                    _mediaSeekBy(const Duration(seconds: -10)),
               },
               child: BlocSelector<PlaybackCubit, PlaybackUiState, MediaImage?>(
                 selector: (state) => state.currentEntry?.image,

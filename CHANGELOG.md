@@ -2,6 +2,18 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Windows connected playback
+
+- Hardware media keys and the Windows system media panel now reach whichever
+  device is actually active — the device being remote-controlled, when this
+  one is controlling another (v0.5.6), or local playback otherwise — instead
+  of always driving this device's own queue regardless.
+- Updated the Windows device-acceptance checklist with remote-control
+  scenarios: media keys and the media panel while controlling and while
+  being controlled, minimize/sleep/wake and network changes during control,
+  and device-picker/remote Now Playing checks at narrow/wide widths, high
+  display scaling, and across multiple displays.
+
 ## Unreleased — Remote Now Playing and queue controls
 
 - Control another device's active playback from the mini-player, Now
