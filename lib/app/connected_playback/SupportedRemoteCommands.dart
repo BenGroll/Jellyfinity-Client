@@ -39,6 +39,8 @@ final DeviceCapabilities supportedRemoteCommands = DeviceCapabilities(
     RemoteCommandKind.setShuffle,
     RemoteCommandKind.setRepeat,
     RemoteCommandKind.setQueue,
+    RemoteCommandKind.removeQueueEntry,
+    RemoteCommandKind.moveQueueEntry,
     RemoteCommandKind.requestSnapshot,
   },
 );

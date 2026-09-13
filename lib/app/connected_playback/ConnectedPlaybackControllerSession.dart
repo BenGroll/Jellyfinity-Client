@@ -86,6 +86,15 @@ class ConnectedPlaybackControllerSession {
   Future<Result<void>> seek(Duration position) =>
       _send(controller.seek(position));
 
+  Future<Result<void>> setVolume(double volume) =>
+      _send(controller.setVolume(volume));
+
+  Future<Result<void>> removeQueueEntry(int index) =>
+      _send(controller.removeQueueEntry(index));
+
+  Future<Result<void>> moveQueueEntry(int fromIndex, int toIndex) =>
+      _send(controller.moveQueueEntry(fromIndex, toIndex));
+
   Future<Result<void>> setShuffle(bool enabled) =>
       _send(controller.setShuffle(enabled));
 

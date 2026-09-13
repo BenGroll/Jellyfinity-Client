@@ -24,6 +24,8 @@ import 'ConnectedPlaybackScopeOf.dart';
 
 /// How this device's control of [PlaybackControlState.device] is going,
 /// beyond the target's own playback status.
+enum PlaybackControlCommandStatus { pending, applied, rejected, timedOut }
+
 enum PlaybackControlConnection {
   /// The projection is current and structural commands may be composed.
   synced,
@@ -61,9 +63,11 @@ class PlaybackControlState extends Equatable {
     this.queue = PlaybackQueue.empty,
     this.status = PlaybackStatus.idle,
     this.position = Duration.zero,
+    this.volume,
     this.connection = PlaybackControlConnection.synced,
     this.availableCommands = const {},
     this.pendingCommand,
+    this.commandStatus,
     this.commandError,
     this.originName,
   });
@@ -89,6 +93,8 @@ class PlaybackControlState extends Equatable {
   /// controller, rather than polling for a fresh snapshot every second.
   final Duration position;
 
+  final double? volume;
+
   final PlaybackControlConnection connection;
 
   /// The commands negotiated against the target's advertised capabilities
@@ -99,6 +105,8 @@ class PlaybackControlState extends Equatable {
   /// The command currently awaiting an acknowledgement, if any — what a
   /// control shows a brief pending/spinner state for.
   final RemoteCommandKind? pendingCommand;
+
+  final PlaybackControlCommandStatus? commandStatus;
 
   /// The most recent command failure's message, transient like
   /// `PlaybackUiState.lastFailure`.
@@ -124,9 +132,12 @@ class PlaybackControlState extends Equatable {
     PlaybackQueue? queue,
     PlaybackStatus? status,
     Duration? position,
+    double? volume,
+    bool clearVolume = false,
     PlaybackControlConnection? connection,
     Set<RemoteCommandKind>? availableCommands,
     RemoteCommandKind? pendingCommand,
+    PlaybackControlCommandStatus? commandStatus,
     bool clearPendingCommand = false,
     String? commandError,
     bool clearCommandError = false,
@@ -137,11 +148,13 @@ class PlaybackControlState extends Equatable {
     queue: queue ?? this.queue,
     status: status ?? this.status,
     position: position ?? this.position,
+    volume: clearVolume ? null : (volume ?? this.volume),
     connection: connection ?? this.connection,
     availableCommands: availableCommands ?? this.availableCommands,
     pendingCommand: clearPendingCommand
         ? null
         : (pendingCommand ?? this.pendingCommand),
+    commandStatus: commandStatus ?? this.commandStatus,
     commandError: clearCommandError
         ? null
         : (commandError ?? this.commandError),
@@ -154,9 +167,11 @@ class PlaybackControlState extends Equatable {
     queue,
     status,
     position,
+    volume,
     connection,
     availableCommands,
     pendingCommand,
+    commandStatus,
     commandError,
     originName,
   ];
@@ -179,6 +194,9 @@ const Set<RemoteCommandKind> _desiredRemoteCommands = {
   RemoteCommandKind.setShuffle,
   RemoteCommandKind.setRepeat,
   RemoteCommandKind.jumpToQueueEntry,
+  RemoteCommandKind.setVolume,
+  RemoteCommandKind.removeQueueEntry,
+  RemoteCommandKind.moveQueueEntry,
 };
 
 /// Chooses which device this app is controlling, and binds the mini-player,
@@ -324,6 +342,8 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
         queue: _projectQueue(snapshot),
         status: snapshot.status,
         position: snapshot.position,
+        volume: snapshot.volume,
+        clearVolume: snapshot.volume == null,
         connection: session.controller.needsResync
             ? PlaybackControlConnection.resynchronizing
             : PlaybackControlConnection.synced,
@@ -447,6 +467,25 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
     (session) => session.jumpToQueueEntry(entriesIndex),
   );
 
+  Future<Result<void>> removeQueueEntry(int entriesIndex) => _send(
+    RemoteCommandKind.removeQueueEntry,
+    (session) => session.removeQueueEntry(entriesIndex),
+  );
+
+  Future<Result<void>> moveQueueEntry(int fromIndex, int toIndex) => _send(
+    RemoteCommandKind.moveQueueEntry,
+    (session) => session.moveQueueEntry(fromIndex, toIndex),
+  );
+
+  Future<Result<void>> setVolume(double volume) {
+    final normalized = volume.clamp(0.0, 1.0);
+    emit(state.copyWith(volume: normalized));
+    return _send(
+      RemoteCommandKind.setVolume,
+      (session) => session.setVolume(normalized),
+    );
+  }
+
   /// Seeks the target, optimistically moving the displayed position first
   /// — "acknowledged target state corrects optimistic motion, especially
   /// seek position" from the roadmap. The next snapshot (or an outright
@@ -468,7 +507,13 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
       return Result.err(ConnectedPlaybackFailures.notReachable());
     }
     final generation = _generation;
-    emit(state.copyWith(pendingCommand: kind, clearCommandError: true));
+    emit(
+      state.copyWith(
+        pendingCommand: kind,
+        commandStatus: PlaybackControlCommandStatus.pending,
+        clearCommandError: true,
+      ),
+    );
     final result = await run(session);
     if (generation != _generation) return result;
 
@@ -477,6 +522,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
         emit(
           state.copyWith(
             clearPendingCommand: true,
+            commandStatus: PlaybackControlCommandStatus.applied,
             availableCommands: session.controller.availableCommands(
               _desiredRemoteCommands,
             ),
@@ -486,6 +532,10 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
         emit(
           state.copyWith(
             clearPendingCommand: true,
+            commandStatus:
+                failure.message == ConnectedPlaybackFailures.timedOut().message
+                ? PlaybackControlCommandStatus.timedOut
+                : PlaybackControlCommandStatus.rejected,
             commandError: failure.message,
             availableCommands: session.controller.availableCommands(
               _desiredRemoteCommands,

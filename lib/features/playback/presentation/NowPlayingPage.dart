@@ -422,6 +422,12 @@ Future<void> _showRemoteQueueOverlay(
       onJumpTo: state.commandAvailable(RemoteCommandKind.jumpToQueueEntry)
           ? control.jumpToQueueEntry
           : null,
+      onReorder: state.commandAvailable(RemoteCommandKind.moveQueueEntry)
+          ? control.moveQueueEntry
+          : null,
+      onRemove: state.commandAvailable(RemoteCommandKind.removeQueueEntry)
+          ? control.removeQueueEntry
+          : null,
     ),
   ),
 );
@@ -1145,6 +1151,11 @@ class _RemoteNowPlayingContentState extends State<_RemoteNowPlayingContent> {
                         _RemoteConnectionNote(control: control),
                         SizedBox(height: t.spacing.lg),
                         _RemoteSeekBar(control: control),
+                        if (control.volume != null &&
+                            control.commandAvailable(
+                              RemoteCommandKind.setVolume,
+                            ))
+                          _RemoteVolumeBar(control: control),
                         SizedBox(height: t.spacing.sm),
                         _RemoteTransportRow(control: control),
                         SizedBox(height: t.spacing.xl),
@@ -1383,6 +1394,24 @@ class _RemoteSeekBar extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _RemoteVolumeBar extends StatelessWidget {
+  const _RemoteVolumeBar({required this.control});
+
+  final PlaybackControlState control;
+
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Semantics(
+      label: 'Remote volume',
+      child: Slider(
+        value: control.volume!,
+        onChanged: (value) => getIt<PlaybackControlCubit>().setVolume(value),
+        activeColor: t.colors.accent,
+      ),
     );
   }
 }

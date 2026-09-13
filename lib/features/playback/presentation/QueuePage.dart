@@ -87,6 +87,13 @@ class _RemoteQueuePage extends StatelessWidget {
         onJumpTo: control.commandAvailable(RemoteCommandKind.jumpToQueueEntry)
             ? (index) => getIt<PlaybackControlCubit>().jumpToQueueEntry(index)
             : null,
+        onReorder: control.commandAvailable(RemoteCommandKind.moveQueueEntry)
+            ? (from, to) =>
+                  getIt<PlaybackControlCubit>().moveQueueEntry(from, to)
+            : null,
+        onRemove: control.commandAvailable(RemoteCommandKind.removeQueueEntry)
+            ? (index) => getIt<PlaybackControlCubit>().removeQueueEntry(index)
+            : null,
       ),
     );
   }

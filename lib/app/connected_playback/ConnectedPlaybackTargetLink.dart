@@ -319,18 +319,19 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
         // No local effect — the caller republishes the current snapshot.
         return;
       case RemoteCommandKind.setQueue:
-        // The one queue-editing command this build accepts (v0.5.4) — see
-        // SupportedRemoteCommands. Resolved the same way a handoff commit
-        // is: fresh, against this device's own library, never trusting
-        // the sender's availability or source.
         await _executeSetQueue(command as SetQueueCommand);
+      case RemoteCommandKind.removeQueueEntry:
+        final entriesIndex = RemoteQueueProjection.resolveEntriesIndex(
+          _playback.state.queue,
+          (command as RemoveQueueEntryCommand).index,
+        );
+        if (entriesIndex != null) await _playback.removeAt(entriesIndex);
+      case RemoteCommandKind.moveQueueEntry:
+        final move = command as MoveQueueEntryCommand;
+        await _playback.reorderPlayOrder(move.fromIndex, move.toIndex);
       case RemoteCommandKind.stop:
       case RemoteCommandKind.setVolume:
       case RemoteCommandKind.appendToQueue:
-      case RemoteCommandKind.removeQueueEntry:
-      case RemoteCommandKind.moveQueueEntry:
-        // Never advertised as accepted (see SupportedRemoteCommands), so
-        // RemotePlaybackTarget refuses these before _execute is reached.
         return;
     }
   }

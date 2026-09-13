@@ -193,6 +193,7 @@ void main() {
       await settle();
 
       expect(control.state.pendingCommand, isNull);
+      expect(control.state.commandStatus, PlaybackControlCommandStatus.applied);
       expect(control.state.status, PlaybackStatus.paused);
       expect(engine.playing, isFalse);
     });
@@ -220,6 +221,10 @@ void main() {
       await settle();
 
       expect(control.state.commandError, isNotNull);
+      expect(
+        control.state.commandStatus,
+        PlaybackControlCommandStatus.rejected,
+      );
       expect(control.state.connection, PlaybackControlConnection.synced);
     });
 
