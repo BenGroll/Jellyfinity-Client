@@ -276,7 +276,60 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         .withShuffle(shuffle ?? state.queue.shuffleEnabled)
         .withRepeatMode(state.queue.repeatMode)
         .withEntries(entries, startIndex: startIndex, origin: origin);
+    await _replaceQueue(queue, play: true);
+  }
 
+  /// Adopts a connected-playback handoff's resolved tracks as the queue,
+  /// in exactly the order the source offered them (v0.5.4).
+  ///
+  /// Distinct from [playNow]: a transferred queue already reflects
+  /// whatever play order the source had, shuffled or not, and the whole
+  /// point of "true queue order" is that this device does not recompute
+  /// it. [shuffleEnabled] is applied by pinning [tracks]' own order as the
+  /// play order — see [PlaybackQueue.withRestoredShuffleOrder] — rather
+  /// than by turning shuffle on and letting a fresh random order replace
+  /// the one the listener was already hearing. [repeatMode],
+  /// [startPosition] and [startPlaying] are taken exactly as offered
+  /// rather than left at whatever this device had before accepting,
+  /// which is what makes this a continuation and not a restart.
+  Future<void> adoptTransferredQueue(
+    List<Track> tracks, {
+    required int startIndex,
+    required bool shuffleEnabled,
+    required RepeatMode repeatMode,
+    Duration startPosition = Duration.zero,
+    bool startPlaying = true,
+  }) async {
+    if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
+      return;
+    }
+    final entries = [for (final track in tracks) QueueEntry.fromTrack(track)];
+    var queue = PlaybackQueue.empty
+        .withShuffle(shuffleEnabled)
+        .withRepeatMode(repeatMode)
+        .withEntries(entries, startIndex: startIndex);
+    if (shuffleEnabled) {
+      queue = queue.withRestoredShuffleOrder([
+        for (var i = 0; i < entries.length; i++) i,
+      ]);
+    }
+    await _replaceQueue(
+      queue,
+      play: startPlaying,
+      initialPosition: startPosition,
+    );
+  }
+
+  /// Replaces the queue outright and loads it into the engine — the
+  /// common tail of [_playNow] and [adoptTransferredQueue]: reset the
+  /// per-queue bookkeeping a wholesale replacement invalidates, publish
+  /// the new queue immediately so the UI does not wait on the engine, then
+  /// load and, once loaded, report the entry that is actually current.
+  Future<void> _replaceQueue(
+    PlaybackQueue queue, {
+    required bool play,
+    Duration initialPosition = Duration.zero,
+  }) async {
     _retriedIds.clear();
     _retriedAtOriginal.clear();
     _resolvedSources.clear();
@@ -286,11 +339,20 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       PlaybackUiState(
         queue: queue,
         status: PlaybackStatus.loading,
-        duration: entries[startIndex].duration,
+        position: initialPosition,
+        duration: queue.currentEntry?.duration,
       ),
     );
     unawaited(_queueRepository.replace(queue));
-    await _loadIntoEngine(queue, play: true);
+    await _loadIntoEngine(queue, play: play, initialPosition: initialPosition);
+    // `_loadIntoEngine`'s in-place merge (when the engine already has
+    // sources loaded) only ever starts playback for `play: true`; it has
+    // no occasion to stop it, because every other caller asks to replace
+    // a queue without changing whether it is playing. A queue adopted
+    // paused while something else was already playing is that occasion —
+    // pausing here, once, rather than teaching every synchronization path
+    // a case only this caller can reach.
+    if (!play) await _engine.pause();
     _beginEntry(state.queue.currentEntry);
   }
 

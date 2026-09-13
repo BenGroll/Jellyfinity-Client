@@ -294,6 +294,22 @@ class DownloadsLibrarySource {
     return _notDownloaded<Album>();
   }
 
+  /// One downloaded track, by id (v0.5.4) — the same completed-download
+  /// records [tracks] and [albumTracks] already read, resolved for a
+  /// single id instead of a whole page. What a connected-playback handoff
+  /// falls back to offline, on the same terms every other offline read
+  /// here does.
+  Future<Result<Track>> track(MediaId id) async {
+    final completed = await _completedRecords();
+    if (completed case Err<List<TrackDownload>>(:final failure)) {
+      return Result.err(failure);
+    }
+    for (final record in (completed as Ok<List<TrackDownload>>).value) {
+      if (record.id == id) return Result.ok(record.toTrack());
+    }
+    return _notDownloaded<Track>();
+  }
+
   /// The downloaded identity of one playlist. Unlike an artist or album a
   /// playlist is never implied by a loose track, so this is the explicit
   /// collection row or nothing (v0.2.3).

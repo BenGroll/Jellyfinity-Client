@@ -42,6 +42,7 @@ class TransferOffer extends Equatable {
     this.shuffleEnabled = false,
     this.repeatMode = RepeatMode.off,
     this.originName,
+    this.startPlaying = true,
     this.lifetime = ConnectedPlaybackLimits.handoffStepTimeout,
   });
 
@@ -71,6 +72,12 @@ class TransferOffer extends Equatable {
   /// does not restart the listening context (`QueueOrigin`).
   final String? originName;
 
+  /// Whether the source was playing rather than paused (v0.5.4) — the
+  /// other half of [startPosition] in "transfer playback exactly as it
+  /// is": a handoff started from a paused queue hands over paused, not
+  /// resumed.
+  final bool startPlaying;
+
   final Duration lifetime;
 
   /// Whether this offer is within the bounds both sides enforce.
@@ -96,6 +103,7 @@ class TransferOffer extends Equatable {
     shuffleEnabled,
     repeatMode,
     originName,
+    startPlaying,
     lifetime,
   ];
 }
@@ -266,3 +274,219 @@ class TransferResult extends Equatable {
     message,
   ];
 }
+
+/// Encoding and decoding for the four handoff messages (v0.5.4).
+///
+/// `PlaybackTransfer.dart` defines the *conversation*; this is where it is
+/// framed on the wire, kept beside the family for the same reason
+/// `RemoteCommandCodec` is — a message and its codec are one thing to
+/// keep in sync, not two files that can drift apart.
+///
+/// [ConnectedPlaybackEnvelope] already carries [scope] and the sender's
+/// session id and verifies both before a payload is ever read, so neither
+/// is repeated in these payloads; each `tryDecode` takes them from the
+/// envelope instead.
+extension TransferOfferCodec on TransferOffer {
+  Map<String, Object?> toPayload() => {
+    'transferId': transferId,
+    'target': targetSessionId,
+    'entries': [for (final entry in entries) entry.toJson()],
+    'startIndex': startIndex,
+    'startPositionMs': startPosition.inMilliseconds,
+    'shuffleEnabled': shuffleEnabled,
+    'repeatMode': repeatMode.name,
+    'startPlaying': startPlaying,
+    'lifetimeMs': lifetime.inMilliseconds,
+    if (originName != null) 'originName': originName,
+  };
+
+  /// Reverses [toPayload]. [scope] and [sourceSessionId] come from the
+  /// envelope, already verified. Returns `null` for anything unreadable —
+  /// never a partial offer with some entries silently dropped.
+  static TransferOffer? tryDecode(
+    Map<String, Object?> payload, {
+    required ConnectedPlaybackScope scope,
+    required String sourceSessionId,
+  }) {
+    final transferId = _string(payload['transferId']);
+    final target = _string(payload['target']);
+    final startIndex = payload['startIndex'];
+    if (transferId == null || target == null || startIndex is! int) {
+      return null;
+    }
+    final rawEntries = payload['entries'];
+    if (rawEntries is! List || rawEntries.isEmpty) return null;
+    final entries = <RemoteQueueEntry>[];
+    for (final raw in rawEntries) {
+      final entry = RemoteQueueEntry.tryDecode(raw);
+      if (entry == null) return null;
+      entries.add(entry);
+    }
+    final positionMs = payload['startPositionMs'];
+    final lifetimeMs = payload['lifetimeMs'];
+    return TransferOffer(
+      transferId: transferId,
+      scope: scope,
+      sourceSessionId: sourceSessionId,
+      targetSessionId: target,
+      entries: entries,
+      startIndex: startIndex,
+      startPosition: positionMs is int
+          ? Duration(milliseconds: positionMs)
+          : Duration.zero,
+      shuffleEnabled: payload['shuffleEnabled'] == true,
+      repeatMode: _repeatMode(payload['repeatMode']),
+      originName: _string(payload['originName']),
+      startPlaying: payload['startPlaying'] != false,
+      lifetime: lifetimeMs is int
+          ? Duration(milliseconds: lifetimeMs)
+          : ConnectedPlaybackLimits.handoffStepTimeout,
+    );
+  }
+}
+
+extension TransferReadinessCodec on TransferReadiness {
+  Map<String, Object?> toPayload() => {
+    'transferId': transferId,
+    'target': targetSessionId,
+    'ready': isReady,
+    if (refusal != null) 'refusal': refusal!.name,
+    if (unresolvable.isNotEmpty)
+      'unresolvable': [for (final item in unresolvable) _encodeItem(item)],
+    if (message != null) 'message': message,
+  };
+
+  /// Reverses [toPayload]. [targetSessionId] is trusted from the envelope
+  /// sender rather than re-read from the payload — the answering device
+  /// is whoever sent this message.
+  static TransferReadiness? tryDecode(
+    Map<String, Object?> payload, {
+    required String targetSessionId,
+  }) {
+    final transferId = _string(payload['transferId']);
+    if (transferId == null) return null;
+    final isReady = payload['ready'] == true;
+    if (isReady) {
+      return TransferReadiness.ready(
+        transferId: transferId,
+        targetSessionId: targetSessionId,
+      );
+    }
+    final rawUnresolvable = payload['unresolvable'];
+    final unresolvable = <UnavailableItem>[];
+    if (rawUnresolvable is List) {
+      for (final raw in rawUnresolvable) {
+        final item = _decodeItem(raw);
+        if (item != null) unresolvable.add(item);
+      }
+    }
+    return TransferReadiness.refused(
+      transferId: transferId,
+      targetSessionId: targetSessionId,
+      refusal: _refusal(payload['refusal']) ?? TransferRefusal.playbackFailed,
+      unresolvable: unresolvable,
+      message: _string(payload['message']),
+    );
+  }
+}
+
+extension TransferCommitCodec on TransferCommit {
+  Map<String, Object?> toPayload() => {
+    'transferId': transferId,
+    'target': targetSessionId,
+    'positionMs': position.inMilliseconds,
+  };
+
+  /// Reverses [toPayload]. [sourceSessionId] comes from the envelope, like
+  /// [TransferOfferCodec.tryDecode]; [targetSessionId] is this device's
+  /// own — the commit already reached us, so it named us.
+  static TransferCommit? tryDecode(
+    Map<String, Object?> payload, {
+    required String sourceSessionId,
+    required String targetSessionId,
+  }) {
+    final transferId = _string(payload['transferId']);
+    if (transferId == null) return null;
+    final positionMs = payload['positionMs'];
+    return TransferCommit(
+      transferId: transferId,
+      sourceSessionId: sourceSessionId,
+      targetSessionId: targetSessionId,
+      position: positionMs is int
+          ? Duration(milliseconds: positionMs)
+          : Duration.zero,
+    );
+  }
+}
+
+extension TransferResultCodec on TransferResult {
+  Map<String, Object?> toPayload() => {
+    'transferId': transferId,
+    'target': targetSessionId,
+    'accepted': accepted,
+    if (revision != null) 'revision': revision!.value,
+    if (refusal != null) 'refusal': refusal!.name,
+    if (message != null) 'message': message,
+  };
+
+  /// Reverses [toPayload]. [targetSessionId] is trusted from the envelope
+  /// sender, on the same terms as [TransferReadinessCodec.tryDecode].
+  static TransferResult? tryDecode(
+    Map<String, Object?> payload, {
+    required String targetSessionId,
+  }) {
+    final transferId = _string(payload['transferId']);
+    if (transferId == null) return null;
+    if (payload['accepted'] == true) {
+      final revision = StateRevision.tryParse(payload['revision']);
+      if (revision == null) return null;
+      return TransferResult.playing(
+        transferId: transferId,
+        targetSessionId: targetSessionId,
+        revision: revision,
+      );
+    }
+    return TransferResult.failed(
+      transferId: transferId,
+      targetSessionId: targetSessionId,
+      refusal: _refusal(payload['refusal']) ?? TransferRefusal.playbackFailed,
+      message: _string(payload['message']),
+    );
+  }
+}
+
+Map<String, Object?> _encodeItem(UnavailableItem item) => {
+  'id': item.id,
+  'reason': item.reason,
+  if (item.position != null) 'position': item.position,
+};
+
+UnavailableItem? _decodeItem(Object? raw) {
+  if (raw is! Map) return null;
+  final id = _string(raw['id']);
+  final reason = _string(raw['reason']);
+  if (id == null || reason == null) return null;
+  final position = raw['position'];
+  return UnavailableItem(
+    id: id,
+    reason: reason,
+    position: position is int ? position : null,
+  );
+}
+
+RepeatMode _repeatMode(Object? name) {
+  for (final candidate in RepeatMode.values) {
+    if (candidate.name == name) return candidate;
+  }
+  return RepeatMode.off;
+}
+
+TransferRefusal? _refusal(Object? name) {
+  for (final candidate in TransferRefusal.values) {
+    if (candidate.name == name) return candidate;
+  }
+  return null;
+}
+
+String? _string(Object? value) =>
+    value is String && value.isNotEmpty ? value : null;

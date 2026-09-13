@@ -97,10 +97,34 @@ v0.5.1-v0.6.0.
   platform exposes a settable output volume). `PlaybackCubit` gained
   explicit `play()`/`pause()` (idempotent, unlike the toggle a remote
   command cannot safely drive). No schema change, no new dependency, no UI.
-- v0.5.4-v0.6.0 are planned: atomic playback handoff, then a device picker
-  and remote Now Playing UI, then completed for Windows, Android, and the
-  Android TV/Fire TV capability path. See `Roadmap to v0.6.md` for the
-  bounded specifications.
+- v0.5.4 (Atomic playback handoff) is implemented: the application-layer
+  bridge for v0.5.1's four-message conversation
+  (`PlaybackHandoff`/`PlaybackTransfer`, pure since that version) — real
+  wire framing for offer/readiness/commit/result
+  (`PlaybackTransfer.dart`'s codec extensions) and the concrete
+  `PlaybackHandoffCoordinator`, implemented by `ConnectedPlaybackTargetLink`
+  itself so both a handoff's source and target roles share the one class
+  already wired to the real `PlaybackCubit` and transport. `transferTo`
+  drives `PlaybackHandoff` end to end: preflights the destination's
+  protocol, playback capability and queue-length bound before anything
+  stops, pauses local playback only after a `TransferReadiness.ready`, and
+  resumes it — or, on a late `TransferResult`, stops it again — exactly as
+  the state machine decides. `prepare` resolves every offered entry fresh
+  against `MusicLibraryRepository.track` (new: one track by id, cached and
+  downloads-backed like `artist`/`album`) and refuses before the source
+  stops if any entry cannot be played here; `accept` hands the resolved
+  tracks to `PlaybackCubit.adoptTransferredQueue`, a new method that
+  preserves exactly the offered play order — shuffled or not, via
+  `PlaybackQueue.withRestoredShuffleOrder` — repeat mode, position and
+  playing/paused state, rather than rederiving any of them.
+  `RemoteCommandKind.setQueue` joined `SupportedRemoteCommands`, since it
+  is what makes `DeviceCapabilities.canReceiveTransfer` true and it is the
+  command a handoff's local queue-replacement shape matches; `_execute`
+  gained a real, resolve-and-adopt path for it. No schema change, no UI —
+  device selection remains v0.5.5.
+- v0.5.5-v0.6.0 are planned: a device picker and remote Now Playing UI,
+  then completed for Windows, Android, and the Android TV/Fire TV
+  capability path. See `Roadmap to v0.6.md` for the bounded specifications.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

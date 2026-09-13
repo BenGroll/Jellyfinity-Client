@@ -2,6 +2,30 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Atomic playback handoff
+
+- Move a listening session between two connected devices without a
+  surprising restart, a dropped queue, or a moment where both are making
+  sound: the source keeps playing until the destination has proven it can
+  reproduce the whole queue, and only then gives up its audio.
+- Reject a transfer the destination cannot play in full — a song it has no
+  download of and cannot stream — before the source stops, naming which
+  entries and why, rather than handing over a queue quietly missing some of
+  what was queued.
+- Resolve every song on the destination's own terms once it takes over: its
+  own download in place of a stream, its own stream-quality setting, its
+  own availability — never inherited from the device that was playing it a
+  moment ago.
+- Recover deterministically when a step is lost: a refusal or a lost offer
+  costs nothing, since the source never stopped; a lost confirmation after
+  the source has already stopped resumes it, and a late confirmation that
+  arrives after that stops it again rather than leaving two devices making
+  sound at once.
+- Carry the exact play order, shuffle state, repeat mode, current position
+  and playing/paused state across the transfer — a paused queue arrives
+  paused, and a shuffled queue keeps the order it was already playing in
+  rather than being reshuffled on arrival.
+
 ## Unreleased — Remote state and command execution
 
 - Let a Jellyfinity device actually drive another one's playback — play,

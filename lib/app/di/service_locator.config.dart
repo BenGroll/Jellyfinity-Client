@@ -629,18 +629,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.DownloadStorageProbe>(),
       ),
     );
+    gh.factory<_i213.PlaylistDetailCubit>(
+      () => _i213.PlaylistDetailCubit(
+        gh<_i747.MediaMetadataRepository>(),
+        gh<_i797.OfflineMode>(),
+      ),
+    );
     gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
       () => _i217.ConnectedPlaybackTargetLink(
         gh<_i126.PlaybackCubit>(),
         gh<_i231.ConnectedPlaybackTransport>(),
         gh<_i809.SessionCubit>(),
+        gh<_i260.MusicLibraryRepository>(),
         gh<_i612.Logger>(),
-      ),
-    );
-    gh.factory<_i213.PlaylistDetailCubit>(
-      () => _i213.PlaylistDetailCubit(
-        gh<_i747.MediaMetadataRepository>(),
-        gh<_i797.OfflineMode>(),
       ),
     );
     return this;

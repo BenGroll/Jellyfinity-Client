@@ -217,6 +217,42 @@ void main() {
     },
   );
 
+  group('track by id (v0.5.4)', () {
+    test('reads a completed download by its own id', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.completed,
+      );
+
+      final result = await source.track(mediaId('t1'));
+
+      expect(result.valueOrNull?.name, 'So What');
+      expect(
+        result.valueOrNull?.availability,
+        MediaAvailability.localAndRemote,
+      );
+    });
+
+    test('fails for a track that was never downloaded here', () async {
+      final result = await source.track(mediaId('missing'));
+
+      expect(result.isErr, isTrue);
+    });
+
+    test('does not answer for a download that has not finished yet', () async {
+      store.records[mediaId('t1')] = downloadRecord(
+        mediaId('t1'),
+        title: 'So What',
+        state: DownloadState.downloading,
+      );
+
+      final result = await source.track(mediaId('t1'));
+
+      expect(result.isErr, isTrue);
+    });
+  });
+
   group('random pick (v0.4.4)', () {
     test('picks one of the downloaded albums', () async {
       await store.saveCollection(

@@ -131,6 +131,16 @@ abstract class MusicLibraryRepository {
   /// header can render while a long track list is still loading.
   Future<Result<Album>> album(MediaId id);
 
+  /// One track.
+  ///
+  /// Added for connected playback (v0.5.4, `Roadmap to v0.6.md`): a
+  /// handoff hands over ids and display metadata, never a device's own
+  /// availability or source, and the receiving device resolves each one
+  /// itself so its own download can replace a stream and its own
+  /// stream-quality settings apply. Cached like [artist] and [album];
+  /// working offline it falls back to the profile's downloads.
+  Future<Result<Track>> track(MediaId id);
+
   /// How much of the library is credited to [artistId] (v0.1.6): its
   /// album and song counts, and — when there are few enough tracks to sum
   /// — their total running time. Read live; not part of the offline cache

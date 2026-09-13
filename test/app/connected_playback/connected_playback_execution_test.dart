@@ -3,6 +3,8 @@ import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackControllerSe
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart';
 import 'package:jellyfinity/app/connected_playback/SupportedRemoteCommands.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
+import 'package:jellyfinity/domain/connected_playback/RemoteCommand.dart';
+import 'package:jellyfinity/domain/connected_playback/RemoteQueueEntry.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/Track.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
@@ -12,6 +14,7 @@ import '../../support/TestLogger.dart';
 import '../../support/connected_playback/FakeConnectedPlaybackNetwork.dart';
 import '../../support/connected_playback/FakeConnectedPlaybackTransport.dart';
 import '../../support/connected_playback/connected_playback_fixtures.dart';
+import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
 import '../../support/session_fakes.dart';
 import '../../support/settings_fakes.dart';
@@ -44,6 +47,7 @@ void main() {
   late PlaybackCubit playback;
   late FakeConnectedPlaybackTransport targetTransport;
   late FakeConnectedPlaybackTransport controllerTransport;
+  late FakeMusicLibraryRepository library;
   late ConnectedPlaybackTargetLink targetLink;
   late ConnectedPlaybackControllerSession controllerSession;
 
@@ -73,10 +77,14 @@ void main() {
       acknowledgementTimeout: _testAckTimeout,
     );
 
+    library = FakeMusicLibraryRepository()
+      ..trackList = [track('a'), track('b'), track('c')];
+
     targetLink = ConnectedPlaybackTargetLink(
       playback,
       targetTransport,
       fakeSessionCubit(signedIn: fakeAuthSession()),
+      library,
       TestLogger(),
     );
     await targetLink.start();
@@ -175,6 +183,73 @@ void main() {
     await settle();
     expect(playback.state.queue.repeatMode, RepeatMode.all);
   });
+
+  test('setQueue (v0.5.4) resolves entries against the target library and '
+      'replaces the real queue — no composer sends this yet, so it is sent '
+      'directly, on the same terms a handoff commits with', () async {
+    final revision = controllerSession.projection!.revision;
+    final command = SetQueueCommand(
+      id: 'set-queue-1',
+      scope: testScope,
+      targetSessionId: 'session-tv',
+      entries: [
+        RemoteQueueEntry(
+          id: MediaId(serverId: testScope.serverId, itemId: 'c'),
+          title: 'c',
+        ),
+        RemoteQueueEntry(
+          id: MediaId(serverId: testScope.serverId, itemId: 'b'),
+          title: 'b',
+        ),
+      ],
+      startIndex: 1,
+      startPlaying: false,
+      expectedRevision: revision,
+    );
+
+    final acknowledged = await controllerTransport.sendCommand(command);
+    await settle();
+
+    expect(acknowledged.isOk, isTrue);
+    expect(acknowledged.valueOrNull!.isAccepted, isTrue);
+    expect(playback.state.queue.entries, hasLength(2));
+    expect(playback.state.queue.entries[1].id.itemId, 'b');
+    expect(playback.state.queue.currentIndex, 1);
+    expect(engine.playing, isFalse);
+  });
+
+  test(
+    'setQueue leaves the queue untouched when an entry cannot be resolved',
+    () async {
+      final revision = controllerSession.projection!.revision;
+      final command = SetQueueCommand(
+        id: 'set-queue-2',
+        scope: testScope,
+        targetSessionId: 'session-tv',
+        entries: [
+          RemoteQueueEntry(
+            id: MediaId(serverId: testScope.serverId, itemId: 'nope'),
+            title: 'missing',
+          ),
+        ],
+        startIndex: 0,
+        expectedRevision: revision,
+      );
+
+      final acknowledged = await controllerTransport.sendCommand(command);
+      await settle();
+
+      // Structurally accepted — RemotePlaybackTarget cannot know this
+      // device has nothing for that id — but the real queue never
+      // changed.
+      expect(acknowledged.isOk, isTrue);
+      expect(playback.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'b',
+        'c',
+      ]);
+    },
+  );
 
   test(
     'a command this target does not accept is refused, not silently dropped',

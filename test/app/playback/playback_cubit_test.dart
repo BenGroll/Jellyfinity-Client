@@ -509,6 +509,100 @@ void main() {
     });
   });
 
+  group('adoptTransferredQueue (v0.5.4)', () {
+    test(
+      'loads the resolved tracks at the offered position, playing',
+      () async {
+        await cubit.adoptTransferredQueue(
+          [_track('a'), _track('b'), _track('c')],
+          startIndex: 1,
+          shuffleEnabled: false,
+          repeatMode: RepeatMode.off,
+          startPosition: const Duration(seconds: 30),
+          startPlaying: true,
+        );
+
+        expect(engine.sources, hasLength(3));
+        expect(engine.currentIndex, 1);
+        expect(engine.playing, isTrue);
+        expect(cubit.state.queue.currentIndex, 1);
+        expect(cubit.state.position, const Duration(seconds: 30));
+      },
+    );
+
+    test('adopts paused exactly as offered, never starting audio', () async {
+      await cubit.adoptTransferredQueue(
+        [_track('a'), _track('b')],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+        startPlaying: false,
+      );
+
+      expect(engine.playing, isFalse);
+      expect(engine.calls, isNot(contains('play')));
+      expect(cubit.state.queue.currentIndex, 0);
+    });
+
+    test(
+      'a shuffled offer keeps the offered order as play order, not a fresh shuffle',
+      () async {
+        final tracks = [_track('a'), _track('b'), _track('c'), _track('d')];
+
+        await cubit.adoptTransferredQueue(
+          tracks,
+          startIndex: 2,
+          shuffleEnabled: true,
+          repeatMode: RepeatMode.off,
+        );
+
+        // The queue's own entry order *is* the play order that was
+        // offered — a transfer hands over "true queue order", not
+        // something this device re-derives by shuffling again.
+        expect(cubit.state.queue.shuffleEnabled, isTrue);
+        expect(cubit.state.queue.playOrder, [0, 1, 2, 3]);
+        expect(cubit.state.queue.currentIndex, 2);
+      },
+    );
+
+    test('carries the offered repeat mode', () async {
+      await cubit.adoptTransferredQueue(
+        [_track('a')],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.all,
+      );
+
+      expect(cubit.state.queue.repeatMode, RepeatMode.all);
+    });
+
+    test('replaces whatever was already playing, like playNow', () async {
+      await cubit.playNow([_track('x'), _track('y')], startIndex: 0);
+      expect(cubit.state.queue.entries, hasLength(2));
+
+      await cubit.adoptTransferredQueue(
+        [_track('a'), _track('b'), _track('c')],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+      );
+
+      expect(cubit.state.queue.entries, hasLength(3));
+      expect(cubit.state.queue.entries.first.id.itemId, 'a');
+    });
+
+    test('does nothing for an empty track list', () async {
+      await cubit.adoptTransferredQueue(
+        const [],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+      );
+
+      expect(cubit.state.queue.isEmpty, isTrue);
+    });
+  });
+
   group('streaming quality (ADR-0015)', () {
     test('resolves sources at the settings-selected quality', () async {
       await settings.setStreamQuality(StreamQuality.dataSaver);
