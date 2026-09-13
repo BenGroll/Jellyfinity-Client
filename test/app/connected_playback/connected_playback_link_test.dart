@@ -12,6 +12,7 @@ import 'package:jellyfinity/domain/session/JellyfinServer.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionTransport.dart';
 
 import '../../support/FakeSessionContext.dart';
+import '../../support/FakeTelevisionPlatform.dart';
 import '../../support/TestLogger.dart';
 import '../../support/connected_playback/FakeJellyfinServer.dart';
 import '../../support/connected_playback/FakeJellyfinSocket.dart';
@@ -282,5 +283,72 @@ void main() {
 
     expect(await transport.devices(signedInScope).first, isEmpty);
     expect(transport.connectionState, ConnectedPlaybackConnection.idle);
+  });
+
+  group('on a television (v0.5.9)', () {
+    late FakeTelevisionPlatform television;
+
+    setUp(() => television = FakeTelevisionPlatform());
+    tearDown(() => television.dispose());
+
+    test(
+      'falling asleep expires the target even while still playing, and '
+      'waking restores it',
+      () async {
+        session.emit(signedInAs('user-1'));
+        await link.start();
+        engine.emitStatus(PlaybackStatus.playing);
+        await waitUntil(
+          () => playback.state.isPlaying,
+          reason: 'the cubit to report playing before the screen sleeps',
+        );
+
+        television.screenOff();
+        await waitUntil(
+          () => sockets.single.closed,
+          reason: 'an asleep television to expire promptly even while playing',
+        );
+        expect(
+          transport.connectionState,
+          ConnectedPlaybackConnection.reconnecting,
+        );
+
+        television.screenOn();
+        await waitUntil(
+          () => sockets.length == 2,
+          reason: 'waking to restore the target',
+        );
+        expect(transport.connectionState, ConnectedPlaybackConnection.connected);
+      },
+    );
+
+    test(
+      'falling asleep while already backgrounded and not playing stays '
+      'expired once it wakes',
+      () async {
+        session.emit(signedInAs('user-1'));
+        await link.start();
+
+        link.didChangeAppLifecycleState(AppLifecycleState.paused);
+        await waitUntil(
+          () => sockets.single.closed,
+          reason: 'the socket to be released while backgrounded and idle',
+        );
+
+        television.screenOff();
+        await settle();
+        expect(sockets.length, 1, reason: 'still just the one closed socket');
+
+        television.screenOn();
+        await settle();
+        expect(
+          sockets.length,
+          1,
+          reason:
+              'still backgrounded and not playing, so waking defers to '
+              'that rule rather than reconnecting unconditionally',
+        );
+      },
+    );
   });
 }

@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import '../../core/logging/Logger.dart';
 import '../../domain/connected_playback/ConnectedPlaybackScope.dart';
 import '../../infrastructure/jellyfin/connected/JellyfinSessionTransport.dart';
+import '../platform/television_display_monitor.dart';
 import '../platform/television_mode.dart';
 import '../playback/PlaybackCubit.dart';
 import '../playback/PlaybackUiState.dart';
@@ -48,6 +49,7 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
 
   StreamSubscription<SessionState>? _sessionUpdates;
   StreamSubscription<PlaybackUiState>? _playbackUpdates;
+  StreamSubscription<bool>? _televisionDisplayUpdates;
   ConnectedPlaybackScope? _scope;
   bool _started = false;
 
@@ -57,6 +59,16 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   /// to know whether a status change happened while backgrounded without
   /// asking the transport to infer it from its own connection state.
   bool _backgrounded = false;
+
+  /// Whether the Android host's display just reported itself off.
+  ///
+  /// Only ever set on a television (ADR-0036): a television going to
+  /// sleep does not reliably change `AppLifecycleState` the way
+  /// backgrounding a phone does, so this is a second, independent signal
+  /// `_reconcileBackgroundConnection` checks first — an asleep television
+  /// expires as a target regardless of `_backgrounded` or whether it is
+  /// still playing (v0.5.9).
+  bool _televisionAsleep = false;
 
   /// Wires both triggers and links the profile that is already active.
   ///
@@ -72,6 +84,11 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     // the same name.
     if (await TelevisionModeDetector.detect()) {
       _transport.platformName = 'Fire TV';
+      // Only a television needs its display's power state watched: a
+      // phone or desktop backgrounding is already what
+      // `didChangeAppLifecycleState` reconciles against (v0.5.9).
+      _televisionDisplayUpdates = TelevisionDisplayMonitor.screenOnChanges
+          .listen(_onTelevisionDisplayChanged);
     }
     // What this build actually executes when driven remotely (v0.5.3) —
     // see SupportedRemoteCommands for why it is narrower than
@@ -93,6 +110,8 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     _sessionUpdates = null;
     await _playbackUpdates?.cancel();
     _playbackUpdates = null;
+    await _televisionDisplayUpdates?.cancel();
+    _televisionDisplayUpdates = null;
     final scope = _scope;
     _scope = null;
     if (scope != null) await _transport.clear(scope);
@@ -126,6 +145,36 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void _onSession(SessionState state) =>
       unawaited(_apply(connectedPlaybackScopeOf(state)));
 
+  /// Reconciles a television's own display power state (v0.5.9).
+  ///
+  /// A television going to sleep does not reliably pause the Flutter
+  /// `Activity` the way backgrounding a phone does — the app can stay
+  /// `resumed` with the screen simply dark — so `_backgrounded` alone
+  /// would never notice. Falling asleep expires this device as a target
+  /// immediately, regardless of `_backgrounded` or whether it is still
+  /// playing: nobody is watching or listening to an asleep television, so
+  /// unlike a phone (v0.5.8) there is no case where staying reachable
+  /// while asleep is the right call.
+  ///
+  /// Waking does not imply the app also came back to the foreground, so
+  /// it defers to whichever rule already applies rather than always
+  /// calling [JellyfinSessionTransport.resume] itself: doing both would
+  /// race resume's asynchronous reconnect against a reconcile that might
+  /// decide to suspend again, and either could win. Backgrounded defers
+  /// to [_reconcileBackgroundConnection] (its own playing check decides);
+  /// still in the foreground resumes directly, the same call
+  /// [didChangeAppLifecycleState]'s `resumed` case makes.
+  void _onTelevisionDisplayChanged(bool screenOn) {
+    _televisionAsleep = !screenOn;
+    if (_televisionAsleep) {
+      unawaited(_transport.suspend());
+    } else if (_backgrounded) {
+      _reconcileBackgroundConnection();
+    } else {
+      unawaited(_transport.resume());
+    }
+  }
+
   /// Keeps a backgrounded device that is still playing reachable as a
   /// target instead of going dark mid-playback (v0.5.8).
   ///
@@ -140,7 +189,14 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   /// finish or be paused entirely independently of one, on every
   /// [_onPlaybackChanged] while already backgrounded — either direction
   /// can be the one that changes which side of "and" is true.
+  ///
+  /// An asleep television (above) overrides this outright: falling asleep
+  /// suspends regardless of what this method would otherwise decide.
   void _reconcileBackgroundConnection() {
+    if (_televisionAsleep) {
+      unawaited(_transport.suspend());
+      return;
+    }
     if (!_backgrounded) return;
     if (_playback.state.isPlaying) {
       unawaited(_transport.resume());

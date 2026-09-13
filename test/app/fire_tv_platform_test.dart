@@ -58,6 +58,25 @@ void main() {
   });
 
   test(
+    'Android host forwards display sleep/wake for connected-playback '
+    'reconciliation (v0.5.9)',
+    () {
+      final activity = File(
+        'android/app/src/main/kotlin/io/nachbar/jellyfinity/MainActivity.kt',
+      ).readAsStringSync();
+
+      expect(activity, contains('io.nachbar.jellyfinity/device/display'));
+      expect(activity, contains('Intent.ACTION_SCREEN_ON'));
+      expect(activity, contains('Intent.ACTION_SCREEN_OFF'));
+      // Registered only while Dart is listening, not in the manifest —
+      // these are protected broadcasts Android will not deliver to a
+      // manifest-declared receiver.
+      expect(activity, contains('registerReceiver(displayStateReceiver'));
+      expect(activity, contains('unregisterReceiver(displayStateReceiver)'));
+    },
+  );
+
+  test(
     'Android launch surface is dark and the adaptive icon expands its mark',
     () {
       final splash = File(
