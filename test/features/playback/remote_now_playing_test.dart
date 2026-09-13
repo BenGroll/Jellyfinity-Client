@@ -239,6 +239,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('remote queue rows are disabled when jumping is unsupported', (
+    tester,
+  ) async {
+    await setUpControlling(
+      tester,
+      state: playing(
+        entries: [
+          entry('a', name: 'So What'),
+          entry('b', name: 'Blue in Green'),
+        ],
+        currentIndex: 0,
+        availableCommands: const {},
+      ),
+    );
+    await tester.tap(find.text('So What'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Queue'));
+    await tester.pumpAndSettle();
+
+    final row = find.ancestor(
+      of: find.text('Blue in Green'),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.widget<InkWell>(row).onTap, isNull);
+  });
+
   testWidgets('stopping control returns every screen to local state '
       'without affecting the target', (tester) async {
     final localPlayback = fakePlaybackCubit();

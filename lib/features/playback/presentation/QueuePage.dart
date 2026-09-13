@@ -86,7 +86,7 @@ class _RemoteQueuePage extends StatelessWidget {
         queue: control.queue,
         onJumpTo: control.commandAvailable(RemoteCommandKind.jumpToQueueEntry)
             ? (index) => getIt<PlaybackControlCubit>().jumpToQueueEntry(index)
-            : (_) {},
+            : null,
       ),
     );
   }
@@ -116,10 +116,10 @@ class QueueEditor extends StatelessWidget {
 
   final PlaybackQueue queue;
 
-  /// Jumps to the entry at this **entries** index — always available: it
-  /// is the one queue-editing capability this build ever advertises
-  /// remotely (`RemoteCommandKind.jumpToQueueEntry`).
-  final ValueChanged<int> onJumpTo;
+  /// Jumps to the entry at this **entries** index when the target
+  /// advertises `RemoteCommandKind.jumpToQueueEntry`; otherwise rows are
+  /// visibly non-interactive.
+  final ValueChanged<int>? onJumpTo;
 
   /// Reorders by **play-order** position, matching
   /// `ReorderableListView`'s own convention — `null` hides every row's
@@ -156,7 +156,7 @@ class QueueEditor extends StatelessWidget {
         entry: queue.entries[entriesIndex],
         isCurrent: playPosition == currentPlayPosition,
         draggable: reorder != null,
-        onTap: () => onJumpTo(entriesIndex),
+        onTap: onJumpTo == null ? null : () => onJumpTo!(entriesIndex),
         onRemove: onRemove == null ? null : () => onRemove!(entriesIndex),
       );
     }
@@ -233,7 +233,7 @@ class _QueueRow extends StatelessWidget {
   final QueueEntry entry;
   final bool isCurrent;
   final bool draggable;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final VoidCallback? onRemove;
 
   @override

@@ -421,7 +421,7 @@ Future<void> _showRemoteQueueOverlay(
       queue: state.queue,
       onJumpTo: state.commandAvailable(RemoteCommandKind.jumpToQueueEntry)
           ? control.jumpToQueueEntry
-          : (_) {},
+          : null,
     ),
   ),
 );
