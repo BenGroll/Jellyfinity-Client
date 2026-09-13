@@ -284,6 +284,16 @@ class FakeMusicLibraryRepository implements MusicLibraryRepository {
     return const Result.err(UnavailableFailure('No such album.'));
   }
 
+  @override
+  Future<Result<Track>> track(MediaId id) async {
+    final failed = failure;
+    if (failed != null) return Result.err(failed);
+    for (final track in trackList) {
+      if (track.id == id) return Result.ok(track);
+    }
+    return const Result.err(UnavailableFailure('No such song.'));
+  }
+
   /// What [artistStats] answers next; `null` (the default) fails with
   /// [UnavailableFailure] so a test must opt in to a value.
   ArtistStats? stats;
@@ -726,6 +736,14 @@ class FakeDownloadsLibrarySource implements DownloadsLibrarySource {
   Future<Result<Album>> album(MediaId id) async {
     for (final album in albumList) {
       if (album.id == id) return Result.ok(album);
+    }
+    return const Result.err(RecoverableFailure('Not on this device.'));
+  }
+
+  @override
+  Future<Result<Track>> track(MediaId id) async {
+    for (final track in trackList) {
+      if (track.id == id) return Result.ok(track);
     }
     return const Result.err(RecoverableFailure('Not on this device.'));
   }

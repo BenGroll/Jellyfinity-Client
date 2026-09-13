@@ -2,11 +2,14 @@ import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/connected_playback/PlaybackControlCubit.dart';
 import '../../../app/connectivity/OfflineCubit.dart';
+import '../../../app/di/service_locator.dart';
 import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../design/design.dart';
+import '../../../domain/connected_playback/remote_command_kind.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/PlaybackQueue.dart';
 import '../../../domain/playback/QueueEntry.dart';
@@ -14,7 +17,11 @@ import '../../music/presentation/widgets/downloaded_marker.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/media_formatting.dart';
 
-/// Up next: reorder, remove, or jump straight to any entry.
+/// Up next: reorder, remove, or jump straight to any entry — or, while
+/// this device is controlling another one (v0.5.6), that device's queue,
+/// read-only apart from jumping to an entry (the one queue-editing
+/// capability this build ever advertises remotely; see
+/// `SupportedRemoteCommands`).
 ///
 /// A child route of Now Playing, so leaving it returns to the player
 /// rather than to wherever the queue was opened from.
@@ -23,50 +30,116 @@ class QueuePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PlaybackCubit, PlaybackUiState>(
-      builder: (context, state) {
-        final cubit = context.read<PlaybackCubit>();
-        final entries = state.queue.entries;
-        return AppScaffold(
-          padded: false,
-          title: 'Queue',
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.clear_rounded),
-              tooltip: 'Clear queue',
-              onPressed: entries.isEmpty
-                  ? null
-                  : () => _confirmClear(context, cubit),
-            ),
-          ],
-          body: QueueEditor(state: state, cubit: cubit),
+    return BlocBuilder<PlaybackControlCubit, PlaybackControlState>(
+      bloc: getIt<PlaybackControlCubit>(),
+      builder: (context, control) {
+        if (control.isControlling) return _RemoteQueuePage(control: control);
+        return BlocBuilder<PlaybackCubit, PlaybackUiState>(
+          builder: (context, state) {
+            final cubit = context.read<PlaybackCubit>();
+            final entries = state.queue.entries;
+            return AppScaffold(
+              padded: false,
+              title: 'Queue',
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => context.pop(),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.clear_rounded),
+                  tooltip: 'Clear queue',
+                  onPressed: entries.isEmpty
+                      ? null
+                      : () => _confirmClear(context, cubit),
+                ),
+              ],
+              body: QueueEditor(
+                queue: state.queue,
+                onJumpTo: cubit.playAt,
+                onReorder: cubit.reorderPlayOrder,
+                onRemove: cubit.removeAt,
+              ),
+            );
+          },
         );
       },
     );
   }
 }
 
-/// Reusable queue list for the full route and the Now Playing overlay.
+class _RemoteQueuePage extends StatelessWidget {
+  const _RemoteQueuePage({required this.control});
+
+  final PlaybackControlState control;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      padded: false,
+      title: 'Queue · ${control.device!.displayName}',
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: () => context.pop(),
+      ),
+      body: QueueEditor(
+        queue: control.queue,
+        onJumpTo: control.commandAvailable(RemoteCommandKind.jumpToQueueEntry)
+            ? (index) => getIt<PlaybackControlCubit>().jumpToQueueEntry(index)
+            : null,
+        onReorder: control.commandAvailable(RemoteCommandKind.moveQueueEntry)
+            ? (from, to) =>
+                  getIt<PlaybackControlCubit>().moveQueueEntry(from, to)
+            : null,
+        onRemove: control.commandAvailable(RemoteCommandKind.removeQueueEntry)
+            ? (index) => getIt<PlaybackControlCubit>().removeQueueEntry(index)
+            : null,
+      ),
+    );
+  }
+}
+
+/// Reusable queue list for the full route and the Now Playing overlay,
+/// bound to a plain [PlaybackQueue] and a small set of callbacks rather
+/// than a concrete cubit (v0.5.6) — what lets the same widget show either
+/// `PlaybackCubit`'s own queue with full editing or another device's
+/// read-mostly projection, and what makes "disable or omit unsupported
+/// controls consistently" as simple as leaving a callback `null`.
 ///
 /// Rows are listed in **play order**, not in the queue's own order
 /// (v0.4.1). Under shuffle the two differ, and showing the canonical
 /// order meant the list called "up next" was not what came next — the one
 /// thing a queue screen exists to answer. Every row therefore carries
 /// both positions: `playPosition` is where it sits on screen and what a
-/// drag moves, `entriesIndex` is what `PlaybackCubit` names it by.
+/// drag moves, `entriesIndex` is what [onJumpTo]/[onRemove] name it by.
 class QueueEditor extends StatelessWidget {
-  const QueueEditor({super.key, required this.state, required this.cubit});
+  const QueueEditor({
+    super.key,
+    required this.queue,
+    required this.onJumpTo,
+    this.onReorder,
+    this.onRemove,
+  });
 
-  final PlaybackUiState state;
-  final PlaybackCubit cubit;
+  final PlaybackQueue queue;
+
+  /// Jumps to the entry at this **entries** index when the target
+  /// advertises `RemoteCommandKind.jumpToQueueEntry`; otherwise rows are
+  /// visibly non-interactive.
+  final ValueChanged<int>? onJumpTo;
+
+  /// Reorders by **play-order** position, matching
+  /// `ReorderableListView`'s own convention — `null` hides every row's
+  /// drag handle and disables reordering (no target ever advertises
+  /// incremental remote queue editing; see `SupportedRemoteCommands`).
+  final void Function(int oldPosition, int newPosition)? onReorder;
+
+  /// Removes the entry at this entries index — `null` hides the row's
+  /// remove action, for the same reason [onReorder] can be.
+  final ValueChanged<int>? onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final queue = state.queue;
     if (queue.entries.isEmpty) {
       return const EmptyStateView(
         title: 'The queue is empty',
@@ -77,34 +150,44 @@ class QueueEditor extends StatelessWidget {
 
     final order = queue.playOrder;
     final currentPlayPosition = queue.currentPlayPosition;
+    final reorder = onReorder;
+
+    Widget rowAt(int playPosition) {
+      final entriesIndex = order[playPosition];
+      return _QueueRow(
+        // Keyed by position rather than by the entry: the same track can
+        // legitimately sit in a queue twice, and two identical
+        // `ValueKey`s make a reorder move the wrong row.
+        key: ValueKey('queue-$playPosition-$entriesIndex'),
+        index: playPosition,
+        entry: queue.entries[entriesIndex],
+        isCurrent: playPosition == currentPlayPosition,
+        draggable: reorder != null,
+        onTap: onJumpTo == null ? null : () => onJumpTo!(entriesIndex),
+        onRemove: onRemove == null ? null : () => onRemove!(entriesIndex),
+      );
+    }
 
     return Column(
       children: [
         _QueueRuntimeHeader(queue: queue),
         Expanded(
-          child: ReorderableListView.builder(
-            itemCount: order.length,
-            onReorderItem: cubit.reorderPlayOrder,
-            buildDefaultDragHandles: false,
-            footer: queue.isAtEndOfPlayOrder
-                ? const _EndOfQueueNote()
-                : null,
-            itemBuilder: (context, playPosition) {
-              final entriesIndex = order[playPosition];
-              final entry = queue.entries[entriesIndex];
-              return _QueueRow(
-                // Keyed by position rather than by the entry: the same
-                // track can legitimately sit in a queue twice, and two
-                // identical `ValueKey`s make a reorder move the wrong row.
-                key: ValueKey('queue-$playPosition-$entriesIndex'),
-                index: playPosition,
-                entry: entry,
-                isCurrent: playPosition == currentPlayPosition,
-                onTap: () => cubit.playAt(entriesIndex),
-                onRemove: () => cubit.removeAt(entriesIndex),
-              );
-            },
-          ),
+          child: reorder == null
+              ? ListView.builder(
+                  itemCount: order.length + (queue.isAtEndOfPlayOrder ? 1 : 0),
+                  itemBuilder: (context, index) => index < order.length
+                      ? rowAt(index)
+                      : const _EndOfQueueNote(),
+                )
+              : ReorderableListView.builder(
+                  itemCount: order.length,
+                  onReorderItem: reorder,
+                  buildDefaultDragHandles: false,
+                  footer: queue.isAtEndOfPlayOrder
+                      ? const _EndOfQueueNote()
+                      : null,
+                  itemBuilder: (context, playPosition) => rowAt(playPosition),
+                ),
         ),
       ],
     );
@@ -130,11 +213,7 @@ class _EndOfQueueNote extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.done_all_rounded,
-            size: 16,
-            color: t.colors.textSecondary,
-          ),
+          Icon(Icons.done_all_rounded, size: 16, color: t.colors.textSecondary),
           SizedBox(width: t.spacing.xs),
           Text(
             'End of queue',
@@ -152,6 +231,7 @@ class _QueueRow extends StatelessWidget {
     required this.index,
     required this.entry,
     required this.isCurrent,
+    required this.draggable,
     required this.onTap,
     required this.onRemove,
   });
@@ -159,8 +239,9 @@ class _QueueRow extends StatelessWidget {
   final int index;
   final QueueEntry entry;
   final bool isCurrent;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
+  final bool draggable;
+  final VoidCallback? onTap;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -207,16 +288,19 @@ class _QueueRow extends StatelessWidget {
             children: [
               // Reordering starts from this handle rather than anywhere
               // on the row, so a tap still plays the entry (v0.1.6).
-              ReorderableDragStartListener(
-                index: index,
-                child: Padding(
-                  padding: EdgeInsets.only(right: t.spacing.xs),
-                  child: Icon(
-                    Icons.drag_indicator_rounded,
-                    color: t.colors.textSecondary,
+              // Absent entirely when this queue cannot be reordered
+              // (another device's projection, v0.5.6).
+              if (draggable)
+                ReorderableDragStartListener(
+                  index: index,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: t.spacing.xs),
+                    child: Icon(
+                      Icons.drag_indicator_rounded,
+                      color: t.colors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
               MediaArtwork(image: entry.image, kind: MediaKind.track, size: 48),
               SizedBox(width: t.spacing.sm),
               Expanded(
@@ -263,12 +347,13 @@ class _QueueRow extends StatelessWidget {
                   ),
                 ),
               ],
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
-                iconSize: 20,
-                color: t.colors.textSecondary,
-                onPressed: onRemove,
-              ),
+              if (onRemove != null)
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  iconSize: 20,
+                  color: t.colors.textSecondary,
+                  onPressed: onRemove,
+                ),
             ],
           ),
         ),

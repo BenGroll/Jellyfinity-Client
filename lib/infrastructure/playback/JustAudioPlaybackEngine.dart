@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart' as audio_service;
 import 'package:just_audio/just_audio.dart' as just_audio;
 
+import '../../domain/connected_playback/ActiveTransportRoute.dart';
 import '../../domain/media/ArtworkResolver.dart';
 import '../../domain/playback/CrossfadeSettings.dart';
 import '../../domain/playback/NormalizationSettings.dart';
@@ -55,11 +56,19 @@ import '../../domain/playback/playback_status.dart';
 class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     with audio_service.SeekHandler
     implements PlaybackEngine {
-  JustAudioPlaybackEngine(this._artworkResolver) {
+  JustAudioPlaybackEngine(this._artworkResolver, {this._activeTransportRoute}) {
     _listenTo(_primaryPlayer);
   }
 
   final ArtworkResolver _artworkResolver;
+
+  /// Set once at bootstrap (v0.5.7) to the app layer's view of
+  /// `PlaybackControlCubit.isControlling` — `null` in every test and
+  /// platform that hasn't wired one, which is exactly "always local," the
+  /// pre-v0.5.7 behavior.
+  final ActiveTransportRoute? _activeTransportRoute;
+
+  bool get _routeToRemote => _activeTransportRoute?.isRemote ?? false;
 
   /// The deck that plays whenever crossfade is off, and the one the
   /// first crossfade fades *out* of.
@@ -330,10 +339,14 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   }
 
   @override
-  Future<void> play() => _player.play();
+  Future<void> play({bool allowRemoteRoute = true}) {
+    if (allowRemoteRoute && _routeToRemote) return _activeTransportRoute!.play();
+    return _player.play();
+  }
 
   @override
-  Future<void> pause() async {
+  Future<void> pause({bool allowRemoteRoute = true}) async {
+    if (allowRemoteRoute && _routeToRemote) return _activeTransportRoute!.pause();
     // Pausing during an overlap leaves a tail playing on the other deck
     // otherwise.
     await _abandonCrossfade();
@@ -341,7 +354,10 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   }
 
   @override
-  Future<void> seek(Duration position) async {
+  Future<void> seek(Duration position, {bool allowRemoteRoute = true}) async {
+    if (allowRemoteRoute && _routeToRemote) {
+      return _activeTransportRoute!.seek(position);
+    }
     await _abandonCrossfade();
     await _player.seek(position);
   }
@@ -573,14 +589,19 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   // Delegating to just_audio's own sequence navigation, rather than
   // reimplementing it, is what lets a system button press and an in-app
   // `skipToIndex` call converge on the same `currentIndexStream` event.
+  // While `_activeTransportRoute` says this device is controlling another
+  // one instead (v0.5.7), the press goes to that device and never
+  // touches `_player` at all — never both.
   @override
   Future<void> skipToNext() async {
+    if (_routeToRemote) return _activeTransportRoute!.next();
     await _abandonCrossfade();
     if (_player.hasNext) await _player.seekToNext();
   }
 
   @override
   Future<void> skipToPrevious() async {
+    if (_routeToRemote) return _activeTransportRoute!.previous();
     await _abandonCrossfade();
     if (_player.hasPrevious) await _player.seekToPrevious();
   }

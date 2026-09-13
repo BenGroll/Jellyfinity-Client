@@ -159,6 +159,36 @@ void main() {
       expect(engine.playing, isTrue);
     });
 
+    test('play and pause are idempotent (v0.5.3: safe to drive without '
+        'checking local state first)', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+      expect(engine.playing, isTrue);
+
+      engine.calls.clear();
+      await cubit.play();
+      expect(engine.calls, isNot(contains('play')));
+      expect(engine.playing, isTrue);
+
+      await cubit.pause();
+      expect(engine.playing, isFalse);
+
+      engine.calls.clear();
+      await cubit.pause();
+      expect(engine.calls, isNot(contains('pause')));
+      expect(engine.playing, isFalse);
+
+      await cubit.play();
+      expect(engine.playing, isTrue);
+    });
+
+    test('play and pause are no-ops with no queue', () async {
+      await cubit.play();
+      expect(engine.playing, isFalse);
+
+      await cubit.pause();
+      expect(engine.playing, isFalse);
+    });
+
     test('resume starts a restored queue (v0.3.2)', () async {
       await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
       await queueRepository.savePosition(
@@ -477,6 +507,144 @@ void main() {
       expect(cubit.state.queue.isEmpty, isTrue);
       expect(cubit.state.queue.shuffleEnabled, isFalse);
     });
+  });
+
+  group('adoptTransferredQueue (v0.5.4)', () {
+    test(
+      'loads the resolved tracks at the offered position, playing',
+      () async {
+        await cubit.adoptTransferredQueue(
+          [_track('a'), _track('b'), _track('c')],
+          startIndex: 1,
+          shuffleEnabled: false,
+          repeatMode: RepeatMode.off,
+          startPosition: const Duration(seconds: 30),
+          startPlaying: true,
+        );
+
+        expect(engine.sources, hasLength(3));
+        expect(engine.currentIndex, 1);
+        expect(engine.playing, isTrue);
+        expect(cubit.state.queue.currentIndex, 1);
+        expect(cubit.state.position, const Duration(seconds: 30));
+      },
+    );
+
+    test('adopts paused exactly as offered, never starting audio', () async {
+      await cubit.adoptTransferredQueue(
+        [_track('a'), _track('b')],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+        startPlaying: false,
+      );
+
+      expect(engine.playing, isFalse);
+      expect(engine.calls, isNot(contains('play')));
+      expect(cubit.state.queue.currentIndex, 0);
+    });
+
+    test(
+      'a shuffled offer keeps the offered order as play order, not a fresh shuffle',
+      () async {
+        final tracks = [_track('a'), _track('b'), _track('c'), _track('d')];
+
+        await cubit.adoptTransferredQueue(
+          tracks,
+          startIndex: 2,
+          shuffleEnabled: true,
+          repeatMode: RepeatMode.off,
+        );
+
+        // The queue's own entry order *is* the play order that was
+        // offered — a transfer hands over "true queue order", not
+        // something this device re-derives by shuffling again.
+        expect(cubit.state.queue.shuffleEnabled, isTrue);
+        expect(cubit.state.queue.playOrder, [0, 1, 2, 3]);
+        expect(cubit.state.queue.currentIndex, 2);
+      },
+    );
+
+    test('carries the offered repeat mode', () async {
+      await cubit.adoptTransferredQueue(
+        [_track('a')],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.all,
+      );
+
+      expect(cubit.state.queue.repeatMode, RepeatMode.all);
+    });
+
+    test('replaces whatever was already playing, like playNow', () async {
+      await cubit.playNow([_track('x'), _track('y')], startIndex: 0);
+      expect(cubit.state.queue.entries, hasLength(2));
+
+      await cubit.adoptTransferredQueue(
+        [_track('a'), _track('b'), _track('c')],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+      );
+
+      expect(cubit.state.queue.entries, hasLength(3));
+      expect(cubit.state.queue.entries.first.id.itemId, 'a');
+    });
+
+    test('does nothing for an empty track list', () async {
+      await cubit.adoptTransferredQueue(
+        const [],
+        startIndex: 0,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+      );
+
+      expect(cubit.state.queue.isEmpty, isTrue);
+    });
+  });
+
+  group('local transport never remote-routable (v0.5.7)', () {
+    // `PlaybackEngine.play`'s own doc: every one of `PlaybackCubit`'s own
+    // calls manages *this* device's local playback and must stay local
+    // even while this device is also remote-controlling something else
+    // (`ActiveTransportRoute`) — including a failure-triggered retry,
+    // which is what a build wiring a route could otherwise silently
+    // redirect, since `JustAudioPlaybackEngine.play`/`pause`/`seek` are
+    // shared with the OS-facing `audio_service` handler.
+    test('play, pause, seek and resume all pass allowRemoteRoute: false', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      await cubit.pause();
+      expect(engine.lastPauseAllowedRemoteRoute, isFalse);
+
+      await cubit.play();
+      expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+
+      await cubit.seek(const Duration(seconds: 5));
+      expect(engine.lastSeekAllowedRemoteRoute, isFalse);
+
+      await cubit.pause();
+      await cubit.resume();
+      expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+    });
+
+    test(
+      'a failure-triggered retry still plays with allowRemoteRoute: false',
+      () async {
+        await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+        engine.emitFailure(
+          PlaybackFailure(
+            sourceIndex: 0,
+            id: MediaId(serverId: 's1', itemId: 'a'),
+            message: 'could not decode',
+          ),
+        );
+        await _pump();
+
+        expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+      },
+    );
   });
 
   group('streaming quality (ADR-0015)', () {

@@ -131,6 +131,68 @@ void main() {
     );
   });
 
+  group('track by id (v0.5.4)', () {
+    const trackId = MediaId(serverId: 'server-1', itemId: 'track-1');
+    const trackRow = {'Id': 'track-1', 'Name': 'So What', 'Type': 'Audio'};
+
+    test('a served track is current, and is saved on the way past', () async {
+      final (:repository, :cache) = _repository(_answering([trackRow]));
+
+      final result = await repository.track(trackId);
+
+      expect(result.valueOrNull!.name, 'So What');
+      expect((await cache.readItem(trackId))?.name, 'So What');
+    });
+
+    test('an unreachable server answers from the saved copy', () async {
+      final cache = RecordingMediaCacheStore();
+      await _repository(
+        _answering([trackRow]),
+        cache: cache,
+      ).repository.track(trackId);
+
+      final offline = _repository(_offline(), cache: cache).repository;
+      final result = await offline.track(trackId);
+
+      expect(result.valueOrNull!.name, 'So What');
+    });
+
+    test(
+      'a track never browsed still resolves from its own download (v0.5.4)',
+      () async {
+        final store = InMemoryDownloadStore();
+        store.records[trackId] = TrackDownload(
+          id: trackId,
+          title: 'So What',
+          state: DownloadState.completed,
+          owners: {DownloadOwner.track(trackId)},
+          requestedAt: DateTime.utc(2026),
+        );
+
+        final repository = _repository(
+          _offline(),
+          offline: FakeOfflineMode(manual: true),
+          downloads: DownloadsLibrarySource(store),
+        ).repository;
+
+        final result = await repository.track(trackId);
+
+        expect(result.valueOrNull!.name, 'So What');
+      },
+    );
+
+    test(
+      'with nothing cached or downloaded, the failure is the answer',
+      () async {
+        final repository = _repository(_offline()).repository;
+
+        final result = await repository.track(trackId);
+
+        expect(result.isErr, isTrue);
+      },
+    );
+  });
+
   group('recently added (v0.3.3)', () {
     const recentRow = {
       'Id': 'album-9',

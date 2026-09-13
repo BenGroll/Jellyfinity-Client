@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/router/route_paths.dart';
@@ -108,5 +109,7 @@ void main() {
 
     expect(find.byType(SplashPage), findsOneWidget);
     expect(find.byType(WelcomePage), findsNothing);
+    expect(find.byKey(const Key('splash-background')), findsOneWidget);
+    expect(find.byKey(const Key('splash-logo')), findsOneWidget);
   });
 }

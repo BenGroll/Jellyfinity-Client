@@ -7,6 +7,7 @@ import '../../../app/di/service_locator.dart';
 import '../../../app/favorites/FavoritesRevisionCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
+import '../../../app/platform/television_mode.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../app/settings/SettingsCubit.dart';
 import '../../../app/downloads/DownloadsCubit.dart';
@@ -735,7 +736,7 @@ class _RecentlyPlayedStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return SizedBox(
-      height: _cardWidth + 66,
+      height: _homeCardStripHeight(context),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
@@ -755,7 +756,10 @@ class _RecentlyPlayedStrip extends StatelessWidget {
   }
 }
 
-const double _cardWidth = 132;
+double _homeCardWidth(BuildContext context) =>
+    TelevisionModeScope.of(context) ? 190 : 132;
+double _homeCardStripHeight(BuildContext context) =>
+    _homeCardWidth(context) + (TelevisionModeScope.of(context) ? 86 : 66);
 
 class _RecentlyPlayedCard extends StatelessWidget {
   const _RecentlyPlayedCard({
@@ -782,7 +786,7 @@ class _RecentlyPlayedCard extends StatelessWidget {
     return Opacity(
       opacity: playable ? 1 : 0.45,
       child: SizedBox(
-        width: _cardWidth,
+        width: _homeCardWidth(buildContext),
         child: InkWell(
           onTap: onTap,
           borderRadius: t.radii.smBorder,
@@ -797,7 +801,7 @@ class _RecentlyPlayedCard extends StatelessWidget {
                   ListeningContextKind.playlist => MediaKind.playlist,
                   ListeningContextKind.track => MediaKind.track,
                 },
-                size: _cardWidth,
+                size: _homeCardWidth(buildContext),
                 shape: circle ? ArtworkShape.circle : ArtworkShape.rounded,
               ),
               SizedBox(height: t.spacing.xs),
@@ -833,20 +837,20 @@ class _RecentlyPlayedSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return SizedBox(
-      height: _cardWidth + 66,
+      height: _homeCardStripHeight(context),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
         itemCount: 4,
         separatorBuilder: (_, _) => SizedBox(width: t.spacing.sm),
         itemBuilder: (context, _) => SizedBox(
-          width: _cardWidth,
+          width: _homeCardWidth(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppSkeleton(
-                width: _cardWidth,
-                height: _cardWidth,
+                width: _homeCardWidth(context),
+                height: _homeCardWidth(context),
                 borderRadius: t.radii.smBorder,
               ),
               SizedBox(height: t.spacing.xs),
@@ -872,7 +876,7 @@ class _RecentlyAddedStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return SizedBox(
-      height: _cardWidth + 66,
+      height: _homeCardStripHeight(context),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
@@ -907,7 +911,7 @@ class _RecentlyAddedCard extends StatelessWidget {
         : 'Album';
 
     return SizedBox(
-      width: _cardWidth,
+      width: _homeCardWidth(context),
       child: InkWell(
         onTap: onTap,
         borderRadius: t.radii.smBorder,
@@ -917,7 +921,7 @@ class _RecentlyAddedCard extends StatelessWidget {
             MediaArtwork(
               image: album.image,
               kind: MediaKind.album,
-              size: _cardWidth,
+              size: _homeCardWidth(context),
             ),
             SizedBox(height: t.spacing.xs),
             Text(
@@ -984,7 +988,7 @@ class _FavoritesStrip extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: _cardWidth + 66,
+      height: _homeCardStripHeight(context),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
@@ -1017,7 +1021,7 @@ class _FavoriteCard extends StatelessWidget {
     final circle = kind == MediaKind.artist;
 
     return SizedBox(
-      width: _cardWidth,
+      width: _homeCardWidth(context),
       child: InkWell(
         onTap: onTap,
         borderRadius: t.radii.smBorder,
@@ -1027,7 +1031,7 @@ class _FavoriteCard extends StatelessWidget {
             MediaArtwork(
               image: image,
               kind: kind,
-              size: _cardWidth,
+              size: _homeCardWidth(context),
               shape: circle ? ArtworkShape.circle : ArtworkShape.rounded,
             ),
             SizedBox(height: t.spacing.xs),
@@ -1063,20 +1067,20 @@ class _CardStripSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return SizedBox(
-      height: _cardWidth + 66,
+      height: _homeCardStripHeight(context),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
         itemCount: 4,
         separatorBuilder: (_, _) => SizedBox(width: t.spacing.sm),
         itemBuilder: (context, _) => SizedBox(
-          width: _cardWidth,
+          width: _homeCardWidth(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppSkeleton(
-                width: _cardWidth,
-                height: _cardWidth,
+                width: _homeCardWidth(context),
+                height: _homeCardWidth(context),
                 borderRadius: t.radii.smBorder,
               ),
               SizedBox(height: t.spacing.xs),

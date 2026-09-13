@@ -42,26 +42,17 @@ published Git tag.
 | v0.4.3 | Offline Favorites | Implemented | [spec](Roadmap%20to%20v0.5md#v042--offline-favorites) |
 | v0.4.4 | Library exploration | Implemented | [spec](Roadmap%20to%20v0.5md#v043--library-exploration) |
 | v0.4.5 | Random discovery and a personal mix | Implemented | [ADR-only](docs/adr/ADR-0035-random-discovery-and-personal-mix.md) |
+| v0.4.6 | Fire TV platform support | Implemented (device acceptance pending) | [ADR-only](docs/adr/ADR-0036-fire-tv-platform-support.md) |
 | v0.5.0 | Personal music discovery | Planned (its Home-mix entry point shipped early, in v0.4.5) | [spec](Roadmap%20to%20v0.5md#v044--personal-music-discovery) |
+| v0.5.1 | Connected playback contract | Implemented | [spec](Roadmap%20to%20v0.6.md#v051---connected-playback-contract), [ADR](docs/adr/ADR-0037-connected-playback-contract.md) |
+| v0.5.2 | Device presence and capability transport | Implemented | [spec](Roadmap%20to%20v0.6.md#v052---device-presence-and-capability-transport), [ADR](docs/adr/ADR-0038-device-presence-and-capability-transport.md) |
+| v0.5.3 | Remote state and command execution | Implemented | [spec](Roadmap%20to%20v0.6.md#v053---remote-state-and-command-execution) |
+| v0.5.4 | Atomic playback handoff | Implemented | [spec](Roadmap%20to%20v0.6.md#v054---atomic-playback-handoff) |
+| v0.5.5 | Device picker and ownership UI | Implemented | [spec](Roadmap%20to%20v0.6.md#v055---device-picker-and-ownership-ui) |
+| v0.5.6 | Remote Now Playing and queue controls | Implemented | [spec](Roadmap%20to%20v0.6.md#v056---remote-now-playing-and-queue-controls), [ADR](docs/adr/ADR-0040-remote-now-playing-and-queue-controls.md) |
+| v0.5.7 | Windows connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v057---windows-connected-playback), [ADR](docs/adr/ADR-0041-windows-connected-playback.md) |
+| v0.5.8 | Android connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v058---android-connected-playback), [ADR](docs/adr/ADR-0042-android-connected-playback.md) |
+| v0.5.9 | Android TV and Fire TV connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v059---android-tv-and-fire-tv-connected-playback), [ADR](docs/adr/ADR-0043-android-tv-and-fire-tv-connected-playback.md) |
+| v0.6.0 | True cross-device playback | Planned | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback) |
 
-v0.1.2 is complete. v0.3.0 shipped everything but reorder, which it left
-out deliberately: Jellyfin's move endpoint takes an absolute playlist
-index, and the page model split unmappable entries out of the ordered
-list, so the index the UI could compute was wrong on any playlist holding
-something that is not a readable song (ADR-0024). **v0.4.2** gave the
-read model true positions and finished it (ADR-0032).
-
-v0.3.0 shipped its hardening half — the download lifecycle fixes,
-regression tests, CI, and release hygiene in `CHANGELOG.md` — plus the rest
-of the playlist curation v0.1.2 left unfinished, folded in there rather than
-given a version of its own. Its offline **feature** deliverables — the
-entry-point audit across Now Playing, the queue, the mini-player and inline
-search; batch retry and batch removal; showing
-`MediaAvailability.localOnly` as "Only on this device"; and reclaiming a
-removed account's or server's downloaded files — were carried into
-**v0.3.6** (ADR-0030), which completes them. Device validation across the
-whole offline story is folded into a later release's hardening pass rather
-than blocking here.
-
-Future ideas are deliberately unsequenced in `OUTLOOK.md`. They are not part
-of a version unless promoted into this index and given a bounded specification.
+Historical implementation notes live in CHANGELOG.md and the linked ADRs. Future ideas in OUTLOOK.md are out of scope unless promoted into this index.

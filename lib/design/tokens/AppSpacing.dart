@@ -29,6 +29,17 @@ class AppSpacing extends Equatable {
     xxl: 48,
   );
 
+  /// Roomier rhythm for a remote-controlled interface viewed from a couch.
+  static const AppSpacing television = AppSpacing(
+    xxs: 6,
+    xs: 10,
+    sm: 16,
+    md: 22,
+    lg: 30,
+    xl: 40,
+    xxl: 56,
+  );
+
   final double xxs;
   final double xs;
   final double sm;

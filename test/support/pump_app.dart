@@ -11,9 +11,12 @@ import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart';
 import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
+import 'connected_playback/device_picker_fakes.dart';
+import 'connected_playback/FakeConnectedPlaybackNetwork.dart';
 import 'download_fakes.dart';
 import 'music_fakes.dart';
 import 'offline_fakes.dart';
@@ -34,7 +37,12 @@ import 'settings_fakes.dart';
 /// control what the Lyrics view (v0.1.5) shows; otherwise it has none. Pass
 /// [downloads] to drive or assert on the download system (v0.2.0);
 /// otherwise a fake-backed cubit is built so track rows and album
-/// headers have download state to read.
+/// headers have download state to read. Pass [devicePresence] to control
+/// what the device picker (v0.5.5) shows; otherwise it sees no other
+/// devices. Pass [connectedPlaybackNetwork] — the same
+/// `FakeConnectedPlaybackNetwork` a test also puts a second (fake "TV")
+/// node on — to exercise controlling another device (v0.5.6) through the
+/// real widget tree.
 ///
 /// [restore] defaults to `true` (the ordinary post-sign-in-restore state
 /// every other test wants); pass `false` for a test that specifically
@@ -56,7 +64,12 @@ Future<TestSessionScope> pumpApp(
   OfflineCubit? offline,
   TrackSourceInfoResolver? trackSourceInfoResolver,
   LyricsResolver? lyricsResolver,
+  DevicePresenceSource? devicePresence,
+  FakeConnectedPlaybackNetwork? connectedPlaybackNetwork,
   bool restore = true,
+  bool? televisionMode,
+  Future<bool> Function()? televisionDetector,
+  Size viewportSize = const Size(390, 844),
 }) async {
   // The default flutter_test surface (800x600, wider than tall) has too
   // little height for a real phone screen once the persistent header
@@ -65,7 +78,7 @@ Future<TestSessionScope> pumpApp(
   // area even though `find` still locates it, producing a `tap()` that
   // silently lands on the wrong widget. A realistic phone viewport is
   // what every one of these screens is actually built for.
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = viewportSize;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -106,6 +119,14 @@ Future<TestSessionScope> pumpApp(
   // these straight from getIt too.
   registerNowPlayingDetailsCubit();
   registerFavoritesRepository();
+  // MiniPlayer/NowPlayingPage's device action (v0.5.5) reads this straight
+  // from getIt too — see registerDevicePickerCubit's own doc.
+  registerDevicePickerCubit(
+    session: s.cubit,
+    playback: playbackCubit,
+    presence: devicePresence,
+    network: connectedPlaybackNetwork,
+  );
   await tester.pumpWidget(
     JellyfinityApp(
       router: effectiveRouter.config,
@@ -116,6 +137,8 @@ Future<TestSessionScope> pumpApp(
       downloads: downloadsCubit,
       offline: offlineCubit,
       favoritesRevision: favoritesRevisionCubit,
+      televisionMode: televisionMode,
+      televisionDetector: televisionDetector,
     ),
   );
   if (restore) {

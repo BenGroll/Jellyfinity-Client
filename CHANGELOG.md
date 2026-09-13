@@ -2,6 +2,200 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Windows connected playback
+
+- Hardware media keys and the Windows system media panel now reach whichever
+  device is actually active — the device being remote-controlled, when this
+  one is controlling another (v0.5.6), or local playback otherwise — instead
+  of always driving this device's own queue regardless.
+- Updated the Windows device-acceptance checklist with remote-control
+  scenarios: media keys and the media panel while controlling and while
+  being controlled, minimize/sleep/wake and network changes during control,
+  and device-picker/remote Now Playing checks at narrow/wide widths, high
+  display scaling, and across multiple displays.
+
+## Unreleased — Remote Now Playing and queue controls
+
+- Control another device's active playback from the mini-player, Now
+  Playing and the queue screen, once it is chosen from the device picker:
+  the same transport, seek, shuffle, repeat, and jump-to-track controls
+  local playback already has, bound to that device's real, live state
+  instead.
+- Show exactly what state that control is in — synced, syncing after a
+  reconnect, reconnecting, or no longer available — and a command that is
+  pending, applied, or failed, rather than a control that quietly does
+  nothing.
+- Disable or hide any control the target device does not currently
+  support, so nothing is offered only to fail.
+- Keep this device's own artwork, favorite and download state, and never
+  touch its own dormant local queue while controlling another device —
+  looking at or driving what another device is playing never costs a
+  listener their place in their own queue.
+- Stop controlling at any time without affecting the other device's
+  playback, and return straight to the device picker to choose another.
+
+## Unreleased — Device picker and ownership UI
+
+- Show where playback actually is from the mini-player and Now Playing: a
+  device action names the active device — "This device" or whichever
+  other Jellyfinity install owns the sound right now — and never implies
+  this device is playing when it is only controlling.
+- Open a picker listing this device and every compatible one presence
+  knows about, each labelled active, available, connecting, unavailable,
+  stale, incompatible, or permission-denied, with a reason shown only
+  where it changes what can be done.
+- Transfer playback to a chosen device with one tap, with the picker
+  staying open through the handoff and reporting success or an
+  actionable failure rather than a silent spinner; a second tap while one
+  transfer is already in flight is a no-op, not a race.
+- Bring playback back to this device once nothing else needs it — a
+  paused local queue resumes exactly as it was, without waiting on
+  whatever else was last playing it.
+- Handle no other devices found, devices disappearing while the picker is
+  open, offline/work-offline mode, and account switching, all from the
+  same read model the rest of connected playback already trusts.
+
+## Unreleased — Atomic playback handoff
+
+- Move a listening session between two connected devices without a
+  surprising restart, a dropped queue, or a moment where both are making
+  sound: the source keeps playing until the destination has proven it can
+  reproduce the whole queue, and only then gives up its audio.
+- Reject a transfer the destination cannot play in full — a song it has no
+  download of and cannot stream — before the source stops, naming which
+  entries and why, rather than handing over a queue quietly missing some of
+  what was queued.
+- Resolve every song on the destination's own terms once it takes over: its
+  own download in place of a stream, its own stream-quality setting, its
+  own availability — never inherited from the device that was playing it a
+  moment ago.
+- Recover deterministically when a step is lost: a refusal or a lost offer
+  costs nothing, since the source never stopped; a lost confirmation after
+  the source has already stopped resumes it, and a late confirmation that
+  arrives after that stops it again rather than leaving two devices making
+  sound at once.
+- Carry the exact play order, shuffle state, repeat mode, current position
+  and playing/paused state across the transfer — a paused queue arrives
+  paused, and a shuffled queue keeps the order it was already playing in
+  rather than being reshuffled on arrival.
+
+## Unreleased — Remote state and command execution
+
+- Let a Jellyfinity device actually drive another one's playback — play,
+  pause, previous, next, seek, jump to a queue row, shuffle and repeat —
+  through the very same queue and playback engine the listener would use
+  directly at that device, never a second path into it.
+- Publish a bounded, revisioned picture of what is playing on the device
+  producing sound — its queue, current track, position, playing/paused
+  state, shuffle and repeat — to whatever is watching it. An oversized
+  queue is windowed to the current track onward rather than sent whole and
+  silently lost.
+- Answer every command, accepted or refused, with the state it produced and
+  why, while the device being controlled keeps playing normally for the
+  listener standing at it the whole time — another device only ever holds a
+  read-only mirror of that queue, never a second, editable copy of it.
+- Serialize competing controllers so two edits that arrive together apply in
+  the order they were made rather than clobbering each other, drop a
+  duplicated delivery rather than repeating its effect, and let a device
+  reconnecting under a new session be told apart from the one it replaced.
+- Keep the server-facing play session and listening-progress reporting
+  entirely with the device that is actually producing sound; a device only
+  watching or driving another one never opens a play session of its own for
+  it.
+
+## Unreleased — Device presence and capability transport
+
+- Find other Jellyfinity devices signed in to the same server and profile,
+  through the server itself. No cloud service, no account, and no local
+  network discovery, so two devices that can both reach the server can reach
+  each other — including across subnets and over a VPN.
+- Show what each device actually is before offering it: a device that the
+  server knows about but that has not yet said what it accepts is listed as
+  present rather than presented as ready, so a control is never offered and
+  then refused.
+- Keep a device's row stable when it reconnects under a new server session,
+  and distinguish devices sharing a name by their platform — "Jellyfinity
+  (Fire TV)" beside "Jellyfinity (Windows)" — or by a fixed short code where
+  the platform does not separate them.
+- Keep devices from another profile or another server entirely out of the
+  list, including on an administrator account whose server would happily
+  return every session on it.
+- Stop showing a device that has gone quiet as available, without making it
+  vanish and reappear the moment it blinks.
+- Recover from an interrupted connection on its own, with a wait that grows
+  rather than hammering a server that is still down, and re-read everything
+  before trusting it again. Devices stay listed and honestly labelled
+  throughout.
+- Tell apart the five things that can stop this working, because each needs a
+  different fix: the server is unreachable, the session needs signing in
+  again, the account is not allowed to control other devices, the server is
+  too old, and a reverse proxy in front of the server is not forwarding the
+  live connection Jellyfinity needs. The last one is the common way a
+  self-hosted server looks healthy and still cannot do this, and it now says
+  so.
+- Drop the connection when the app leaves the foreground and re-establish it
+  on return, and forget everything about a profile the moment it is signed
+  out, switched away from, or has its server removed.
+- Leave playback on this device completely unaffected by any of it: when the
+  server cannot be reached, music keeps playing and the app says exactly that.
+
+## Unreleased — Connected playback contract
+
+- Define the vocabulary and ownership model for playing across devices: the
+  device making sound owns the queue, and every other device holds a
+  revisioned, read-only projection of it that is never merged into its own
+  saved queue.
+- Scope every device, snapshot, command and message to one server and one
+  profile, checked before a message is read, so another profile's playback is
+  never visible or controllable even where the server would allow it.
+- Keep a device's stable identity separate from its current server session,
+  and give devices sharing a name a distinguishing hint.
+- Version the messages two Jellyfinity installs exchange. A newer build's
+  extra messages, commands and fields are ignored safely; a genuinely
+  incompatible build is explained rather than retried.
+- Give commands a unique id, a target session, the state revision they were
+  composed against and a bounded lifetime, so duplicates apply once, competing
+  remotes cannot interleave a queue edit, and a late instruction is dropped
+  instead of applied to a situation that has moved on. Lifetimes are measured
+  by the receiving device's own clock, so devices that disagree about the time
+  of day still behave.
+- Make transferring playback a four-step conversation that refuses before the
+  source stops if the destination cannot reproduce the whole queue, names the
+  entries it could not resolve, and always resolves a lost confirmation to one
+  device playing — never two, never none.
+- Send only identifiers and music metadata between devices: never credentials,
+  stream addresses, file paths or audio. The destination resolves its own
+  download or stream and applies its own quality settings.
+- Normalize every connected-playback failure so the app can tell a stale
+  view, a timeout, a permission problem, an unreachable server and an
+  incompatible device apart, and only offers a retry where one could work.
+- Cover the whole discovery, control, synchronization and handoff conversation
+  with two-client tests over a deliberately unreliable in-memory network that
+  duplicates, reorders, drops and delays messages.
+
+## Unreleased — Fire TV support
+
+- Make the Android package discoverable from Amazon Fire TV and Android TV
+  launchers while retaining ordinary Android phone/tablet installation. Supply
+  the required 320x180 television banner and declare touch hardware optional.
+- Detect television mode in the Android host rather than inferring it from
+  display width. Large tablets and Windows windows keep their existing layout.
+- Switch authenticated television navigation to a persistent left rail with a
+  predictable selected-item focus start, visible Material focus feedback,
+  larger typography/cards/targets and overscan-safe insets.
+- Support D-pad center/select, controller A, Back and Fire TV Menu, plus remote
+  play/pause, previous/next and ten-second rewind/fast-forward through the
+  shared playback queue.
+- Put Menu, Search and (when a queue is active) Now Playing directly on the
+  television rail. Add a visible return-to-navigation control, smooth D-pad
+  focus scrolling in shelves and lists, and directional branch transitions.
+- Remove the artificial outer TV frame; add top-edge Search from every shell
+  branch; replace the white startup screen with dark Jellyfinity branding;
+  enlarge the adaptive launcher mark; and let Up/Down leave the player
+  timeline while Left/Right remain seek controls.
+- Add widget and platform contract tests for automatic mode selection, D-pad
+  navigation, sidebar and playback shortcuts, manifest eligibility, native
+
 ## Unreleased — Windows support
 
 - Extend album and artist artwork through their detail surfaces, add detail

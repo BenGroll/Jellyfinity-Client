@@ -81,11 +81,26 @@ abstract class PlaybackEngine {
   /// engine explicitly at construction rather than assuming a default.
   Future<void> setNormalization(NormalizationSettings settings);
 
-  Future<void> play();
+  /// [allowRemoteRoute] is v0.5.7's seam for a build that also wires an
+  /// `ActiveTransportRoute`: `true` (the default every OS/hardware
+  /// transport entry point — a lock screen, a Windows media-session
+  /// button, a headset key — is invoked with, since none of them can
+  /// pass an argument) lets the call go to whatever this device is
+  /// remote-controlling instead of local playback. `PlaybackCubit`
+  /// always passes `false`: its own calls exist to manage *this*
+  /// device's local playback — including on behalf of a remote
+  /// controller driving this device as its *target* (v0.5.3), a
+  /// different relationship from this device controlling some third
+  /// device — and must never be redirected just because this device
+  /// also happens to be controlling something else. An implementation
+  /// with no such route wired (every test, and any platform that never
+  /// sets one) ignores this and always plays locally, the pre-v0.5.7
+  /// behavior.
+  Future<void> play({bool allowRemoteRoute = true});
 
-  Future<void> pause();
+  Future<void> pause({bool allowRemoteRoute = true});
 
-  Future<void> seek(Duration position);
+  Future<void> seek(Duration position, {bool allowRemoteRoute = true});
 
   /// Jumps to [index] within the current source list.
   Future<void> skipToIndex(int index, {Duration? position});

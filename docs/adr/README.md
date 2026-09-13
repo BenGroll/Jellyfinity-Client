@@ -39,7 +39,15 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0032](ADR-0032-playlist-mastery.md) | Playlist mastery |
 | [0033](ADR-0033-offline-favorites.md) | Offline favorites |
 | [0034](ADR-0034-library-exploration.md) | Library exploration |
+| [0036](ADR-0036-fire-tv-platform-support.md) | Fire TV platform support |
 | [0035](ADR-0035-random-discovery-and-personal-mix.md) | Random discovery and a personal mix |
+| [0037](ADR-0037-connected-playback-contract.md) | Connected playback contract |
+| [0038](ADR-0038-device-presence-and-capability-transport.md) | Device presence and capability transport |
+| [0039](ADR-0039-device-picker-and-ownership-ui.md) | Device picker and ownership UI |
+| [0040](ADR-0040-remote-now-playing-and-queue-controls.md) | Remote Now Playing and queue controls |
+| [0041](ADR-0041-windows-connected-playback.md) | Windows connected playback |
+| [0042](ADR-0042-android-connected-playback.md) | Android connected playback |
+| [0043](ADR-0043-android-tv-and-fire-tv-connected-playback.md) | Android TV and Fire TV connected playback |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

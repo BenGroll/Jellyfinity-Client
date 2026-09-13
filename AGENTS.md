@@ -4,9 +4,10 @@ Read this file first. It defines the complete context-loading workflow.
 
 ## Where the repository is right now
 
-**The current planned line is v0.4.x–v0.5.x.** Unless you were given a
-different version, work from `Roadmap to v0.4.md` for v0.3.1-v0.3.6 and `Roadmap to
-v0.5md` for v0.4.0–v0.5.0.
+**The current planned line is v0.4.x-v0.6.0.** Unless you were given a
+different version, work from `Roadmap to v0.4.md` for v0.3.1-v0.3.6,
+`Roadmap to v0.5md` for v0.4.0-v0.5.0, and `Roadmap to v0.6.md` for
+v0.5.1-v0.6.0.
 
 - v0.2.0–v0.3.6 are implemented. Their detailed behavior and decisions are
   in the linked roadmap sections and ADRs; do not load them unless assigned.
@@ -25,6 +26,13 @@ v0.5md` for v0.4.0–v0.5.0.
 - v0.4.4 (Library exploration, ADR-0034) is implemented: genre and decade
   entry points (a live-only facet read, `LibraryFacetsCubit`, an
   `AlbumsCubit`-reused browse page) and a random album/artist pick that
+- v0.4.6 (Fire TV platform support, ADR-0036; ADR-only) is implemented:
+  the Android package is visible to Leanback/Fire TV launchers, detects the
+  host's television mode without treating large tablets as TVs, and swaps in
+  a 10-foot design scale with overscan insets, a persistent D-pad navigation
+  rail, explicit initial focus, Menu/Back handling and remote media controls.
+  Automated platform/widget tests and an Android build cover the implementation;
+  physical Fire TV launcher/remote/background-playback acceptance remains.
   draws from the server online and from downloads while offline
   (`MusicLibraryRepository.randomAlbum`/`randomArtist`,
   `DownloadsLibrarySource`). No schema change.
@@ -41,6 +49,103 @@ v0.5md` for v0.4.0–v0.5.0.
 - v0.5.0 is planned: Personal music discovery. `ROADMAP.md` is the
   authority for exact version-to-heading mapping; the linked
   `Roadmap to v0.5md` headings intentionally use the prior number.
+- v0.5.1 (Connected playback contract, ADR-0037) is implemented: the
+  target-authoritative ownership model, the Jellyfin-mediated transport
+  decision, and the whole vocabulary in `lib/domain/connected_playback/`
+  — scope, two-part device identity, capabilities, revisioned snapshot,
+  command family, acknowledgement, four-step transfer, versioned
+  envelope, monotonic revisions, receiver-side expiry and normalized
+  failures — behind `DevicePresenceSource`,
+  `ConnectedPlaybackTransport` and `PlaybackHandoffCoordinator`, with
+  the arbitration, projection and handoff logic in three pure services.
+  Exercised by two-client contract tests over a deliberately unreliable
+  in-memory network. No Flutter, audio backend, live server, schema
+  change or dependency.
+- v0.5.2 (Device presence and capability transport, ADR-0038) is
+  implemented: one lifecycle-aware `JellyfinSessionTransport` satisfying
+  both of v0.5.1's contracts, over Jellyfin's authenticated session
+  endpoints and its WebSocket (`dart:io`, behind a one-method seam; no
+  new dependency). The server answers which sessions exist and whose they
+  are; the peers answer what they speak and accept, as an
+  `EnvelopeKind.presence` advertisement, so a device is `presenceOnly`
+  until it has introduced itself. Envelopes ride in a `SendString`
+  `GeneralCommand` addressed only to Jellyfinity sessions. Presence is a
+  pure `DevicePresenceRegistry` keyed by stable install id, with platform
+  or install-id hints for duplicate names, staleness and a longer drop
+  window. Every connect and reconnect re-reads `/Sessions` in full before
+  opening the socket; backoff doubles to a two-minute ceiling for the two
+  retryable problems only, and `ConnectedSessionFailureMapper` keeps
+  unsupported-server, proxy/WebSocket, authentication, permission and
+  network failures apart. `ConnectedPlaybackLink` (`lib/app`) ties it to
+  sign-in, account switching and the app lifecycle. Android build
+  verified; no schema change. Command *execution* remains v0.5.3.
+- v0.5.3 (Remote state and command execution) is implemented: the
+  application-layer bridge v0.5.1/v0.5.2 left open. `ConnectedPlaybackTargetLink`
+  (`lib/app`) mirrors this device's real `PlaybackCubit` state into a
+  `RemotePlaybackTarget`, publishes bounded/windowed snapshots on every
+  change (queue capped and anchored at the current position past
+  `ConnectedPlaybackLimits.maxQueueEntries`), and turns an accepted command
+  into a real `PlaybackCubit` call — play, pause, previous, next, seek,
+  jump-to-queue-entry, shuffle, repeat — serialized one at a time so
+  concurrent controllers cannot interleave. `ConnectedPlaybackControllerSession`
+  drives `RemotePlaybackController` against a chosen device the same way.
+  Advertised capabilities (`SupportedRemoteCommands`) are deliberately
+  narrower than `DeviceCapabilities.fullPlayer()`: no remote queue editing
+  (`setQueue`/append/remove/move — not required this version, and
+  `setQueue`'s absence keeps `canReceiveTransfer` honestly `false` until
+  v0.5.4 wires a handoff commit), no `stop`, no `setVolume` (no Jellyfinity
+  platform exposes a settable output volume). `PlaybackCubit` gained
+  explicit `play()`/`pause()` (idempotent, unlike the toggle a remote
+  command cannot safely drive). No schema change, no new dependency, no UI.
+- v0.5.4 (Atomic playback handoff) is implemented: the application-layer
+  bridge for v0.5.1's four-message conversation
+  (`PlaybackHandoff`/`PlaybackTransfer`, pure since that version) — real
+  wire framing for offer/readiness/commit/result
+  (`PlaybackTransfer.dart`'s codec extensions) and the concrete
+  `PlaybackHandoffCoordinator`, implemented by `ConnectedPlaybackTargetLink`
+  itself so both a handoff's source and target roles share the one class
+  already wired to the real `PlaybackCubit` and transport. `transferTo`
+  drives `PlaybackHandoff` end to end: preflights the destination's
+  protocol, playback capability and queue-length bound before anything
+  stops, pauses local playback only after a `TransferReadiness.ready`, and
+  resumes it — or, on a late `TransferResult`, stops it again — exactly as
+  the state machine decides. `prepare` resolves every offered entry fresh
+  against `MusicLibraryRepository.track` (new: one track by id, cached and
+  downloads-backed like `artist`/`album`) and refuses before the source
+  stops if any entry cannot be played here; `accept` hands the resolved
+  tracks to `PlaybackCubit.adoptTransferredQueue`, a new method that
+  preserves exactly the offered play order — shuffled or not, via
+  `PlaybackQueue.withRestoredShuffleOrder` — repeat mode, position and
+  playing/paused state, rather than rederiving any of them.
+  `RemoteCommandKind.setQueue` joined `SupportedRemoteCommands`, since it
+  is what makes `DeviceCapabilities.canReceiveTransfer` true and it is the
+  command a handoff's local queue-replacement shape matches; `_execute`
+  gained a real, resolve-and-adopt path for it. No schema change, no UI —
+  device selection remains v0.5.5.
+- v0.5.5 (Device picker and ownership UI, ADR-0039) is implemented: a
+  device action on the mini-player and Now Playing top bar
+  (`DeviceActionButton`) that names the active device without implying
+  this device is playing when it is only controlling, and a picker sheet
+  (`showDevicePickerSheet`, `DevicePickerCubit`) listing "This device"
+  plus every device `DevicePresenceSource` reports, mapped to the
+  roadmap's active/available/connecting/unavailable/stale/incompatible/
+  permission-denied vocabulary. Transferring calls the already-existing
+  `ConnectedPlaybackTargetLink.transferTo` (new public `localSnapshot`
+  getter supplies the snapshot it needs); "bring it back to this device"
+  is a plain local resume rather than a handoff, since
+  `ConnectedDevice.canReceiveTransfer` deliberately excludes
+  `isThisDevice` and no message exists (or should exist, per ADR-0037's
+  ownership model) to ask a remote device to hand off on request — see
+  ADR-0039 for why, and for the transiently-two-playing case
+  `ConnectedDevice.isPlaying`'s own doc already accepts as visible rather
+  than hidden. `DevicePresenceSource` joins `ConnectedPlaybackTransport`
+  as a second interface bound onto the one `JellyfinSessionTransport`
+  singleton. No schema change, no new wire message, no dependency.
+  Remote Now Playing/queue control and platform completion remain
+  v0.5.6-v0.6.0.
+- v0.5.6-v0.6.0 are planned: remote Now Playing and queue controls, then
+  completed for Windows, Android, and the Android TV/Fire TV capability
+  path. See `Roadmap to v0.6.md` for the bounded specifications.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

@@ -68,6 +68,16 @@ It does not sign into Jellyfin or change saved accounts.
   plain and synchronized lyrics while connected.
 - Resize the window, scroll long lists and shelves, refresh collections,
   edit the queue, and use search and keyboard navigation.
+- While this device is remote-controlling another one (v0.5.6): press
+  hardware media keys and use the Windows media panel — they must reach the
+  controlled device, never this device's own dormant local queue (v0.5.7,
+  ADR-0041). Minimize, sleep/wake the machine, and disconnect/reconnect the
+  network while controlling and while being controlled; presence should
+  reconnect or name the device as ended, never show stale state as live.
+  Check the device picker and remote Now Playing at narrow and wide window
+  widths, with a mouse and keyboard only, at high display scaling, and moved
+  across multiple displays. Use this Windows device as the controlled target
+  from another Windows device, then from an Android one, in both directions.
 
 Playback uses the existing domain/application logic. Existing roadmap gaps
 (such as playlist track reorder) remain outside this platform port.

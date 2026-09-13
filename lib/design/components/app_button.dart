@@ -102,31 +102,35 @@ class _AppButtonState extends State<AppButton> {
       button: true,
       enabled: enabled,
       label: widget.label,
-      child: GestureDetector(
-        onTapDown: enabled ? (_) => _setPressed(true) : null,
-        onTapUp: enabled ? (_) => _setPressed(false) : null,
-        onTapCancel: enabled ? () => _setPressed(false) : null,
-        onTap: widget.onPressed,
-        child: AnimatedScale(
-          scale: _pressed && !reduceMotion ? 0.97 : 1,
-          duration: t.motion.fast,
-          curve: t.motion.emphasizedCurve,
-          child: AnimatedOpacity(
-            opacity: _pressed ? 0.85 : 1,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: t.radii.mdBorder,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onPressed,
+          onHighlightChanged: enabled ? _setPressed : null,
+          borderRadius: t.radii.mdBorder,
+          child: AnimatedScale(
+            scale: _pressed && !reduceMotion ? 0.97 : 1,
             duration: t.motion.fast,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: t.spacing.md,
-                vertical: t.spacing.sm,
+            curve: t.motion.emphasizedCurve,
+            child: AnimatedOpacity(
+              opacity: _pressed ? 0.85 : 1,
+              duration: t.motion.fast,
+              child: Ink(
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.spacing.md,
+                  vertical: t.spacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: enabled ? bg : colors.surfaceSunken,
+                  borderRadius: t.radii.mdBorder,
+                  border: border == null
+                      ? null
+                      : Border.all(color: enabled ? border : colors.border),
+                ),
+                child: content,
               ),
-              decoration: BoxDecoration(
-                color: enabled ? bg : colors.surfaceSunken,
-                borderRadius: t.radii.mdBorder,
-                border: border == null
-                    ? null
-                    : Border.all(color: enabled ? border : colors.border),
-              ),
-              child: content,
             ),
           ),
         ),

@@ -16,6 +16,10 @@ import '../infrastructure/artwork/ArtworkCache.dart';
 import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
+import 'connected_playback/ActivePlaybackRouteAdapter.dart';
+import 'connected_playback/ConnectedPlaybackLink.dart';
+import 'connected_playback/ConnectedPlaybackTargetLink.dart';
+import 'connected_playback/PlaybackControlCubit.dart';
 import 'di/service_locator.dart';
 import 'downloads/DownloadsCubit.dart';
 import 'favorites/PendingFavoritesSync.dart';
@@ -121,7 +125,17 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // constructed here and registered with getIt directly, kept out of the
   // generated graph and everything that exercises it in tests.
   final playbackEngine = await AudioService.init(
-    builder: () => JustAudioPlaybackEngine(getIt<ArtworkResolver>()),
+    builder: () => JustAudioPlaybackEngine(
+      getIt<ArtworkResolver>(),
+      // Lets a lock-screen, Windows media-session, or hardware media-key
+      // press reach whatever this device is controlling instead of local
+      // playback (v0.5.7) — see `ActiveTransportRoute`'s own doc for why
+      // this is the one seam the engine needs for that, rather than a
+      // dependency on `PlaybackControlCubit` itself.
+      activeTransportRoute: ActivePlaybackRouteAdapter(
+        getIt<PlaybackControlCubit>(),
+      ),
+    ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'io.nachbar.jellyfinity.playback',
       androidNotificationChannelName: 'Playback',
@@ -159,6 +173,19 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // does not need awaiting — the first frame renders regardless of
   // whether anything was pending.
   getIt<PendingFavoritesSync>().start();
+
+  // Brings the connected-playback link up for the profile being restored,
+  // and keeps it in step with sign-in, account switching and the app's
+  // own lifecycle from here on (v0.5.2). Unawaited like the restores
+  // above: it talks to the server, and the first frame should not wait on
+  // a device list nothing is showing yet.
+  unawaited(getIt<ConnectedPlaybackLink>().start());
+
+  // Keeps this device's own RemotePlaybackTarget in step with real
+  // playback and answers commands another device sends it (v0.5.3).
+  // Every signed-in device runs this, unlike ConnectedPlaybackControllerSession
+  // (constructed only once something actually picks a device to drive).
+  unawaited(getIt<ConnectedPlaybackTargetLink>().start());
 
   FlutterError.onError = (details) {
     logger.error(

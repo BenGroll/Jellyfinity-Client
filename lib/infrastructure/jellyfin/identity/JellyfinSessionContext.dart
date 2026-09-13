@@ -20,4 +20,15 @@ abstract class JellyfinSessionContext {
 
   /// The active profile's Jellyfin user id.
   String? get userId;
+
+  /// The Jellyfin version string the active server reported when it was
+  /// saved, or `null` when signed out.
+  ///
+  /// Added for connected playback (v0.5.2), which has to answer
+  /// "unsupported server" separately from "unreachable server" and
+  /// "misconfigured proxy" — three problems with three different fixes
+  /// that a single failure would blur together. Informational for
+  /// everything else: the version *policy* check at sign-in still
+  /// belongs to `JellyfinServerProbe`.
+  String? get serverVersion;
 }

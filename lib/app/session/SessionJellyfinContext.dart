@@ -23,4 +23,7 @@ class SessionJellyfinContext implements JellyfinSessionContext {
 
   @override
   String? get userId => _sessions.current?.account.userId;
+
+  @override
+  String? get serverVersion => _sessions.current?.server.reportedVersion;
 }

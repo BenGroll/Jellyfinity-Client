@@ -258,6 +258,13 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
   @override
   Future<Result<Album>> album(MediaId id) => _item(id, () => _remote.album(id));
 
+  /// Resolved like [artist] and [album] — a saved header, then the
+  /// profile's downloads — for connected playback (v0.5.4): a handoff
+  /// resolves every entry through this, so its own download can replace a
+  /// stream and its own stream-quality settings apply.
+  @override
+  Future<Result<Track>> track(MediaId id) => _item(id, () => _remote.track(id));
+
   /// Live only, like every write and every derived-not-browsed read in
   /// this repository: nothing here for the cache fallback to serve, so an
   /// unreachable server surfaces its failure directly and the artist page
@@ -415,8 +422,9 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
     }
   }
 
-  /// An artist or album header reconstructed from the profile's downloads
-  /// when nothing was saved for it (v0.2.3). `null` for any other type, or
+  /// An artist or album header reconstructed from the profile's
+  /// downloads, or one downloaded track's own record (v0.5.4), when
+  /// nothing was saved for it (v0.2.3). `null` for any other type, or
   /// when the profile has nothing downloaded for [id].
   Future<Result<T>?> _itemFromDownloads<T extends MediaItem>(MediaId id) async {
     Result<MediaItem>? derived;
@@ -424,6 +432,8 @@ class CachedMusicLibraryRepository implements MusicLibraryRepository {
       derived = await _downloads.artist(id);
     } else if (T == Album) {
       derived = await _downloads.album(id);
+    } else if (T == Track) {
+      derived = await _downloads.track(id);
     }
     if (derived case Ok<MediaItem>(:final value) when value is T) {
       return Result.ok(value);

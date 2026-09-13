@@ -19,26 +19,34 @@ import 'Palette.dart';
 ///    the bottom nav, dialogs) stay visually consistent with our tokens
 ///    instead of falling back to Material defaults.
 abstract final class AppTheme {
-  static ThemeData dark() => _build(Brightness.dark, Palette.dark);
+  static ThemeData dark({bool television = false}) =>
+      _build(Brightness.dark, Palette.dark, television: television);
 
-  static ThemeData light() => _build(Brightness.light, Palette.light);
+  static ThemeData light({bool television = false}) =>
+      _build(Brightness.light, Palette.light, television: television);
 
   static AppTokens tokensFor(Brightness brightness) =>
       _tokens(brightness == Brightness.dark ? Palette.dark : Palette.light);
 
-  static AppTokens _tokens(AppColors colors) {
+  static AppTokens _tokens(AppColors colors, {bool television = false}) {
     return AppTokens(
       colors: colors,
-      spacing: AppSpacing.standard,
+      spacing: television ? AppSpacing.television : AppSpacing.standard,
       radii: AppRadii.standard,
-      typography: AppTypography.standard,
+      typography: television
+          ? AppTypography.television
+          : AppTypography.standard,
       elevation: AppElevation.standard(shadowColor: const Color(0xFF000000)),
       motion: AppMotion.standard,
     );
   }
 
-  static ThemeData _build(Brightness brightness, AppColors colors) {
-    final tokens = _tokens(colors);
+  static ThemeData _build(
+    Brightness brightness,
+    AppColors colors, {
+    required bool television,
+  }) {
+    final tokens = _tokens(colors, television: television);
     final colorScheme =
         ColorScheme.fromSeed(
           seedColor: colors.accent,
@@ -70,7 +78,26 @@ abstract final class AppTheme {
       colorScheme: colorScheme,
       textTheme: textTheme,
       dividerColor: colors.border,
+      focusColor: colors.accent.withValues(alpha: television ? .38 : .20),
+      hoverColor: colors.accent.withValues(alpha: .12),
       splashFactory: InkSparkle.splashFactory,
+      visualDensity: television
+          ? VisualDensity.comfortable
+          : VisualDensity.standard,
+      iconButtonTheme: television
+          ? IconButtonThemeData(
+              style: IconButton.styleFrom(
+                minimumSize: const Size.square(56),
+                iconSize: 28,
+              ),
+            )
+          : null,
+      listTileTheme: television
+          ? const ListTileThemeData(
+              minVerticalPadding: 16,
+              contentPadding: EdgeInsets.symmetric(horizontal: 22),
+            )
+          : null,
       extensions: [tokens],
     );
   }

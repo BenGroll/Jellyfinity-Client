@@ -1,5 +1,5 @@
 name: jellyfinity
-description: "A free and open-source Jellyfin client for Android, iOS and Windows."
+description: "A free and open-source Jellyfin client for Android, Fire TV, iOS and Windows."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -20,7 +20,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # `flutter create` default of 1.0.0 through every release to date, which
 # would have shipped v0.3.0 announcing itself as 1.0.0 — and 1.0.0 means
 # something specific here: the first public release, which this is not.
-version: 0.4.2+9
+version: 0.4.6+13
 
 environment:
   sdk: ^3.12.2

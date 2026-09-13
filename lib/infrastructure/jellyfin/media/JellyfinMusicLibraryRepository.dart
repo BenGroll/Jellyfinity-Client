@@ -312,6 +312,10 @@ class JellyfinMusicLibraryRepository implements MusicLibraryRepository {
       _single(id, (mapper, dto) => mapper.toAlbum(dto), 'album');
 
   @override
+  Future<Result<Track>> track(MediaId id) =>
+      _single(id, (mapper, dto) => mapper.toTrack(dto), 'song');
+
+  @override
   Future<Result<ArtistStats>> artistStats(MediaId artistId) async {
     final idResult = _api.localItemId(artistId);
     if (idResult case Err<String>(:final failure)) return Result.err(failure);

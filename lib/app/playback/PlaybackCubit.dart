@@ -276,7 +276,60 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         .withShuffle(shuffle ?? state.queue.shuffleEnabled)
         .withRepeatMode(state.queue.repeatMode)
         .withEntries(entries, startIndex: startIndex, origin: origin);
+    await _replaceQueue(queue, play: true);
+  }
 
+  /// Adopts a connected-playback handoff's resolved tracks as the queue,
+  /// in exactly the order the source offered them (v0.5.4).
+  ///
+  /// Distinct from [playNow]: a transferred queue already reflects
+  /// whatever play order the source had, shuffled or not, and the whole
+  /// point of "true queue order" is that this device does not recompute
+  /// it. [shuffleEnabled] is applied by pinning [tracks]' own order as the
+  /// play order — see [PlaybackQueue.withRestoredShuffleOrder] — rather
+  /// than by turning shuffle on and letting a fresh random order replace
+  /// the one the listener was already hearing. [repeatMode],
+  /// [startPosition] and [startPlaying] are taken exactly as offered
+  /// rather than left at whatever this device had before accepting,
+  /// which is what makes this a continuation and not a restart.
+  Future<void> adoptTransferredQueue(
+    List<Track> tracks, {
+    required int startIndex,
+    required bool shuffleEnabled,
+    required RepeatMode repeatMode,
+    Duration startPosition = Duration.zero,
+    bool startPlaying = true,
+  }) async {
+    if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
+      return;
+    }
+    final entries = [for (final track in tracks) QueueEntry.fromTrack(track)];
+    var queue = PlaybackQueue.empty
+        .withShuffle(shuffleEnabled)
+        .withRepeatMode(repeatMode)
+        .withEntries(entries, startIndex: startIndex);
+    if (shuffleEnabled) {
+      queue = queue.withRestoredShuffleOrder([
+        for (var i = 0; i < entries.length; i++) i,
+      ]);
+    }
+    await _replaceQueue(
+      queue,
+      play: startPlaying,
+      initialPosition: startPosition,
+    );
+  }
+
+  /// Replaces the queue outright and loads it into the engine — the
+  /// common tail of [_playNow] and [adoptTransferredQueue]: reset the
+  /// per-queue bookkeeping a wholesale replacement invalidates, publish
+  /// the new queue immediately so the UI does not wait on the engine, then
+  /// load and, once loaded, report the entry that is actually current.
+  Future<void> _replaceQueue(
+    PlaybackQueue queue, {
+    required bool play,
+    Duration initialPosition = Duration.zero,
+  }) async {
     _retriedIds.clear();
     _retriedAtOriginal.clear();
     _resolvedSources.clear();
@@ -286,28 +339,46 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       PlaybackUiState(
         queue: queue,
         status: PlaybackStatus.loading,
-        duration: entries[startIndex].duration,
+        position: initialPosition,
+        duration: queue.currentEntry?.duration,
       ),
     );
     unawaited(_queueRepository.replace(queue));
-    await _loadIntoEngine(queue, play: true);
+    await _loadIntoEngine(queue, play: play, initialPosition: initialPosition);
+    // `_loadIntoEngine`'s in-place merge (when the engine already has
+    // sources loaded) only ever starts playback for `play: true`; it has
+    // no occasion to stop it, because every other caller asks to replace
+    // a queue without changing whether it is playing. A queue adopted
+    // paused while something else was already playing is that occasion —
+    // pausing here, once, rather than teaching every synchronization path
+    // a case only this caller can reach.
+    if (!play) await _engine.pause(allowRemoteRoute: false);
     _beginEntry(state.queue.currentEntry);
   }
 
   // ---- Transport ----
 
-  Future<void> togglePlayPause() async {
-    if (state.queue.isEmpty) return;
-    if (state.isPlaying) {
-      await _engine.pause();
-      unawaited(_savePosition());
-      // Jellyfin shows a paused session as paused rather than dropping
-      // it, so pausing is reported, not stopped (v0.4.1).
-      unawaited(_reportProgress(isPaused: true));
-    } else {
-      await _engine.play();
-      unawaited(_reportProgress(isPaused: false));
-    }
+  Future<void> togglePlayPause() => state.isPlaying ? pause() : play();
+
+  /// Resumes the current entry — a no-op with no queue or one already
+  /// playing (buffering counts as playing), so a remote "play" command
+  /// (v0.5.3) is safe to apply without first checking local state.
+  Future<void> play() async {
+    if (state.queue.isEmpty || state.isPlaying) return;
+    await _engine.play(allowRemoteRoute: false);
+    unawaited(_reportProgress(isPaused: false));
+  }
+
+  /// Pauses the current entry — a no-op with no queue or one already
+  /// paused, for the same reason [play] is: a remote "pause" must never
+  /// toggle a device that is already paused back into playing.
+  Future<void> pause() async {
+    if (state.queue.isEmpty || !state.isPlaying) return;
+    await _engine.pause(allowRemoteRoute: false);
+    unawaited(_savePosition());
+    // Jellyfin shows a paused session as paused rather than dropping it,
+    // so pausing is reported, not stopped (v0.4.1).
+    unawaited(_reportProgress(isPaused: true));
   }
 
   /// Carries on the restored queue from where it left off — Home's
@@ -317,10 +388,11 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// call from a card that may be tapped twice.
   Future<void> resume() async {
     if (state.queue.isEmpty || state.isPlaying) return;
-    await _engine.play();
+    await _engine.play(allowRemoteRoute: false);
   }
 
-  Future<void> seek(Duration position) => _engine.seek(position);
+  Future<void> seek(Duration position) =>
+      _engine.seek(position, allowRemoteRoute: false);
 
   Future<void> next() async {
     final index = state.queue.manualNextIndex();
@@ -329,7 +401,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       // paused, rather than silently doing nothing. `PlaybackQueue
       // .isAtEndOfPlayOrder` is what the queue screen reads to say so
       // (v0.4.1).
-      await _engine.pause();
+      await _engine.pause(allowRemoteRoute: false);
       unawaited(_savePosition());
       unawaited(_reportProgress(isPaused: true));
       return;
@@ -339,12 +411,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   Future<void> previous() async {
     if (state.position > _restartThreshold) {
-      await _engine.seek(Duration.zero);
+      await _engine.seek(Duration.zero, allowRemoteRoute: false);
       return;
     }
     final index = state.queue.previousIndex();
     if (index == null) {
-      await _engine.seek(Duration.zero);
+      await _engine.seek(Duration.zero, allowRemoteRoute: false);
       return;
     }
     await _advanceTo(index);
@@ -616,7 +688,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         initialIndex: initialIndex,
         initialPosition: initialPosition,
       );
-      if (play) await _engine.play();
+      if (play) await _engine.play(allowRemoteRoute: false);
     } else {
       _isSynchronizingSources = true;
       try {
@@ -818,8 +890,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
     switch (queue.repeatMode) {
       case RepeatMode.one:
-        await _engine.seek(Duration.zero);
-        await _engine.play();
+        await _engine.seek(Duration.zero, allowRemoteRoute: false);
+        await _engine.play(allowRemoteRoute: false);
         // A fresh loop is a fresh listen: an hour of one track on repeat
         // is an hour the user spent with it, and the history collapses
         // the repeats into the one entry anyway. It is also a fresh play

@@ -23,9 +23,12 @@ class AppScaffold extends StatelessWidget {
     this.padded = true,
     this.drawer,
     this.background,
+    this.scaffoldKey,
   });
 
   final Widget body;
+
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   /// Optional page-specific background, painted behind the body and app bar.
   final Widget? background;
@@ -50,6 +53,7 @@ class AppScaffold extends StatelessWidget {
     final t = context.tokens;
 
     final scaffold = Scaffold(
+      key: scaffoldKey,
       backgroundColor:
           background == null && ArtworkBackdropScope.of(context) == null
           ? t.colors.background
@@ -82,6 +86,12 @@ class AppScaffold extends StatelessWidget {
       drawer: drawer,
       body: SafeArea(
         top: false,
+        // TV chrome owns its internal spacing. Applying a second, large
+        // overscan margin here leaves an awkward background frame around the
+        // complete application (including the persistent navigation rail).
+        // SafeArea still honours real system insets where a device exposes
+        // them, without inventing a visible border on Fire TV.
+        minimum: EdgeInsets.zero,
         child: Padding(
           padding: padded
               ? EdgeInsets.symmetric(horizontal: t.spacing.md)

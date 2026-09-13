@@ -88,6 +88,16 @@ class FakePlaybackEngine implements PlaybackEngine {
   /// what the cubit told the engine to do.
   final List<String> calls = [];
 
+  /// The `allowRemoteRoute` each transport call most recently arrived
+  /// with (v0.5.7) — `PlaybackCubit`'s own calls must always pass
+  /// `false`, since they manage this device's own local playback and
+  /// must never be redirected just because this device also happens to
+  /// be remote-controlling something else (`PlaybackEngine.play`'s own
+  /// doc). `null` until the corresponding method has been called at all.
+  bool? lastPlayAllowedRemoteRoute;
+  bool? lastPauseAllowedRemoteRoute;
+  bool? lastSeekAllowedRemoteRoute;
+
   @override
   Future<void> setSources(
     List<PlaybackSource> sources, {
@@ -133,7 +143,8 @@ class FakePlaybackEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> play() async {
+  Future<void> play({bool allowRemoteRoute = true}) async {
+    lastPlayAllowedRemoteRoute = allowRemoteRoute;
     playing = true;
     calls.add('play');
     _statusController.add(PlaybackStatus.playing);
@@ -141,14 +152,16 @@ class FakePlaybackEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> pause() async {
+  Future<void> pause({bool allowRemoteRoute = true}) async {
+    lastPauseAllowedRemoteRoute = allowRemoteRoute;
     playing = false;
     calls.add('pause');
     _statusController.add(PlaybackStatus.paused);
   }
 
   @override
-  Future<void> seek(Duration position) async {
+  Future<void> seek(Duration position, {bool allowRemoteRoute = true}) async {
+    lastSeekAllowedRemoteRoute = allowRemoteRoute;
     calls.add('seek($position)');
     _positionController.add(position);
   }

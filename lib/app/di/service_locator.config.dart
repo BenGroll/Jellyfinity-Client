@@ -13,7 +13,15 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart'
+    as _i419;
+import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart'
+    as _i217;
+import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart'
+    as _i846;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
+import 'package:jellyfinity/app/di/ConnectedPlaybackTransportModule.dart'
+    as _i1017;
 import 'package:jellyfinity/app/downloads/DownloadsCubit.dart' as _i45;
 import 'package:jellyfinity/app/favorites/FavoritesRevisionCubit.dart' as _i525;
 import 'package:jellyfinity/app/favorites/PendingFavoritesCubit.dart' as _i195;
@@ -31,6 +39,10 @@ import 'package:jellyfinity/app/settings/SettingsCubit.dart' as _i230;
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart' as _i883;
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
+import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackTransport.dart'
+    as _i231;
+import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart'
+    as _i40;
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
     as _i813;
 import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
@@ -91,6 +103,8 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
     as _i169;
+import 'package:jellyfinity/features/playback/presentation/device_picker_cubit.dart'
+    as _i861;
 import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart'
     as _i148;
 import 'package:jellyfinity/features/playback/presentation/now_playing_details_cubit.dart'
@@ -115,6 +129,10 @@ import 'package:jellyfinity/infrastructure/downloads/StoredAudioSource.dart'
     as _i212;
 import 'package:jellyfinity/infrastructure/jellyfin/auth/DioJellyfinAuthenticator.dart'
     as _i833;
+import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionApi.dart'
+    as _i399;
+import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionTransport.dart'
+    as _i267;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
     as _i430;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart'
@@ -188,6 +206,8 @@ extension GetItInjectableX on _i174.GetIt {
     final databaseModule = _$DatabaseModule();
     final secureStorageModule = _$SecureStorageModule();
     final jellyfinTransportModule = _$JellyfinTransportModule();
+    final connectedPlaybackTransportModule =
+        _$ConnectedPlaybackTransportModule();
     gh.factory<_i84.MediaScopeCubit>(() => _i84.MediaScopeCubit());
     gh.lazySingleton<_i525.FavoritesRevisionCubit>(
       () => _i525.FavoritesRevisionCubit(),
@@ -323,6 +343,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
       ),
     );
+    gh.lazySingleton<_i399.JellyfinSessionApi>(
+      () => _i399.JellyfinSessionApi(
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.lazySingleton<_i963.JellyfinMediaApi>(
       () => _i963.JellyfinMediaApi(
         gh<_i346.JellyfinSessionContext>(),
@@ -394,6 +422,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i612.Logger>(),
       ),
     );
+    gh.lazySingleton<_i267.JellyfinSessionTransport>(
+      () => _i267.JellyfinSessionTransport(
+        gh<_i399.JellyfinSessionApi>(),
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.factory<_i148.LyricsCubit>(
       () => _i148.LyricsCubit(gh<_i392.LyricsResolver>()),
     );
@@ -433,6 +468,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i346.JellyfinSessionContext>(),
         gh<_i797.OfflineMode>(),
         gh<_i720.DownloadsLibrarySource>(),
+      ),
+    );
+    gh.lazySingleton<_i231.ConnectedPlaybackTransport>(
+      () => connectedPlaybackTransportModule.transport(
+        gh<_i267.JellyfinSessionTransport>(),
+      ),
+    );
+    gh.lazySingleton<_i40.DevicePresenceSource>(
+      () => connectedPlaybackTransportModule.presenceSource(
+        gh<_i267.JellyfinSessionTransport>(),
       ),
     );
     gh.factory<_i413.FavoriteArtistsCubit>(
@@ -588,10 +633,43 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.DownloadStorageProbe>(),
       ),
     );
+    gh.lazySingleton<_i846.PlaybackControlCubit>(
+      () => _i846.PlaybackControlCubit(
+        gh<_i231.ConnectedPlaybackTransport>(),
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+      ),
+    );
+    gh.lazySingleton<_i419.ConnectedPlaybackLink>(
+      () => _i419.ConnectedPlaybackLink(
+        gh<_i267.JellyfinSessionTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(
         gh<_i747.MediaMetadataRepository>(),
         gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
+      () => _i217.ConnectedPlaybackTargetLink(
+        gh<_i126.PlaybackCubit>(),
+        gh<_i231.ConnectedPlaybackTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i612.Logger>(),
+      ),
+    );
+    gh.factory<_i861.DevicePickerCubit>(
+      () => _i861.DevicePickerCubit(
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i217.ConnectedPlaybackTargetLink>(),
+        gh<_i846.PlaybackControlCubit>(),
       ),
     );
     return this;
@@ -603,3 +681,6 @@ class _$DatabaseModule extends _i923.DatabaseModule {}
 class _$SecureStorageModule extends _i318.SecureStorageModule {}
 
 class _$JellyfinTransportModule extends _i748.JellyfinTransportModule {}
+
+class _$ConnectedPlaybackTransportModule
+    extends _i1017.ConnectedPlaybackTransportModule {}
