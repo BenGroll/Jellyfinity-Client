@@ -2,6 +2,20 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Auto-detected remote playback
+
+- Open Jellyfinity while another of your devices is already playing and it
+  shows that session straight away — mini-player, Now Playing and the queue
+  are bound to the device making the sound, without opening the device
+  picker to find it.
+- Only when it is unambiguous: music already playing on this device is
+  never interrupted, a device that has not said what it accepts is not
+  bound to, and two devices playing at once is left for you to choose
+  between.
+- Stopping remote control is remembered. That playback is not picked up
+  again by itself; a device that reconnects, or starts playing afresh,
+  asks again.
+
 ## Unreleased — Windows connected playback
 
 - Hardware media keys and the Windows system media panel now reach whichever
