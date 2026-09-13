@@ -545,13 +545,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i684.RecentlyAddedCubit>(
       () => _i684.RecentlyAddedCubit(gh<_i260.MusicLibraryRepository>()),
     );
-    gh.lazySingleton<_i419.ConnectedPlaybackLink>(
-      () => _i419.ConnectedPlaybackLink(
-        gh<_i267.JellyfinSessionTransport>(),
-        gh<_i809.SessionCubit>(),
-        gh<_i612.Logger>(),
-      ),
-    );
     gh.factory<_i618.ArtistsCubit>(
       () => _i618.ArtistsCubit(
         gh<_i747.MusicLibraryRepository>(),
@@ -645,6 +638,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i231.ConnectedPlaybackTransport>(),
         gh<_i40.DevicePresenceSource>(),
         gh<_i809.SessionCubit>(),
+      ),
+    );
+    gh.lazySingleton<_i419.ConnectedPlaybackLink>(
+      () => _i419.ConnectedPlaybackLink(
+        gh<_i267.JellyfinSessionTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i612.Logger>(),
       ),
     );
     gh.factory<_i213.PlaylistDetailCubit>(

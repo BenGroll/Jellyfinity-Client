@@ -46,6 +46,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0039](ADR-0039-device-picker-and-ownership-ui.md) | Device picker and ownership UI |
 | [0040](ADR-0040-remote-now-playing-and-queue-controls.md) | Remote Now Playing and queue controls |
 | [0041](ADR-0041-windows-connected-playback.md) | Windows connected playback |
+| [0042](ADR-0042-android-connected-playback.md) | Android connected playback |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

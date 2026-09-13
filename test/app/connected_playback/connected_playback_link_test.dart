@@ -1,10 +1,12 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart';
+import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/session/SessionState.dart';
 import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackScope.dart';
 import 'package:jellyfinity/domain/connected_playback/connection_state.dart';
+import 'package:jellyfinity/domain/playback/playback_status.dart';
 import 'package:jellyfinity/domain/session/JellyfinAccount.dart';
 import 'package:jellyfinity/domain/session/JellyfinServer.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionTransport.dart';
@@ -13,6 +15,7 @@ import '../../support/FakeSessionContext.dart';
 import '../../support/TestLogger.dart';
 import '../../support/connected_playback/FakeJellyfinServer.dart';
 import '../../support/connected_playback/FakeJellyfinSocket.dart';
+import '../../support/playback_fakes.dart';
 import '../../support/session_fakes.dart';
 
 /// The profile the link should discover for: the saved server's *local*
@@ -34,6 +37,8 @@ void main() {
   late FakeSessionContext context;
   late JellyfinSessionTransport transport;
   late SessionCubit session;
+  late FakePlaybackEngine engine;
+  late PlaybackCubit playback;
   late ConnectedPlaybackLink link;
   late List<FakeJellyfinSocket> sockets;
 
@@ -53,13 +58,16 @@ void main() {
       context: context,
     );
     session = fakeSessionCubit();
-    link = ConnectedPlaybackLink(transport, session, TestLogger());
+    engine = FakePlaybackEngine();
+    playback = fakePlaybackCubit(engine: engine);
+    link = ConnectedPlaybackLink(transport, session, playback, TestLogger());
   });
 
   tearDown(() async {
     await link.stop();
     await transport.dispose();
     await session.close();
+    await playback.close();
   });
 
   /// A signed-in state for [userId] on the saved server the fake context
@@ -171,6 +179,72 @@ void main() {
       await waitUntil(
         () => sockets.length == 2,
         reason: 'the socket to be re-established',
+      );
+      expect(transport.connectionState, ConnectedPlaybackConnection.connected);
+    },
+  );
+
+  test(
+    'a backgrounded device that is still playing stays reachable',
+    () async {
+      session.emit(signedInAs('user-1'));
+      await link.start();
+      engine.emitStatus(PlaybackStatus.playing);
+      await waitUntil(
+        () => playback.state.isPlaying,
+        reason: 'the cubit to report playing before backgrounding',
+      );
+
+      link.didChangeAppLifecycleState(AppLifecycleState.paused);
+      await settle();
+
+      expect(sockets.single.closed, isFalse);
+      expect(transport.connectionState, ConnectedPlaybackConnection.connected);
+    },
+  );
+
+  test(
+    'playback ending while backgrounded releases the socket',
+    () async {
+      session.emit(signedInAs('user-1'));
+      await link.start();
+      engine.emitStatus(PlaybackStatus.playing);
+      await waitUntil(
+        () => playback.state.isPlaying,
+        reason: 'the cubit to report playing before backgrounding',
+      );
+      link.didChangeAppLifecycleState(AppLifecycleState.paused);
+      await settle();
+      expect(sockets.single.closed, isFalse);
+
+      engine.emitStatus(PlaybackStatus.paused);
+      await waitUntil(
+        () => sockets.single.closed,
+        reason: 'the socket to be released once nothing is playing',
+      );
+      expect(
+        transport.connectionState,
+        ConnectedPlaybackConnection.reconnecting,
+      );
+    },
+  );
+
+  test(
+    'playback starting while already backgrounded restores the socket',
+    () async {
+      session.emit(signedInAs('user-1'));
+      await link.start();
+
+      link.didChangeAppLifecycleState(AppLifecycleState.paused);
+      await waitUntil(
+        () => sockets.single.closed,
+        reason: 'the socket to be released while nothing plays',
+      );
+
+      engine.emitStatus(PlaybackStatus.playing);
+      await waitUntil(
+        () => sockets.length == 2,
+        reason: 'the socket to be re-established once playback starts',
       );
       expect(transport.connectionState, ConnectedPlaybackConnection.connected);
     },
