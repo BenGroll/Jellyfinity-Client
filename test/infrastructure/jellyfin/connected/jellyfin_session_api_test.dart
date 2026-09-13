@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackLimits.dart';
 import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionApi.dart';
 
 import '../../../support/connected_playback/FakeJellyfinServer.dart';
@@ -70,5 +71,24 @@ void main() {
         expect(result.isErr, isTrue);
       },
     );
+  });
+
+  group('peers', () {
+    test('asks only for sessions that have been active recently', () async {
+      final server = FakeJellyfinServer();
+      final api = testSessionApi(server);
+
+      await api.peers();
+
+      final request = server.adapter.requests.single;
+      expect(request.queryParameters['ControllableByUserId'], 'user-1');
+      // Without this Jellyfin answers with its whole session history —
+      // every install that ever signed in, none of which answers a
+      // presence message.
+      expect(
+        request.queryParameters['ActiveWithinSeconds'],
+        ConnectedPlaybackLimits.sessionActiveWithin.inSeconds,
+      );
+    });
   });
 }

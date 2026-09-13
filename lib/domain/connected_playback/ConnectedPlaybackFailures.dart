@@ -132,6 +132,16 @@ abstract final class ConnectedPlaybackFailures {
     'That device is visible but not responding to controls right now.',
   );
 
+  /// The session a message was addressed to no longer exists.
+  ///
+  /// Said about one device, never about the link: a peer that signed out
+  /// between the roster read and the send is the ordinary case, and it
+  /// must not be reported as the server having lost the ability to carry
+  /// this conversation.
+  static Failure deviceGone() => const UnavailableFailure(
+    'That device is no longer signed in to this server.',
+  );
+
   /// A queue or payload exceeded an agreed bound. [detail] says which, in
   /// the listener's terms, and must never carry an identifier or token.
   static Failure tooLarge(String detail) => UnavailableFailure(detail);

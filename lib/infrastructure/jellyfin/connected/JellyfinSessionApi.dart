@@ -5,6 +5,7 @@ import '../../../core/result/failure.dart';
 import '../../../core/result/result.dart';
 import '../../../domain/connected_playback/ConnectedPlaybackEnvelope.dart';
 import '../../../domain/connected_playback/ConnectedPlaybackFailures.dart';
+import '../../../domain/connected_playback/ConnectedPlaybackLimits.dart';
 import '../http/JellyfinHttpClient.dart';
 import '../identity/auth_token_provider.dart';
 import '../identity/JellyfinClientIdentity.dart';
@@ -110,12 +111,17 @@ class JellyfinSessionApi {
   /// Reads every session this profile may control, reduced to the
   /// Jellyfinity peers among them.
   ///
-  /// Narrowed twice on purpose. `ControllableByUserId` lets the server do
-  /// the filtering (`PHILOSOPHY.md` §11), and the local check repeats it
-  /// because an administrator's `/Sessions` can legitimately include
-  /// every other person signed in to the server — and the scope invariant
-  /// is Jellyfinity's answer to "whose devices are these", not the
-  /// server's answer to "what may you control".
+  /// Narrowed three times on purpose. `ControllableByUserId` lets the
+  /// server do the filtering (`PHILOSOPHY.md` §11), and the local check
+  /// repeats it because an administrator's `/Sessions` can legitimately
+  /// include every other person signed in to the server — and the scope
+  /// invariant is Jellyfinity's answer to "whose devices are these", not
+  /// the server's answer to "what may you control".
+  ///
+  /// `ActiveWithinSeconds` is the third, and it is about a different
+  /// mistake: Jellyfin's session list is a history rather than a roster,
+  /// so without a bound it answers with every install that ever signed
+  /// in. See [ConnectedPlaybackLimits.sessionActiveWithin].
   Future<Result<List<JellyfinSessionDto>>> peers() async {
     final client = _clientOrNull();
     final userId = _context.userId;
@@ -126,7 +132,11 @@ class JellyfinSessionApi {
 
     final result = await client.getJsonList<JellyfinSessionDto>(
       sessionsPath,
-      queryParameters: {'ControllableByUserId': userId},
+      queryParameters: {
+        'ControllableByUserId': userId,
+        'ActiveWithinSeconds':
+            ConnectedPlaybackLimits.sessionActiveWithin.inSeconds,
+      },
       parse: JellyfinSessionDto.tryParse,
     );
     return result.map(

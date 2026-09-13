@@ -256,7 +256,22 @@ class JellyfinSessionTransport
       targetSessionId: targetSessionId,
     );
     if (result.isErr) {
-      final diagnosis = _failures.fromHttp(result.failureOrNull!);
+      final failure = result.failureOrNull!;
+      // A session the server has never heard of says nothing about this
+      // device's link, and treating it as a link problem is how one peer
+      // that signed out took the picker down with it: the same 404 that
+      // means "no such session" here means "no such route" to
+      // [_readSessions], and the shared classifier answered `unsupported`
+      // for both. Forget that device instead — the roster read that would
+      // have removed it is up to twenty seconds away, and until then it
+      // is a row the listener can see and cannot use.
+      if (_failures.isMissingTarget(failure)) {
+        if (_registry?.forgetSession(targetSessionId) ?? false) {
+          _emitDevices();
+        }
+        return Result.err(ConnectedPlaybackFailures.deviceGone());
+      }
+      final diagnosis = _failures.fromHttp(failure);
       _applyDiagnosis(diagnosis, retry: false);
       return Result.err(diagnosis.failure);
     }

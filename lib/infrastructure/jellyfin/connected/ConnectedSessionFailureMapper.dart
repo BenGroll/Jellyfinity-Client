@@ -176,6 +176,17 @@ class ConnectedSessionFailureMapper {
       problem == ConnectedSessionProblem.offline ||
       problem == ConnectedSessionProblem.unexpected;
 
+  /// Whether [failure] is a delivery that found no such session.
+  ///
+  /// Asked only of a message addressed to one peer, where 404 is the
+  /// server saying "that session is gone" — a fact about that device.
+  /// [fromHttp] reads the same status as [ConnectedSessionProblem
+  /// .unsupported], which is right for a route that should exist and
+  /// wrong for a session that need not, and the two callers must not
+  /// share an answer: one dead peer would otherwise declare the whole
+  /// server unable to carry connected playback.
+  bool isMissingTarget(Failure failure) => _statusOf(failure) == 404;
+
   int? _statusOf(Failure failure) {
     final cause = failure.cause;
     // Read structurally rather than importing `dio` here: the HTTP client

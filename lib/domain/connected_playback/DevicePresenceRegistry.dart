@@ -164,6 +164,19 @@ class DevicePresenceRegistry {
     return before != _describe(entry);
   }
 
+  /// Drops the entry addressed as [sessionId], if there is one.
+  ///
+  /// For the one thing a roster read cannot tell in time: the server
+  /// refusing a message because that session no longer exists. Waiting
+  /// for the next `/Sessions` read would leave a device the listener can
+  /// see and cannot use.
+  bool forgetSession(String sessionId) {
+    final entry = _bySession(sessionId);
+    if (entry == null) return false;
+    _entries.remove(entry.deviceId);
+    return true;
+  }
+
   /// Drops entries last heard from longer ago than
   /// [ConnectedPlaybackLimits.presenceDropAfter].
   ///
