@@ -1,0 +1,144 @@
+{
+  "v0.5.0": {
+    "touchpoints": [
+      "lib/features/home",
+      "lib/features/music",
+      "lib/domain/media",
+      "lib/infrastructure/media",
+      "lib/infrastructure/jellyfin/media",
+      "lib/infrastructure/persistence/media"
+    ],
+    "tests": [
+      "test/features/home",
+      "test/features/music",
+      "test/domain/media",
+      "test/infrastructure/media",
+      "test/infrastructure/jellyfin/media",
+      "test/infrastructure/persistence/media"
+    ],
+    "non_goals": [
+      "cloud recommendation service",
+      "tracking or transmitting listening history",
+      "movies and television"
+    ]
+  },
+  "v0.5.6": {
+    "touchpoints": [
+      "lib/app/connected_playback/PlaybackControlCubit.dart",
+      "lib/features/playback/presentation/DevicePickerSheet.dart",
+      "lib/features/playback/presentation/MiniPlayer.dart",
+      "lib/features/playback/presentation/NowPlayingPage.dart",
+      "lib/features/playback/presentation/QueuePage.dart",
+      "lib/features/playback/presentation/device_picker_cubit.dart"
+    ],
+    "tests": [
+      "test/app/connected_playback/playback_control_cubit_test.dart",
+      "test/features/playback/remote_now_playing_test.dart",
+      "test/features/playback/device_picker_cubit_test.dart",
+      "test/features/playback/device_picker_widget_test.dart"
+    ],
+    "non_goals": [
+      "Windows platform rollout",
+      "Android platform rollout",
+      "system media controls"
+    ]
+  },
+  "v0.5.7": {
+    "touchpoints": [
+      "lib/app/connected_playback",
+      "lib/features/playback",
+      "windows",
+      "docs/windows.md"
+    ],
+    "tests": [
+      "test/app/connected_playback",
+      "test/features/playback",
+      "integration_test",
+      "windows"
+    ],
+    "non_goals": [
+      "Android-specific platform rollout",
+      "Android TV and Fire TV rollout"
+    ]
+  },
+  "v0.5.8": {
+    "touchpoints": [
+      "lib/app/connected_playback",
+      "lib/features/playback",
+      "lib/infrastructure/playback",
+      "android"
+    ],
+    "tests": [
+      "test/app/connected_playback",
+      "test/features/playback",
+      "integration_test",
+      "android"
+    ],
+    "non_goals": [
+      "Windows-specific platform rollout",
+      "Android TV and Fire TV rollout"
+    ]
+  },
+  "v0.5.9": {
+    "touchpoints": [
+      "lib/app/connected_playback",
+      "lib/features/playback",
+      "lib/app/platform",
+      "android"
+    ],
+    "tests": [
+      "test/app/connected_playback",
+      "test/features/playback",
+      "integration_test",
+      "android"
+    ],
+    "non_goals": [
+      "new connected-playback wire protocol",
+      "unrelated library or discovery work"
+    ]
+  },
+  "v0.6.0": {
+    "touchpoints": [
+      "lib/domain/connected_playback",
+      "lib/app/connected_playback",
+      "lib/features/playback",
+      "lib/infrastructure/jellyfin/connected",
+      "android",
+      "windows",
+      "lib/features/shell",
+      "lib/features/settings"
+    ],
+    "tests": [
+      "test/domain/connected_playback",
+      "test/app/connected_playback",
+      "test/features/playback",
+      "integration_test",
+      "test/features/shell",
+      "test/features/settings"
+    ],
+    "non_goals": [
+      "Jellyfinity cloud account",
+      "direct device-to-device networking",
+      "listening together across accounts",
+      "unrelated media types"
+    ]
+  },
+  "v0.6.1": {
+    "touchpoints": [
+      "lib/features/settings",
+      "lib/features/shell",
+      "lib/app/router",
+      "lib/app/settings"
+    ],
+    "tests": [
+      "test/features/settings",
+      "test/features/shell",
+      "test/app"
+    ],
+    "non_goals": [
+      "new settings behavior",
+      "redesigning existing options",
+      "connected-playback work"
+    ]
+  }
+}
