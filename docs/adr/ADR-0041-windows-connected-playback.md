@@ -54,21 +54,49 @@ constructor parameter (`null` everywhere untouched — every existing test and
 platform that never passes one keeps the pre-v0.5.7 "always local" behavior
 by construction).
 
-`play`, `pause` and `seek` are shared between the domain `PlaybackEngine`
-contract (`PlaybackCubit` calls these for legitimate local playback) and the
-`BaseAudioHandler` contract (the OS calls these directly for a lock-screen or
-system media-panel press) — the same methods serve both roles by design (see
-`JustAudioPlaybackEngine`'s own class doc). Routing them to
-`ActiveTransportRoute` when `isRemote` is safe only because, since v0.5.6,
-every screen already checks `PlaybackControlCubit.isControlling` before ever
-calling `PlaybackCubit` (`MiniPlayer`'s doc: "never the other way around") —
-so a local `PlaybackCubit` call while remote-controlling should not happen in
-the first place, and this ADR does not change that invariant, only extends it
-to the one entry point that bypasses every cubit: an OS or hardware button
-press. `skipToNext`/`skipToPrevious` are `BaseAudioHandler`-only overrides
-(the domain contract uses `skipToIndex`, which `PlaybackCubit` calls
-instead), so they needed no such reasoning — they are unambiguously
-system-control entry points already.
+`skipToNext`/`skipToPrevious` are `BaseAudioHandler`-only overrides (the
+domain contract uses `skipToIndex`, which `PlaybackCubit` calls instead), so
+routing them unconditionally on `isRemote` is unambiguously correct — nothing
+else ever calls them.
+
+## Decision: `allowRemoteRoute` disambiguates `play`/`pause`/`seek`'s two callers
+
+`play`, `pause` and `seek` are different: they are shared between the domain
+`PlaybackEngine` contract (`PlaybackCubit` calls these to manage this
+device's own local playback) and the `BaseAudioHandler` contract (the OS
+calls the very same override for a lock-screen or system media-panel press)
+— one method serves both roles by design (see `JustAudioPlaybackEngine`'s own
+class doc). An initial version of this change routed them to
+`ActiveTransportRoute` whenever `isRemote` was true, reasoning that every
+screen already checks `PlaybackControlCubit.isControlling` before calling
+`PlaybackCubit` (`MiniPlayer`'s doc: "never the other way around"), so a
+local `PlaybackCubit` call while remote-controlling "should not happen."
+
+That reasoning covered on-screen buttons but not every caller.
+`PlaybackCubit` calls its own engine directly in two places that check
+nothing about screens at all: `ConnectedPlaybackTargetLink`'s v0.5.3 handling
+of an incoming remote command (this device being controlled by someone
+*else*, a different relationship from this device controlling a third
+device), and `_onEngineFailure`'s automatic once-only retry after a local
+track fails to load. A device can genuinely be playing locally *and*
+remote-controlling another device at the same time (`PlaybackControlCubit`'s
+own doc: "never touches this device's own local playback" — implying the two
+coexist). In that combination, a mid-playback local failure's retry would
+have called the shared `play()` and, with the initial version's
+unconditional check, been silently redirected to the *other* device instead
+of resuming this one's own local playback.
+
+`PlaybackEngine.play`/`pause`/`seek` gained an `allowRemoteRoute` parameter
+(default `true`, since none of the real OS/hardware entry points — a lock
+screen, a Windows media-session button, `SeekHandler`'s fast-forward/rewind —
+can pass an argument) to make the two callers unambiguous instead of relying
+on an invariant that turned out not to hold everywhere. `PlaybackCubit`
+passes `false` at every one of its own call sites, including the retry path,
+so its calls always mean "this device's own local playback," never "whatever
+this device happens to be remote-controlling." `ActiveTransportRoute` and
+`ActivePlaybackRouteAdapter` are unchanged by this correction; only the
+condition guarding when they are consulted changed, from `isRemote` alone to
+`allowRemoteRoute && isRemote`.
 
 `JellyfinityApp`'s `CallbackShortcuts` bindings were changed to check the same
 `PlaybackControlCubit.isControlling`/`commandAvailable` pair directly
@@ -116,6 +144,11 @@ an unadvertised command is dropped, and that local playback is never touched.
 tree and sends actual `LogicalKeyboardKey` media-key events, proving they
 reach `PlaybackControlCubit` instead of local `PlaybackCubit` while controlling,
 and still drive local playback when nothing is controlled.
+`test/app/playback/playback_cubit_test.dart` gained a
+`FakePlaybackEngine`-backed group proving every one of `PlaybackCubit`'s own
+`play`/`pause`/`seek`/`resume` calls passes `allowRemoteRoute: false`,
+including the specific case the initial version of this change got wrong: a
+failure-triggered retry.
 
 ## Consequences
 

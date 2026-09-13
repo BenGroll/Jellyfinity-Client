@@ -603,6 +603,50 @@ void main() {
     });
   });
 
+  group('local transport never remote-routable (v0.5.7)', () {
+    // `PlaybackEngine.play`'s own doc: every one of `PlaybackCubit`'s own
+    // calls manages *this* device's local playback and must stay local
+    // even while this device is also remote-controlling something else
+    // (`ActiveTransportRoute`) — including a failure-triggered retry,
+    // which is what a build wiring a route could otherwise silently
+    // redirect, since `JustAudioPlaybackEngine.play`/`pause`/`seek` are
+    // shared with the OS-facing `audio_service` handler.
+    test('play, pause, seek and resume all pass allowRemoteRoute: false', () async {
+      await cubit.playNow([_track('a')], startIndex: 0);
+
+      await cubit.pause();
+      expect(engine.lastPauseAllowedRemoteRoute, isFalse);
+
+      await cubit.play();
+      expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+
+      await cubit.seek(const Duration(seconds: 5));
+      expect(engine.lastSeekAllowedRemoteRoute, isFalse);
+
+      await cubit.pause();
+      await cubit.resume();
+      expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+    });
+
+    test(
+      'a failure-triggered retry still plays with allowRemoteRoute: false',
+      () async {
+        await cubit.playNow([_track('a'), _track('b')], startIndex: 0);
+
+        engine.emitFailure(
+          PlaybackFailure(
+            sourceIndex: 0,
+            id: MediaId(serverId: 's1', itemId: 'a'),
+            message: 'could not decode',
+          ),
+        );
+        await _pump();
+
+        expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+      },
+    );
+  });
+
   group('streaming quality (ADR-0015)', () {
     test('resolves sources at the settings-selected quality', () async {
       await settings.setStreamQuality(StreamQuality.dataSaver);

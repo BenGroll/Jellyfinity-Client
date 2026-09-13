@@ -339,14 +339,14 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   }
 
   @override
-  Future<void> play() {
-    if (_routeToRemote) return _activeTransportRoute!.play();
+  Future<void> play({bool allowRemoteRoute = true}) {
+    if (allowRemoteRoute && _routeToRemote) return _activeTransportRoute!.play();
     return _player.play();
   }
 
   @override
-  Future<void> pause() async {
-    if (_routeToRemote) return _activeTransportRoute!.pause();
+  Future<void> pause({bool allowRemoteRoute = true}) async {
+    if (allowRemoteRoute && _routeToRemote) return _activeTransportRoute!.pause();
     // Pausing during an overlap leaves a tail playing on the other deck
     // otherwise.
     await _abandonCrossfade();
@@ -354,8 +354,10 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
   }
 
   @override
-  Future<void> seek(Duration position) async {
-    if (_routeToRemote) return _activeTransportRoute!.seek(position);
+  Future<void> seek(Duration position, {bool allowRemoteRoute = true}) async {
+    if (allowRemoteRoute && _routeToRemote) {
+      return _activeTransportRoute!.seek(position);
+    }
     await _abandonCrossfade();
     await _player.seek(position);
   }

@@ -352,7 +352,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     // paused while something else was already playing is that occasion —
     // pausing here, once, rather than teaching every synchronization path
     // a case only this caller can reach.
-    if (!play) await _engine.pause();
+    if (!play) await _engine.pause(allowRemoteRoute: false);
     _beginEntry(state.queue.currentEntry);
   }
 
@@ -365,7 +365,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// (v0.5.3) is safe to apply without first checking local state.
   Future<void> play() async {
     if (state.queue.isEmpty || state.isPlaying) return;
-    await _engine.play();
+    await _engine.play(allowRemoteRoute: false);
     unawaited(_reportProgress(isPaused: false));
   }
 
@@ -374,7 +374,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// toggle a device that is already paused back into playing.
   Future<void> pause() async {
     if (state.queue.isEmpty || !state.isPlaying) return;
-    await _engine.pause();
+    await _engine.pause(allowRemoteRoute: false);
     unawaited(_savePosition());
     // Jellyfin shows a paused session as paused rather than dropping it,
     // so pausing is reported, not stopped (v0.4.1).
@@ -388,10 +388,11 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// call from a card that may be tapped twice.
   Future<void> resume() async {
     if (state.queue.isEmpty || state.isPlaying) return;
-    await _engine.play();
+    await _engine.play(allowRemoteRoute: false);
   }
 
-  Future<void> seek(Duration position) => _engine.seek(position);
+  Future<void> seek(Duration position) =>
+      _engine.seek(position, allowRemoteRoute: false);
 
   Future<void> next() async {
     final index = state.queue.manualNextIndex();
@@ -400,7 +401,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
       // paused, rather than silently doing nothing. `PlaybackQueue
       // .isAtEndOfPlayOrder` is what the queue screen reads to say so
       // (v0.4.1).
-      await _engine.pause();
+      await _engine.pause(allowRemoteRoute: false);
       unawaited(_savePosition());
       unawaited(_reportProgress(isPaused: true));
       return;
@@ -410,12 +411,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   Future<void> previous() async {
     if (state.position > _restartThreshold) {
-      await _engine.seek(Duration.zero);
+      await _engine.seek(Duration.zero, allowRemoteRoute: false);
       return;
     }
     final index = state.queue.previousIndex();
     if (index == null) {
-      await _engine.seek(Duration.zero);
+      await _engine.seek(Duration.zero, allowRemoteRoute: false);
       return;
     }
     await _advanceTo(index);
@@ -687,7 +688,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         initialIndex: initialIndex,
         initialPosition: initialPosition,
       );
-      if (play) await _engine.play();
+      if (play) await _engine.play(allowRemoteRoute: false);
     } else {
       _isSynchronizingSources = true;
       try {
@@ -889,8 +890,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
     switch (queue.repeatMode) {
       case RepeatMode.one:
-        await _engine.seek(Duration.zero);
-        await _engine.play();
+        await _engine.seek(Duration.zero, allowRemoteRoute: false);
+        await _engine.play(allowRemoteRoute: false);
         // A fresh loop is a fresh listen: an hour of one track on repeat
         // is an hour the user spent with it, and the history collapses
         // the repeats into the one entry anyway. It is also a fresh play
