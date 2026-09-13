@@ -199,6 +199,29 @@ general command are accepted as sent. It skips itself unless a server is
 configured, so a contributor without one sees a green suite and CI does
 not depend on a server being reachable.
 
+## Correction (v0.5.9)
+
+The capability post was written as query parameters against
+`/Sessions/Capabilities/Full`, which no Jellyfin accepts: that route
+takes a required `ClientCapabilitiesDto` **body** (the query-parameter
+form is the older `/Sessions/Capabilities`), and its list fields are JSON
+arrays of server-side enum names. It also named `Pause`, `Unpause`,
+`PlayPause`, `Stop`, `NextTrack`, `PreviousTrack` and `Seek` as
+`SupportedCommands`; those are `PlaystateCommand` values, not
+`GeneralCommandType`, and a session declares all of them by naming
+`PlayState`.
+
+The post therefore failed on every connect, and because a failed post
+leaves `SupportsMediaControl` false while
+`GET /Sessions?ControllableByUserId=…` returns only sessions the server
+believes support remote control, each install was missing from every
+picker on the account — including its own row. The unit suite could not
+see it: the fake server answered the capability path 204 whatever was
+sent, and the integration test that would have caught it skips itself
+without a configured server. The fake now refuses a body Jellyfin could
+not bind, which is what makes the request shape a tested fact rather
+than an assumption.
+
 ## Consequences
 
 - v0.5.3 receives a working delivery channel: `envelopes` already carries
