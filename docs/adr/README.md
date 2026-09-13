@@ -43,6 +43,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0035](ADR-0035-random-discovery-and-personal-mix.md) | Random discovery and a personal mix |
 | [0037](ADR-0037-connected-playback-contract.md) | Connected playback contract |
 | [0038](ADR-0038-device-presence-and-capability-transport.md) | Device presence and capability transport |
+| [0039](ADR-0039-device-picker-and-ownership-ui.md) | Device picker and ownership UI |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

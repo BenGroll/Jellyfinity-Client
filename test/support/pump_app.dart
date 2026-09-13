@@ -11,9 +11,11 @@ import 'package:jellyfinity/app/router/AppRouter.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/settings/SettingsCubit.dart';
 import 'package:jellyfinity/design/design.dart';
+import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart';
 import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
+import 'connected_playback/device_picker_fakes.dart';
 import 'download_fakes.dart';
 import 'music_fakes.dart';
 import 'offline_fakes.dart';
@@ -34,7 +36,9 @@ import 'settings_fakes.dart';
 /// control what the Lyrics view (v0.1.5) shows; otherwise it has none. Pass
 /// [downloads] to drive or assert on the download system (v0.2.0);
 /// otherwise a fake-backed cubit is built so track rows and album
-/// headers have download state to read.
+/// headers have download state to read. Pass [devicePresence] to control
+/// what the device picker (v0.5.5) shows; otherwise it sees no other
+/// devices.
 ///
 /// [restore] defaults to `true` (the ordinary post-sign-in-restore state
 /// every other test wants); pass `false` for a test that specifically
@@ -56,6 +60,7 @@ Future<TestSessionScope> pumpApp(
   OfflineCubit? offline,
   TrackSourceInfoResolver? trackSourceInfoResolver,
   LyricsResolver? lyricsResolver,
+  DevicePresenceSource? devicePresence,
   bool restore = true,
   bool? televisionMode,
   Future<bool> Function()? televisionDetector,
@@ -109,6 +114,13 @@ Future<TestSessionScope> pumpApp(
   // these straight from getIt too.
   registerNowPlayingDetailsCubit();
   registerFavoritesRepository();
+  // MiniPlayer/NowPlayingPage's device action (v0.5.5) reads this straight
+  // from getIt too — see registerDevicePickerCubit's own doc.
+  registerDevicePickerCubit(
+    session: s.cubit,
+    playback: playbackCubit,
+    presence: devicePresence,
+  );
   await tester.pumpWidget(
     JellyfinityApp(
       router: effectiveRouter.config,

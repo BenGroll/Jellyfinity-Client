@@ -122,9 +122,30 @@ v0.5.1-v0.6.0.
   command a handoff's local queue-replacement shape matches; `_execute`
   gained a real, resolve-and-adopt path for it. No schema change, no UI —
   device selection remains v0.5.5.
-- v0.5.5-v0.6.0 are planned: a device picker and remote Now Playing UI,
-  then completed for Windows, Android, and the Android TV/Fire TV
-  capability path. See `Roadmap to v0.6.md` for the bounded specifications.
+- v0.5.5 (Device picker and ownership UI, ADR-0039) is implemented: a
+  device action on the mini-player and Now Playing top bar
+  (`DeviceActionButton`) that names the active device without implying
+  this device is playing when it is only controlling, and a picker sheet
+  (`showDevicePickerSheet`, `DevicePickerCubit`) listing "This device"
+  plus every device `DevicePresenceSource` reports, mapped to the
+  roadmap's active/available/connecting/unavailable/stale/incompatible/
+  permission-denied vocabulary. Transferring calls the already-existing
+  `ConnectedPlaybackTargetLink.transferTo` (new public `localSnapshot`
+  getter supplies the snapshot it needs); "bring it back to this device"
+  is a plain local resume rather than a handoff, since
+  `ConnectedDevice.canReceiveTransfer` deliberately excludes
+  `isThisDevice` and no message exists (or should exist, per ADR-0037's
+  ownership model) to ask a remote device to hand off on request — see
+  ADR-0039 for why, and for the transiently-two-playing case
+  `ConnectedDevice.isPlaying`'s own doc already accepts as visible rather
+  than hidden. `DevicePresenceSource` joins `ConnectedPlaybackTransport`
+  as a second interface bound onto the one `JellyfinSessionTransport`
+  singleton. No schema change, no new wire message, no dependency.
+  Remote Now Playing/queue control and platform completion remain
+  v0.5.6-v0.6.0.
+- v0.5.6-v0.6.0 are planned: remote Now Playing and queue controls, then
+  completed for Windows, Android, and the Android TV/Fire TV capability
+  path. See `Roadmap to v0.6.md` for the bounded specifications.
 
 Keep this section current when a version's status changes; it and
 `ROADMAP.md`'s status column must agree.

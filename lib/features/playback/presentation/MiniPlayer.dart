@@ -12,6 +12,7 @@ import '../../../domain/media/media.dart';
 import '../../music/presentation/widgets/ArtworkBackground.dart';
 import '../../music/presentation/widgets/downloaded_marker.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
+import 'DevicePickerSheet.dart';
 
 /// The persistent bar in [AppShell] above the bottom navigation — a
 /// glance at what's playing and play/pause, from any tab. Renders
@@ -117,6 +118,10 @@ class MiniPlayer extends StatelessWidget {
                                   ),
                               ],
                             ),
+                          ),
+                          DeviceActionButton(
+                            iconSize: 20,
+                            color: t.colors.textSecondary,
                           ),
                           IconButton(
                             icon: Icon(

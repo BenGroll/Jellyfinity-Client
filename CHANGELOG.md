@@ -2,6 +2,27 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Device picker and ownership UI
+
+- Show where playback actually is from the mini-player and Now Playing: a
+  device action names the active device — "This device" or whichever
+  other Jellyfinity install owns the sound right now — and never implies
+  this device is playing when it is only controlling.
+- Open a picker listing this device and every compatible one presence
+  knows about, each labelled active, available, connecting, unavailable,
+  stale, incompatible, or permission-denied, with a reason shown only
+  where it changes what can be done.
+- Transfer playback to a chosen device with one tap, with the picker
+  staying open through the handoff and reporting success or an
+  actionable failure rather than a silent spinner; a second tap while one
+  transfer is already in flight is a no-op, not a race.
+- Bring playback back to this device once nothing else needs it — a
+  paused local queue resumes exactly as it was, without waiting on
+  whatever else was last playing it.
+- Handle no other devices found, devices disappearing while the picker is
+  open, offline/work-offline mode, and account switching, all from the
+  same read model the rest of connected playback already trusts.
+
 ## Unreleased — Atomic playback handoff
 
 - Move a listening session between two connected devices without a

@@ -39,6 +39,8 @@ import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackTransport.dart'
     as _i231;
+import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart'
+    as _i40;
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
     as _i813;
 import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
@@ -99,6 +101,8 @@ import 'package:jellyfinity/features/music/presentation/library/music_collection
     as _i618;
 import 'package:jellyfinity/features/music/presentation/search/music_search_cubit.dart'
     as _i169;
+import 'package:jellyfinity/features/playback/presentation/device_picker_cubit.dart'
+    as _i861;
 import 'package:jellyfinity/features/playback/presentation/lyrics_cubit.dart'
     as _i148;
 import 'package:jellyfinity/features/playback/presentation/now_playing_details_cubit.dart'
@@ -469,6 +473,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i267.JellyfinSessionTransport>(),
       ),
     );
+    gh.lazySingleton<_i40.DevicePresenceSource>(
+      () => connectedPlaybackTransportModule.presenceSource(
+        gh<_i267.JellyfinSessionTransport>(),
+      ),
+    );
     gh.factory<_i413.FavoriteArtistsCubit>(
       () => _i413.FavoriteArtistsCubit(
         gh<_i747.MusicLibraryRepository>(),
@@ -642,6 +651,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
         gh<_i260.MusicLibraryRepository>(),
         gh<_i612.Logger>(),
+      ),
+    );
+    gh.factory<_i861.DevicePickerCubit>(
+      () => _i861.DevicePickerCubit(
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i217.ConnectedPlaybackTargetLink>(),
       ),
     );
     return this;

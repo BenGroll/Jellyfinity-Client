@@ -137,6 +137,12 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
   @visibleForTesting
   RemotePlaybackSnapshot? get snapshot => _target?.snapshot;
 
+  /// This device's own snapshot, scoped and revisioned exactly as it
+  /// would publish it — what the device picker (v0.5.5) reads to call
+  /// [transferTo] without reaching into this class's session bookkeeping.
+  /// `null` before there is a signed-in scope to publish for.
+  RemotePlaybackSnapshot? get localSnapshot => _ensureTarget()?.snapshot;
+
   Future<void> start() async {
     if (_started) return;
     _started = true;

@@ -48,7 +48,7 @@ published Git tag.
 | v0.5.2 | Device presence and capability transport | Implemented | [spec](Roadmap%20to%20v0.6.md#v052---device-presence-and-capability-transport), [ADR](docs/adr/ADR-0038-device-presence-and-capability-transport.md) |
 | v0.5.3 | Remote state and command execution | Implemented | [spec](Roadmap%20to%20v0.6.md#v053---remote-state-and-command-execution) |
 | v0.5.4 | Atomic playback handoff | Implemented | [spec](Roadmap%20to%20v0.6.md#v054---atomic-playback-handoff) |
-| v0.5.5 | Device picker and ownership UI | Planned | [spec](Roadmap%20to%20v0.6.md#v055---device-picker-and-ownership-ui) |
+| v0.5.5 | Device picker and ownership UI | Implemented | [spec](Roadmap%20to%20v0.6.md#v055---device-picker-and-ownership-ui) |
 | v0.5.6 | Remote Now Playing and queue controls | Planned | [spec](Roadmap%20to%20v0.6.md#v056---remote-now-playing-and-queue-controls) |
 | v0.5.7 | Windows connected playback | Planned | [spec](Roadmap%20to%20v0.6.md#v057---windows-connected-playback) |
 | v0.5.8 | Android connected playback | Planned | [spec](Roadmap%20to%20v0.6.md#v058---android-connected-playback) |

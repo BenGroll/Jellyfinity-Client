@@ -26,6 +26,7 @@ import '../../music/presentation/widgets/FavoriteButton.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/media_formatting.dart';
 import '../../music/presentation/widgets/music_rows.dart';
+import 'DevicePickerSheet.dart';
 import 'now_playing_details_cubit.dart';
 import 'track_source_info_cubit.dart';
 import 'QueuePage.dart';
@@ -325,6 +326,7 @@ class _PlayerTopBar extends StatelessWidget {
                 );
               },
             ),
+            const DeviceActionButton(iconSize: 30, color: Colors.white),
             IconButton(
               icon: const Icon(Icons.more_vert_rounded),
               iconSize: 30,
