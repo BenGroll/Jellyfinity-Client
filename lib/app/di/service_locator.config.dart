@@ -17,6 +17,8 @@ import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart'
     as _i419;
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart'
     as _i217;
+import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart'
+    as _i846;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/di/ConnectedPlaybackTransportModule.dart'
     as _i1017;
@@ -638,6 +640,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i306.DownloadStorageProbe>(),
       ),
     );
+    gh.lazySingleton<_i846.PlaybackControlCubit>(
+      () => _i846.PlaybackControlCubit(
+        gh<_i231.ConnectedPlaybackTransport>(),
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+      ),
+    );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(
         gh<_i747.MediaMetadataRepository>(),
@@ -659,6 +668,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
         gh<_i126.PlaybackCubit>(),
         gh<_i217.ConnectedPlaybackTargetLink>(),
+        gh<_i846.PlaybackControlCubit>(),
       ),
     );
     return this;

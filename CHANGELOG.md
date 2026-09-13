@@ -2,6 +2,26 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Remote Now Playing and queue controls
+
+- Control another device's active playback from the mini-player, Now
+  Playing and the queue screen, once it is chosen from the device picker:
+  the same transport, seek, shuffle, repeat, and jump-to-track controls
+  local playback already has, bound to that device's real, live state
+  instead.
+- Show exactly what state that control is in — synced, syncing after a
+  reconnect, reconnecting, or no longer available — and a command that is
+  pending, applied, or failed, rather than a control that quietly does
+  nothing.
+- Disable or hide any control the target device does not currently
+  support, so nothing is offered only to fail.
+- Keep this device's own artwork, favorite and download state, and never
+  touch its own dormant local queue while controlling another device —
+  looking at or driving what another device is playing never costs a
+  listener their place in their own queue.
+- Stop controlling at any time without affecting the other device's
+  playback, and return straight to the device picker to choose another.
+
 ## Unreleased — Device picker and ownership UI
 
 - Show where playback actually is from the mini-player and Now Playing: a

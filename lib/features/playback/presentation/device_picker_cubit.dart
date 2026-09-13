@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../app/connected_playback/ConnectedPlaybackScopeOf.dart';
 import '../../../app/connected_playback/ConnectedPlaybackTargetLink.dart';
+import '../../../app/connected_playback/PlaybackControlCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/session/SessionCubit.dart';
@@ -70,6 +71,7 @@ class DevicePickerState extends Equatable {
     this.localHasQueue = false,
     this.localIsPlaying = false,
     this.transfer = const DeviceTransferProgress.idle(),
+    this.controllingSessionId,
   });
 
   /// This device's own link to the shared server — what a picker shows
@@ -87,18 +89,29 @@ class DevicePickerState extends Equatable {
 
   final DeviceTransferProgress transfer;
 
+  /// The session id of the device `PlaybackControlCubit` (v0.5.6) is
+  /// currently controlling, or `null` while this device controls nothing
+  /// — mirrored here so a row can show "Controlling" without the picker
+  /// reading that cubit directly.
+  final String? controllingSessionId;
+
   DevicePickerState copyWith({
     ConnectedPlaybackConnection? connection,
     List<ConnectedDevice>? devices,
     bool? localHasQueue,
     bool? localIsPlaying,
     DeviceTransferProgress? transfer,
+    String? controllingSessionId,
+    bool clearControllingSessionId = false,
   }) => DevicePickerState(
     connection: connection ?? this.connection,
     devices: devices ?? this.devices,
     localHasQueue: localHasQueue ?? this.localHasQueue,
     localIsPlaying: localIsPlaying ?? this.localIsPlaying,
     transfer: transfer ?? this.transfer,
+    controllingSessionId: clearControllingSessionId
+        ? null
+        : (controllingSessionId ?? this.controllingSessionId),
   );
 
   @override
@@ -108,6 +121,7 @@ class DevicePickerState extends Equatable {
     localHasQueue,
     localIsPlaying,
     transfer,
+    controllingSessionId,
   ];
 }
 
@@ -143,15 +157,18 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
     this._session,
     this._playback,
     this._handoff,
+    this._control,
   ) : super(
         DevicePickerState(
           localHasQueue: _playback.state.hasQueue,
           localIsPlaying: _playback.state.isPlaying,
+          controllingSessionId: _control.state.device?.sessionId,
         ),
       ) {
     _sessionSub = _session.stream.listen(_onSession);
     _playbackSub = _playback.stream.listen(_onPlayback);
     _connectionSub = _presence.connection.listen(_onConnection);
+    _controlSub = _control.stream.listen(_onControl);
     _onSession(_session.state);
   }
 
@@ -160,10 +177,16 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
   final PlaybackCubit _playback;
   final ConnectedPlaybackTargetLink _handoff;
 
+  /// Owns the actual controller session (v0.5.6) — this cubit only chooses
+  /// a device and mirrors which one, for the picker's own "Controlling"
+  /// row state.
+  final PlaybackControlCubit _control;
+
   StreamSubscription<SessionState>? _sessionSub;
   StreamSubscription<PlaybackUiState>? _playbackSub;
   StreamSubscription<ConnectedPlaybackConnection>? _connectionSub;
   StreamSubscription<List<ConnectedDevice>>? _devicesSub;
+  StreamSubscription<PlaybackControlState>? _controlSub;
 
   ConnectedPlaybackScope? _scope;
 
@@ -249,6 +272,23 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
   /// rather than a handoff.
   Future<void> bringBackToThisDevice() => _playback.play();
 
+  /// Starts controlling [device]'s active playback (v0.5.6) — binding the
+  /// mini-player, Now Playing and the queue to its projection until
+  /// [stopControlling] is called or a different device is chosen.
+  Future<void> control(ConnectedDevice device) => _control.control(device);
+
+  /// Stops controlling whatever device this app is currently driving,
+  /// without affecting its playback — the picker's route back to "just
+  /// looking", distinct from [transferTo] or [bringBackToThisDevice].
+  Future<void> stopControlling() => _control.stop();
+
+  void _onControl(PlaybackControlState controlState) => emit(
+    state.copyWith(
+      controllingSessionId: controlState.device?.sessionId,
+      clearControllingSessionId: controlState.device == null,
+    ),
+  );
+
   /// "This device" first, then whoever is actually producing audio, then
   /// everything else usable, then everything else — so the picker's most
   /// relevant rows never depend on however presence happened to order
@@ -271,6 +311,7 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
     await _sessionSub?.cancel();
     await _playbackSub?.cancel();
     await _connectionSub?.cancel();
+    await _controlSub?.cancel();
     await _devicesSub?.cancel();
     return super.close();
   }

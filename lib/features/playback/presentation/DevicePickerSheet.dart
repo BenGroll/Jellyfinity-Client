@@ -245,14 +245,32 @@ class _DeviceRow extends StatelessWidget {
     final t = context.tokens;
     final busy = state.transfer.phase == DeviceTransferPhase.inProgress;
     final isThisTransfer = state.transfer.deviceSessionId == device.sessionId;
+    final controlling =
+        !device.isThisDevice && state.controllingSessionId == device.sessionId;
+    // Controlling an active player is this row's primary action once the
+    // device is actually producing audio (v0.5.6) — offering a transfer to
+    // a device already playing something else would only queue a refusal
+    // behind a choice the listener did not ask to make.
+    final canControl =
+        !device.isThisDevice && device.isPlaying && device.canBeControlled;
     final status = device.isThisDevice
         ? _statusForThisDevice(state)
+        : controlling
+        ? const _RowStatus(
+            icon: Icons.settings_remote_rounded,
+            label: 'Controlling — tap to stop',
+            tone: _RowTone.active,
+          )
         : _statusForRemote(device);
 
     final VoidCallback? action = device.isThisDevice
         ? (state.localHasQueue && !state.localIsPlaying
               ? cubit.bringBackToThisDevice
               : null)
+        : controlling
+        ? cubit.stopControlling
+        : canControl
+        ? () => cubit.control(device)
         : (device.canReceiveTransfer && state.localHasQueue && !busy
               ? () => cubit.transferTo(device)
               : null);
@@ -411,8 +429,12 @@ class _DeviceActionButtonState extends State<DeviceActionButton> {
       value: _cubit,
       child: BlocBuilder<DevicePickerCubit, DevicePickerState>(
         builder: (context, state) {
-          final activeRemote = _activeRemoteDevice(state.devices);
-          final tooltip = activeRemote == null
+          final controlling = _byId(state.devices, state.controllingSessionId);
+          final activeRemote =
+              controlling ?? _activeRemoteDevice(state.devices);
+          final tooltip = controlling != null
+              ? 'Controlling ${controlling.displayName}'
+              : activeRemote == null
               ? 'Devices'
               : 'Playing on ${activeRemote.displayName}';
           return IconButton(
@@ -434,6 +456,14 @@ class _DeviceActionButtonState extends State<DeviceActionButton> {
   static ConnectedDevice? _activeRemoteDevice(List<ConnectedDevice> devices) {
     for (final device in devices) {
       if (!device.isThisDevice && device.isPlaying) return device;
+    }
+    return null;
+  }
+
+  static ConnectedDevice? _byId(List<ConnectedDevice> devices, String? id) {
+    if (id == null) return null;
+    for (final device in devices) {
+      if (device.sessionId == id) return device;
     }
     return null;
   }

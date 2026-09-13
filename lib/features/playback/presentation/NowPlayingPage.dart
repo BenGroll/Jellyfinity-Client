@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/connected_playback/PlaybackControlCubit.dart';
 import '../../../app/di/service_locator.dart';
 import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
@@ -14,6 +15,7 @@ import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../app/settings/SettingsCubit.dart';
 import '../../../design/design.dart';
+import '../../../domain/connected_playback/remote_command_kind.dart';
 import '../../../domain/media/media.dart';
 import '../../../domain/playback/QueueEntry.dart';
 import '../../../domain/playback/repeat_mode.dart';
@@ -34,27 +36,39 @@ import 'QueuePage.dart';
 /// The full player: artwork, transport, seek, shuffle/repeat, and a way
 /// into the queue. Reached by tapping [MiniPlayer]; a root route so it
 /// covers the bottom nav from any tab.
+///
+/// Bound to `PlaybackControlCubit` first (v0.5.6), the same as
+/// [MiniPlayer]: while this device is controlling another one, this page
+/// shows that device's projection instead of local `PlaybackCubit` state.
 class NowPlayingPage extends StatelessWidget {
   const NowPlayingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PlaybackCubit, PlaybackUiState>(
-      builder: (context, state) {
-        final entry = state.currentEntry;
-        return entry == null
-            ? AppScaffold(
-                leading: IconButton(
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                  onPressed: () => context.pop(),
-                ),
-                body: const EmptyStateView(
-                  title: 'Nothing playing',
-                  message: 'Play a song from your library to see it here.',
-                  icon: Icons.music_note_outlined,
-                ),
-              )
-            : _NowPlayingContent(entry: entry, state: state);
+    return BlocBuilder<PlaybackControlCubit, PlaybackControlState>(
+      bloc: getIt<PlaybackControlCubit>(),
+      builder: (context, control) {
+        if (control.isControlling) {
+          return _RemoteNowPlayingContent(control: control);
+        }
+        return BlocBuilder<PlaybackCubit, PlaybackUiState>(
+          builder: (context, state) {
+            final entry = state.currentEntry;
+            return entry == null
+                ? AppScaffold(
+                    leading: IconButton(
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                      onPressed: () => context.pop(),
+                    ),
+                    body: const EmptyStateView(
+                      title: 'Nothing playing',
+                      message: 'Play a song from your library to see it here.',
+                      icon: Icons.music_note_outlined,
+                    ),
+                  )
+                : _NowPlayingContent(entry: entry, state: state);
+          },
+        );
       },
     );
   }
@@ -378,7 +392,45 @@ class _QueueEditButton extends StatelessWidget {
   }
 }
 
-Future<void> _showQueueOverlay(BuildContext context) => showGeneralDialog<void>(
+Future<void> _showQueueOverlay(BuildContext context) => _showQueueEditorOverlay(
+  context,
+  title: 'Edit queue',
+  body: (context) => BlocBuilder<PlaybackCubit, PlaybackUiState>(
+    builder: (context, state) => QueueEditor(
+      queue: state.queue,
+      onJumpTo: context.read<PlaybackCubit>().playAt,
+      onReorder: context.read<PlaybackCubit>().reorderPlayOrder,
+      onRemove: context.read<PlaybackCubit>().removeAt,
+    ),
+  ),
+);
+
+/// The remote counterpart of [_showQueueOverlay] (v0.5.6): the same
+/// docked-panel chrome around another device's read-mostly queue — jumping
+/// to an entry is the only editing capability this build ever advertises
+/// remotely (`SupportedRemoteCommands`).
+Future<void> _showRemoteQueueOverlay(
+  BuildContext context,
+  PlaybackControlCubit control,
+) => _showQueueEditorOverlay(
+  context,
+  title: 'Edit queue',
+  body: (context) => BlocBuilder<PlaybackControlCubit, PlaybackControlState>(
+    bloc: control,
+    builder: (context, state) => QueueEditor(
+      queue: state.queue,
+      onJumpTo: state.commandAvailable(RemoteCommandKind.jumpToQueueEntry)
+          ? control.jumpToQueueEntry
+          : (_) {},
+    ),
+  ),
+);
+
+Future<void> _showQueueEditorOverlay(
+  BuildContext context, {
+  required String title,
+  required WidgetBuilder body,
+}) => showGeneralDialog<void>(
   context: context,
   barrierDismissible: true,
   barrierLabel: 'Close queue editor',
@@ -410,7 +462,7 @@ Future<void> _showQueueOverlay(BuildContext context) => showGeneralDialog<void>(
                     children: [
                       Expanded(
                         child: Text(
-                          'Edit queue',
+                          title,
                           style: t.typography.headlineLarge.copyWith(
                             color: t.colors.textPrimary,
                           ),
@@ -426,14 +478,7 @@ Future<void> _showQueueOverlay(BuildContext context) => showGeneralDialog<void>(
                   ),
                 ),
                 const Divider(height: 1),
-                Expanded(
-                  child: BlocBuilder<PlaybackCubit, PlaybackUiState>(
-                    builder: (context, state) => QueueEditor(
-                      state: state,
-                      cubit: context.read<PlaybackCubit>(),
-                    ),
-                  ),
-                ),
+                Expanded(child: body(dialogContext)),
               ],
             ),
           ),
@@ -998,4 +1043,437 @@ class _TransportRow extends StatelessWidget {
     RepeatMode.all => RepeatMode.one,
     RepeatMode.one => RepeatMode.off,
   };
+}
+
+// ---- Remote Now Playing (v0.5.6) ----
+
+/// The full player while this device is controlling another one — the
+/// remote counterpart of [_NowPlayingContent].
+///
+/// A single, centered layout at every width rather than [_WidePlayer]'s
+/// two-column desktop treatment: remote control is a secondary surface
+/// next to local playback, and the roadmap's "same confidence as local Now
+/// Playing" is about the control surface being complete and explicit —
+/// every state named, every supported command reachable — not about
+/// matching local's layout pixel for pixel.
+class _RemoteNowPlayingContent extends StatefulWidget {
+  const _RemoteNowPlayingContent({required this.control});
+
+  final PlaybackControlState control;
+
+  @override
+  State<_RemoteNowPlayingContent> createState() =>
+      _RemoteNowPlayingContentState();
+}
+
+class _RemoteNowPlayingContentState extends State<_RemoteNowPlayingContent> {
+  /// Favorite/download state and the artist/album links come from this
+  /// device's own profile, resolved by id — "keep artwork, favorite/
+  /// download state ... local to the controller's matching profile" from
+  /// the roadmap — exactly the same cubit and lookup [_NowPlayingContent]
+  /// uses locally.
+  final NowPlayingDetailsCubit _details = getIt<NowPlayingDetailsCubit>();
+  MediaId? _openedId;
+
+  @override
+  void initState() {
+    super.initState();
+    _openId(widget.control.currentEntry?.id);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RemoteNowPlayingContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _openId(widget.control.currentEntry?.id);
+  }
+
+  void _openId(MediaId? id) {
+    if (id == null || id == _openedId) return;
+    _openedId = id;
+    _details.open(id);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_details.close());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final control = widget.control;
+    final entry = control.currentEntry;
+
+    return BlocProvider<NowPlayingDetailsCubit>.value(
+      value: _details,
+      child: AppScaffold(
+        padded: false,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            _BlurredBackground(image: entry?.image),
+            const _PlayerContrastScrim(),
+            SingleChildScrollView(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 72),
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: t.spacing.lg),
+                          child: MediaArtwork(
+                            image: entry?.image,
+                            kind: MediaKind.track,
+                            size: 280,
+                          ),
+                        ),
+                        Text(
+                          entry?.title ?? 'Nothing playing here',
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.typography.displayLarge.copyWith(
+                            fontSize: 30,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (entry != null) _ArtistAlbumLinks(entry: entry),
+                        _RemoteConnectionNote(control: control),
+                        SizedBox(height: t.spacing.lg),
+                        _RemoteSeekBar(control: control),
+                        SizedBox(height: t.spacing.sm),
+                        _RemoteTransportRow(control: control),
+                        SizedBox(height: t.spacing.xl),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _RemotePlayerTopBar(control: control, entry: entry),
+            ),
+            Positioned(
+              right: t.spacing.md,
+              bottom: t.spacing.md,
+              child: _QueueEditButton(
+                enabled: control.hasQueue,
+                onPressed: () => _showRemoteQueueOverlay(
+                  context,
+                  getIt<PlaybackControlCubit>(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RemotePlayerTopBar extends StatelessWidget {
+  const _RemotePlayerTopBar({required this.control, required this.entry});
+
+  final PlaybackControlState control;
+  final QueueEntry? entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              iconSize: 34,
+              color: Colors.white,
+              tooltip: 'Minimize player',
+              onPressed: () => context.pop(),
+            ),
+            Expanded(
+              child: Text(
+                'Controlling ${control.device!.displayName}',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+            BlocBuilder<NowPlayingDetailsCubit, NowPlayingDetailsState>(
+              builder: (context, details) {
+                final track = details.track;
+                if (track == null) return const SizedBox.shrink();
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TrackDownloadButton(track: track),
+                    FavoriteButton(
+                      isFavorite: track.isFavorite,
+                      unselectedColor: Colors.white,
+                      iconSize: 30,
+                      onChanged: (favorite) => applyFavorite(
+                        context,
+                        track.id,
+                        MediaKind.track,
+                        favorite: favorite,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            // Also this row's route back to device selection and its
+            // deliberate "stop controlling" action: the picker already
+            // lets the listener stop controlling the row it is controlling
+            // (v0.5.6's addition to `DevicePickerSheet`) without touching
+            // that device's playback.
+            const DeviceActionButton(iconSize: 30, color: Colors.white),
+            IconButton(
+              icon: const Icon(Icons.more_vert_rounded),
+              iconSize: 30,
+              color: Colors.white,
+              tooltip: 'More',
+              onPressed: () => showTrackActionsSheet(
+                context,
+                onLyrics: entry == null
+                    ? null
+                    : () => context.pushNamed(RouteNames.nowPlayingLyrics),
+                onOpenQueue: control.hasQueue
+                    ? () => context.pushNamed(RouteNames.nowPlayingQueue)
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Names a connection state that is not simply "synced" — the same
+/// distinction [_PlaybackNotes] draws for local playback, restated for
+/// what this cubit's own doc calls "explicit about whether state is
+/// local, remote, pending, stale, or unavailable."
+class _RemoteConnectionNote extends StatelessWidget {
+  const _RemoteConnectionNote({required this.control});
+
+  final PlaybackControlState control;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final message = switch (control.connection) {
+      PlaybackControlConnection.synced => null,
+      PlaybackControlConnection.resynchronizing =>
+        'Syncing with ${control.device!.displayName}…',
+      PlaybackControlConnection.reconnecting =>
+        'Reconnecting to ${control.device!.displayName}…',
+      PlaybackControlConnection.targetEnded =>
+        '${control.device!.displayName} is no longer available. Choose '
+            'another device to keep controlling one.',
+    };
+    final error = control.commandError;
+    if (message == null && error == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(top: t.spacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (message != null)
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: t.typography.caption.copyWith(color: Colors.white70),
+            ),
+          if (error != null)
+            Padding(
+              padding: EdgeInsets.only(top: t.spacing.xxs),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 14,
+                    color: t.colors.danger,
+                  ),
+                  SizedBox(width: t.spacing.xxs),
+                  Flexible(
+                    child: Text(
+                      error,
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RemoteSeekBar extends StatelessWidget {
+  const _RemoteSeekBar({required this.control});
+
+  final PlaybackControlState control;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final duration = control.duration;
+    final hasDuration = duration != null && duration > Duration.zero;
+    final max = hasDuration ? duration.inMilliseconds.toDouble() : 1.0;
+    final value = hasDuration
+        ? control.position.inMilliseconds.toDouble().clamp(0.0, max)
+        : 0.0;
+    final canSeek =
+        hasDuration && control.commandAvailable(RemoteCommandKind.seek);
+
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 5,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
+            activeTrackColor: t.colors.accent,
+            inactiveTrackColor: t.colors.border,
+            thumbColor: t.colors.accent,
+          ),
+          child: Slider(
+            value: value,
+            max: max,
+            onChanged: canSeek
+                ? (v) => getIt<PlaybackControlCubit>().seek(
+                    Duration(milliseconds: v.round()),
+                  )
+                : null,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              formatDuration(control.position),
+              style: t.typography.caption.copyWith(
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              hasDuration ? formatDuration(duration) : '--:--',
+              style: t.typography.caption.copyWith(
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RemoteTransportRow extends StatelessWidget {
+  const _RemoteTransportRow({required this.control});
+
+  final PlaybackControlState control;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final cubit = getIt<PlaybackControlCubit>();
+    final repeatMode = control.queue.repeatMode;
+    final pending = control.pendingCommand;
+
+    bool available(RemoteCommandKind kind) => control.commandAvailable(kind);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.shuffle_rounded),
+          iconSize: 30,
+          color: control.queue.shuffleEnabled
+              ? t.colors.accent
+              : t.colors.textSecondary,
+          onPressed: available(RemoteCommandKind.setShuffle)
+              ? cubit.toggleShuffle
+              : null,
+        ),
+        IconButton(
+          iconSize: 40,
+          icon: const Icon(Icons.skip_previous_rounded),
+          color: t.colors.textPrimary,
+          onPressed: available(RemoteCommandKind.previous)
+              ? cubit.previous
+              : null,
+        ),
+        SizedBox(
+          width: 72,
+          height: 72,
+          child: pending == RemoteCommandKind.playPause
+              ? const Center(
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                )
+              : IconButton(
+                  iconSize: 72,
+                  icon: Icon(
+                    control.isPlaying
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.play_circle_filled_rounded,
+                  ),
+                  color: t.colors.accent,
+                  onPressed: available(RemoteCommandKind.playPause)
+                      ? cubit.togglePlayPause
+                      : null,
+                ),
+        ),
+        IconButton(
+          iconSize: 40,
+          icon: const Icon(Icons.skip_next_rounded),
+          color: t.colors.textPrimary,
+          onPressed: available(RemoteCommandKind.next) ? cubit.next : null,
+        ),
+        IconButton(
+          iconSize: 30,
+          icon: Icon(
+            repeatMode == RepeatMode.one
+                ? Icons.repeat_one_rounded
+                : Icons.repeat_rounded,
+          ),
+          color: repeatMode == RepeatMode.off
+              ? t.colors.textSecondary
+              : t.colors.accent,
+          onPressed: available(RemoteCommandKind.setRepeat)
+              ? () => cubit.setRepeatMode(_nextRemoteRepeatMode(repeatMode))
+              : null,
+        ),
+      ],
+    );
+  }
+
+  static RepeatMode _nextRemoteRepeatMode(RepeatMode current) =>
+      switch (current) {
+        RepeatMode.off => RepeatMode.all,
+        RepeatMode.all => RepeatMode.one,
+        RepeatMode.one => RepeatMode.off,
+      };
 }

@@ -16,6 +16,7 @@ import 'package:jellyfinity/domain/playback/LyricsResolver.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
 import 'connected_playback/device_picker_fakes.dart';
+import 'connected_playback/FakeConnectedPlaybackNetwork.dart';
 import 'download_fakes.dart';
 import 'music_fakes.dart';
 import 'offline_fakes.dart';
@@ -38,7 +39,10 @@ import 'settings_fakes.dart';
 /// otherwise a fake-backed cubit is built so track rows and album
 /// headers have download state to read. Pass [devicePresence] to control
 /// what the device picker (v0.5.5) shows; otherwise it sees no other
-/// devices.
+/// devices. Pass [connectedPlaybackNetwork] — the same
+/// `FakeConnectedPlaybackNetwork` a test also puts a second (fake "TV")
+/// node on — to exercise controlling another device (v0.5.6) through the
+/// real widget tree.
 ///
 /// [restore] defaults to `true` (the ordinary post-sign-in-restore state
 /// every other test wants); pass `false` for a test that specifically
@@ -61,6 +65,7 @@ Future<TestSessionScope> pumpApp(
   TrackSourceInfoResolver? trackSourceInfoResolver,
   LyricsResolver? lyricsResolver,
   DevicePresenceSource? devicePresence,
+  FakeConnectedPlaybackNetwork? connectedPlaybackNetwork,
   bool restore = true,
   bool? televisionMode,
   Future<bool> Function()? televisionDetector,
@@ -120,6 +125,7 @@ Future<TestSessionScope> pumpApp(
     session: s.cubit,
     playback: playbackCubit,
     presence: devicePresence,
+    network: connectedPlaybackNetwork,
   );
   await tester.pumpWidget(
     JellyfinityApp(

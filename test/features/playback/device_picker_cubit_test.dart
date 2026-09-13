@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart';
+import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart';
 import 'package:jellyfinity/app/connected_playback/SupportedRemoteCommands.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/domain/connected_playback/connection_state.dart';
@@ -42,6 +43,7 @@ void main() {
   late FakeConnectedPlaybackTransport transport;
   late ConnectedPlaybackTargetLink handoff;
   late FakeDevicePresenceSource presence;
+  late PlaybackControlCubit control;
   late DevicePickerCubit cubit;
 
   setUp(() async {
@@ -69,16 +71,23 @@ void main() {
     );
     await handoff.start();
     presence = FakeDevicePresenceSource.empty();
+    control = PlaybackControlCubit(
+      transport,
+      presence,
+      fakeSessionCubit(signedIn: fakeAuthSession()),
+    );
     cubit = DevicePickerCubit(
       presence,
       fakeSessionCubit(signedIn: fakeAuthSession()),
       playback,
       handoff,
+      control,
     );
   });
 
   tearDown(() async {
     await cubit.close();
+    await control.close();
     await handoff.stop();
     await playback.close();
     await presence.dispose();
@@ -133,16 +142,23 @@ void main() {
       expect(cubit.state.devices, isNotEmpty);
 
       final signedOutSession = fakeSessionCubit();
+      final signedOutControl = PlaybackControlCubit(
+        transport,
+        presence,
+        signedOutSession,
+      );
       final signedOutCubit = DevicePickerCubit(
         presence,
         signedOutSession,
         playback,
         handoff,
+        signedOutControl,
       );
       await settle();
 
       expect(signedOutCubit.state.devices, isEmpty);
       await signedOutCubit.close();
+      await signedOutControl.close();
     });
   });
 
@@ -151,16 +167,24 @@ void main() {
       await playback.playNow([track('a')], startIndex: 0);
       await settle();
 
+      final freshSession = fakeSessionCubit(signedIn: fakeAuthSession());
+      final freshControl = PlaybackControlCubit(
+        transport,
+        presence,
+        freshSession,
+      );
       final fresh = DevicePickerCubit(
         presence,
-        fakeSessionCubit(signedIn: fakeAuthSession()),
+        freshSession,
         playback,
         handoff,
+        freshControl,
       );
 
       expect(fresh.state.localHasQueue, isTrue);
       expect(fresh.state.localIsPlaying, isTrue);
       await fresh.close();
+      await freshControl.close();
     });
 
     test('follows PlaybackCubit through pause and resume', () async {
@@ -265,6 +289,41 @@ void main() {
       // that was actually addressed — a second call while the first is
       // in flight is a no-op, not a second attempt.
       expect(cubit.state.transfer.deviceSessionId, 'session-unreachable');
+    });
+  });
+
+  group('control (v0.5.6)', () {
+    test(
+      'delegates to PlaybackControlCubit and mirrors its chosen device',
+      () async {
+        final tv = device(
+          sessionId: 'session-tv',
+          capabilities: supportedRemoteCommands,
+          isPlaying: true,
+        );
+
+        await cubit.control(tv);
+        await settle();
+
+        expect(cubit.state.controllingSessionId, 'session-tv');
+        expect(control.state.device, tv);
+      },
+    );
+
+    test('stopControlling delegates and clears the mirrored device', () async {
+      final tv = device(
+        sessionId: 'session-tv',
+        capabilities: supportedRemoteCommands,
+        isPlaying: true,
+      );
+      await cubit.control(tv);
+      await settle();
+
+      await cubit.stopControlling();
+      await settle();
+
+      expect(cubit.state.controllingSessionId, isNull);
+      expect(control.state.isControlling, isFalse);
     });
   });
 }
