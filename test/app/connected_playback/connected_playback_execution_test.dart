@@ -51,6 +51,17 @@ void main() {
   late ConnectedPlaybackTargetLink targetLink;
   late ConnectedPlaybackControllerSession controllerSession;
 
+  // supportedRemoteCommands gates RemoteCommandKind.setVolume on
+  // debugSystemVolumeSupported (v0.6.0) rather than the host actually
+  // running the test, exactly so this suite can exercise the command on
+  // whatever machine runs it — see that flag's own doc comment.
+  late bool originalSystemVolumeSupport;
+  setUpAll(() {
+    originalSystemVolumeSupport = debugSystemVolumeSupported;
+    debugSystemVolumeSupported = true;
+  });
+  tearDownAll(() => debugSystemVolumeSupported = originalSystemVolumeSupport);
+
   setUp(() async {
     network = FakeConnectedPlaybackNetwork();
     engine = FakePlaybackEngine();
@@ -183,6 +194,42 @@ void main() {
     await settle();
     expect(playback.state.queue.repeatMode, RepeatMode.all);
   });
+
+  test(
+    'setVolume changes the target\'s real output volume, and the '
+    'controller sees the level it actually reports back (v0.6.0)',
+    () async {
+      engine.systemVolumeValue = 0.4;
+
+      final result = await controllerSession.setVolume(0.75);
+      expect(result.isOk, isTrue);
+      await settle();
+
+      expect(engine.calls, contains('setSystemVolume(0.75)'));
+      expect(playback.state.systemVolume, 0.75);
+      expect(controllerSession.projection!.volume, 0.75);
+    },
+  );
+
+  test(
+    'a target on a platform with no settable system volume refuses '
+    'setVolume outright — absent, not inert (v0.6.0)',
+    () async {
+      debugSystemVolumeSupported = false;
+      addTearDown(() => debugSystemVolumeSupported = true);
+      controllerSession.retarget(
+        device(
+          sessionId: 'session-tv',
+          capabilities: supportedRemoteCommands,
+        ),
+      );
+
+      final result = await controllerSession.setVolume(0.75);
+
+      expect(result.isErr, isTrue);
+      expect(engine.calls, isNot(contains('setSystemVolume(0.75)')));
+    },
+  );
 
   test('setQueue (v0.5.4) resolves entries against the target library and '
       'replaces the real queue — no composer sends this yet, so it is sent '

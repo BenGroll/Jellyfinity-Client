@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/result/result.dart';
+import '../../domain/connected_playback/RemotePlaybackOwnership.dart';
 import '../../domain/media/artist.dart';
 import '../../domain/media/ListeningContext.dart';
 import '../../domain/media/ListeningHistoryRepository.dart';
@@ -47,8 +48,9 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     this._sourceResolver,
     this._progressRepository,
     this._history,
-    this._settings,
-  ) : super(const PlaybackUiState()) {
+    this._settings, {
+    this._remoteOwnership,
+  }) : super(const PlaybackUiState()) {
     _statusSub = _engine.statusStream.listen(_onStatus);
     _positionSub = _engine.positionStream.listen(_onPosition);
     _durationSub = _engine.durationStream.listen(_onDuration);
@@ -60,6 +62,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     });
     _applyCrossfade();
     _applyNormalization();
+    unawaited(_refreshSystemVolume());
   }
 
   final PlaybackEngine _engine;
@@ -68,6 +71,16 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   final PlaybackProgressRepository _progressRepository;
   final ListeningHistoryRepository _history;
   final SettingsCubit _settings;
+
+  /// `null` in every test and any build that hasn't wired one, which is
+  /// exactly "nothing here is remote-controlling anything" — the same
+  /// absent-seam convention `ActiveTransportRoute` establishes.
+  final RemotePlaybackOwnership? _remoteOwnership;
+
+  /// The local play this device is holding until [confirmTakeover]
+  /// resolves it (v0.6.0) — `null` whenever nothing is waiting, including
+  /// the entire time no takeover has ever been needed.
+  Future<void> Function()? _pendingLocalPlay;
 
   late final StreamSubscription<PlaybackStatus> _statusSub;
   late final StreamSubscription<Duration> _positionSub;
@@ -180,6 +193,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         queue: restored.queue,
         position: restored.position,
         duration: restored.queue.currentEntry?.duration,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     await _loadIntoEngine(
@@ -210,7 +225,9 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     List<Track> tracks, {
     required int startIndex,
     QueueOrigin? origin,
-  }) => _playNow(tracks, startIndex: startIndex, origin: origin);
+  }) => _startLocally(
+    () => _playNow(tracks, startIndex: startIndex, origin: origin),
+  );
 
   /// Replaces the queue with [tracks], shuffled, starting from a random
   /// entry (v0.1.6's Album/Playlist shuffle button).
@@ -227,11 +244,82 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> playShuffled(List<Track> tracks, {QueueOrigin? origin}) async {
     if (tracks.isEmpty) return;
     final startIndex = tracks.length == 1 ? 0 : Random().nextInt(tracks.length);
-    await _playNow(
-      tracks,
-      startIndex: startIndex,
-      shuffle: true,
-      origin: origin,
+    await _startLocally(
+      () => _playNow(
+        tracks,
+        startIndex: startIndex,
+        shuffle: true,
+        origin: origin,
+      ),
+    );
+  }
+
+  // ---- Explicit takeover (v0.6.0) ----
+
+  /// Runs [start] immediately unless this device is currently
+  /// remote-controlling another one — the single-owner invariant's ban on
+  /// a silent second stream, applied to every entry point that begins a
+  /// *new* local queue. When there is something to take over from, [start]
+  /// is held rather than run, and [PlaybackUiState.pendingTakeoverDeviceName]
+  /// names the device so a shell-level listener can ask the listener
+  /// before anything actually happens.
+  ///
+  /// Deliberately does not guard [playAt]/[playNext]/queue edits: those
+  /// act on the queue *this* device already owns, never on someone else's
+  /// session, so they are never a takeover in the first place.
+  Future<void> _startLocally(Future<void> Function() start) async {
+    final owned = _remoteOwnership?.controlledDevice;
+    if (owned == null) {
+      await start();
+      return;
+    }
+    _pendingLocalPlay = start;
+    emit(
+      PlaybackUiState(
+        queue: state.queue,
+        status: state.status,
+        position: state.position,
+        duration: state.duration,
+        lastFailure: state.lastFailure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: owned.name,
+      ),
+    );
+  }
+
+  /// The listener has confirmed: stop the device named in
+  /// [PlaybackUiState.pendingTakeoverDeviceName] and run the local play
+  /// that was waiting on that answer. A no-op if nothing is pending —
+  /// safe to call from a dialog that could be dismissed twice.
+  Future<void> confirmTakeover() async {
+    final pending = _pendingLocalPlay;
+    if (pending == null) return;
+    _pendingLocalPlay = null;
+    await _remoteOwnership?.releaseForTakeover();
+    _clearPendingTakeover();
+    await pending();
+  }
+
+  /// The listener declined: the local play that was waiting is dropped,
+  /// and whatever this device was controlling keeps playing there,
+  /// untouched. A no-op if nothing is pending.
+  void cancelTakeover() {
+    if (_pendingLocalPlay == null) return;
+    _pendingLocalPlay = null;
+    _clearPendingTakeover();
+  }
+
+  void _clearPendingTakeover() {
+    if (state.pendingTakeoverDeviceName == null) return;
+    emit(
+      PlaybackUiState(
+        queue: state.queue,
+        status: state.status,
+        position: state.position,
+        duration: state.duration,
+        lastFailure: state.lastFailure,
+        systemVolume: state.systemVolume,
+      ),
     );
   }
 
@@ -341,6 +429,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         status: PlaybackStatus.loading,
         position: initialPosition,
         duration: queue.currentEntry?.duration,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     unawaited(_queueRepository.replace(queue));
@@ -388,7 +478,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// call from a card that may be tapped twice.
   Future<void> resume() async {
     if (state.queue.isEmpty || state.isPlaying) return;
-    await _engine.play(allowRemoteRoute: false);
+    await _startLocally(() => _engine.play(allowRemoteRoute: false));
   }
 
   Future<void> seek(Duration position) =>
@@ -516,6 +606,40 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     unawaited(_engine.setNormalization(effective));
   }
 
+  // ---- System volume (v0.6.0) ----
+
+  /// Sets this device's own output volume and republishes state so any
+  /// device currently controlling this one — `RemoteQueueProjection.apply`
+  /// carries [PlaybackUiState.systemVolume] straight into
+  /// `RemotePlaybackSnapshot.volume` — sees the new level. A platform with
+  /// no settable system volume leaves [PlaybackEngine.systemVolume]
+  /// answering `null`, so nothing is emitted; `SupportedRemoteCommands`
+  /// is what keeps such a build from ever being asked in the first place.
+  Future<void> setSystemVolume(double volume) async {
+    await _engine.setSystemVolume(volume.clamp(0.0, 1.0));
+    await _refreshSystemVolume();
+  }
+
+  /// Reads this device's actual output volume back from the engine and
+  /// publishes it, rather than trusting the value just requested — the
+  /// same "report what really happened" discipline every other command in
+  /// this class already follows.
+  Future<void> _refreshSystemVolume() async {
+    final volume = await _engine.systemVolume();
+    if (volume == null || volume == state.systemVolume) return;
+    emit(
+      PlaybackUiState(
+        queue: state.queue,
+        status: state.status,
+        position: state.position,
+        duration: state.duration,
+        lastFailure: state.lastFailure,
+        systemVolume: volume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
+      ),
+    );
+  }
+
   Future<void> _mutate(PlaybackQueue Function(PlaybackQueue queue) transform) =>
       _enqueue(() => _mutateNow(transform));
 
@@ -533,6 +657,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         position: position,
         duration: state.duration,
         lastFailure: state.lastFailure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     unawaited(_queueRepository.replace(queue));
@@ -562,6 +688,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         status: PlaybackStatus.loading,
         duration: entry.duration,
         lastFailure: state.lastFailure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     unawaited(
@@ -664,6 +792,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
           position: state.position,
           duration: state.duration,
           lastFailure: state.lastFailure,
+          systemVolume: state.systemVolume,
+          pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
         ),
       );
       unawaited(_queueRepository.replace(updated));
@@ -734,6 +864,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         position: state.position,
         duration: state.duration,
         lastFailure: failure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     if (status == PlaybackStatus.playing) {
@@ -763,6 +895,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         position: position,
         duration: state.duration,
         lastFailure: state.lastFailure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
   }
@@ -775,6 +909,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         position: state.position,
         duration: duration,
         lastFailure: state.lastFailure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
   }
@@ -798,6 +934,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         queue: queue,
         status: state.status,
         duration: entry.duration,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     unawaited(
@@ -845,6 +983,8 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
         position: state.position,
         duration: state.duration,
         lastFailure: failure,
+        systemVolume: state.systemVolume,
+        pendingTakeoverDeviceName: state.pendingTakeoverDeviceName,
       ),
     );
     unawaited(_queueRepository.replace(queue));

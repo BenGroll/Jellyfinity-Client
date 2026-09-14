@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:audio_service/audio_service.dart' as audio_service;
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 
 import '../../domain/connected_playback/ActiveTransportRoute.dart';
@@ -377,6 +378,56 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     _sources = const [];
     queue.add(const []);
     mediaItem.add(null);
+  }
+
+  // ---- System volume (v0.6.0) ----
+
+  /// The one platform channel every build shares, whether or not the
+  /// running platform ever answers it — Android and Windows are the only
+  /// sides that register a handler (`MainActivity.kt`,
+  /// `flutter_window.cpp`); every other platform simply has nothing
+  /// listening, which [_supportsSystemVolume] avoids ever reaching.
+  static const MethodChannel _deviceChannel = MethodChannel(
+    'io.nachbar.jellyfinity/device',
+  );
+
+  /// The only platforms with a real native volume bridge (v0.6.0 requires
+  /// "Windows and Android at minimum"). Checked before ever touching
+  /// [_deviceChannel] so a platform nobody wired one for (iOS, the
+  /// preserved-but-not-extended platform per `CONTEXT.md`) gets a plain
+  /// `null` instead of a `MissingPluginException`.
+  bool get _supportsSystemVolume => Platform.isAndroid || Platform.isWindows;
+
+  @override
+  Future<double?> systemVolume() async {
+    if (!_supportsSystemVolume) return null;
+    try {
+      final level = await _deviceChannel.invokeMethod<double>(
+        'getSystemVolume',
+      );
+      return level?.clamp(0.0, 1.0);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> setSystemVolume(double volume) async {
+    if (!_supportsSystemVolume) return;
+    try {
+      await _deviceChannel.invokeMethod<void>(
+        'setSystemVolume',
+        volume.clamp(0.0, 1.0),
+      );
+    } on PlatformException {
+      // Matches setNormalization's "must not fail" contract — a device
+      // that briefly cannot reach its own audio service should not crash
+      // the command that tried to raise its volume.
+    } on MissingPluginException {
+      return;
+    }
   }
 
   // ---- Crossfade (ADR-0016) ----

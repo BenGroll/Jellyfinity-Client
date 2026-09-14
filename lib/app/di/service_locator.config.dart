@@ -21,6 +21,8 @@ import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.d
     as _i217;
 import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart'
     as _i846;
+import 'package:jellyfinity/app/connected_playback/PlaybackControlOwnership.dart'
+    as _i467;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/di/ConnectedPlaybackTransportModule.dart'
     as _i1017;
@@ -45,6 +47,8 @@ import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackTransport
     as _i231;
 import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart'
     as _i40;
+import 'package:jellyfinity/domain/connected_playback/RemotePlaybackOwnership.dart'
+    as _i777;
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
     as _i813;
 import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
@@ -524,6 +528,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i797.OfflineMode>(),
       ),
     );
+    gh.lazySingleton<_i126.PlaybackCubit>(
+      () => _i126.PlaybackCubit(
+        gh<_i717.PlaybackEngine>(),
+        gh<_i642.QueueRepository>(),
+        gh<_i922.AudioSourceResolver>(),
+        gh<_i474.PlaybackProgressRepository>(),
+        gh<_i175.ListeningHistoryRepository>(),
+        gh<_i230.SettingsCubit>(),
+        remoteOwnership: gh<_i777.RemotePlaybackOwnership>(),
+      ),
+    );
     gh.lazySingleton<_i685.FavoritesRepository>(
       () => _i278.CachedFavoritesRepository(
         gh<_i545.JellyfinFavoritesRepository>(),
@@ -583,6 +598,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i29.NowPlayingDetailsCubit>(
       () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
     );
+    gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
+      () => _i217.ConnectedPlaybackTargetLink(
+        gh<_i126.PlaybackCubit>(),
+        gh<_i231.ConnectedPlaybackTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.factory<_i169.MusicSearchCubit>(
       () => _i169.MusicSearchCubit(
         gh<_i747.MusicLibraryRepository>(),
@@ -596,16 +620,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i747.PlaylistRepository>(),
         gh<_i720.DownloadsLibrarySource>(),
         gh<_i797.OfflineMode>(),
-      ),
-    );
-    gh.lazySingleton<_i126.PlaybackCubit>(
-      () => _i126.PlaybackCubit(
-        gh<_i717.PlaybackEngine>(),
-        gh<_i642.QueueRepository>(),
-        gh<_i922.AudioSourceResolver>(),
-        gh<_i474.PlaybackProgressRepository>(),
-        gh<_i175.ListeningHistoryRepository>(),
-        gh<_i230.SettingsCubit>(),
       ),
     );
     gh.factory<_i824.ArtistStatsCubit>(
@@ -650,19 +664,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i612.Logger>(),
       ),
     );
+    gh.lazySingleton<_i777.RemotePlaybackOwnership>(
+      () => _i467.PlaybackControlOwnership(gh<_i846.PlaybackControlCubit>()),
+    );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(
         gh<_i747.MediaMetadataRepository>(),
         gh<_i797.OfflineMode>(),
-      ),
-    );
-    gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
-      () => _i217.ConnectedPlaybackTargetLink(
-        gh<_i126.PlaybackCubit>(),
-        gh<_i231.ConnectedPlaybackTransport>(),
-        gh<_i809.SessionCubit>(),
-        gh<_i260.MusicLibraryRepository>(),
-        gh<_i612.Logger>(),
       ),
     );
     gh.factory<_i861.DevicePickerCubit>(

@@ -109,6 +109,25 @@ abstract class PlaybackEngine {
   /// needed again before anything can play.
   Future<void> stop();
 
+  /// This device's own output volume, as a 0.0-1.0 fraction of the
+  /// platform's own volume range (v0.6.0) — the OS/hardware output level,
+  /// never [setNormalization]'s loudness gain or crossfade's ramp, both of
+  /// which are internal to the mix and invisible to anything outside it.
+  ///
+  /// `null` when this platform has no settable system output volume to
+  /// report. A platform that cannot must say so by returning `null` here
+  /// rather than inventing a number — this is what lets
+  /// `RemotePlaybackSnapshot.volume` stay honestly absent instead of
+  /// silently `0`, and what a volume control's visibility is gated on.
+  Future<double?> systemVolume();
+
+  /// Sets this device's own output volume to [volume] (0.0-1.0).
+  ///
+  /// Only ever called after [systemVolume] has reported non-`null` for
+  /// this platform — like [setNormalization], an implementation with no
+  /// settable system volume must treat this as a no-op; it must not fail.
+  Future<void> setSystemVolume(double volume);
+
   Stream<PlaybackStatus> get statusStream;
 
   /// The current source's playback position.

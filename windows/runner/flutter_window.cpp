@@ -3,7 +3,71 @@
 #include <optional>
 #include <flutter/standard_method_codec.h>
 
+#include <endpointvolume.h>
+#include <mmdeviceapi.h>
+#include <wrl/client.h>
+
 #include "flutter/generated_plugin_registrant.h"
+
+#pragma comment(lib, "ole32.lib")
+
+namespace {
+
+using Microsoft::WRL::ComPtr;
+
+// The default audio render endpoint's master volume, as a 0.0-1.0 scalar,
+// or nullopt when no endpoint could be reached (no audio device present,
+// COM not initialized on this thread, or similar) — the "must say so"
+// half of RemoteCommandKind.setVolume's PlaybackEngine.systemVolume
+// contract. COM itself is already initialized once in main.cpp.
+std::optional<float> GetSystemVolume() {
+  ComPtr<IMMDeviceEnumerator> enumerator;
+  if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+                               CLSCTX_ALL, IID_PPV_ARGS(&enumerator)))) {
+    return std::nullopt;
+  }
+  ComPtr<IMMDevice> device;
+  if (FAILED(
+          enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device))) {
+    return std::nullopt;
+  }
+  ComPtr<IAudioEndpointVolume> endpoint_volume;
+  if (FAILED(device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL,
+                               nullptr,
+                               reinterpret_cast<void**>(
+                                   endpoint_volume.GetAddressOf())))) {
+    return std::nullopt;
+  }
+  float level = 0.0f;
+  if (FAILED(endpoint_volume->GetMasterVolumeLevelScalar(&level))) {
+    return std::nullopt;
+  }
+  return level;
+}
+
+bool SetSystemVolume(float level) {
+  ComPtr<IMMDeviceEnumerator> enumerator;
+  if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+                               CLSCTX_ALL, IID_PPV_ARGS(&enumerator)))) {
+    return false;
+  }
+  ComPtr<IMMDevice> device;
+  if (FAILED(
+          enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device))) {
+    return false;
+  }
+  ComPtr<IAudioEndpointVolume> endpoint_volume;
+  if (FAILED(device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL,
+                               nullptr,
+                               reinterpret_cast<void**>(
+                                   endpoint_volume.GetAddressOf())))) {
+    return false;
+  }
+  return SUCCEEDED(
+      endpoint_volume->SetMasterVolumeLevelScalar(level, nullptr));
+}
+
+}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -59,6 +123,41 @@ bool FlutterWindow::OnCreate() {
         result->Success(flutter::EncodableValue(
             static_cast<int64_t>(available.QuadPart)));
       });
+  // Same channel name and method vocabulary as the Android side
+  // (MainActivity.kt) so JustAudioPlaybackEngine's Dart code needs no
+  // per-platform branching beyond "is this a platform with a bridge at
+  // all" (v0.6.0 — RemoteCommandKind.setVolume's real execution path).
+  device_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "io.nachbar.jellyfinity/device",
+          &flutter::StandardMethodCodec::GetInstance());
+  device_channel_->SetMethodCallHandler(
+      [](const auto& call, auto result) {
+        if (call.method_name() == "getSystemVolume") {
+          auto volume = GetSystemVolume();
+          if (!volume) {
+            result->Success(flutter::EncodableValue());
+            return;
+          }
+          result->Success(
+              flutter::EncodableValue(static_cast<double>(*volume)));
+        } else if (call.method_name() == "setSystemVolume") {
+          const auto* value = call.arguments()
+              ? std::get_if<double>(call.arguments())
+              : nullptr;
+          if (!value) {
+            result->Error("invalid_volume",
+                           "A numeric volume between 0.0 and 1.0 is "
+                           "required.");
+            return;
+          }
+          SetSystemVolume(static_cast<float>(*value));
+          result->Success();
+        } else {
+          result->NotImplemented();
+        }
+      });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -75,6 +174,7 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   storage_channel_ = nullptr;
+  device_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

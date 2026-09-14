@@ -12,6 +12,8 @@ import 'package:jellyfinity/domain/media/ListeningHistoryEntry.dart';
 import 'package:jellyfinity/domain/media/ListeningHistoryRepository.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/MediaMetadataRepository.dart';
+import 'package:jellyfinity/domain/connected_playback/ConnectedDevice.dart';
+import 'package:jellyfinity/domain/connected_playback/RemotePlaybackOwnership.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart';
 import 'package:jellyfinity/domain/playback/AudioSourceResolver.dart';
@@ -44,6 +46,7 @@ PlaybackCubit fakePlaybackCubit({
   SettingsCubit? settings,
   ListeningHistoryRepository? history,
   FakePlaybackEngine? engine,
+  RemotePlaybackOwnership? remoteOwnership,
 }) => PlaybackCubit(
   engine ?? FakePlaybackEngine(),
   FakeQueueRepository(),
@@ -51,7 +54,25 @@ PlaybackCubit fakePlaybackCubit({
   RecordingPlaybackProgressRepository(),
   history ?? RecordingListeningHistoryRepository(),
   settings ?? fakeSettingsCubit(),
+  remoteOwnership: remoteOwnership,
 );
+
+/// A [RemotePlaybackOwnership] a test can steer directly — set
+/// [controlledDevice] to simulate this device currently remote-controlling
+/// one, and read [releaseCalls] to assert an explicit takeover actually
+/// released it (v0.6.0).
+class FakeRemotePlaybackOwnership implements RemotePlaybackOwnership {
+  @override
+  ConnectedDevice? controlledDevice;
+
+  int releaseCalls = 0;
+
+  @override
+  Future<void> releaseForTakeover() async {
+    releaseCalls++;
+    controlledDevice = null;
+  }
+}
 
 /// A [PlaybackEngine] a test can both drive (call the transport methods
 /// on) and steer (push stream events as if the real engine produced
@@ -97,6 +118,12 @@ class FakePlaybackEngine implements PlaybackEngine {
   bool? lastPlayAllowedRemoteRoute;
   bool? lastPauseAllowedRemoteRoute;
   bool? lastSeekAllowedRemoteRoute;
+
+  /// What [systemVolume] answers — `null` simulates a platform with no
+  /// settable system volume, matching the real engine's contract. Set
+  /// directly by a test rather than through [setSystemVolume] to seed a
+  /// starting value.
+  double? systemVolumeValue;
 
   @override
   Future<void> setSources(
@@ -180,6 +207,19 @@ class FakePlaybackEngine implements PlaybackEngine {
     sources = const [];
     currentIndex = null;
     _statusController.add(PlaybackStatus.idle);
+  }
+
+  @override
+  Future<double?> systemVolume() async => systemVolumeValue;
+
+  @override
+  Future<void> setSystemVolume(double volume) async {
+    calls.add('setSystemVolume($volume)');
+    // Mirrors the real contract: a platform with no settable system
+    // volume (simulated by leaving systemVolumeValue null) treats this as
+    // a no-op rather than inventing a level to report back.
+    if (systemVolumeValue == null) return;
+    systemVolumeValue = volume.clamp(0.0, 1.0);
   }
 
   @override

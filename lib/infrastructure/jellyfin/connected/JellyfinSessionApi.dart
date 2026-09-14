@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:injectable/injectable.dart';
 
 import '../../../core/logging/Logger.dart';
@@ -251,15 +253,17 @@ class JellyfinSessionApi {
   /// stop, next, previous and seek are `PlaystateCommand` values, not
   /// general commands, and a session declares it accepts all of them by
   /// naming the single `PlayState` entry that carries them. `SetVolume`
-  /// is left out on purpose, for the reason `supportedRemoteCommands`
-  /// gives: no Jellyfinity platform exposes a settable output volume
-  /// yet, and claiming one produces a control that does nothing.
-  static const List<String> _supportedCommandNames = [
+  /// joined in v0.6.0, gated the same way `supportedRemoteCommands` gates
+  /// `RemoteCommandKind.setVolume` — only where this build actually has a
+  /// native volume bridge (Android, Windows); claiming it elsewhere would
+  /// advertise a control that does nothing.
+  static List<String> get _supportedCommandNames => [
     'Play',
     'PlayState',
     'SetRepeatMode',
     'SetShuffleQueue',
     envelopeCommandName,
+    if (Platform.isAndroid || Platform.isWindows) 'SetVolume',
   ];
 
   static String _trimTrailingSlash(String path) =>

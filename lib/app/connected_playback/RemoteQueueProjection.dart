@@ -48,6 +48,11 @@ abstract final class RemoteQueueProjection {
       repeatMode: queue.repeatMode,
       originName: queue.origin?.name,
       clearOrigin: queue.origin == null,
+      // `copyWith`'s `volume ?? this.volume` already keeps the last known
+      // level when this platform hasn't answered yet (or never will) —
+      // exactly right here too: a fresh publish with volume still
+      // unknown must not overwrite one this target already reported.
+      volume: state.systemVolume,
     );
   }
 
