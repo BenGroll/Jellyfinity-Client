@@ -185,6 +185,26 @@ final class SetRepeatCommand extends RemoteCommand {
   Map<String, Object?> get payload => {'repeatMode': repeatMode.name};
 }
 
+/// A directed request for the receiving device to join a SyncPlay group.
+/// It has no expected revision because membership belongs to SyncPlay.
+final class JoinSyncGroupCommand extends RemoteCommand {
+  const JoinSyncGroupCommand({
+    required super.id,
+    required super.scope,
+    required super.targetSessionId,
+    required this.groupId,
+    super.lifetime,
+  });
+
+  final String groupId;
+
+  @override
+  RemoteCommandKind get kind => RemoteCommandKind.joinSyncGroup;
+
+  @override
+  Map<String, Object?> get payload => {'groupId': groupId};
+}
+
 /// Replace the target's whole queue and start at [startIndex].
 ///
 /// The one structural command that is naturally idempotent: sending the
@@ -491,6 +511,20 @@ RemoteCommandDecoding decodeRemoteCommand(
           targetSessionId: target,
           repeatMode: mode,
           expectedRevision: expected,
+          lifetime: lifetime,
+        ),
+      );
+    case RemoteCommandKind.joinSyncGroup:
+      final groupId = _string(payload['groupId']);
+      if (groupId == null) {
+        return const UnreadableRemoteCommand('joinSyncGroup without a group');
+      }
+      return DecodedRemoteCommand(
+        JoinSyncGroupCommand(
+          id: commandId,
+          scope: scope,
+          targetSessionId: target,
+          groupId: groupId,
           lifetime: lifetime,
         ),
       );

@@ -60,7 +60,10 @@ enum RemoteCommandKind {
   /// Ask the target to re-send its full snapshot. The one command that
   /// never carries an expected revision: it is what a controller sends
   /// precisely because it no longer knows what the revision is.
-  requestSnapshot;
+  requestSnapshot,
+
+  /// Asks a peer to join a particular Jellyfin SyncPlay group.
+  joinSyncGroup;
 
   /// Whether this command names a specific row or arrangement of the
   /// queue, and therefore must match the revision it was composed

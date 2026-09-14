@@ -35,6 +35,7 @@ class RemotePlaybackSnapshot extends Equatable {
     this.repeatMode = RepeatMode.off,
     this.volume,
     this.originName,
+    this.syncGroupId,
   });
 
   /// What a target that has nothing loaded reports. A controller showing
@@ -93,6 +94,9 @@ class RemotePlaybackSnapshot extends Equatable {
   /// context.
   final String? originName;
 
+  /// Jellyfin SyncPlay group currently producing this queue, when any.
+  final String? syncGroupId;
+
   RemoteQueueEntry? get currentEntry {
     final index = currentIndex;
     if (index == null || index < 0 || index >= queue.length) return null;
@@ -125,6 +129,8 @@ class RemotePlaybackSnapshot extends Equatable {
     double? volume,
     String? originName,
     bool clearOrigin = false,
+    String? syncGroupId,
+    bool clearSyncGroupId = false,
   }) {
     return RemotePlaybackSnapshot(
       scope: scope,
@@ -140,6 +146,7 @@ class RemotePlaybackSnapshot extends Equatable {
       repeatMode: repeatMode ?? this.repeatMode,
       volume: volume ?? this.volume,
       originName: clearOrigin ? null : (originName ?? this.originName),
+      syncGroupId: clearSyncGroupId ? null : (syncGroupId ?? this.syncGroupId),
     );
   }
 
@@ -160,6 +167,7 @@ class RemotePlaybackSnapshot extends Equatable {
     'repeatMode': repeatMode.name,
     if (volume != null) 'volume': volume,
     if (originName != null) 'originName': originName,
+    if (syncGroupId != null) 'syncGroupId': syncGroupId,
   };
 
   /// Reverses [toPayload] against the envelope's already-verified
@@ -199,6 +207,7 @@ class RemotePlaybackSnapshot extends Equatable {
     final positionMs = payload['positionMs'];
     final volume = payload['volume'];
     final originName = payload['originName'];
+    final syncGroupId = payload['syncGroupId'];
     return RemotePlaybackSnapshot(
       scope: scope,
       sessionId: sessionId,
@@ -220,6 +229,9 @@ class RemotePlaybackSnapshot extends Equatable {
       originName: originName is String && originName.isNotEmpty
           ? originName
           : null,
+      syncGroupId: syncGroupId is String && syncGroupId.isNotEmpty
+          ? syncGroupId
+          : null,
     );
   }
 
@@ -236,5 +248,6 @@ class RemotePlaybackSnapshot extends Equatable {
     repeatMode,
     volume,
     originName,
+    syncGroupId,
   ];
 }

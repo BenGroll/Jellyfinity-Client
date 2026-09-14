@@ -70,6 +70,7 @@ class PlaybackControlState extends Equatable {
     this.commandStatus,
     this.commandError,
     this.originName,
+    this.syncGroupId,
   });
 
   /// The device being controlled, or `null` when this device is not
@@ -113,6 +114,7 @@ class PlaybackControlState extends Equatable {
   final String? commandError;
 
   final String? originName;
+  final String? syncGroupId;
 
   bool get isControlling => device != null;
 
@@ -143,6 +145,8 @@ class PlaybackControlState extends Equatable {
     bool clearCommandError = false,
     String? originName,
     bool clearOrigin = false,
+    String? syncGroupId,
+    bool clearSyncGroupId = false,
   }) => PlaybackControlState(
     device: device,
     queue: queue ?? this.queue,
@@ -174,6 +178,7 @@ class PlaybackControlState extends Equatable {
     commandStatus,
     commandError,
     originName,
+    syncGroupId,
   ];
 }
 
@@ -352,6 +357,8 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
         ),
         originName: snapshot.originName,
         clearOrigin: snapshot.originName == null,
+        syncGroupId: snapshot.syncGroupId,
+        clearSyncGroupId: snapshot.syncGroupId == null,
       ),
     );
     _updateTicker();
@@ -496,6 +503,13 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
     emit(state.copyWith(position: position));
     return _send(RemoteCommandKind.seek, (session) => session.seek(position));
   }
+
+  /// Requests the controlled peer join [groupId]. SyncPlay owns the shared
+  /// queue and transport; this command only bridges device membership.
+  Future<Result<void>> joinSyncGroup(String groupId) => _send(
+    RemoteCommandKind.joinSyncGroup,
+    (session) => session.joinSyncGroup(groupId),
+  );
 
   Future<Result<void>> _send(
     RemoteCommandKind kind,

@@ -175,6 +175,9 @@ class RemotePlaybackTarget {
   RemotePlaybackSnapshot? _apply(RemoteCommand command) {
     final state = _snapshot;
     switch (command) {
+      case JoinSyncGroupCommand():
+        return state;
+
       case SeekCommand(:final position):
         if (state.currentEntry == null) return null;
         return state.copyWith(position: position);
@@ -242,6 +245,8 @@ class RemotePlaybackTarget {
     RemoteCommandKind kind,
   ) {
     switch (kind) {
+      case RemoteCommandKind.joinSyncGroup:
+        return null;
       case RemoteCommandKind.requestSnapshot:
         // No state change, and deliberately no revision bump: the answer
         // is the snapshot itself, republished by the caller.

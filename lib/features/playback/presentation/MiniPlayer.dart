@@ -212,7 +212,8 @@ class _RemoteMiniPlayer extends StatelessWidget {
           )
         : 0.0;
     final subtitle =
-        _connectionSubtitle(control) ?? control.device!.displayName;
+        _connectionSubtitle(control) ??
+        'Playing on ${control.device!.displayName}';
     final canTogglePlay = control.commandAvailable(RemoteCommandKind.playPause);
 
     return _MiniPlayerBar(

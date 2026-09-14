@@ -106,6 +106,9 @@ class ConnectedPlaybackControllerSession {
 
   Future<Result<void>> requestSnapshot() => _send(controller.requestSnapshot());
 
+  Future<Result<void>> joinSyncGroup(String groupId) =>
+      _send(controller.joinSyncGroup(groupId));
+
   Future<void> dispose() async {
     await _envelopeSub.cancel();
     await _snapshots.close();
