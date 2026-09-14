@@ -385,6 +385,7 @@ class JellyfinSessionTransport
     _connecting = true;
     _reconnect?.cancel();
     _reconnect = null;
+
     try {
       _setConnection(
         _socketEverConnected
@@ -477,8 +478,10 @@ class JellyfinSessionTransport
       ));
     }
 
+    _logger.info("Connected playback: opening Jellyfin socket.");
     try {
-      final socket = await connector(url);
+      final socket = await connector(url).timeout(const Duration(seconds: 10));
+      _logger.info("Connected playback: Jellyfin socket connected.");
       _socket = socket;
       _socketEverConnected = true;
       _nextReconnectDelay = Duration.zero;
@@ -513,6 +516,7 @@ class JellyfinSessionTransport
 
   void _onFrame(String frame) {
     final Object? decoded;
+
     try {
       decoded = jsonDecode(frame);
     } on FormatException {
@@ -675,6 +679,7 @@ class JellyfinSessionTransport
     _keepAlive = Timer.periodic(period, (_) {
       final socket = _socket;
       if (socket == null) return;
+
       try {
         socket.send(jsonEncode({'MessageType': 'KeepAlive'}));
       } catch (error) {
@@ -703,6 +708,7 @@ class JellyfinSessionTransport
     _socketMessages = null;
     _socket = null;
     await subscription?.cancel();
+
     try {
       await socket?.close();
     } catch (_) {
