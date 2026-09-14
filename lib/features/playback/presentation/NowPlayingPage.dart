@@ -1212,7 +1212,7 @@ class _RemotePlayerTopBar extends StatelessWidget {
             ),
             Expanded(
               child: Text(
-                'Controlling ${control.device!.displayName}',
+                'Playing on ${control.device!.displayName}',
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

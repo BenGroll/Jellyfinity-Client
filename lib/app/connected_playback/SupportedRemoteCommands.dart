@@ -55,6 +55,7 @@ DeviceCapabilities get supportedRemoteCommands => DeviceCapabilities(
     RemoteCommandKind.removeQueueEntry,
     RemoteCommandKind.moveQueueEntry,
     RemoteCommandKind.requestSnapshot,
+    RemoteCommandKind.joinSyncGroup,
     if (debugSystemVolumeSupported) RemoteCommandKind.setVolume,
   },
 );

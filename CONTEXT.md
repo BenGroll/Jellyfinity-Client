@@ -1,73 +1,43 @@
 # Jellyfinity context
 
-Jellyfinity is a free, open-source Flutter client for Jellyfin, primarily for
-Android, iOS and Windows. Its promise is to make a self-hosted server feel like a
-polished streaming service. Minimum supported server: **Jellyfin 10.11.6**.
-
-This file contains only constraints that commonly affect implementation. Read
-`PHILOSOPHY.md` for product rationale or `OUTLOOK.md` for uncommitted future
-ideas only when a concrete decision requires them.
+Stable constraints that commonly affect implementation. Read rationale only
+when a concrete decision needs it: `PHILOSOPHY.md`; future ideas:
+`OUTLOOK.md`.
+Minimum supported server: Jellyfin 10.11.6.
 
 ## Product invariants
 
-- Never leave users guessing. Distinguish loading, empty, partial, offline,
-  cached, unavailable, unauthorized, and failed states. Prefer usable partial
-  results to failing a whole screen.
-- UX feedback, loading behavior, error handling, and perceived reliability are
-  part of feature completion.
+- Make state explicit: distinguish loading, empty, partial, offline, cached,
+  unavailable, unauthorized, and failed. Preserve usable partial results.
 - Music is the initial focus; movies and TV remain future first-class media.
-- Offline is primarily an item's availability state. A user may also switch the
-  whole app offline deliberately ("Work offline"), and choose whether that view
-  is the full cached library or downloads only (v0.2.3, ADR-0023); this is a
-  convenience over the availability model, not a rebuild of it. Downloaded media
-  is first-class local media and is not disposable cache.
+- Offline is an availability state. Work-offline may show the cached library or
+  downloads only; downloaded media is durable first-class local media.
 - No ads, paid tiers, unnecessary telemetry, or unnecessary cloud dependency.
-- Treat roughly 130k songs, 500 movies, and 4k episodes as normal scale. Use
-  pagination, lazy/virtualized lists, server-side filtering, indexed storage,
-  and bounded caches; never load a whole library into memory.
+- Support roughly 130k songs, 500 movies, and 4k episodes with pagination,
+  lazy or virtualized lists, indexed storage, and bounded caches.
 
 ## Architecture invariants
 
-Use feature-first Clean Architecture with shared modules only for concepts that
-genuinely span features:
-
 ```text
-UI -> presentation -> domain contracts <- infrastructure implementations
+UI -> presentation -> domain contracts <- infrastructure
 ```
 
-- Widgets must not consume raw Jellyfin JSON/API DTOs.
-- Keep transport, domain, presentation, and persistence models distinct.
-- Keep `Server`, `User`, credentials, session, saved account, and active account
-  distinct.
-- The playback queue belongs to Jellyfinity's application/domain state, not to
-  an audio package.
-- Prefer feature-local code. Do not build speculative abstractions or a plugin
-  framework.
-- Dependencies should handle substantial infrastructure work, remain
-  replaceable, and not substitute for trivial local code.
+- Keep feature-local code and distinct transport, domain, presentation, and
+  persistence models. Widgets never consume raw Jellyfin DTOs or exceptions.
+- Keep `Server`, `User`, credentials, sessions, saved accounts, and the
+  active account distinct.
+- Playback queue state belongs to Jellyfinity application/domain state, not an
+  audio package.
+- Avoid speculative abstractions and plugins. Dependencies must provide
+  substantial, replaceable infrastructure value.
 
 ## Engineering invariants
 
-- Use TDD where meaningful and test behavior/contracts rather than coverage.
-- Every new feature must support Android and Windows. Verify equivalent
-  user-visible behavior on both; account for Android touch/background-media
-  conventions and Windows pointer, keyboard, windowed-layout, and media-session
-  conventions where relevant. Preserve iOS support unless scope explicitly says
-  otherwise.
-- Preserve useful partial state and normalize failures; never leak raw
-  exceptions into UI.
-- Record significant, durable architecture choices as concise ADRs.
-- Keep `main` releasable; use focused changes, meaningful commits, CI, semantic
-  versions, and changelog updates.
-- Before a major decision, check mobile support, large-library behavior,
-  testability, offline implications, dependency direction, and replaceability.
-
-## Documentation routing
-
-- `AGENTS.md`: mandatory minimal workflow for implementation agents.
-- `ROADMAP.md`: version/status index and links to exact specifications.
-- `docs/adr/README.md`: architecture decision index.
-- `README.md`: human development-environment setup.
-- `PHILOSOPHY.md`: detailed rationale; consult on product ambiguity.
-- `OUTLOOK.md`: uncommitted future ideas; not current scope.
-- `CHANGELOG.md`: implemented history; search it when current state is unclear.
+- Test behavior and contracts; use TDD where meaningful.
+- Every feature supports Android and Windows with equivalent behavior, including
+  relevant touch, background-media, pointer, keyboard, windowed-layout, and
+  media-session interactions. Preserve iOS unless scope changes.
+- Normalize failures and preserve partial state. Record durable architectural
+  choices as concise ADRs.
+- Before major decisions, check platform support, large-library behavior,
+  testability, offline effects, dependency direction, and replaceability.

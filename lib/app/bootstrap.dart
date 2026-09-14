@@ -17,7 +17,6 @@ import '../infrastructure/persistence/key_value_store.dart';
 import '../infrastructure/persistence/LegacyJsonImporter.dart';
 import '../infrastructure/playback/JustAudioPlaybackEngine.dart';
 import 'connected_playback/ActivePlaybackRouteAdapter.dart';
-import 'connected_playback/ActiveRemotePlaybackWatcher.dart';
 import 'connected_playback/ConnectedPlaybackLink.dart';
 import 'connected_playback/ConnectedPlaybackTargetLink.dart';
 import 'connected_playback/PlaybackControlCubit.dart';
@@ -188,13 +187,6 @@ Future<void> bootstrap({required Widget Function() builder}) async {
   // Every signed-in device runs this, unlike ConnectedPlaybackControllerSession
   // (constructed only once something actually picks a device to drive).
   unawaited(getIt<ConnectedPlaybackTargetLink>().start());
-
-  // Binds this app to another of the profile's devices when that device
-  // is already playing (v0.6.0), so opening Jellyfinity somewhere else
-  // shows the music instead of an empty player. Unawaited like the links
-  // above: it acts on the first roster update, which is network work the
-  // first frame must not wait for.
-  unawaited(getIt<ActiveRemotePlaybackWatcher>().start());
 
   // "Play on all devices" (v0.6.0, ADR-0045): resolving this once brings
   // its session subscription up, the same way every other connected-

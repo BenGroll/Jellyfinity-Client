@@ -214,6 +214,17 @@ class RemotePlaybackController {
   Result<RemoteCommand> requestSnapshot() =>
       _simple(RemoteCommandKind.requestSnapshot, needsProjection: false);
 
+  Result<RemoteCommand> joinSyncGroup(String groupId) => _compose(
+    RemoteCommandKind.joinSyncGroup,
+    (id, revision) => JoinSyncGroupCommand(
+      id: id,
+      scope: _target.scope,
+      targetSessionId: _target.sessionId,
+      groupId: groupId,
+    ),
+    needsProjection: false,
+  );
+
   Result<RemoteCommand> seek(Duration position) => _compose(
     RemoteCommandKind.seek,
     (id, revision) => SeekCommand(

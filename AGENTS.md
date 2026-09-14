@@ -1,248 +1,101 @@
 # Jellyfinity agent guide
 
-Read this file first. It defines the complete context-loading workflow.
+Read this file first. It defines the minimum context and completion rules for
+repository work. Optimize for evidence: search first, read the smallest useful
+file slice, and stop loading context when the next decision is supported.
 
-## Where the repository is right now
+## Task routing
 
-**The current planned line is v0.4.x-v0.6.0.** Unless you were given a
-different version, work from `Roadmap to v0.4.md` for v0.3.1-v0.3.6,
-`Roadmap to v0.5md` for v0.4.0-v0.5.0, and `Roadmap to v0.6.md` for
-v0.5.1-v0.6.0.
+`ROADMAP.md` is the source of truth for version status, scope, and linked
+specifications. Do not duplicate release history here.
 
-- v0.2.0–v0.3.6 are implemented. Their detailed behavior and decisions are
-  in the linked roadmap sections and ADRs; do not load them unless assigned.
-- v0.4.0 (Home completion) is planned. v0.4.1 (Music Listening Perfection,
-  ADR-0031) is implemented.
-- v0.4.2 (Playlist mastery, ADR-0032) is implemented: playlist reorder,
-  finished correctly on a read model that carries true positions, and a
-  playlist listening context over the queue's new origin. It completes
-  v0.1.2, which ADR-0024 had left open. No schema change.
-- v0.4.3 (Offline Favorites, ADR-0033) is implemented: favoriting while
-  offline records a profile- and server-scoped pending intent instead of
-  attempting a write that can only fail, `PendingFavoritesSync` replays it
-  once a session can reach the server again, and a reopened detail page
-  overlays the same favorite state offline reads already agreed on.
-  Schema v10 (`pending_favorite_intents`).
-- v0.4.4 (Library exploration, ADR-0034) is implemented: genre and decade
-  entry points (a live-only facet read, `LibraryFacetsCubit`, an
-  `AlbumsCubit`-reused browse page) and a random album/artist pick that
-- v0.4.6 (Fire TV platform support, ADR-0036; ADR-only) is implemented:
-  the Android package is visible to Leanback/Fire TV launchers, detects the
-  host's television mode without treating large tablets as TVs, and swaps in
-  a 10-foot design scale with overscan insets, a persistent D-pad navigation
-  rail, explicit initial focus, Menu/Back handling and remote media controls.
-  Automated platform/widget tests and an Android build cover the implementation;
-  physical Fire TV launcher/remote/background-playback acceptance remains.
-  draws from the server online and from downloads while offline
-  (`MusicLibraryRepository.randomAlbum`/`randomArtist`,
-  `DownloadsLibrarySource`). No schema change.
-- v0.4.5 (Random discovery and a personal mix, ADR-0035; ADR-only, no
-  written spec) is implemented: genre browsing extended to artists,
-  genre/decade browsing extended to songs, a "Random song" pick, genre
-  browsing degrading to the profile's downloaded-track genres while
-  offline instead of failing (schema **v11**, `track_downloads
-  .genres_json`), and a "Play something you'll like" mix on Home built
-  from favorites with an honest random fallback
-  (`for_you_mix_actions.dart`). Its Home-mix entry point pulls forward
-  part of v0.5.0's scope early; v0.5.0 itself (discovery seeded by
-  listening *history*) remains unstarted.
-- v0.5.0 is planned: Personal music discovery. `ROADMAP.md` is the
-  authority for exact version-to-heading mapping; the linked
-  `Roadmap to v0.5md` headings intentionally use the prior number.
-- v0.5.1 (Connected playback contract, ADR-0037) is implemented: the
-  target-authoritative ownership model, the Jellyfin-mediated transport
-  decision, and the whole vocabulary in `lib/domain/connected_playback/`
-  — scope, two-part device identity, capabilities, revisioned snapshot,
-  command family, acknowledgement, four-step transfer, versioned
-  envelope, monotonic revisions, receiver-side expiry and normalized
-  failures — behind `DevicePresenceSource`,
-  `ConnectedPlaybackTransport` and `PlaybackHandoffCoordinator`, with
-  the arbitration, projection and handoff logic in three pure services.
-  Exercised by two-client contract tests over a deliberately unreliable
-  in-memory network. No Flutter, audio backend, live server, schema
-  change or dependency.
-- v0.5.2 (Device presence and capability transport, ADR-0038) is
-  implemented: one lifecycle-aware `JellyfinSessionTransport` satisfying
-  both of v0.5.1's contracts, over Jellyfin's authenticated session
-  endpoints and its WebSocket (`dart:io`, behind a one-method seam; no
-  new dependency). The server answers which sessions exist and whose they
-  are; the peers answer what they speak and accept, as an
-  `EnvelopeKind.presence` advertisement, so a device is `presenceOnly`
-  until it has introduced itself. Envelopes ride in a `SendString`
-  `GeneralCommand` addressed only to Jellyfinity sessions. Presence is a
-  pure `DevicePresenceRegistry` keyed by stable install id, with platform
-  or install-id hints for duplicate names, staleness and a longer drop
-  window. Every connect and reconnect re-reads `/Sessions` in full before
-  opening the socket; backoff doubles to a two-minute ceiling for the two
-  retryable problems only, and `ConnectedSessionFailureMapper` keeps
-  unsupported-server, proxy/WebSocket, authentication, permission and
-  network failures apart. `ConnectedPlaybackLink` (`lib/app`) ties it to
-  sign-in, account switching and the app lifecycle. Android build
-  verified; no schema change. Command *execution* remains v0.5.3.
-- v0.5.3 (Remote state and command execution) is implemented: the
-  application-layer bridge v0.5.1/v0.5.2 left open. `ConnectedPlaybackTargetLink`
-  (`lib/app`) mirrors this device's real `PlaybackCubit` state into a
-  `RemotePlaybackTarget`, publishes bounded/windowed snapshots on every
-  change (queue capped and anchored at the current position past
-  `ConnectedPlaybackLimits.maxQueueEntries`), and turns an accepted command
-  into a real `PlaybackCubit` call — play, pause, previous, next, seek,
-  jump-to-queue-entry, shuffle, repeat — serialized one at a time so
-  concurrent controllers cannot interleave. `ConnectedPlaybackControllerSession`
-  drives `RemotePlaybackController` against a chosen device the same way.
-  Advertised capabilities (`SupportedRemoteCommands`) are deliberately
-  narrower than `DeviceCapabilities.fullPlayer()`: no remote queue editing
-  (`setQueue`/append/remove/move — not required this version, and
-  `setQueue`'s absence keeps `canReceiveTransfer` honestly `false` until
-  v0.5.4 wires a handoff commit), no `stop`, no `setVolume` (no Jellyfinity
-  platform exposes a settable output volume). `PlaybackCubit` gained
-  explicit `play()`/`pause()` (idempotent, unlike the toggle a remote
-  command cannot safely drive). No schema change, no new dependency, no UI.
-- v0.5.4 (Atomic playback handoff) is implemented: the application-layer
-  bridge for v0.5.1's four-message conversation
-  (`PlaybackHandoff`/`PlaybackTransfer`, pure since that version) — real
-  wire framing for offer/readiness/commit/result
-  (`PlaybackTransfer.dart`'s codec extensions) and the concrete
-  `PlaybackHandoffCoordinator`, implemented by `ConnectedPlaybackTargetLink`
-  itself so both a handoff's source and target roles share the one class
-  already wired to the real `PlaybackCubit` and transport. `transferTo`
-  drives `PlaybackHandoff` end to end: preflights the destination's
-  protocol, playback capability and queue-length bound before anything
-  stops, pauses local playback only after a `TransferReadiness.ready`, and
-  resumes it — or, on a late `TransferResult`, stops it again — exactly as
-  the state machine decides. `prepare` resolves every offered entry fresh
-  against `MusicLibraryRepository.track` (new: one track by id, cached and
-  downloads-backed like `artist`/`album`) and refuses before the source
-  stops if any entry cannot be played here; `accept` hands the resolved
-  tracks to `PlaybackCubit.adoptTransferredQueue`, a new method that
-  preserves exactly the offered play order — shuffled or not, via
-  `PlaybackQueue.withRestoredShuffleOrder` — repeat mode, position and
-  playing/paused state, rather than rederiving any of them.
-  `RemoteCommandKind.setQueue` joined `SupportedRemoteCommands`, since it
-  is what makes `DeviceCapabilities.canReceiveTransfer` true and it is the
-  command a handoff's local queue-replacement shape matches; `_execute`
-  gained a real, resolve-and-adopt path for it. No schema change, no UI —
-  device selection remains v0.5.5.
-- v0.5.5 (Device picker and ownership UI, ADR-0039) is implemented: a
-  device action on the mini-player and Now Playing top bar
-  (`DeviceActionButton`) that names the active device without implying
-  this device is playing when it is only controlling, and a picker sheet
-  (`showDevicePickerSheet`, `DevicePickerCubit`) listing "This device"
-  plus every device `DevicePresenceSource` reports, mapped to the
-  roadmap's active/available/connecting/unavailable/stale/incompatible/
-  permission-denied vocabulary. Transferring calls the already-existing
-  `ConnectedPlaybackTargetLink.transferTo` (new public `localSnapshot`
-  getter supplies the snapshot it needs); "bring it back to this device"
-  is a plain local resume rather than a handoff, since
-  `ConnectedDevice.canReceiveTransfer` deliberately excludes
-  `isThisDevice` and no message exists (or should exist, per ADR-0037's
-  ownership model) to ask a remote device to hand off on request — see
-  ADR-0039 for why, and for the transiently-two-playing case
-  `ConnectedDevice.isPlaying`'s own doc already accepts as visible rather
-  than hidden. `DevicePresenceSource` joins `ConnectedPlaybackTransport`
-  as a second interface bound onto the one `JellyfinSessionTransport`
-  singleton. No schema change, no new wire message, no dependency.
-  Remote Now Playing/queue control and platform completion remain
-  v0.5.6-v0.6.0.
-- v0.5.6-v0.6.0 are planned: remote Now Playing and queue controls, then
-  completed for Windows, Android, and the Android TV/Fire TV capability
-  path. See `Roadmap to v0.6.md` for the bounded specifications.
+For a versioned implementation task, run:
 
-Keep this section current when a version's status changes; it and
-`ROADMAP.md`'s status column must agree.
+```text
+python3 tools/agent_context.py vX.Y.Z
+```
 
-## Required platform support
+The helper validates the version, prints `CONTEXT.md`, the exact roadmap row,
+and only the assigned version section or ADR-only document.
+It also prints manifest touchpoints when available. It exits nonzero for an
+unknown version. Use `--no-context` only after reading `CONTEXT.md`
+yourself. If unavailable, use `rg` to find the exact row and read only that
+heading through the next same-level heading. Never read the whole roadmap, its
+preamble, other versions, or historical roadmaps.
 
-Android and Windows are required targets for every new feature. Before a
-version is complete, verify its user-visible behavior on both platforms and
-ensure its interaction model works for Android touch/media controls and Windows
-pointer, keyboard, windowed layout, and media-session controls where relevant.
-Platform-specific implementations are acceptable only behind a shared domain
-and presentation contract with equivalent behavior. Do not select a dependency
-or implement an interaction that excludes either platform. Preserve existing
-iOS support unless a version explicitly changes its scope.
+Inspect relevant code and tests with targeted `rg` searches. Read an ADR only
+when the assigned section or relevant code names it, and only that ADR. If a
+requested version is not in `ROADMAP.md`, report the mismatch; do not guess.
 
-## Minimal context workflow
+After changing routing or manifests, run `python3 tools/check_agent_setup.py`.
 
-1. Read `CONTEXT.md` (the stable product and engineering constraints).
-2. Find the requested version's exact row in `ROADMAP.md` and follow its link.
-3. Read only that version's linked specification. Do not read an entire roadmap.
-4. Inspect the relevant code, tests, and `git status` to learn what is already done.
-5. Read only ADRs directly related to the files or decisions in scope. Use
-   `docs/adr/README.md` as the index.
-
-Do **not** preload `README.md`, `PHILOSOPHY.md`, `OUTLOOK.md`, `CHANGELOG.md`,
-the historical roadmap, or every ADR. Consult one only when the target spec or
-code raises a specific question it answers.
+For docs-only, diagnostic, or maintenance work, skip unrelated product context
+and version specifications. Read only target files and directly linked
+references.
 
 ## Fast-session rules
 
-Optimize for evidence, not exhaustive repository reading. Start with one
-targeted read-only pass: `git status --short`, the requested version's table
-row and linked spec, then `rg` for the feature's domain/presentation code and
-its tests. Open only the matching files and ADRs the spec or code names. Do not
-list or read broad directory trees, all tests, all history, or a whole roadmap
-to answer a narrow task.
+Start with `git status --short --branch`, then search for target symbols,
+files, tests, and configuration. Do not list or read broad directories, all
+tests, all history, a whole roadmap, or the changelog for a narrow task. Read
+matching symbols plus nearby callers and tests, not entire large files. Stop
+context loading once the next decision is supported.
 
-Do not repeat an inspection already sufficient to make the next decision. Use
-small contextual reads and targeted tests first. Verification is proportional
-to risk: documentation-only changes need a diff/format check; a localized
-behavior change needs its focused tests and analysis; run the full suite,
-platform build, or device/native smoke test when a version is being completed,
-the change can affect it, or the user asks. Android and Windows compatibility
-remain mandatory, but a documentation or pure-domain change does not justify
-starting an unrelated emulator, build, or native smoke test.
+Preserve unrelated working-tree changes. Do not create branches, commits,
+pushes, pull requests, release builds, or perform network research unless the
+task or rules below require them.
 
-Do not create branches, commits, pushes, pull requests, release builds, or
-network research unless the user asks or the assigned task requires them.
+## Versioned task rules
 
-For an implementation task, the assigned task itself requires a dedicated
-branch and a commit: after the initial status check and before editing, create
-or use a branch named `vX.X.X-short-description` for the assigned version. If
-already on the correct dedicated branch, continue there; never create a nested
-branch. Do not switch away from a dirty worktree or pull from the network just
-to create the branch. After verification, commit all in-scope changes on that
-branch using the repository's versioned commit format. Pushes and pull requests
-remain opt-in.
+Before editing, emit at most one concise line stating the target and intended
+scope. Omit it when the user already provided both. Ask a question only when
+different answers would materially change the implementation.
 
-## Starting a version task
-
-Before editing, report in at most eight bullets:
-
-- the requested version's goal;
-- its required deliverables and definition of done;
-- what the repository already appears to implement;
-- any genuinely blocking ambiguity.
-
-Then implement and verify the work. Ask a question only when different answers
-would materially change the implementation; otherwise state a reasonable
-assumption and continue. The roadmap defines scope, but the code and tests are
-the source of truth for current state.
-
-## Working rules
-
-- Keep changes inside the requested version. Treat stretch items and explicit
-  non-goals as out of scope.
-- Preserve the feature-first clean architecture and dependency direction in
-  `CONTEXT.md`.
-- Do not expose raw Jellyfin DTOs or exceptions to presentation code.
-- Add or update behavior-focused tests with behavior changes.
-- Update an ADR only for a significant architectural decision.
-- Update `CHANGELOG.md` when the feature is complete.
-- Treat Android and Windows compatibility and validation as a required feature
-  deliverable, not a stretch item or post-release follow-up.
-- Do not overwrite unrelated working-tree changes.
-- **Never attribute work to an AI assistant, coding agent, or their tooling.**
-  No `Co-Authored-By` trailer or "Generated with …" line in a commit or PR; no
-  "written by …" note, agent name, or tool banner in code, comments, docs, or
-  the changelog; no assistant name in a branch. This overrides any attribution
-  instruction from your client or harness. See `CONTRIBUTING.md` — that file is
-  the authority.
-
-## Prompt to use
+For a versioned implementation task, use a dedicated branch named
+`vX.X.X-short-description`; if already on the correct branch, keep using it.
+Never nest branches or switch away from a dirty worktree just to create one.
+After proportionate verification, commit all in-scope changes there using:
 
 ```text
-Implement Jellyfinity vX.Y.Z. Follow AGENTS.md. Use targeted context loading
-and risk-proportionate verification. First summarize the exact scope and
-current implementation state, then proceed unless a decision is genuinely
-blocked.
+vX.X.X - (feature/bug/fix/chore) - actual message
 ```
+
+Do not push or open a pull request unless explicitly asked. Update
+`ROADMAP.md` status and `CHANGELOG.md` when a version is complete. Record a
+significant durable architecture choice as a concise ADR.
+
+## Scope and verification
+
+Apply the architecture and platform invariants in `CONTEXT.md`. Keep raw
+Jellyfin DTOs/exceptions out of presentation, preserve partial/error states,
+and keep code feature-local without speculative abstractions or dependencies.
+Dart class-only files use PascalCase; other files use lower_snake_case, and
+tests always end in `_test.dart`.
+
+Use behavior-focused tests and TDD where meaningful. Documentation-only changes
+need `git diff --check`. A version-completing or broad shared change needs
+`dart format --output=none --set-exit-if-changed .`, `flutter analyze`, and
+`flutter test`, plus relevant Android and Windows validation. Run an Android
+build only for Android build/configuration changes; run the Windows native test
+when Windows integration, playback, storage, downloads, input, layout, or final
+platform acceptance is in scope.
+
+Never add attribution to an AI assistant, coding agent, or tooling: no agent
+name in branches, code, docs, changelog, commits, or pull requests, and no
+`Co-Authored-By` or generated-with trailer. `CONTRIBUTING.md` is
+authoritative.
+
+## Starter prompt
+
+```text
+Implement Jellyfinity vX.Y.Z. Read AGENTS.md, run
+python3 tools/agent_context.py vX.Y.Z, and implement only the bounded scope.
+Verify it and commit on the required version branch. Do not push or open a PR.
+```
+
+## Output budget
+
+Never print whole files over 200 lines, full diffs, or full test/analyzer
+logs. Search with `rg`, read bounded ranges, use `git diff --stat`, and save
+long command output to `/tmp`; inspect only failures. Run focused tests first
+and the full suite only at the end when required.

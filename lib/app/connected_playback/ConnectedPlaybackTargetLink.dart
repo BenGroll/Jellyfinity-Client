@@ -36,6 +36,7 @@ import '../session/SessionCubit.dart';
 import '../session/SessionState.dart';
 import 'ConnectedPlaybackScopeOf.dart';
 import 'RemoteQueueProjection.dart';
+import 'SyncPlayGroupCubit.dart';
 import 'SupportedRemoteCommands.dart';
 
 /// The target half of v0.5.3: keeps a [RemotePlaybackTarget] in step with
@@ -83,15 +84,16 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
     this._transport,
     this._session,
     this._library,
-    this._logger,
-  );
+    this._logger, [
+    SyncPlayGroupCubit? syncPlay,
+  ]) : _syncPlay = syncPlay;
 
   final PlaybackCubit _playback;
   final ConnectedPlaybackTransport _transport;
   final SessionCubit _session;
   final MusicLibraryRepository _library;
   final Logger _logger;
-
+  final SyncPlayGroupCubit? _syncPlay;
   @visibleForTesting
   ElapsedClock clock = StopwatchElapsedClock();
 
@@ -189,7 +191,10 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
     final target = _ensureTarget();
     if (target == null) return;
     final updated = target.publishLocalChange(
-      (current) => RemoteQueueProjection.apply(current, state),
+      (current) => RemoteQueueProjection.apply(current, state).copyWith(
+        syncGroupId: _syncPlay?.state.groupId,
+        clearSyncGroupId: _syncPlay?.state.groupId == null,
+      ),
     );
     unawaited(_transport.publishSnapshot(updated));
   }
@@ -243,6 +248,26 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
       scope: envelope.scope,
     );
     switch (decoding) {
+      case DecodedRemoteCommand(:final JoinSyncGroupCommand command):
+        final syncPlay = _syncPlay;
+        final acknowledgement = syncPlay == null
+            ? CommandAcknowledgement.refused(
+                commandId: command.id,
+                sessionId: target.snapshot.sessionId,
+                outcome: CommandOutcome.unsupported,
+                revision: target.snapshot.revision,
+              )
+            : CommandAcknowledgement.applied(
+                commandId: command.id,
+                sessionId: target.snapshot.sessionId,
+                revision: target.snapshot.revision,
+              );
+        if (syncPlay != null) await syncPlay.joinGroup(command.groupId);
+        await _acknowledge(
+          target,
+          acknowledgement,
+          to: envelope.senderSessionId,
+        );
       case DecodedRemoteCommand(:final command):
         final ack = target.process(target.receive(command));
         await _acknowledge(target, ack, to: envelope.senderSessionId);
@@ -334,9 +359,9 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
         // command shares a channel with (v0.6.0) — see
         // PlaybackCubit.setSystemVolume and the invariant on
         // RemotePlaybackSnapshot.volume's own doc comment.
-        await _playback.setSystemVolume(
-          (command as SetVolumeCommand).volume,
-        );
+        await _playback.setSystemVolume((command as SetVolumeCommand).volume);
+      case RemoteCommandKind.joinSyncGroup:
+        return;
       case RemoteCommandKind.stop:
       case RemoteCommandKind.appendToQueue:
         return;
