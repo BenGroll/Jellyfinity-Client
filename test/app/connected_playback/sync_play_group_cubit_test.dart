@@ -211,6 +211,25 @@ void main() {
     expect(playback.state.hasQueue, isTrue);
   });
 
+  test('a queue update for a group this device is not (or no longer) a '
+      'member of never reaches local playback', () async {
+    transport.emit(
+      SyncPlayQueueUpdated(
+        entries: [
+          RemoteQueueEntry(
+            id: MediaId(serverId: testScope.serverId, itemId: 'a'),
+            title: 'a',
+          ),
+        ],
+        startIndex: 0,
+      ),
+    );
+    await settle();
+
+    expect(cubit.state.status, SyncPlayGroupStatus.none);
+    expect(playback.state.hasQueue, isFalse);
+  });
+
   test('a transport update never touches this device\'s own volume', () async {
     engine.systemVolumeValue = 0.2;
     await playback.setSystemVolume(0.6);

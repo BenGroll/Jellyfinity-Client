@@ -195,6 +195,10 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
         :final startPosition,
         :final startPlaying,
       ):
+        // Consistent with every other update here except the initial
+        // GroupJoined itself: an update for a group this device is not
+        // (or no longer) a member of must never reach local playback.
+        if (state.status != SyncPlayGroupStatus.joined) return;
         unawaited(
           _adoptQueue(
             entries,
