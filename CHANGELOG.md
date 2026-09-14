@@ -2,6 +2,33 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Remote destination
+
+- Added "Remote": a section of its own, alongside Home, Favorites and
+  Library, listing every device on your profile, who currently owns
+  playback, and offering to take over or send playback there — reachable
+  any time, not only from the mini-player's device picker.
+
+## Unreleased — Explicit playback takeover
+
+- Starting something new on this device while another of your devices owns
+  playback now asks first: "Play here instead?" names the device and warns
+  that playing here stops it there. Confirming stops the other device and
+  plays your pick here; cancelling leaves it playing where it was.
+- Applies wherever local playback would otherwise start quietly underneath
+  an active remote session — picking a song, an album, a playlist, or
+  resuming "Continue listening" from Home.
+
+## Unreleased — Remote volume control
+
+- Volume is now a remote command: driving another of your devices from this
+  one includes its volume, shown and adjustable from the mini-player and Now
+  Playing, on Android and Windows.
+- A device with no settable output volume simply has no volume control to
+  show, rather than one that silently does nothing.
+- Volume always stays with the device — it never travels along with a queue
+  handoff or a device transfer.
+
 ## Unreleased — Auto-detected remote playback
 
 - Open Jellyfinity while another of your devices is already playing and it

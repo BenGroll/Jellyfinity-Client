@@ -68,27 +68,42 @@ class FakeDevicePresenceSource implements DevicePresenceSource {
 
   StreamController<List<ConnectedDevice>> _controllerFor(
     ConnectedPlaybackScope scope,
-  ) => _controllers.putIfAbsent(scope, () {
-    late final StreamController<List<ConnectedDevice>> controller;
-    controller = StreamController<List<ConnectedDevice>>.broadcast(
-      onListen: () {
-        final existing = _current[scope];
-        if (existing != null) {
-          controller.add(existing);
-          return;
-        }
-        final self = thisDeviceBuilder?.call(scope);
-        if (self == null) return;
-        _current[scope] = [self];
-        controller.add([self]);
-      },
-    );
-    return controller;
-  });
+  ) => _controllers.putIfAbsent(
+    scope,
+    () => StreamController<List<ConnectedDevice>>.broadcast(),
+  );
+
+  /// The list this scope would report right now, seeding it with just
+  /// this device's own row on first ask — the same "this device is
+  /// always seen" fact every real [DevicePresenceSource] reports before
+  /// [emitDevices] has ever named a peer.
+  List<ConnectedDevice> _currentFor(ConnectedPlaybackScope scope) {
+    final existing = _current[scope];
+    if (existing != null) return existing;
+    final self = thisDeviceBuilder?.call(scope);
+    final seeded = [?self];
+    _current[scope] = seeded;
+    return seeded;
+  }
 
   @override
-  Stream<List<ConnectedDevice>> devices(ConnectedPlaybackScope scope) =>
-      _controllerFor(scope).stream;
+  Stream<List<ConnectedDevice>> devices(ConnectedPlaybackScope scope) {
+    // A bare broadcast stream only replays to whichever subscriber
+    // happens to be first — every real `DevicePresenceSource` (see
+    // `JellyfinSessionTransport._replayed`) instead hands its *current*
+    // list to every new subscriber, independently, because more than one
+    // screen (the mini-player's device action, the device picker sheet,
+    // the Remote destination, v0.6.0) can each hold their own
+    // `DevicePickerCubit` and all need to see the roster immediately,
+    // not just whichever one happened to subscribe first.
+    return Stream<List<ConnectedDevice>>.multi((controller) {
+      controller.add(_currentFor(scope));
+      final subscription = _controllerFor(
+        scope,
+      ).stream.listen(controller.add);
+      controller.onCancel = subscription.cancel;
+    });
+  }
 
   @override
   Stream<ConnectedPlaybackConnection> get connection => _connection.stream;
