@@ -2,6 +2,20 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Play on all devices
+
+- Added group playback, built on Jellyfin's own SyncPlay: "Play on all
+  devices" from the Remote destination starts (or joins) a group spanning
+  this profile's devices, sharing one queue and one transport state whichever
+  device drives it from.
+- Joining, leaving, and a join the server refuses (SyncPlay turned off, or a
+  group that would not admit this device) are all shown plainly, never
+  silent.
+- A group is additional, not required: every existing single-device path —
+  auto-detection, takeover, transfer, remote queue and volume — works
+  exactly as before for a listener who never opens a group, and volume
+  never travels with one.
+
 ## Unreleased — Remote destination
 
 - Added "Remote": a section of its own, alongside Home, Favorites and

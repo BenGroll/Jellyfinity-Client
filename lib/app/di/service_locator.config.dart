@@ -23,6 +23,8 @@ import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart'
     as _i846;
 import 'package:jellyfinity/app/connected_playback/PlaybackControlOwnership.dart'
     as _i467;
+import 'package:jellyfinity/app/connected_playback/SyncPlayGroupCubit.dart'
+    as _i849;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/di/ConnectedPlaybackTransportModule.dart'
     as _i1017;
@@ -49,6 +51,8 @@ import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart'
     as _i40;
 import 'package:jellyfinity/domain/connected_playback/RemotePlaybackOwnership.dart'
     as _i777;
+import 'package:jellyfinity/domain/connected_playback/SyncPlayTransport.dart'
+    as _i636;
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
     as _i813;
 import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
@@ -139,6 +143,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionApi
     as _i399;
 import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionTransport.dart'
     as _i267;
+import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSyncPlayApi.dart'
+    as _i599;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
     as _i430;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart'
@@ -547,6 +553,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i797.OfflineMode>(),
       ),
     );
+    gh.lazySingleton<_i636.SyncPlayTransport>(
+      () => _i599.JellyfinSyncPlayApi(
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i267.JellyfinSessionTransport>(),
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
       () => _i912.CachedMediaMetadataRepository(
         gh<_i830.JellyfinMediaMetadataRepository>(),
@@ -613,6 +628,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i747.PlaylistRepository>(),
         gh<_i720.DownloadsLibrarySource>(),
         gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.lazySingleton<_i849.SyncPlayGroupCubit>(
+      () => _i849.SyncPlayGroupCubit(
+        gh<_i636.SyncPlayTransport>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i809.SessionCubit>(),
       ),
     );
     gh.factory<_i618.PlaylistsCubit>(

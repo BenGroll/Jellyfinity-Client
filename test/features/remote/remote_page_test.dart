@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackScopeOf.dart';
+import 'package:jellyfinity/domain/connected_playback/SyncPlayGroupUpdate.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 
 import '../../support/connected_playback/FakeDevicePresenceSource.dart';
+import '../../support/connected_playback/FakeSyncPlayTransport.dart';
 import '../../support/connected_playback/connected_playback_fixtures.dart'
     show device;
 import '../../support/playback_fakes.dart';
@@ -79,4 +81,125 @@ void main() {
       expect(find.text('Paused here — tap to bring it back'), findsOneWidget);
     },
   );
+
+  group('play on all devices (v0.6.0, ADR-0045)', () {
+    testWidgets(
+      'is disabled with nothing playing here, and starts a group once '
+      'tapped with something playing',
+      (tester) async {
+        final playback = fakePlaybackCubit();
+        addTearDown(playback.close);
+        final transport = FakeSyncPlayTransport();
+        final scope = await pumpApp(
+          tester,
+          playback: playback,
+          syncPlayTransport: transport,
+        );
+        await scope.signIn();
+        await tester.pumpAndSettle();
+        await _openRemote(tester);
+
+        final button = find.widgetWithText(
+          TextButton,
+          'Play on all devices',
+        );
+        expect(tester.widget<TextButton>(button).onPressed, isNull);
+
+        await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+
+        expect(transport.calls, contains('createGroup'));
+        expect(find.text('Starting a group…'), findsOneWidget);
+
+        transport.emit(
+          const SyncPlayGroupJoined(
+            groupId: 'group-1',
+            groupName: 'Living Room',
+            members: [],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Playing on all devices'), findsOneWidget);
+        expect(
+          find.text('In "Living Room", playing here for now.'),
+          findsOneWidget,
+        );
+
+        await playback.pause();
+      },
+    );
+
+    testWidgets('a denied join shows an honest reason, not a silent '
+        'no-op', (tester) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final transport = FakeSyncPlayTransport();
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        syncPlayTransport: transport,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+
+      await _openRemote(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Play on all devices'));
+      await tester.pumpAndSettle();
+
+      transport.emit(
+        const SyncPlayJoinDenied('SyncPlay is disabled on this server.'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('SyncPlay is disabled on this server.'),
+        findsOneWidget,
+      );
+
+      await playback.pause();
+    });
+
+    testWidgets('leaving returns to the ordinary single-device state', (
+      tester,
+    ) async {
+      final playback = fakePlaybackCubit();
+      addTearDown(playback.close);
+      final transport = FakeSyncPlayTransport();
+      final scope = await pumpApp(
+        tester,
+        playback: playback,
+        syncPlayTransport: transport,
+      );
+      await scope.signIn();
+      await tester.pumpAndSettle();
+      await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+      await tester.pumpAndSettle();
+
+      await _openRemote(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Play on all devices'));
+      transport.emit(
+        const SyncPlayGroupJoined(
+          groupId: 'group-1',
+          groupName: 'Living Room',
+          members: [],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Leave'));
+      await tester.pumpAndSettle();
+
+      expect(transport.calls, contains('leaveGroup'));
+      expect(find.text('Play on all devices'), findsOneWidget);
+
+      await playback.pause();
+    });
+  });
 }

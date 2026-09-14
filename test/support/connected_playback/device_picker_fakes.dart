@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart';
 import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart';
+import 'package:jellyfinity/app/connected_playback/SyncPlayGroupCubit.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart';
@@ -15,6 +16,7 @@ import 'connected_playback_fixtures.dart';
 import 'FakeConnectedPlaybackNetwork.dart';
 import 'FakeConnectedPlaybackTransport.dart';
 import 'FakeDevicePresenceSource.dart';
+import 'FakeSyncPlayTransport.dart';
 
 /// Registers a fake [DevicePickerCubit] factory into the real `getIt` —
 /// the same shape as `registerNowPlayingDetailsCubit` — because
@@ -83,4 +85,37 @@ void registerDevicePickerCubit({
     }
     getIt.reset();
   });
+}
+
+/// Registers a fake [SyncPlayGroupCubit] into the real `getIt` — the
+/// Remote destination (v0.6.0) reads it straight from `getIt`, the same
+/// convention [registerDevicePickerCubit] follows for `DevicePickerCubit`.
+/// [transport] defaults to a fresh [FakeSyncPlayTransport] nothing ever
+/// pushes an update on — a group-free Remote destination, the state a
+/// test that does not care about group playback should see.
+FakeSyncPlayTransport registerSyncPlayGroupCubit({
+  required SessionCubit session,
+  required PlaybackCubit playback,
+  FakeSyncPlayTransport? transport,
+  FakeMusicLibraryRepository? library,
+}) {
+  final getIt = GetIt.instance;
+  final effectiveTransport = transport ?? FakeSyncPlayTransport();
+  if (getIt.isRegistered<SyncPlayGroupCubit>()) return effectiveTransport;
+
+  getIt.registerLazySingleton<SyncPlayGroupCubit>(
+    () => SyncPlayGroupCubit(
+      effectiveTransport,
+      playback,
+      library ?? FakeMusicLibraryRepository(),
+      session,
+    ),
+  );
+  addTearDown(() async {
+    if (getIt.isRegistered<SyncPlayGroupCubit>()) {
+      await getIt<SyncPlayGroupCubit>().close();
+    }
+    await effectiveTransport.dispose();
+  });
+  return effectiveTransport;
 }

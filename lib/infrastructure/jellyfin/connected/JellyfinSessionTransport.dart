@@ -116,6 +116,13 @@ class JellyfinSessionTransport
       StreamController<ConnectedPlaybackConnection>.broadcast();
   final StreamController<ConnectedPlaybackEnvelope> _envelopes =
       StreamController<ConnectedPlaybackEnvelope>.broadcast();
+
+  /// Raw `SyncPlayGroupUpdate` frames (v0.6.0, ADR-0045) — undecoded,
+  /// because decoding them into `SyncPlayGroupUpdate` is `JellyfinSyncPlayApi`'s
+  /// job, not this transport's; this class only owns the one socket every
+  /// connected-playback message, SyncPlay included, actually arrives on.
+  final StreamController<_ScopedSyncPlayFrame> _syncPlayFrames =
+      StreamController<_ScopedSyncPlayFrame>.broadcast();
   final Map<String, Completer<CommandAcknowledgement>> _pendingAcks = {};
 
   ConnectedPlaybackScope? _scope;
@@ -366,6 +373,7 @@ class JellyfinSessionTransport
     await _deviceUpdates.close();
     await _connectionUpdates.close();
     await _envelopes.close();
+    await _syncPlayFrames.close();
   }
 
   // --- connection ---------------------------------------------------
@@ -520,6 +528,8 @@ class JellyfinSessionTransport
         _onSessionsMessage(decoded['Data']);
       case 'GeneralCommand':
         _onGeneralCommand(decoded['Data']);
+      case 'SyncPlayGroupUpdate':
+        _onSyncPlayGroupUpdate(decoded['Data']);
       default:
         // Every other message on this socket belongs to a different part
         // of Jellyfin. Ignoring them is the normal case, not an error.
@@ -557,6 +567,24 @@ class JellyfinSessionTransport
     if (raw is! String) return;
     _onEnvelope(raw);
   }
+
+  void _onSyncPlayGroupUpdate(Object? data) {
+    final scope = _scope;
+    if (scope == null || data is! Map) return;
+    _syncPlayFrames.add(
+      _ScopedSyncPlayFrame(scope, Map<String, Object?>.from(data)),
+    );
+  }
+
+  /// Raw `SyncPlayGroupUpdate` payloads for [scope] — `JellyfinSyncPlayApi`'s
+  /// own decoding turns these into `SyncPlayGroupUpdate`s; this transport
+  /// only owns the socket they arrive on. Not part of
+  /// [ConnectedPlaybackTransport]: a SyncPlay group is Jellyfin's own
+  /// concept, addressed over REST, not the Jellyfinity envelope protocol.
+  Stream<Map<String, Object?>> syncPlayFrames(ConnectedPlaybackScope scope) =>
+      _syncPlayFrames.stream
+          .where((frame) => frame.scope == scope)
+          .map((frame) => frame.data);
 
   void _onEnvelope(String raw) {
     final scope = _scope;
@@ -889,4 +917,15 @@ class _ScopedDevices {
 
   final ConnectedPlaybackScope scope;
   final List<ConnectedDevice> devices;
+}
+
+/// One raw `SyncPlayGroupUpdate` frame, tagged with whichever scope this
+/// socket belonged to when it arrived — the same "tag it going in, filter
+/// it coming out" shape [_ScopedDevices] already uses, since Jellyfin's
+/// own SyncPlay messages carry no Jellyfinity-specific scope of their own.
+class _ScopedSyncPlayFrame {
+  const _ScopedSyncPlayFrame(this.scope, this.data);
+
+  final ConnectedPlaybackScope scope;
+  final Map<String, Object?> data;
 }

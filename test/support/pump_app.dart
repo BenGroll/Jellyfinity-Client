@@ -17,6 +17,7 @@ import 'package:jellyfinity/domain/playback/TrackSourceInfoResolver.dart';
 
 import 'connected_playback/device_picker_fakes.dart';
 import 'connected_playback/FakeConnectedPlaybackNetwork.dart';
+import 'connected_playback/FakeSyncPlayTransport.dart';
 import 'download_fakes.dart';
 import 'music_fakes.dart';
 import 'offline_fakes.dart';
@@ -66,6 +67,7 @@ Future<TestSessionScope> pumpApp(
   LyricsResolver? lyricsResolver,
   DevicePresenceSource? devicePresence,
   FakeConnectedPlaybackNetwork? connectedPlaybackNetwork,
+  FakeSyncPlayTransport? syncPlayTransport,
   bool restore = true,
   bool? televisionMode,
   Future<bool> Function()? televisionDetector,
@@ -126,6 +128,13 @@ Future<TestSessionScope> pumpApp(
     playback: playbackCubit,
     presence: devicePresence,
     network: connectedPlaybackNetwork,
+  );
+  // The Remote destination (v0.6.0) reads this straight from getIt too —
+  // see registerSyncPlayGroupCubit's own doc.
+  registerSyncPlayGroupCubit(
+    session: s.cubit,
+    playback: playbackCubit,
+    transport: syncPlayTransport,
   );
   await tester.pumpWidget(
     JellyfinityApp(
