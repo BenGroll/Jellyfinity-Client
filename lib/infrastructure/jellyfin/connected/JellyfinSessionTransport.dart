@@ -302,6 +302,7 @@ class JellyfinSessionTransport
     // command that worked.
     _pendingAcks[command.id] = completer;
 
+    _logger.info("Connected playback: sending ${command.kind.name} command.");
     final sent = await send(
       ConnectedPlaybackEnvelope.outgoing(
         messageId: newMessageId(),
@@ -641,6 +642,7 @@ class JellyfinSessionTransport
           );
         }
       case EnvelopeKind.acknowledgement:
+        _logger.info("Connected playback: received acknowledgement.");
         final acknowledgement = CommandAcknowledgement.tryDecode(
           envelope.payload,
         );
@@ -657,6 +659,9 @@ class JellyfinSessionTransport
       case EnvelopeKind.transferResult:
         // Delivery ends here. What these mean is v0.5.3's and v0.5.4's
         // to decide.
+        _logger.info(
+          "Connected playback: received ${envelope.kind.name} envelope.",
+        );
         _envelopes.add(envelope);
     }
   }

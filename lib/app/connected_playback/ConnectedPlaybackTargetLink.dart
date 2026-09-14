@@ -190,6 +190,7 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
   void _onPlaybackChanged(PlaybackUiState state) {
     final target = _ensureTarget();
     if (target == null) return;
+    _logger.debug('Connected playback: publishing local snapshot.');
     final updated = target.publishLocalChange(
       (current) => RemoteQueueProjection.apply(current, state).copyWith(
         syncGroupId: _syncPlay?.state.groupId,
@@ -269,6 +270,9 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
           to: envelope.senderSessionId,
         );
       case DecodedRemoteCommand(:final command):
+        _logger.info(
+          'Connected playback: received remote ${command.kind.name} command.',
+        );
         final ack = target.process(target.receive(command));
         await _acknowledge(target, ack, to: envelope.senderSessionId);
         if (ack.outcome == CommandOutcome.applied) {

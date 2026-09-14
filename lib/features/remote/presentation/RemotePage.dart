@@ -107,6 +107,7 @@ class _RemotePageState extends State<RemotePage> {
                       onSync: _syncDevice,
                       onTransfer: _transferToThisDevice,
                       onEnd: _endRemotePlay,
+                      diagnostic: control.commandError,
                     ),
                   ),
             ),
@@ -156,11 +157,6 @@ class _RemotePageState extends State<RemotePage> {
   Future<void> _transferToThisDevice(ConnectedDevice device) async {
     final projection = await _readRemoteQueue(device);
     if (projection == null || projection.queue.isEmpty) return;
-    if (projection.syncGroupId != null) {
-      await _control.stop();
-      await _groupCubit.joinGroup(projection.syncGroupId!);
-      return;
-    }
     // Resolve the complete local queue before stopping the source. The source
     // is only paused once this device has a usable, display-shaped queue.
     final tracks = projection.queue.entries
@@ -192,7 +188,7 @@ class _RemotePageState extends State<RemotePage> {
             (state) =>
                 state.device?.sessionId == device.sessionId && state.hasQueue,
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 17));
     } on TimeoutException {
       return null;
     }
@@ -209,7 +205,7 @@ class _RemotePageState extends State<RemotePage> {
                 state.status == SyncPlayGroupStatus.joined ||
                 state.status == SyncPlayGroupStatus.failed,
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 17));
       return state.status == SyncPlayGroupStatus.joined ? state.groupId : null;
     } on TimeoutException {
       return null;
@@ -232,6 +228,7 @@ class _RemoteDeviceList extends StatelessWidget {
     required this.onSync,
     required this.onTransfer,
     required this.onEnd,
+    this.diagnostic,
   });
 
   final List<ConnectedDevice> devices;
@@ -240,6 +237,7 @@ class _RemoteDeviceList extends StatelessWidget {
   final Future<void> Function(ConnectedDevice) onSync;
   final Future<void> Function(ConnectedDevice) onTransfer;
   final Future<void> Function() onEnd;
+  final String? diagnostic;
 
   @override
   Widget build(BuildContext context) {
@@ -294,6 +292,16 @@ class _RemoteDeviceList extends StatelessWidget {
                         : Icons.pause_rounded,
                   ),
                 ),
+                if (diagnostic != null)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: t.spacing.xs),
+                    child: SelectableText(
+                      "Remote diagnostic: $diagnostic",
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.danger,
+                      ),
+                    ),
+                  ),
                 Wrap(
                   spacing: t.spacing.xs,
                   runSpacing: t.spacing.xs,
