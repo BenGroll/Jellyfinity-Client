@@ -333,7 +333,15 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   Future<void> _requestSnapshot() async {
     final session = _controlSession;
     if (session == null) return;
-    await session.requestSnapshot();
+    final result = await session.requestSnapshot();
+    if (session != _controlSession || result.isOk) return;
+    final error = result.failureOrNull?.message;
+    emit(
+      state.copyWith(
+        connection: PlaybackControlConnection.reconnecting,
+        commandError: error ?? "Could not read that device.",
+      ),
+    );
   }
 
   void _onSnapshot(int generation, RemotePlaybackSnapshot snapshot) {

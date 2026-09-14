@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/di/service_locator.dart';
+import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/connected_playback/ConnectedDevice.dart';
 import 'DeviceListView.dart';
@@ -154,7 +156,7 @@ class _DeviceActionButtonState extends State<DeviceActionButton> {
             iconSize: widget.iconSize,
             color: widget.color,
             tooltip: tooltip,
-            onPressed: () => showDevicePickerSheet(context, cubit: _cubit),
+            onPressed: () => context.go(RoutePaths.remote),
           );
         },
       ),
