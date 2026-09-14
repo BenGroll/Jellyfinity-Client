@@ -15,9 +15,16 @@ and control the active player from another device.
 
 The experience should feel as dependable as Spotify Connect while remaining
 self-hosted. Jellyfinity uses the authenticated Jellyfin server's session API,
-remote-control endpoints, and WebSocket delivery as the relay. It does not add
-a Jellyfinity account, proprietary cloud service, local-network discovery
-protocol, or direct device-to-device socket.
+remote-control endpoints, SyncPlay groups, and WebSocket delivery as the relay.
+It does not add a Jellyfinity account, proprietary cloud service, local-network
+discovery protocol, or direct device-to-device socket.
+
+v0.6.0 closes the arc on the listener's terms rather than the protocol's. Where
+the music is playing is something the app notices and says, not something the
+listener has to go and look up; the transport they can drive from another
+device includes its queue and its volume; and "everywhere at once" is a choice
+they can make, because a listener with speakers in two rooms wants both rooms,
+not a decision about which one.
 
 "Transfer playback" has a strict meaning in this roadmap. The destination
 receives the ordered queue, current item, position, shuffle and repeat state,
@@ -62,6 +69,16 @@ opening the current song on another device is not a completed transfer.
 - Existing local playback, persistent queues, background audio, system media
   controls, progress reporting, and account switching remain valid when no
   second device exists.
+- Group playback (v0.6.0) widens "one owner" rather than abandoning it: a group
+  has exactly one authoritative queue and one transport state, held by the
+  server's SyncPlay group, and every member follows it. Membership is explicit
+  and visible on each member, and leaving a group returns that device to
+  ordinary single-device playback without losing what is playing.
+- Output volume belongs to the device that makes the sound. It is reported and
+  commanded per device, is never part of transferred or group queue state, and
+  never follows a handoff — moving music to the kitchen must not move the
+  bedroom's volume with it. A device that cannot set its own output volume
+  keeps saying so, and no controller offers the control for it.
 
 ## Platform acceptance for this arc
 
@@ -333,10 +350,12 @@ Android TV and Fire TV.
 
 ## v0.6.0 - True cross-device playback
 
-**Goal:** Harden the completed foundation, UI, and platform implementations into
-one trustworthy connected-listening release.
+**Goal:** One trustworthy connected-listening release: the listener always
+knows where their music is playing, can move it or mirror it across every
+device on the account, and can drive it — transport, queue, and volume — from
+any of them.
 
-**Required:**
+**Required — the single-owner experience, made dependable:**
 
 - Run an end-to-end role matrix covering Windows, Android, and Android TV/Fire
   TV as source, destination, and controller, including every handoff direction
@@ -353,23 +372,87 @@ one trustworthy connected-listening release.
   latency, memory, and battery/network use without weakening authoritative
   reconciliation. Connected playback must remain bounded for normal 130k-song
   libraries and long-lived TV sessions.
+- Treat the device list as a roster of devices that are really there. A session
+  the server merely remembers, a peer that has stopped answering, and a peer
+  that never answered are three different rows, and none of them may crowd out
+  or disable the devices the listener owns. One unreachable peer never degrades
+  the link to the others.
+
+**Required — knowing where the music is, without asking:**
+
+- On sign-in, on resume, and after every reconnect, a device that finds another
+  of this profile's devices already playing presents that session as the live
+  one without the listener opening a picker: mini-player, Now Playing, and the
+  queue show the remote session, named by its device, with the controls that
+  device advertises.
+- A "Remote" destination in the shell (sidebar on Windows and tablet layouts,
+  its own reachable entry on phone and television) lists this profile's
+  devices, says which one owns playback, and offers taking over, sending
+  playback elsewhere, and group membership. D-pad order and overscan-safe
+  layout on television, per ADR-0036.
+- Local playback that starts while another device owns the session is an
+  explicit takeover, never a silent second stream: the listener is told what
+  will happen and the previous owner stops.
+
+**Required — queue and volume as first-class remote state:**
+
+- While a device is being controlled, its queue is the queue the controller
+  shows and edits, within the capabilities that device advertises: reorder,
+  remove, jump, shuffle, and repeat all reconcile against the owner's revision
+  rather than a local copy, and a rejected edit resynchronizes visibly.
+- `RemoteCommandKind.setVolume` becomes a command with a real execution path on
+  every platform that can set its own output volume, a `RemotePlaybackSnapshot`
+  volume that reflects it, and a control in the mini-player, Now Playing, and
+  the device row. Platforms that cannot keep advertising that they cannot, and
+  the control is absent rather than inert.
+- Volume never travels with a queue, a transfer, or a group: each device keeps
+  its own.
+
+**Required — play on all devices:**
+
+- "Play on this device" and "Play on all devices" are the two choices the
+  picker leads with, and the second is built on the server's SyncPlay groups —
+  create, join, leave, set queue, transport, and the ping/ready exchange that
+  keeps members aligned — not on a Jellyfinity synchronization protocol. Record
+  the decision and the group ownership model in an ADR.
+- A group has one queue and one transport state. Every member shows the same
+  now-playing, the same queue, and its own volume; any member may drive the
+  group within its advertised capabilities; the group survives a member
+  dropping out and rejoining.
+- Joining, leaving, and being left alone are all visible states with an honest
+  label, including the one that matters most: a server with SyncPlay disabled,
+  or a member the group cannot admit, must say so where the listener chose it
+  rather than failing silently.
+- Group playback is an addition, never a precondition: every single-device path
+  in this arc keeps working unchanged when the listener never opens a group.
+
+**Required — finishing the release:**
+
 - Complete accessibility, localization-ready copy, privacy/security review,
   migrations and rollback behavior, release notes, support documentation, CI,
   Android build, Windows build, and the physical acceptance left by each
   platform milestone.
 - Preserve a graceful local-only experience when there is one device, no remote
-  permission, no WebSocket path, or no network. Connected playback is an
-  enhancement, never a new dependency for pressing Play.
+  permission, no SyncPlay, no WebSocket path, or no network. Connected playback
+  is an enhancement, never a new dependency for pressing Play.
 
 **Done when:** A listener can begin music on any completed platform, move the
-full live session to any other, and control it from a third through failures and
-reconnects, while exactly one device owns playback and local listening remains
-fully dependable.
+full live session to any other, mirror it across all of them, and control
+transport, queue, and volume from any device — with the app telling them where
+the music is rather than waiting to be asked — while exactly one device or one
+group owns playback and local listening remains fully dependable.
 
 ## Non-goals for v0.5.1-v0.6.0
 
-Synchronized multi-room/group playback, speaker grouping, casting protocols,
-Bluetooth pairing, controlling non-Jellyfinity clients, accepting control from
-another Jellyfin user, cross-server transfer, transferring local-only audio,
-video playback, collaborative queues, a Jellyfinity cloud account/relay, and
-iOS connected-player/controller completion are outside this arc.
+Speaker grouping below the session (one device driving several outputs),
+casting protocols, Bluetooth pairing, controlling non-Jellyfinity clients,
+accepting control from another Jellyfin user, cross-server transfer,
+transferring local-only audio, video playback, collaborative queues, a
+Jellyfinity cloud account/relay, and iOS connected-player/controller completion
+are outside this arc.
+
+Synchronized group playback across this profile's own devices moved into scope
+in v0.6.0 and is no longer a non-goal. Listening together *across accounts* —
+several Jellyfin users driving one group — remains out: it is the same SyncPlay
+machinery with a different permission and privacy question, and it is specced
+separately when it is taken up.

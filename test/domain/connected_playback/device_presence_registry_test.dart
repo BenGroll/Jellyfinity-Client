@@ -403,6 +403,17 @@ void main() {
       expect(registry.link, ConnectedPlaybackConnection.idle);
     });
 
+    test('a session the server has forgotten is dropped at once', () {
+      registry.replaceAll([seen('tv'), seen('phone', name: 'Phone')]);
+
+      expect(registry.forgetSession('session-tv'), isTrue);
+
+      expect(registry.devices.map((device) => device.deviceId), ['phone']);
+      // Nothing to forget is not a change, so a caller can use the
+      // answer to decide whether to redraw.
+      expect(registry.forgetSession('session-tv'), isFalse);
+    });
+
     test('every device it produces names the scope it was observed for', () {
       registry.replaceAll([seen('tv')]);
 

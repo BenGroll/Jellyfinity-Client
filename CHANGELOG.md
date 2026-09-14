@@ -2,6 +2,61 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Play on all devices
+
+- Added group playback, built on Jellyfin's own SyncPlay: "Play on all
+  devices" from the Remote destination starts (or joins) a group spanning
+  this profile's devices, sharing one queue and one transport state whichever
+  device drives it from.
+- Joining, leaving, and a join the server refuses (SyncPlay turned off, or a
+  group that would not admit this device) are all shown plainly, never
+  silent.
+- A group is additional, not required: every existing single-device path —
+  auto-detection, takeover, transfer, remote queue and volume — works
+  exactly as before for a listener who never opens a group, and volume
+  never travels with one.
+
+## Unreleased — Remote destination
+
+- Added "Remote": a section of its own, alongside Home, Favorites and
+  Library, listing every device on your profile, who currently owns
+  playback, and offering to take over or send playback there — reachable
+  any time, not only from the mini-player's device picker.
+
+## Unreleased — Explicit playback takeover
+
+- Starting something new on this device while another of your devices owns
+  playback now asks first: "Play here instead?" names the device and warns
+  that playing here stops it there. Confirming stops the other device and
+  plays your pick here; cancelling leaves it playing where it was.
+- Applies wherever local playback would otherwise start quietly underneath
+  an active remote session — picking a song, an album, a playlist, or
+  resuming "Continue listening" from Home.
+
+## Unreleased — Remote volume control
+
+- Volume is now a remote command: driving another of your devices from this
+  one includes its volume, shown and adjustable from the mini-player and Now
+  Playing, on Android and Windows.
+- A device with no settable output volume simply has no volume control to
+  show, rather than one that silently does nothing.
+- Volume always stays with the device — it never travels along with a queue
+  handoff or a device transfer.
+
+## Unreleased — Auto-detected remote playback
+
+- Open Jellyfinity while another of your devices is already playing and it
+  shows that session straight away — mini-player, Now Playing and the queue
+  are bound to the device making the sound, without opening the device
+  picker to find it.
+- Only when it is unambiguous: music already playing on this device is
+  never interrupted, a device that has not said what it accepts is not
+  bound to, and two devices playing at once is left for you to choose
+  between.
+- Stopping remote control is remembered. That playback is not picked up
+  again by itself; a device that reconnects, or starts playing afresh,
+  asks again.
+
 ## Unreleased — Windows connected playback
 
 - Hardware media keys and the Windows system media panel now reach whichever

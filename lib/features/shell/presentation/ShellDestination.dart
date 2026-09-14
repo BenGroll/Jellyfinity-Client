@@ -48,4 +48,15 @@ const List<ShellDestination> shellDestinations = [
     icon: Icons.library_music_outlined,
     selectedIcon: Icons.library_music_rounded,
   ),
+  // v0.6.0: a reachable "Remote" destination alongside auto-detection —
+  // this list is one flat bottom-nav/TV-rail source today (no
+  // width-responsive sidebar variant exists for any destination yet), so
+  // Remote lands here rather than in a Windows/tablet-only sidebar
+  // placement this codebase does not otherwise have.
+  ShellDestination(
+    path: RoutePaths.remote,
+    label: 'Remote',
+    icon: Icons.cast_outlined,
+    selectedIcon: Icons.cast_connected_rounded,
+  ),
 ];

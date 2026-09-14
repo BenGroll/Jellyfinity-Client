@@ -53,6 +53,7 @@ published Git tag.
 | v0.5.7 | Windows connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v057---windows-connected-playback), [ADR](docs/adr/ADR-0041-windows-connected-playback.md) |
 | v0.5.8 | Android connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v058---android-connected-playback), [ADR](docs/adr/ADR-0042-android-connected-playback.md) |
 | v0.5.9 | Android TV and Fire TV connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v059---android-tv-and-fire-tv-connected-playback), [ADR](docs/adr/ADR-0043-android-tv-and-fire-tv-connected-playback.md) |
-| v0.6.0 | True cross-device playback | Planned | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback) |
+| v0.6.0 | True cross-device playback | Planned (respecced: adds group playback, volume, and a Remote destination) | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback) |
+| v0.6.1 | Settings as places | Planned | [spec](Roadmap%20to%20v0.7.md#v061---settings-as-places) |
 
 Historical implementation notes live in CHANGELOG.md and the linked ADRs. Future ideas in OUTLOOK.md are out of scope unless promoted into this index.

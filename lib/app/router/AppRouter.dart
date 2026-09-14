@@ -19,6 +19,7 @@ import '../../features/onboarding/presentation/WelcomePage.dart';
 import '../../features/playback/presentation/LyricsPage.dart';
 import '../../features/playback/presentation/NowPlayingPage.dart';
 import '../../features/playback/presentation/QueuePage.dart';
+import '../../features/remote/presentation/RemotePage.dart';
 import '../../features/settings/presentation/SettingsPage.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/shell/presentation/NotFoundPage.dart';
@@ -179,6 +180,7 @@ class AppRouter {
     RoutePaths.home => RouteNames.home,
     RoutePaths.favorites => RouteNames.favorites,
     RoutePaths.library => RouteNames.library,
+    RoutePaths.remote => RouteNames.remote,
     _ => path,
   };
 
@@ -186,6 +188,7 @@ class AppRouter {
     RoutePaths.home => const HomePage(),
     RoutePaths.favorites => const FavoritesPage(),
     RoutePaths.library => const LibraryPage(),
+    RoutePaths.remote => const RemotePage(),
     _ => NotFoundPage(location: path),
   };
 

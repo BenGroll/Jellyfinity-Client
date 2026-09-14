@@ -13,12 +13,18 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:jellyfinity/app/connected_playback/ActiveRemotePlaybackWatcher.dart'
+    as _i602;
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart'
     as _i419;
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart'
     as _i217;
 import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart'
     as _i846;
+import 'package:jellyfinity/app/connected_playback/PlaybackControlOwnership.dart'
+    as _i467;
+import 'package:jellyfinity/app/connected_playback/SyncPlayGroupCubit.dart'
+    as _i849;
 import 'package:jellyfinity/app/connectivity/OfflineCubit.dart' as _i605;
 import 'package:jellyfinity/app/di/ConnectedPlaybackTransportModule.dart'
     as _i1017;
@@ -43,6 +49,10 @@ import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackTransport
     as _i231;
 import 'package:jellyfinity/domain/connected_playback/DevicePresenceSource.dart'
     as _i40;
+import 'package:jellyfinity/domain/connected_playback/RemotePlaybackOwnership.dart'
+    as _i777;
+import 'package:jellyfinity/domain/connected_playback/SyncPlayTransport.dart'
+    as _i636;
 import 'package:jellyfinity/domain/connectivity/OfflineLibraryScope.dart'
     as _i813;
 import 'package:jellyfinity/domain/connectivity/OfflineMode.dart' as _i797;
@@ -133,6 +143,8 @@ import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionApi
     as _i399;
 import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSessionTransport.dart'
     as _i267;
+import 'package:jellyfinity/infrastructure/jellyfin/connected/JellyfinSyncPlayApi.dart'
+    as _i599;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/auth_token_provider.dart'
     as _i430;
 import 'package:jellyfinity/infrastructure/jellyfin/identity/JellyfinClientIdentity.dart'
@@ -522,12 +534,32 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i797.OfflineMode>(),
       ),
     );
+    gh.lazySingleton<_i126.PlaybackCubit>(
+      () => _i126.PlaybackCubit(
+        gh<_i717.PlaybackEngine>(),
+        gh<_i642.QueueRepository>(),
+        gh<_i922.AudioSourceResolver>(),
+        gh<_i474.PlaybackProgressRepository>(),
+        gh<_i175.ListeningHistoryRepository>(),
+        gh<_i230.SettingsCubit>(),
+        remoteOwnership: gh<_i777.RemotePlaybackOwnership>(),
+      ),
+    );
     gh.lazySingleton<_i685.FavoritesRepository>(
       () => _i278.CachedFavoritesRepository(
         gh<_i545.JellyfinFavoritesRepository>(),
         gh<_i1018.MediaCacheStore>(),
         gh<_i346.JellyfinSessionContext>(),
         gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.lazySingleton<_i636.SyncPlayTransport>(
+      () => _i599.JellyfinSyncPlayApi(
+        gh<_i346.JellyfinSessionContext>(),
+        gh<_i267.JellyfinSessionTransport>(),
+        gh<_i787.JellyfinClientIdentity>(),
+        gh<_i430.AuthTokenProvider>(),
+        gh<_i612.Logger>(),
       ),
     );
     gh.lazySingleton<_i747.MediaMetadataRepository>(
@@ -581,6 +613,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i29.NowPlayingDetailsCubit>(
       () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
     );
+    gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
+      () => _i217.ConnectedPlaybackTargetLink(
+        gh<_i126.PlaybackCubit>(),
+        gh<_i231.ConnectedPlaybackTransport>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i612.Logger>(),
+      ),
+    );
     gh.factory<_i169.MusicSearchCubit>(
       () => _i169.MusicSearchCubit(
         gh<_i747.MusicLibraryRepository>(),
@@ -589,21 +630,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i797.OfflineMode>(),
       ),
     );
+    gh.lazySingleton<_i849.SyncPlayGroupCubit>(
+      () => _i849.SyncPlayGroupCubit(
+        gh<_i636.SyncPlayTransport>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i260.MusicLibraryRepository>(),
+        gh<_i809.SessionCubit>(),
+      ),
+    );
     gh.factory<_i618.PlaylistsCubit>(
       () => _i618.PlaylistsCubit(
         gh<_i747.PlaylistRepository>(),
         gh<_i720.DownloadsLibrarySource>(),
         gh<_i797.OfflineMode>(),
-      ),
-    );
-    gh.lazySingleton<_i126.PlaybackCubit>(
-      () => _i126.PlaybackCubit(
-        gh<_i717.PlaybackEngine>(),
-        gh<_i642.QueueRepository>(),
-        gh<_i922.AudioSourceResolver>(),
-        gh<_i474.PlaybackProgressRepository>(),
-        gh<_i175.ListeningHistoryRepository>(),
-        gh<_i230.SettingsCubit>(),
       ),
     );
     gh.factory<_i824.ArtistStatsCubit>(
@@ -648,19 +687,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i612.Logger>(),
       ),
     );
+    gh.lazySingleton<_i777.RemotePlaybackOwnership>(
+      () => _i467.PlaybackControlOwnership(gh<_i846.PlaybackControlCubit>()),
+    );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(
         gh<_i747.MediaMetadataRepository>(),
         gh<_i797.OfflineMode>(),
-      ),
-    );
-    gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
-      () => _i217.ConnectedPlaybackTargetLink(
-        gh<_i126.PlaybackCubit>(),
-        gh<_i231.ConnectedPlaybackTransport>(),
-        gh<_i809.SessionCubit>(),
-        gh<_i260.MusicLibraryRepository>(),
-        gh<_i612.Logger>(),
       ),
     );
     gh.factory<_i861.DevicePickerCubit>(
@@ -669,6 +702,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
         gh<_i126.PlaybackCubit>(),
         gh<_i217.ConnectedPlaybackTargetLink>(),
+        gh<_i846.PlaybackControlCubit>(),
+      ),
+    );
+    gh.lazySingleton<_i602.ActiveRemotePlaybackWatcher>(
+      () => _i602.ActiveRemotePlaybackWatcher(
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
         gh<_i846.PlaybackControlCubit>(),
       ),
     );

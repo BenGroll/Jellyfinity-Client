@@ -116,6 +116,13 @@ class JellyfinSessionTransport
       StreamController<ConnectedPlaybackConnection>.broadcast();
   final StreamController<ConnectedPlaybackEnvelope> _envelopes =
       StreamController<ConnectedPlaybackEnvelope>.broadcast();
+
+  /// Raw `SyncPlayGroupUpdate` frames (v0.6.0, ADR-0045) — undecoded,
+  /// because decoding them into `SyncPlayGroupUpdate` is `JellyfinSyncPlayApi`'s
+  /// job, not this transport's; this class only owns the one socket every
+  /// connected-playback message, SyncPlay included, actually arrives on.
+  final StreamController<_ScopedSyncPlayFrame> _syncPlayFrames =
+      StreamController<_ScopedSyncPlayFrame>.broadcast();
   final Map<String, Completer<CommandAcknowledgement>> _pendingAcks = {};
 
   ConnectedPlaybackScope? _scope;
@@ -256,7 +263,22 @@ class JellyfinSessionTransport
       targetSessionId: targetSessionId,
     );
     if (result.isErr) {
-      final diagnosis = _failures.fromHttp(result.failureOrNull!);
+      final failure = result.failureOrNull!;
+      // A session the server has never heard of says nothing about this
+      // device's link, and treating it as a link problem is how one peer
+      // that signed out took the picker down with it: the same 404 that
+      // means "no such session" here means "no such route" to
+      // [_readSessions], and the shared classifier answered `unsupported`
+      // for both. Forget that device instead — the roster read that would
+      // have removed it is up to twenty seconds away, and until then it
+      // is a row the listener can see and cannot use.
+      if (_failures.isMissingTarget(failure)) {
+        if (_registry?.forgetSession(targetSessionId) ?? false) {
+          _emitDevices();
+        }
+        return Result.err(ConnectedPlaybackFailures.deviceGone());
+      }
+      final diagnosis = _failures.fromHttp(failure);
       _applyDiagnosis(diagnosis, retry: false);
       return Result.err(diagnosis.failure);
     }
@@ -351,6 +373,7 @@ class JellyfinSessionTransport
     await _deviceUpdates.close();
     await _connectionUpdates.close();
     await _envelopes.close();
+    await _syncPlayFrames.close();
   }
 
   // --- connection ---------------------------------------------------
@@ -505,6 +528,8 @@ class JellyfinSessionTransport
         _onSessionsMessage(decoded['Data']);
       case 'GeneralCommand':
         _onGeneralCommand(decoded['Data']);
+      case 'SyncPlayGroupUpdate':
+        _onSyncPlayGroupUpdate(decoded['Data']);
       default:
         // Every other message on this socket belongs to a different part
         // of Jellyfin. Ignoring them is the normal case, not an error.
@@ -542,6 +567,24 @@ class JellyfinSessionTransport
     if (raw is! String) return;
     _onEnvelope(raw);
   }
+
+  void _onSyncPlayGroupUpdate(Object? data) {
+    final scope = _scope;
+    if (scope == null || data is! Map) return;
+    _syncPlayFrames.add(
+      _ScopedSyncPlayFrame(scope, Map<String, Object?>.from(data)),
+    );
+  }
+
+  /// Raw `SyncPlayGroupUpdate` payloads for [scope] — `JellyfinSyncPlayApi`'s
+  /// own decoding turns these into `SyncPlayGroupUpdate`s; this transport
+  /// only owns the socket they arrive on. Not part of
+  /// [ConnectedPlaybackTransport]: a SyncPlay group is Jellyfin's own
+  /// concept, addressed over REST, not the Jellyfinity envelope protocol.
+  Stream<Map<String, Object?>> syncPlayFrames(ConnectedPlaybackScope scope) =>
+      _syncPlayFrames.stream
+          .where((frame) => frame.scope == scope)
+          .map((frame) => frame.data);
 
   void _onEnvelope(String raw) {
     final scope = _scope;
@@ -874,4 +917,15 @@ class _ScopedDevices {
 
   final ConnectedPlaybackScope scope;
   final List<ConnectedDevice> devices;
+}
+
+/// One raw `SyncPlayGroupUpdate` frame, tagged with whichever scope this
+/// socket belonged to when it arrived — the same "tag it going in, filter
+/// it coming out" shape [_ScopedDevices] already uses, since Jellyfin's
+/// own SyncPlay messages carry no Jellyfinity-specific scope of their own.
+class _ScopedSyncPlayFrame {
+  const _ScopedSyncPlayFrame(this.scope, this.data);
+
+  final ConnectedPlaybackScope scope;
+  final Map<String, Object?> data;
 }

@@ -424,6 +424,69 @@ void main() {
       );
     });
 
+    test(
+      'a peer the server has forgotten does not take the link with it',
+      () async {
+        // A Jellyfinity that was reinstalled: the server still lists the
+        // old session, and every message to it comes back 404.
+        final ghost = sessionJson(
+          id: 'session-ghost',
+          deviceId: 'device-ghost',
+        );
+        server
+          ..sessions = [localSession, tvSession, ghost]
+          ..statusOverrides['/Sessions/session-ghost/Command'] = 404;
+
+        await transport.advertise(testScope);
+
+        // The link is about this device's own conversation with the
+        // server, and that conversation is fine.
+        expect(
+          transport.connectionState,
+          ConnectedPlaybackConnection.connected,
+        );
+        // And the peer that is really there stays usable rather than
+        // dropping to "Connecting…" behind the dead one.
+        final devices = await devicesWhen(
+          (devices) =>
+              devices.every((device) => device.deviceId != 'device-ghost'),
+        );
+        expect(devices.map((device) => device.deviceId), contains('device-tv'));
+      },
+    );
+
+    test(
+      'a message to a forgotten session names the device, not the server',
+      () async {
+        final ghost = sessionJson(
+          id: 'session-ghost',
+          deviceId: 'device-ghost',
+        );
+        server
+          ..sessions = [localSession, ghost]
+          ..statusOverrides['/Sessions/session-ghost/Command'] = 404;
+        await transport.advertise(testScope);
+
+        final result = await transport.send(
+          ConnectedPlaybackEnvelope.outgoing(
+            messageId: 'message-1',
+            scope: testScope,
+            senderSessionId: 'session-local',
+            kind: EnvelopeKind.presence,
+            payload: const {},
+          ),
+          targetSessionId: 'session-ghost',
+        );
+
+        expect(result.failureOrNull, isA<UnavailableFailure>());
+        expect(result.failureOrNull!.message, contains('no longer signed in'));
+        expect(
+          transport.connectionState,
+          ConnectedPlaybackConnection.connected,
+        );
+      },
+    );
+
     test('a rejected token asks for a sign-in rather than a retry', () async {
       server.statusOverrides['/Sessions'] = 401;
 

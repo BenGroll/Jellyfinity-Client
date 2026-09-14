@@ -329,8 +329,15 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
       case RemoteCommandKind.moveQueueEntry:
         final move = command as MoveQueueEntryCommand;
         await _playback.reorderPlayOrder(move.fromIndex, move.toIndex);
-      case RemoteCommandKind.stop:
       case RemoteCommandKind.setVolume:
+        // Per-device state, deliberately not part of the queue this
+        // command shares a channel with (v0.6.0) — see
+        // PlaybackCubit.setSystemVolume and the invariant on
+        // RemotePlaybackSnapshot.volume's own doc comment.
+        await _playback.setSystemVolume(
+          (command as SetVolumeCommand).volume,
+        );
+      case RemoteCommandKind.stop:
       case RemoteCommandKind.appendToQueue:
         return;
     }

@@ -79,5 +79,18 @@ It does not sign into Jellyfin or change saved accounts.
   across multiple displays. Use this Windows device as the controlled target
   from another Windows device, then from an Android one, in both directions.
 
+- v0.6.0: raise and lower this device's own volume from another device's
+  Now Playing/mini-player while this device is the controlled target —
+  the Windows system volume for this app should move and the on-screen
+  level should track it. Start playing something on another device, then
+  press play on a song/album/playlist here; confirm the takeover dialog
+  names the other device, that confirming actually stops it there, and
+  that cancelling leaves it untouched. Open the Remote destination and
+  confirm this device, and the other one, both list correctly. From the
+  Remote destination, tap "Play on all devices"; confirm a group starts,
+  the other device joins and plays the same queue, and that leaving the
+  group returns this device to independent playback without disturbing
+  the other one.
+
 Playback uses the existing domain/application logic. Existing roadmap gaps
 (such as playlist track reorder) remain outside this platform port.

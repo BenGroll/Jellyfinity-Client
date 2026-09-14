@@ -66,6 +66,22 @@ abstract final class ConnectedPlaybackLimits {
   /// listener's finger. Only after this does it stop being a row at all.
   static const Duration presenceDropAfter = Duration(minutes: 5);
 
+  /// How recently a Jellyfin session must have been active to count as a
+  /// device at all.
+  ///
+  /// Jellyfin remembers a session long after the app behind it is gone —
+  /// its device list is a history, not a roster — so a read without this
+  /// bound answers with every install that ever signed in, including the
+  /// ones that were replaced, reinstalled or wiped. Those never answer a
+  /// presence message, so they sit in the picker as "Connecting…" for
+  /// ever and bury the devices the listener actually owns.
+  ///
+  /// Generous on purpose: a Jellyfinity that is merely open refreshes its
+  /// session through the socket keep-alive and the presence poll, both
+  /// far quicker than this, so the bound only ever excludes an app that
+  /// is genuinely no longer running.
+  static const Duration sessionActiveWithin = Duration(minutes: 10);
+
   /// How often presence is re-read over REST while the socket is not
   /// carrying `Sessions` updates.
   ///

@@ -34,6 +34,13 @@ abstract final class RoutePaths {
   /// lives inline in the shared header instead.
   static const library = '/library';
 
+  /// This profile's devices, who owns playback, and taking over or moving
+  /// it elsewhere (v0.6.0) — the shell section Ben described as "most
+  /// important," complementing auto-detection with somewhere to look on
+  /// purpose. A shell section of its own, not a sheet, so it is reachable
+  /// the same way on phone, television and Windows/tablet.
+  static const remote = '/remote';
+
   // Library sub-routes. Each is a child of [library], so opening an album
   // keeps the bottom navigation and the section's own back stack.
   /// One category of search results in full:
@@ -89,6 +96,7 @@ abstract final class RouteNames {
   static const home = 'home';
   static const favorites = 'favorites';
   static const library = 'library';
+  static const remote = 'remote';
   static const librarySearchCategory = 'librarySearchCategory';
   static const libraryArtist = 'libraryArtist';
   static const libraryAlbum = 'libraryAlbum';
