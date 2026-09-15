@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackEnvelope.dart';
 import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackLimits.dart';
+import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackScope.dart';
 import 'package:jellyfinity/domain/connected_playback/ProtocolVersion.dart';
 import 'package:jellyfinity/domain/connected_playback/envelope_ignore_reason.dart';
 import 'package:jellyfinity/domain/connected_playback/envelope_kind.dart';
@@ -62,6 +63,35 @@ void main() {
       final decoding = decodeAtTv(envelope.toJson());
 
       expect((decoding as DecodedEnvelope).envelope, envelope);
+    });
+
+    test('accepts a peer on the same server from another installation', () {
+      const androidScope = ConnectedPlaybackScope(
+        serverId: 'android-local-server-id',
+        wireServerId: 'jellyfin-server-id',
+        userId: 'user-1',
+      );
+      const windowsScope = ConnectedPlaybackScope(
+        serverId: 'windows-local-server-id',
+        wireServerId: 'jellyfin-server-id',
+        userId: 'user-1',
+      );
+      final sent = ConnectedPlaybackEnvelope.outgoing(
+        messageId: 'm1',
+        scope: androidScope,
+        senderSessionId: 'session-phone',
+        kind: EnvelopeKind.command,
+      );
+
+      final decoding = ConnectedPlaybackEnvelope.decode(
+        sent.encode(),
+        localScope: windowsScope,
+        localSessionId: 'session-tv',
+      ) as DecodedEnvelope;
+
+      // The receiver keeps its own local storage id after accepting the
+      // shared wire scope, so repository lookups stay local to Windows.
+      expect(decoding.envelope.scope, windowsScope);
     });
   });
 

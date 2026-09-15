@@ -320,7 +320,7 @@ extension TransferOfferCodec on TransferOffer {
     for (final raw in rawEntries) {
       final entry = RemoteQueueEntry.tryDecode(raw);
       if (entry == null) return null;
-      entries.add(entry);
+      entries.add(entry.forLocalServer(scope.serverId));
     }
     final positionMs = payload['startPositionMs'];
     final lifetimeMs = payload['lifetimeMs'];

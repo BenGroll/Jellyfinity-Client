@@ -18,5 +18,6 @@ ConnectedPlaybackScope? connectedPlaybackScopeOf(SessionState state) {
   return ConnectedPlaybackScope(
     serverId: session.server.id,
     userId: session.account.userId,
+    wireServerId: session.server.serverId,
   );
 }

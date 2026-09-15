@@ -11,35 +11,32 @@ import 'package:equatable/equatable.dart';
 /// server's answer to "what may you control", not Jellyfinity's answer to
 /// "what is this listener's session".
 ///
-/// So the scope is carried explicitly on every device, snapshot, command
-/// and envelope rather than being implied by whatever profile happens to
-/// be active when a message arrives. A message that arrives after an
-/// account switch names the scope it was built for and is dropped,
-/// instead of being applied to whoever is signed in now.
-///
-/// [serverId] is Jellyfinity's own local id for the saved server — the
-/// same half [MediaId] carries, for the same reason: it is stable across
-/// a server rename and it is what the session layer joins on. [userId] is
-/// the Jellyfin user's id on that server. The pair is exactly a saved
-/// profile; `JellyfinAccount.id` is deliberately *not* used, because two
-/// saved accounts can point at the same user on the same server and their
-/// devices are the same devices.
+/// [serverId] remains Jellyfinity's local id for repositories and cached
+/// media. [wireServerId], when available, is Jellyfin's self-reported id
+/// and is what crosses between installations: local ids are generated per
+/// install and therefore cannot identify the same server to a peer.
 class ConnectedPlaybackScope extends Equatable {
-  const ConnectedPlaybackScope({required this.serverId, required this.userId});
+  const ConnectedPlaybackScope({
+    required this.serverId,
+    required this.userId,
+    this.wireServerId,
+  });
 
-  /// Jellyfinity's local id for the server (`JellyfinServer.id`).
+  /// Jellyfinity's local id for the saved server (`JellyfinServer.id`).
   final String serverId;
+
+  /// Jellyfin's server-stable id, for the protocol wire scope only.
+  final String? wireServerId;
 
   /// The Jellyfin user's id on that server.
   final String userId;
 
-  /// A single-string form for wire payloads and map keys. Both halves are
-  /// UUIDs, so the separator cannot occur inside either.
-  String get key => '$serverId$_separator$userId';
+  /// A single-string form for wire payloads and map keys.
+  String get key => '${wireServerId ?? serverId}$_separator$userId';
 
-  /// Reverses [key]. Returns `null` for anything malformed, so a message
-  /// from a future or corrupted peer degrades to "not for us" instead of
-  /// throwing.
+  /// Reverses [key]. The result has no local-id mapping because it came
+  /// from a peer; envelope decoding replaces it with this device's local
+  /// scope after comparing [key].
   static ConnectedPlaybackScope? tryParse(String? value) {
     if (value == null) return null;
     final parts = value.split(_separator);
@@ -51,7 +48,7 @@ class ConnectedPlaybackScope extends Equatable {
   static const String _separator = '/';
 
   @override
-  List<Object?> get props => [serverId, userId];
+  List<Object?> get props => [serverId, userId, wireServerId];
 
   @override
   String toString() => 'ConnectedPlaybackScope($key)';

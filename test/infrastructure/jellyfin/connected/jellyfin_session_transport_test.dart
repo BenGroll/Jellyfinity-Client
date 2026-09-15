@@ -155,6 +155,33 @@ void main() {
     });
 
     test(
+      'announces itself when the socket later reveals its local session',
+      () async {
+        // Jellyfin can omit this install from the initial filtered REST
+        // roster, then include it in the socket's first Sessions update.
+        // In that ordering the transport cannot address a presence message
+        // until the update identifies its ephemeral session id.
+        server.sessions = [];
+
+        await transport.advertise(testScope);
+        expect(transport.localSessionId, isNull);
+        expect(server.delivered, isEmpty);
+
+        sockets.single.emitSessions([localSession, tvSession]);
+        await waitUntil(
+          () => server.delivered.any(
+            (sent) =>
+                sent.target == 'session-tv' &&
+                sent.envelope.kind == EnvelopeKind.presence,
+          ),
+          reason: 'the delayed presence announcement',
+        );
+
+        expect(transport.localSessionId, 'session-local');
+      },
+    );
+
+    test(
       'answers a peer that asked to be introduced to, without asking back',
       () async {
         await transport.advertise(testScope);

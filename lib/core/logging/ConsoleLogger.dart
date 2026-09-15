@@ -1,20 +1,29 @@
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
+import 'LocalLogStore.dart';
 import 'Logger.dart';
 
-/// A [Logger] that writes to the console via `debugPrint`.
+/// A [Logger] that writes to the console and retains local diagnostics.
 ///
-/// Debug-level logs are suppressed outside debug builds; info/warning/
-/// error are kept, since they are expected to remain useful (without
-/// containing sensitive data, per [Logger]'s privacy rule) in a release
-/// build a user might report a problem from.
+/// Debug events remain suppressed from release console output, but are kept
+/// in [LocalLogStore] so the in-app Logs > Remote screen can diagnose an
+/// installed build as completely as a debug run.
 @LazySingleton(as: Logger)
 class ConsoleLogger implements Logger {
+  ConsoleLogger(this._localLogs);
+
+  final LocalLogStore _localLogs;
+
   @override
   void debug(String message, {Object? error, StackTrace? stackTrace}) {
-    if (!kDebugMode) return;
-    _log(LogLevel.debug, message, error: error, stackTrace: stackTrace);
+    _log(
+      LogLevel.debug,
+      message,
+      printToConsole: kDebugMode,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   @override
@@ -35,9 +44,17 @@ class ConsoleLogger implements Logger {
   void _log(
     LogLevel level,
     String message, {
+    bool printToConsole = true,
     Object? error,
     StackTrace? stackTrace,
   }) {
+    _localLogs.add(
+      level: level,
+      message: message,
+      error: error,
+      stackTrace: stackTrace,
+    );
+    if (!printToConsole) return;
     final buffer = StringBuffer('[${level.name.toUpperCase()}] $message');
     if (error != null) buffer.write(' | error: $error');
     debugPrint(buffer.toString());

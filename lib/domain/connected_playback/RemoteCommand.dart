@@ -529,7 +529,7 @@ RemoteCommandDecoding decodeRemoteCommand(
         ),
       );
     case RemoteCommandKind.setQueue:
-      final entries = _entries(payload['entries']);
+      final entries = _entries(payload['entries'], scope.serverId);
       final startIndex = payload['startIndex'];
       if (entries == null || startIndex is! int) {
         return const UnreadableRemoteCommand('setQueue without a usable queue');
@@ -554,7 +554,7 @@ RemoteCommandDecoding decodeRemoteCommand(
         ),
       );
     case RemoteCommandKind.appendToQueue:
-      final entries = _entries(payload['entries']);
+      final entries = _entries(payload['entries'], scope.serverId);
       if (entries == null || expected == null) {
         return const UnreadableRemoteCommand(
           'appendToQueue without entries or an expected revision',
@@ -634,7 +634,7 @@ RemoteCommandDecoding decodeRemoteCommand(
   }
 }
 
-List<RemoteQueueEntry>? _entries(Object? value) {
+List<RemoteQueueEntry>? _entries(Object? value, String localServerId) {
   if (value is! List) return null;
   final entries = <RemoteQueueEntry>[];
   for (final raw in value) {
@@ -644,7 +644,7 @@ List<RemoteQueueEntry>? _entries(Object? value) {
     // reordering entries, and a queue one track shorter than the one the
     // listener transferred is exactly that.
     if (entry == null) return null;
-    entries.add(entry);
+    entries.add(entry.forLocalServer(localServerId));
   }
   return entries;
 }

@@ -8,6 +8,7 @@ import '../../features/auth/presentation/server_setup/server_setup_page.dart';
 import '../../features/downloads/presentation/DownloadsPage.dart';
 import '../../features/favorites/presentation/FavoritesPage.dart';
 import '../../features/home/presentation/HomePage.dart';
+import '../../features/logs/presentation/LogsPage.dart';
 import '../../features/music/presentation/detail/AlbumDetailPage.dart';
 import '../../features/music/presentation/detail/ArtistDetailPage.dart';
 import '../../features/music/presentation/detail/PlaylistDetailPage.dart';
@@ -110,6 +111,11 @@ class AppRouter {
           path: RoutePaths.downloads,
           name: RouteNames.downloads,
           builder: (context, state) => const DownloadsPage(),
+        ),
+        GoRoute(
+          path: RoutePaths.logsRemote,
+          name: RouteNames.logsRemote,
+          builder: (context, state) => const LogsPage(),
         ),
         GoRoute(
           path: RoutePaths.nowPlaying,

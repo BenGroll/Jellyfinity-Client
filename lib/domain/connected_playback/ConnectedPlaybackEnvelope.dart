@@ -155,7 +155,7 @@ class ConnectedPlaybackEnvelope extends Equatable {
         'missing or unreadable scope',
       );
     }
-    if (scope != localScope) {
+    if (scope.key != localScope.key) {
       return const IgnoredEnvelope(
         EnvelopeIgnoreReason.outOfScope,
         'message belongs to another server or profile',
@@ -192,7 +192,10 @@ class ConnectedPlaybackEnvelope extends Equatable {
       ConnectedPlaybackEnvelope(
         messageId: messageId,
         protocolVersion: version,
-        scope: scope,
+        // The received scope only carries the shared wire id. Hand the
+        // local scope upward so media repositories continue using this
+        // installation's local server id.
+        scope: localScope,
         senderSessionId: sender,
         kind: kind,
         payload: payload is Map

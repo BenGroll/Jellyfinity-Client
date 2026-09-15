@@ -161,26 +161,15 @@ void main() {
   );
 
   test(
-    'leaving the foreground releases the socket and returning restores it',
+    'leaving the foreground keeps an idle remote target connected',
     () async {
       session.emit(signedInAs('user-1'));
       await link.start();
 
       link.didChangeAppLifecycleState(AppLifecycleState.paused);
-      await waitUntil(
-        () => sockets.single.closed,
-        reason: 'the socket to be released',
-      );
-      expect(
-        transport.connectionState,
-        ConnectedPlaybackConnection.reconnecting,
-      );
+      await settle();
 
-      link.didChangeAppLifecycleState(AppLifecycleState.resumed);
-      await waitUntil(
-        () => sockets.length == 2,
-        reason: 'the socket to be re-established',
-      );
+      expect(sockets.single.closed, isFalse);
       expect(transport.connectionState, ConnectedPlaybackConnection.connected);
     },
   );
@@ -205,7 +194,7 @@ void main() {
   );
 
   test(
-    'playback ending while backgrounded releases the socket',
+    'playback ending while backgrounded keeps the remote target available',
     () async {
       session.emit(signedInAs('user-1'));
       await link.start();
@@ -219,34 +208,25 @@ void main() {
       expect(sockets.single.closed, isFalse);
 
       engine.emitStatus(PlaybackStatus.paused);
-      await waitUntil(
-        () => sockets.single.closed,
-        reason: 'the socket to be released once nothing is playing',
-      );
-      expect(
-        transport.connectionState,
-        ConnectedPlaybackConnection.reconnecting,
-      );
+      await settle();
+      expect(sockets.single.closed, isFalse);
+      expect(transport.connectionState, ConnectedPlaybackConnection.connected);
     },
   );
 
   test(
-    'playback starting while already backgrounded restores the socket',
+    'playback starting while backgrounded needs no remote reconnect',
     () async {
       session.emit(signedInAs('user-1'));
       await link.start();
 
       link.didChangeAppLifecycleState(AppLifecycleState.paused);
-      await waitUntil(
-        () => sockets.single.closed,
-        reason: 'the socket to be released while nothing plays',
-      );
+      await settle();
+      expect(sockets.single.closed, isFalse);
 
       engine.emitStatus(PlaybackStatus.playing);
-      await waitUntil(
-        () => sockets.length == 2,
-        reason: 'the socket to be re-established once playback starts',
-      );
+      await settle();
+      expect(sockets, hasLength(1));
       expect(transport.connectionState, ConnectedPlaybackConnection.connected);
     },
   );
@@ -323,31 +303,27 @@ void main() {
     );
 
     test(
-      'falling asleep while already backgrounded and not playing stays '
-      'expired once it wakes',
+      'an asleep backgrounded device reconnects when its display wakes',
       () async {
         session.emit(signedInAs('user-1'));
         await link.start();
 
         link.didChangeAppLifecycleState(AppLifecycleState.paused);
-        await waitUntil(
-          () => sockets.single.closed,
-          reason: 'the socket to be released while backgrounded and idle',
-        );
+        await settle();
+        expect(sockets.single.closed, isFalse);
 
         television.screenOff();
-        await settle();
-        expect(sockets.length, 1, reason: 'still just the one closed socket');
+        await waitUntil(
+          () => sockets.single.closed,
+          reason: 'the asleep television to expire',
+        );
 
         television.screenOn();
-        await settle();
-        expect(
-          sockets.length,
-          1,
-          reason:
-              'still backgrounded and not playing, so waking defers to '
-              'that rule rather than reconnecting unconditionally',
+        await waitUntil(
+          () => sockets.length == 2,
+          reason: 'the waking television to restore its remote target',
         );
+        expect(transport.connectionState, ConnectedPlaybackConnection.connected);
       },
     );
 

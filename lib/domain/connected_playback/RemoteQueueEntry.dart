@@ -70,6 +70,31 @@ class RemoteQueueEntry extends Equatable {
   /// its own session, exactly as `ArtworkResolver` already does locally.
   final MediaImage? image;
 
+  /// Rebinds wire metadata to this installation's local server id.
+  ///
+  /// The envelope's shared Jellyfin server scope has already been verified
+  /// before this is called. Item ids are server-owned and portable between
+  /// installations; [MediaId.serverId] is not, because it is a local
+  /// database key on each device.
+  RemoteQueueEntry forLocalServer(String serverId) => RemoteQueueEntry(
+    id: MediaId(serverId: serverId, itemId: id.itemId),
+    title: title,
+    artist: artist,
+    albumId: albumId == null
+        ? null
+        : MediaId(serverId: serverId, itemId: albumId!.itemId),
+    albumName: albumName,
+    duration: duration,
+    image: image == null
+        ? null
+        : MediaImage(
+            itemId: MediaId(serverId: serverId, itemId: image!.itemId.itemId),
+            kind: image!.kind,
+            tag: image!.tag,
+            aspectRatio: image!.aspectRatio,
+          ),
+  );
+
   /// The local queue entry a receiving device builds from this.
   ///
   /// Availability comes back at its default: the target has not tried to

@@ -1,13 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart';
+import 'package:jellyfinity/core/logging/LocalLogStore.dart';
 import 'package:jellyfinity/core/logging/Logger.dart';
 
 void main() {
   group('ConsoleLogger', () {
     late Logger logger;
+    late LocalLogStore localLogs;
 
     setUp(() {
-      logger = ConsoleLogger();
+      localLogs = LocalLogStore();
+      logger = ConsoleLogger(localLogs);
     });
 
     test('logs at every level without throwing', () {

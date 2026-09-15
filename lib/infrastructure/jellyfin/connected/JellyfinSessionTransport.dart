@@ -554,6 +554,7 @@ class JellyfinSessionTransport
         peers.add(session);
       }
     }
+    final previousSessionId = _sessionId;
     _sessionId ??= _ownSessionIdIn(peers);
     final changed = registry.replaceAll(
       peers.map(
@@ -561,6 +562,12 @@ class JellyfinSessionTransport
       ),
     );
     if (changed || registry.prune()) _emitDevices();
+    if (previousSessionId == null && _sessionId != null) {
+      _logger.info(
+        "Connected playback: local session discovered; announcing presence.",
+      );
+      unawaited(_announcePresence(replyRequested: true));
+    }
   }
 
   void _onGeneralCommand(Object? data) {
@@ -631,6 +638,7 @@ class JellyfinSessionTransport
       case EnvelopeKind.presence:
         final advertisement = DeviceAdvertisement.tryDecode(envelope.payload);
         if (advertisement == null) return;
+        _logger.info('Connected playback: received peer presence.');
         final changed = registry.applyAdvertisement(
           envelope.senderSessionId,
           envelope.protocolVersion,
@@ -822,6 +830,9 @@ class JellyfinSessionTransport
     final targets = (_registry?.devices ?? const <ConnectedDevice>[])
         .where((device) => !device.isThisDevice && to(device))
         .toList();
+    _logger.info(
+      'Connected playback: broadcasting ${kind.name} to ${targets.length} peer(s).',
+    );
     Failure? firstFailure;
     for (final device in targets) {
       final result = await send(

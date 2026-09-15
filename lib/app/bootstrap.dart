@@ -203,20 +203,6 @@ Future<void> bootstrap({required Widget Function() builder}) async {
     );
   };
 
-  runZonedGuarded(
-    () {
-      logger.info(
-        'Jellyfinity starting (environment: '
-        '${config.environment.name})',
-      );
-      runApp(builder());
-    },
-    (error, stackTrace) {
-      logger.error(
-        'Unhandled error outside Flutter',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    },
-  );
+  logger.info("Jellyfinity starting (environment: ${config.environment.name})");
+  runApp(builder());
 }

@@ -86,6 +86,46 @@ class AppSidebar extends StatelessWidget {
                 context.pushNamed(RouteNames.downloads);
               },
             ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                t.spacing.md,
+                t.spacing.md,
+                t.spacing.md,
+                t.spacing.xs,
+              ),
+              child: Text(
+                'Logs',
+                style: t.typography.caption.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.only(
+                left: t.spacing.xl,
+                right: t.spacing.md,
+              ),
+              leading: Icon(
+                Icons.cast_outlined,
+                color: t.colors.textSecondary,
+              ),
+              title: Text(
+                'Remote',
+                style: t.typography.bodyLarge.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+              ),
+              subtitle: Text(
+                'Connected-playback diagnostics',
+                style: t.typography.caption.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.pushNamed(RouteNames.logsRemote);
+              },
+            ),
             ListTile(
               leading: Icon(Icons.tune_rounded, color: t.colors.textSecondary),
               title: Text(

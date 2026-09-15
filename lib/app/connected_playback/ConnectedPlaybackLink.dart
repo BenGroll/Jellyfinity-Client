@@ -58,15 +58,13 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   /// service, ADR-0013) for a long time, and [_onPlaybackChanged] needs
   /// to know whether a status change happened while backgrounded without
   /// asking the transport to infer it from its own connection state.
-  bool _backgrounded = false;
-
   /// Whether the Android host's display just reported itself off.
   ///
   /// Only ever set on a television (ADR-0036): a television going to
   /// sleep does not reliably change `AppLifecycleState` the way
   /// backgrounding a phone does, so this is a second, independent signal
   /// `_reconcileBackgroundConnection` checks first — an asleep television
-  /// expires as a target regardless of `_backgrounded` or whether it is
+  /// expires as a target regardless of whether it is
   /// still playing (v0.5.9).
   bool _televisionAsleep = false;
 
@@ -121,7 +119,6 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        _backgrounded = false;
         // Returning to the foreground always re-establishes rather than
         // assuming the socket survived: the app may have been away for a
         // day, and a socket that is open but dead looks exactly like one
@@ -134,7 +131,6 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
         if (!_televisionAsleep) unawaited(_transport.resume());
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        _backgrounded = true;
         _reconcileBackgroundConnection();
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
@@ -171,41 +167,19 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     _televisionAsleep = !screenOn;
     if (_televisionAsleep) {
       unawaited(_transport.suspend());
-    } else if (_backgrounded) {
-      _reconcileBackgroundConnection();
     } else {
       unawaited(_transport.resume());
     }
   }
 
-  /// Keeps a backgrounded device that is still playing reachable as a
-  /// target instead of going dark mid-playback (v0.5.8).
+  /// Keeps a signed-in device reachable as a remote target while it is
+  /// backgrounded. Selecting another device to browse the Remote screen
+  /// must not make this idle target disappear behind a presence-only row.
   ///
-  /// [JellyfinSessionTransport.suspend]'s own doc names both halves of
-  /// when it applies: "no longer in the foreground and no longer
-  /// playing." `didChangeAppLifecycleState` only ever knew the first half
-  /// — on Android, backgrounded-but-playing is exactly the state
-  /// `audio_service`'s foreground service (ADR-0013) exists to sustain,
-  /// so dropping the socket there would make this device unreachable
-  /// from another device's picker for as long as it kept playing. Called
-  /// on every background transition and, since playback can start,
-  /// finish or be paused entirely independently of one, on every
-  /// [_onPlaybackChanged] while already backgrounded — either direction
-  /// can be the one that changes which side of "and" is true.
-  ///
-  /// An asleep television (above) overrides this outright: falling asleep
-  /// suspends regardless of what this method would otherwise decide.
+  /// A television whose display is asleep remains the one exception: it is
+  /// deliberately unavailable until the display wakes.
   void _reconcileBackgroundConnection() {
-    if (_televisionAsleep) {
-      unawaited(_transport.suspend());
-      return;
-    }
-    if (!_backgrounded) return;
-    if (_playback.state.isPlaying) {
-      unawaited(_transport.resume());
-    } else {
-      unawaited(_transport.suspend());
-    }
+    if (_televisionAsleep) unawaited(_transport.suspend());
   }
 
   void _onPlaybackChanged(PlaybackUiState state) =>

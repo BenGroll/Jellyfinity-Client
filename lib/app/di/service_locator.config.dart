@@ -44,6 +44,7 @@ import 'package:jellyfinity/app/session/SessionJellyfinContext.dart' as _i139;
 import 'package:jellyfinity/app/settings/SettingsCubit.dart' as _i230;
 import 'package:jellyfinity/app/settings/ShellNavigationMode.dart' as _i883;
 import 'package:jellyfinity/core/logging/ConsoleLogger.dart' as _i1033;
+import 'package:jellyfinity/core/logging/LocalLogStore.dart' as _i1001;
 import 'package:jellyfinity/core/logging/Logger.dart' as _i612;
 import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackTransport.dart'
     as _i231;
@@ -224,6 +225,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i525.FavoritesRevisionCubit>(
       () => _i525.FavoritesRevisionCubit(),
     );
+    gh.lazySingleton<_i1001.LocalLogStore>(() => _i1001.LocalLogStore());
     gh.lazySingleton<_i855.DownloadStorage>(
       () => _i855.DownloadStorage.platform(),
     );
@@ -231,7 +233,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i558.FlutterSecureStorage>(
       () => secureStorageModule.secureStorage(),
     );
-    gh.lazySingleton<_i612.Logger>(() => _i1033.ConsoleLogger());
+    gh.lazySingleton<_i612.Logger>(
+      () => _i1033.ConsoleLogger(gh<_i1001.LocalLogStore>()),
+    );
     gh.lazySingleton<_i21.DownloadStorageProbe>(
       () => _i983.DiskSpaceStorageProbe.create(),
     );

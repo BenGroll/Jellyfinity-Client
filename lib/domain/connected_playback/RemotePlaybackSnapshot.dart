@@ -194,7 +194,7 @@ class RemotePlaybackSnapshot extends Equatable {
       for (final raw in rawQueue) {
         final entry = RemoteQueueEntry.tryDecode(raw);
         if (entry == null) return null;
-        queue.add(entry);
+        queue.add(entry.forLocalServer(scope.serverId));
       }
     }
 

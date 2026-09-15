@@ -71,6 +71,10 @@ abstract final class RoutePaths {
   /// collections, failures — reached from the sidebar (v0.2.2).
   static const downloads = '/downloads';
 
+  /// In-app diagnostics for connected playback, reached from Logs > Remote
+  /// in the sidebar.
+  static const logsRemote = '/logs/remote';
+
   /// The full player screen. A root route, not nested under a shell
   /// branch: it is reachable from any tab and covers the bottom nav.
   static const nowPlaying = '/now-playing';
@@ -106,6 +110,7 @@ abstract final class RouteNames {
   static const accounts = 'accounts';
   static const settings = 'settings';
   static const downloads = 'downloads';
+  static const logsRemote = 'logsRemote';
   static const nowPlaying = 'nowPlaying';
   static const nowPlayingQueue = 'nowPlayingQueue';
   static const nowPlayingLyrics = 'nowPlayingLyrics';
