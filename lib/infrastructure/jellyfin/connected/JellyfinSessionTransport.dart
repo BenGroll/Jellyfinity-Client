@@ -98,6 +98,23 @@ class JellyfinSessionTransport
   @visibleForTesting
   Duration presencePollInterval = ConnectedPlaybackLimits.presencePollInterval;
 
+  Duration backgroundPresencePollInterval =
+      ConnectedPlaybackLimits.backgroundPresencePollInterval;
+
+  bool _backgrounded = false;
+
+  /// Adjusts presence cadence and expiry while the app is backgrounded.
+  void setBackgrounded(bool backgrounded) {
+    _backgrounded = backgrounded;
+    final registry = _registry;
+    if (registry != null) {
+      registry.staleAfter = backgrounded
+          ? ConnectedPlaybackLimits.backgroundPresenceStaleAfter
+          : ConnectedPlaybackLimits.presenceStaleAfter;
+    }
+    if (_socket == null && _scope != null && !_suspended) _startPolling();
+  }
+
   /// The short platform word shown beside a duplicate device name.
   ///
   /// Defaulted from the host and overridden at composition, because the
@@ -182,7 +199,13 @@ class JellyfinSessionTransport
       await clear(previous);
     }
     _scope = scope;
-    _registry ??= DevicePresenceRegistry(scope: scope, clock: clock);
+    _registry ??= DevicePresenceRegistry(
+      scope: scope,
+      clock: clock,
+      staleAfter: _backgrounded
+          ? ConnectedPlaybackLimits.backgroundPresenceStaleAfter
+          : ConnectedPlaybackLimits.presenceStaleAfter,
+    );
     _suspended = false;
     return _connect();
   }
@@ -753,10 +776,13 @@ class JellyfinSessionTransport
   /// slower than the socket it stands in for.
   void _startPolling() {
     _poll?.cancel();
-    _poll = Timer.periodic(presencePollInterval, (_) {
-      if (_scope == null || _socket != null) return;
-      unawaited(_readSessions(rescheduleOnFailure: false));
-    });
+    _poll = Timer.periodic(
+      _backgrounded ? backgroundPresencePollInterval : presencePollInterval,
+      (_) {
+        if (_scope == null || _socket != null) return;
+        unawaited(_readSessions(rescheduleOnFailure: false));
+      },
+    );
   }
 
   // --- presence -----------------------------------------------------

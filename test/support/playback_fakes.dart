@@ -143,6 +143,7 @@ class FakePlaybackEngine implements PlaybackEngine {
     required int initialIndex,
     Duration? initialPosition,
     required bool resumePlaying,
+    required bool preserveActiveTrack,
   }) async {
     this.sources = sources;
     currentIndex = sources.isEmpty ? null : initialIndex;

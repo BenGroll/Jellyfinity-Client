@@ -177,6 +177,7 @@ void main() {
 
     expect(transport.calls, contains('createGroup'));
     expect(transport.calls.any((c) => c.startsWith('setQueue(2')), isTrue);
+    expect(transport.calls, contains('play'));
   });
 
   test('a queue update from the group loads the real local queue — the '

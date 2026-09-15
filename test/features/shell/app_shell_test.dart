@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,7 +65,7 @@ void main() {
     }
   });
 
-  group('explicit takeover (v0.6.0)', () {
+  group('direct local takeover (v0.6.0)', () {
     Track track(String id) => Track(
       id: MediaId(serverId: 's1', itemId: id),
       name: 'Track $id',
@@ -75,8 +73,8 @@ void main() {
     );
 
     testWidgets(
-      'starting local playback while controlling another device asks '
-      'before doing anything, no matter which screen pressed play',
+      'starting local playback while controlling another device releases '
+      'control and starts immediately',
       (tester) async {
         final ownership = FakeRemotePlaybackOwnership()
           ..controlledDevice = device(name: 'Living Room TV');
@@ -86,13 +84,7 @@ void main() {
         await scope.signIn();
         await tester.pumpAndSettle();
 
-        unawaited(playback.playNow([track('a')], startIndex: 0));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Play here instead?'), findsOneWidget);
-        expect(playback.state.hasQueue, isFalse);
-
-        await tester.tap(find.text('Play here'));
+        await playback.playNow([track('a')], startIndex: 0);
         await tester.pumpAndSettle();
 
         expect(ownership.releaseCalls, 1);
@@ -107,7 +99,9 @@ void main() {
       },
     );
 
-    testWidgets('cancelling leaves the other device alone', (tester) async {
+    testWidgets('local playback never leaves a takeover confirmation behind', (
+      tester,
+    ) async {
       final ownership = FakeRemotePlaybackOwnership()
         ..controlledDevice = device(name: 'Living Room TV');
       final playback = fakePlaybackCubit(remoteOwnership: ownership);
@@ -116,14 +110,12 @@ void main() {
       await scope.signIn();
       await tester.pumpAndSettle();
 
-      unawaited(playback.playNow([track('a')], startIndex: 0));
+      await playback.playNow([track('a')], startIndex: 0);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      expect(ownership.releaseCalls, 0);
-      expect(playback.state.hasQueue, isFalse);
+      expect(ownership.releaseCalls, 1);
+      expect(playback.state.hasQueue, isTrue);
+      await playback.pause();
       expect(find.text('Play here instead?'), findsNothing);
     });
   });

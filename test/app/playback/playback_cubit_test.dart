@@ -612,22 +612,25 @@ void main() {
     // which is what a build wiring a route could otherwise silently
     // redirect, since `JustAudioPlaybackEngine.play`/`pause`/`seek` are
     // shared with the OS-facing `audio_service` handler.
-    test('play, pause, seek and resume all pass allowRemoteRoute: false', () async {
-      await cubit.playNow([_track('a')], startIndex: 0);
+    test(
+      'play, pause, seek and resume all pass allowRemoteRoute: false',
+      () async {
+        await cubit.playNow([_track('a')], startIndex: 0);
 
-      await cubit.pause();
-      expect(engine.lastPauseAllowedRemoteRoute, isFalse);
+        await cubit.pause();
+        expect(engine.lastPauseAllowedRemoteRoute, isFalse);
 
-      await cubit.play();
-      expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+        await cubit.play();
+        expect(engine.lastPlayAllowedRemoteRoute, isFalse);
 
-      await cubit.seek(const Duration(seconds: 5));
-      expect(engine.lastSeekAllowedRemoteRoute, isFalse);
+        await cubit.seek(const Duration(seconds: 5));
+        expect(engine.lastSeekAllowedRemoteRoute, isFalse);
 
-      await cubit.pause();
-      await cubit.resume();
-      expect(engine.lastPlayAllowedRemoteRoute, isFalse);
-    });
+        await cubit.pause();
+        await cubit.resume();
+        expect(engine.lastPlayAllowedRemoteRoute, isFalse);
+      },
+    );
 
     test(
       'a failure-triggered retry still plays with allowRemoteRoute: false',
@@ -1137,71 +1140,59 @@ void main() {
   });
 
   group('system volume (v0.6.0)', () {
-    test(
-      'reads back this device\'s real volume at construction, once the '
-      'engine can answer',
-      () async {
-        engine.systemVolumeValue = 0.6;
-        final freshEngine = FakePlaybackEngine()..systemVolumeValue = 0.6;
-        addTearDown(freshEngine.disposeForTest);
-        final freshCubit = PlaybackCubit(
-          freshEngine,
-          queueRepository,
-          resolver,
-          progress,
-          history,
-          settings,
-        );
-        addTearDown(freshCubit.close);
-        await _pump();
+    test('reads back this device\'s real volume at construction, once the '
+        'engine can answer', () async {
+      engine.systemVolumeValue = 0.6;
+      final freshEngine = FakePlaybackEngine()..systemVolumeValue = 0.6;
+      addTearDown(freshEngine.disposeForTest);
+      final freshCubit = PlaybackCubit(
+        freshEngine,
+        queueRepository,
+        resolver,
+        progress,
+        history,
+        settings,
+      );
+      addTearDown(freshCubit.close);
+      await _pump();
 
-        expect(freshCubit.state.systemVolume, 0.6);
-      },
-    );
+      expect(freshCubit.state.systemVolume, 0.6);
+    });
 
-    test(
-      'setSystemVolume forwards to the engine and publishes what it '
-      'actually reports back, not just the requested level',
-      () async {
-        engine.systemVolumeValue = 0.2;
+    test('setSystemVolume forwards to the engine and publishes what it '
+        'actually reports back, not just the requested level', () async {
+      engine.systemVolumeValue = 0.2;
 
-        await cubit.setSystemVolume(0.9);
+      await cubit.setSystemVolume(0.9);
 
-        expect(engine.calls, contains('setSystemVolume(0.9)'));
-        expect(cubit.state.systemVolume, 0.9);
-      },
-    );
+      expect(engine.calls, contains('setSystemVolume(0.9)'));
+      expect(cubit.state.systemVolume, 0.9);
+    });
 
-    test(
-      'a platform with no settable system volume never reports one, '
-      'and setSystemVolume stays a safe no-op',
-      () async {
-        engine.systemVolumeValue = null;
+    test('a platform with no settable system volume never reports one, '
+        'and setSystemVolume stays a safe no-op', () async {
+      engine.systemVolumeValue = null;
 
-        await cubit.setSystemVolume(0.5);
+      await cubit.setSystemVolume(0.5);
 
-        expect(cubit.state.systemVolume, isNull);
-      },
-    );
+      expect(cubit.state.systemVolume, isNull);
+    });
 
-    test(
-      'an ordinary playback state change never wipes out the last known '
-      'volume — there is no copyWith, so every emit site must carry it '
-      'forward explicitly',
-      () async {
-        engine.systemVolumeValue = 0.3;
-        await cubit.setSystemVolume(0.3);
-        expect(cubit.state.systemVolume, 0.3);
+    test('an ordinary playback state change never wipes out the last known '
+        'volume — there is no copyWith, so every emit site must carry it '
+        'forward explicitly', () async {
+      engine.systemVolumeValue = 0.3;
+      await cubit.setSystemVolume(0.3);
+      expect(cubit.state.systemVolume, 0.3);
 
-        await cubit.setRepeatMode(RepeatMode.all);
-        await _pump();
+      await cubit.setRepeatMode(RepeatMode.all);
+      await _pump();
 
-        expect(cubit.state.systemVolume, 0.3);
-      },
-    );
+      expect(cubit.state.systemVolume, 0.3);
+    });
   });
 
-  group('explicit takeover (v0.6.0)', () {
+  group('direct local takeover (v0.6.0)', () {
     late FakeRemotePlaybackOwnership ownership;
     late PlaybackCubit takeoverCubit;
 
@@ -1220,72 +1211,59 @@ void main() {
 
     tearDown(() => takeoverCubit.close());
 
-    test(
-      'starting local playback with nothing controlled proceeds '
-      'immediately, exactly as before',
-      () async {
-        await takeoverCubit.playNow([_track('a')], startIndex: 0);
-        await _pump();
+    test('starting local playback with nothing controlled proceeds '
+        'immediately, exactly as before', () async {
+      await takeoverCubit.playNow([_track('a')], startIndex: 0);
+      await _pump();
 
-        expect(takeoverCubit.state.hasQueue, isTrue);
-        expect(takeoverCubit.state.pendingTakeoverDeviceName, isNull);
-      },
-    );
+      expect(takeoverCubit.state.hasQueue, isTrue);
+    });
 
-    test(
-      'playing something new while controlling another device holds '
-      'off and names it, rather than starting a second stream',
-      () async {
-        ownership.controlledDevice = device(name: 'Living Room TV');
+    test('playing something new while controlling another device releases '
+        'control before starting a local stream', () async {
+      ownership.controlledDevice = device(name: 'Living Room TV');
 
-        await takeoverCubit.playNow([_track('a')], startIndex: 0);
+      await takeoverCubit.playNow([_track('a')], startIndex: 0);
 
-        expect(takeoverCubit.state.pendingTakeoverDeviceName, 'Living Room TV');
-        expect(takeoverCubit.state.hasQueue, isFalse);
-        expect(ownership.releaseCalls, 0);
-      },
-    );
+      expect(ownership.releaseCalls, 1);
+      expect(takeoverCubit.state.hasQueue, isTrue);
+    });
 
     test(
-      'confirming releases the other device and runs the local play '
-      'that was waiting',
+      'local takeover releases the other device and starts the local play',
       () async {
         ownership.controlledDevice = device(name: 'Living Room TV');
         await takeoverCubit.playNow([_track('a')], startIndex: 0);
 
-        await takeoverCubit.confirmTakeover();
         await _pump();
 
         expect(ownership.releaseCalls, 1);
-        expect(takeoverCubit.state.pendingTakeoverDeviceName, isNull);
         expect(takeoverCubit.state.hasQueue, isTrue);
       },
     );
 
     test(
-      'cancelling drops the local play and never touches the other device',
+      'local playback starts directly and leaves no takeover pending',
       () async {
         ownership.controlledDevice = device(name: 'Living Room TV');
         await takeoverCubit.playNow([_track('a')], startIndex: 0);
 
-        takeoverCubit.cancelTakeover();
         await _pump();
 
-        expect(ownership.releaseCalls, 0);
-        expect(takeoverCubit.state.pendingTakeoverDeviceName, isNull);
-        expect(takeoverCubit.state.hasQueue, isFalse);
+        expect(ownership.releaseCalls, 1);
+        expect(takeoverCubit.state.hasQueue, isTrue);
       },
     );
 
-    test('playShuffled and resume are guarded the same way', () async {
+    test('resume releases remote control before playing locally', () async {
       await takeoverCubit.playNow([_track('a'), _track('b')], startIndex: 0);
       await takeoverCubit.pause();
       ownership.controlledDevice = device(name: 'Living Room TV');
 
       await takeoverCubit.resume();
 
-      expect(takeoverCubit.state.pendingTakeoverDeviceName, 'Living Room TV');
-      expect(takeoverCubit.state.isPlaying, isFalse);
+      expect(ownership.releaseCalls, 1);
+      expect(takeoverCubit.state.isPlaying, isTrue);
     });
   });
 

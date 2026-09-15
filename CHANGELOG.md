@@ -26,12 +26,9 @@ All notable changes to Jellyfinity are documented here.
 ## Unreleased — Explicit playback takeover
 
 - Starting something new on this device while another of your devices owns
-  playback now asks first: "Play here instead?" names the device and warns
-  that playing here stops it there. Confirming stops the other device and
-  plays your pick here; cancelling leaves it playing where it was.
-- Applies wherever local playback would otherwise start quietly underneath
-  an active remote session — picking a song, an album, a playlist, or
-  resuming "Continue listening" from Home.
+  playback releases that remote control and immediately plays the selected
+  song, album, playlist, or Continue Listening item here. There is no
+  competing second stream or stale takeover dialog state.
 
 ## Unreleased — Remote volume control
 

@@ -20,7 +20,6 @@ class PlaybackUiState extends Equatable {
     this.duration,
     this.lastFailure,
     this.systemVolume,
-    this.pendingTakeoverDeviceName,
   });
 
   final PlaybackQueue queue;
@@ -51,19 +50,6 @@ class PlaybackUiState extends Equatable {
   /// volume handling ever changes it.
   final double? systemVolume;
 
-  /// The name of the device an explicit takeover is waiting to hear back
-  /// about (v0.6.0) — set the moment a "play this" action would otherwise
-  /// silently fight whatever [pendingTakeoverDeviceName] names, and
-  /// cleared the moment `PlaybackCubit.confirmTakeover` or `.cancelTakeover`
-  /// resolves it. `null` the rest of the time, including every ordinary
-  /// local play that has nothing to take over from.
-  ///
-  /// A shell-level listener is what actually asks the listener and calls
-  /// back into the cubit — this field only carries the fact, the same
-  /// "state, not a dialog" split [lastFailure] already uses for its own
-  /// one-off notice.
-  final String? pendingTakeoverDeviceName;
-
   QueueEntry? get currentEntry => queue.currentEntry;
 
   bool get hasQueue => !queue.isEmpty;
@@ -79,6 +65,5 @@ class PlaybackUiState extends Equatable {
     duration,
     lastFailure,
     systemVolume,
-    pendingTakeoverDeviceName,
   ];
 }

@@ -44,6 +44,7 @@ abstract class PlaybackEngine {
     required int initialIndex,
     Duration? initialPosition,
     required bool resumePlaying,
+    required bool preserveActiveTrack,
   });
 
   /// Configures how the engine transitions between two consecutive

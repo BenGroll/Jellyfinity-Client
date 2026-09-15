@@ -1,0 +1,457 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../app/connected_playback/PlaybackControlCubit.dart';
+import '../../../app/connected_playback/SyncPlayGroupCubit.dart';
+import '../../../app/connected_playback/SyncPlayGroupState.dart';
+import '../../../app/di/service_locator.dart';
+import '../../../app/playback/PlaybackCubit.dart';
+import '../../../design/design.dart';
+import '../../../domain/connected_playback/ConnectedDevice.dart';
+import '../../../domain/connected_playback/sync_play_group_status.dart';
+import '../../../app/platform/television_mode.dart';
+import '../../../domain/connected_playback/device_reachability.dart';
+import '../../playback/presentation/device_picker_cubit.dart';
+
+/// The device roster and all actions that change remote-play ownership.
+/// Shared by the Remote destination and the device action sheet.
+class RemoteControlPanel extends StatefulWidget {
+  const RemoteControlPanel({
+    super.key,
+    this.cubit,
+    this.groupCubit,
+    this.control,
+    this.title = 'Remote',
+  });
+
+  final DevicePickerCubit? cubit;
+  final SyncPlayGroupCubit? groupCubit;
+  final PlaybackControlCubit? control;
+  final String title;
+
+  @override
+  State<RemoteControlPanel> createState() => _RemoteControlPanelState();
+}
+
+class _RemoteControlPanelState extends State<RemoteControlPanel> {
+  late final DevicePickerCubit _cubit =
+      widget.cubit ?? getIt<DevicePickerCubit>();
+  late final bool _ownsCubit = widget.cubit == null;
+  late final SyncPlayGroupCubit _groupCubit =
+      widget.groupCubit ?? getIt<SyncPlayGroupCubit>();
+  late final PlaybackControlCubit _control =
+      widget.control ?? getIt<PlaybackControlCubit>();
+
+  @override
+  void dispose() {
+    if (_ownsCubit) unawaited(_cubit.close());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<DevicePickerCubit>.value(value: _cubit),
+        BlocProvider<SyncPlayGroupCubit>.value(value: _groupCubit),
+        BlocProvider<PlaybackControlCubit>.value(value: _control),
+      ],
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              t.spacing.md,
+              t.spacing.sm,
+              t.spacing.md,
+              t.spacing.xs,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: t.typography.titleLarge.copyWith(
+                      color: t.colors.textPrimary,
+                    ),
+                  ),
+                ),
+                BlocBuilder<SyncPlayGroupCubit, SyncPlayGroupState>(
+                  builder: (context, group) =>
+                      group.status == SyncPlayGroupStatus.joined
+                      ? TextButton.icon(
+                          onPressed: _groupCubit.leave,
+                          icon: const Icon(Icons.link_off_rounded),
+                          label: const Text('End Sync'),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'What is playing on your other devices.',
+                style: t.typography.bodyMedium.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: t.spacing.sm),
+          const Divider(height: 1),
+          Expanded(
+            child: BlocBuilder<DevicePickerCubit, DevicePickerState>(
+              builder: (context, devices) => Column(
+                children: [
+                  SizedBox(
+                    height: 220,
+                    child: _LocalAndSyncSummary(
+                      state: devices,
+                      groupCubit: _groupCubit,
+                      onPlayAll: _groupCubit.playOnAllDevices,
+                      onBringBack: _cubit.bringBackToThisDevice,
+                    ),
+                  ),
+                  Expanded(
+                    child:
+                        BlocBuilder<PlaybackControlCubit, PlaybackControlState>(
+                          builder: (context, control) => _RemoteDeviceList(
+                            devices: devices.devices,
+                            controllingSessionId: control.device?.sessionId,
+                            onControl: _controlDevice,
+                            onSync: _syncDevice,
+                            onTransfer: _transferToThisDevice,
+                            onEnd: _endRemotePlay,
+                            diagnostic: control.commandError,
+                          ),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _controlDevice(ConnectedDevice device) async {
+    final local = getIt<PlaybackCubit>();
+    if (local.state.isPlaying) await local.pause();
+    await _groupCubit.leave();
+    await _control.control(device);
+  }
+
+  Future<void> _syncDevice(ConnectedDevice device) async {
+    final projection = await _readRemoteQueue(device);
+    if (projection == null || projection.queue.isEmpty) return;
+    if (projection.syncGroupId != null) {
+      await _control.stop();
+      await _groupCubit.joinGroup(projection.syncGroupId!);
+      return;
+    }
+    final local = getIt<PlaybackCubit>();
+    await local.adoptTransferredQueue(
+      projection.queue.entries.map((entry) => entry.toTrack()).toList(),
+      startIndex: projection.queue.currentPlayPosition,
+      shuffleEnabled: projection.queue.shuffleEnabled,
+      repeatMode: projection.queue.repeatMode,
+      startPosition: projection.position,
+      startPlaying: projection.isPlaying,
+    );
+    await _control.stop();
+    await _groupCubit.playOnAllDevices();
+    final joined = await _waitForGroup();
+    if (joined == null) return;
+    await _control.control(device);
+    await _control.joinSyncGroup(joined);
+    await _control.stop();
+  }
+
+  Future<void> _transferToThisDevice(ConnectedDevice device) async {
+    final projection = await _readRemoteQueue(device);
+    if (projection == null || projection.queue.isEmpty) return;
+    final local = getIt<PlaybackCubit>();
+    final tracks = projection.queue.entries
+        .map((entry) => entry.toTrack())
+        .toList();
+    await local.adoptTransferredQueue(
+      tracks,
+      startIndex: projection.queue.currentPlayPosition,
+      shuffleEnabled: projection.queue.shuffleEnabled,
+      repeatMode: projection.queue.repeatMode,
+      startPosition: projection.position,
+      startPlaying: projection.isPlaying,
+    );
+    if (projection.isPlaying && !local.state.isPlaying) return;
+    final paused = await _control.pause();
+    if (paused.isErr) return;
+    await _control.stop();
+    await _control.control(device);
+  }
+
+  Future<PlaybackControlState?> _readRemoteQueue(ConnectedDevice device) async {
+    await _groupCubit.leave();
+    await _control.control(device);
+    if (_control.state.device?.sessionId == device.sessionId &&
+        _control.state.hasQueue) {
+      return _control.state;
+    }
+    try {
+      return await _control.stream
+          .firstWhere(
+            (state) =>
+                state.device?.sessionId == device.sessionId && state.hasQueue,
+          )
+          .timeout(const Duration(seconds: 17));
+    } on TimeoutException {
+      return null;
+    }
+  }
+
+  Future<String?> _waitForGroup() async {
+    if (_groupCubit.state.status == SyncPlayGroupStatus.joined) {
+      return _groupCubit.state.groupId;
+    }
+    try {
+      final state = await _groupCubit.stream
+          .firstWhere(
+            (state) =>
+                state.status == SyncPlayGroupStatus.joined ||
+                state.status == SyncPlayGroupStatus.failed,
+          )
+          .timeout(const Duration(seconds: 17));
+      return state.status == SyncPlayGroupStatus.joined ? state.groupId : null;
+    } on TimeoutException {
+      return null;
+    }
+  }
+
+  Future<void> _endRemotePlay() async {
+    if (_groupCubit.state.status == SyncPlayGroupStatus.joined) {
+      await _groupCubit.leave();
+    }
+    await _control.stop();
+  }
+}
+
+class _LocalAndSyncSummary extends StatelessWidget {
+  const _LocalAndSyncSummary({
+    required this.state,
+    required this.groupCubit,
+    required this.onPlayAll,
+    required this.onBringBack,
+  });
+
+  final DevicePickerState state;
+  final SyncPlayGroupCubit groupCubit;
+  final Future<void> Function() onPlayAll;
+  final Future<void> Function() onBringBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return BlocBuilder<SyncPlayGroupCubit, SyncPlayGroupState>(
+      bloc: groupCubit,
+      builder: (context, group) {
+        final action = switch (group.status) {
+          SyncPlayGroupStatus.none || SyncPlayGroupStatus.failed => TextButton(
+            onPressed: state.localIsPlaying ? onPlayAll : null,
+            child: const Text('Play on all devices'),
+          ),
+          SyncPlayGroupStatus.joining => const TextButton(
+            onPressed: null,
+            child: Text('Starting a group…'),
+          ),
+          SyncPlayGroupStatus.joined ||
+          SyncPlayGroupStatus.leaving => TextButton(
+            onPressed: group.status == SyncPlayGroupStatus.joined
+                ? groupCubit.leave
+                : null,
+            child: const Text('Leave'),
+          ),
+        };
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.spacing.md,
+            t.spacing.xs,
+            t.spacing.md,
+            t.spacing.xs,
+          ),
+          child: Column(
+            children: [
+              ListTile(
+                autofocus: TelevisionModeScope.of(context),
+                leading: Icon(
+                  state.localIsPlaying
+                      ? Icons.play_circle_fill_rounded
+                      : Icons.speaker_outlined,
+                ),
+                title: const Text('This device'),
+                subtitle: Text(
+                  state.localIsPlaying
+                      ? 'Playing here'
+                      : state.localHasQueue
+                      ? 'Paused here — tap to bring it back'
+                      : 'Nothing to play here yet',
+                ),
+                onTap: state.localHasQueue && !state.localIsPlaying
+                    ? onBringBack
+                    : null,
+              ),
+              Align(alignment: Alignment.centerRight, child: action),
+              if (group.status == SyncPlayGroupStatus.joined)
+                const Text('Playing on all devices'),
+              if (group.status == SyncPlayGroupStatus.joined &&
+                  group.groupName != null)
+                Text('In "${group.groupName}", playing here for now.'),
+              if (group.status == SyncPlayGroupStatus.failed &&
+                  group.failureMessage != null)
+                Text(
+                  group.failureMessage!,
+                  style: TextStyle(color: t.colors.danger),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RemoteDeviceList extends StatelessWidget {
+  const _RemoteDeviceList({
+    required this.devices,
+    required this.controllingSessionId,
+    required this.onControl,
+    required this.onSync,
+    required this.onTransfer,
+    required this.onEnd,
+    this.diagnostic,
+  });
+
+  final List<ConnectedDevice> devices;
+  final String? controllingSessionId;
+  final Future<void> Function(ConnectedDevice) onControl;
+  final Future<void> Function(ConnectedDevice) onSync;
+  final Future<void> Function(ConnectedDevice) onTransfer;
+  final Future<void> Function() onEnd;
+  final String? diagnostic;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final visible = [
+      for (final device in devices)
+        if (!device.isThisDevice) device,
+    ];
+    if (visible.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(t.spacing.lg),
+          child: Text(
+            'No other Jellyfinity devices found on this server yet.',
+            textAlign: TextAlign.center,
+            style: t.typography.bodyMedium.copyWith(
+              color: t.colors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: EdgeInsets.all(t.spacing.sm),
+      itemCount: visible.length,
+      separatorBuilder: (_, _) => SizedBox(height: t.spacing.xs),
+      itemBuilder: (context, index) {
+        final device = visible[index];
+        final controlling = device.sessionId == controllingSessionId;
+        return Card(
+          child: Padding(
+            padding: EdgeInsets.all(t.spacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    controlling
+                        ? Icons.cast_connected_rounded
+                        : Icons.speaker_rounded,
+                  ),
+                  title: Text(device.displayName),
+                  subtitle: Text(
+                    controlling
+                        ? 'Playing on this device'
+                        : _statusLabel(device),
+                  ),
+                  trailing: Icon(
+                    device.isPlaying
+                        ? Icons.play_arrow_rounded
+                        : Icons.pause_rounded,
+                  ),
+                ),
+                if (diagnostic != null)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: t.spacing.xs),
+                    child: SelectableText(
+                      'Remote diagnostic: $diagnostic',
+                      style: t.typography.caption.copyWith(
+                        color: t.colors.danger,
+                      ),
+                    ),
+                  ),
+                Wrap(
+                  spacing: t.spacing.xs,
+                  runSpacing: t.spacing.xs,
+                  children: [
+                    if (!controlling)
+                      OutlinedButton(
+                        onPressed: () => onControl(device),
+                        child: const Text('Control'),
+                      ),
+                    OutlinedButton(
+                      onPressed: () => onSync(device),
+                      child: const Text('Sync'),
+                    ),
+                    FilledButton(
+                      onPressed: () => onTransfer(device),
+                      child: const Text('Play on this device'),
+                    ),
+                    if (controlling)
+                      OutlinedButton.icon(
+                        onPressed: onEnd,
+                        icon: const Icon(Icons.link_off_rounded),
+                        label: const Text('End Remote Play'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _statusLabel(ConnectedDevice device) {
+    if (device.isPlaying) return 'Playing';
+    return switch (device.reachability) {
+      DeviceReachability.ready =>
+        device.canReceiveTransfer
+            ? 'Available'
+            : 'Cannot receive a transfer from this app version',
+      DeviceReachability.presenceOnly => 'Connecting…',
+      DeviceReachability.stale => 'Not seen recently',
+      DeviceReachability.incompatible => 'Needs a matching Jellyfinity version',
+      DeviceReachability.notPermitted => 'Permission denied',
+      DeviceReachability.offline => 'Unavailable',
+    };
+  }
+}

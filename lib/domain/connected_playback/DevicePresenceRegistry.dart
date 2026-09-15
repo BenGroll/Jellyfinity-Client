@@ -31,7 +31,11 @@ import 'device_reachability.dart';
 /// and reconnects is the same row with a new address, not a second row
 /// beside a ghost.
 class DevicePresenceRegistry {
-  DevicePresenceRegistry({required this.scope, required this.clock});
+  DevicePresenceRegistry({
+    required this.scope,
+    required this.clock,
+    Duration? staleAfter,
+  }) : staleAfter = staleAfter ?? ConnectedPlaybackLimits.presenceStaleAfter;
 
   /// The one server and profile this registry may ever describe. A
   /// registry is discarded on logout or account switch rather than
@@ -40,6 +44,8 @@ class DevicePresenceRegistry {
 
   /// The monotonic source every expiry decision is measured against.
   final ElapsedClock clock;
+
+  Duration staleAfter;
   final Map<String, _PresenceEntry> _entries = {};
 
   ConnectedPlaybackConnection _link = ConnectedPlaybackConnection.idle;

@@ -2,13 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../app/di/service_locator.dart';
-import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../../domain/connected_playback/ConnectedDevice.dart';
 import 'DeviceListView.dart';
+import '../../remote/presentation/RemoteControlPanel.dart';
 import 'device_picker_cubit.dart';
 
 /// Opens the device picker (v0.5.5) — "This device" plus every compatible
@@ -156,7 +155,7 @@ class _DeviceActionButtonState extends State<DeviceActionButton> {
             iconSize: widget.iconSize,
             color: widget.color,
             tooltip: tooltip,
-            onPressed: () => context.go(RoutePaths.remote),
+            onPressed: () => showRemoteControlSheet(context, cubit: _cubit),
           );
         },
       ),
@@ -177,4 +176,27 @@ class _DeviceActionButtonState extends State<DeviceActionButton> {
     }
     return null;
   }
+}
+
+/// Opens the full remote-control panel in a modal sheet.
+Future<void> showRemoteControlSheet(
+  BuildContext context, {
+  DevicePickerCubit? cubit,
+}) {
+  final ownsCubit = cubit == null;
+  final resolved = cubit ?? getIt<DevicePickerCubit>();
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (sheetContext) => SizedBox(
+      height: (MediaQuery.sizeOf(sheetContext).height * 0.8).clamp(
+        360.0,
+        680.0,
+      ),
+      child: RemoteControlPanel(cubit: resolved, title: 'Devices'),
+    ),
+  ).whenComplete(() {
+    if (ownsCubit) unawaited(resolved.close());
+  });
 }

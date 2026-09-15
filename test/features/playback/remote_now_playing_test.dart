@@ -121,7 +121,7 @@ void main() {
     await tester.tap(find.text('So What'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Controlling Living Room'), findsOneWidget);
+    expect(find.text('Playing on Living Room…'), findsOneWidget);
     expect(find.byIcon(Icons.pause_circle_filled_rounded), findsOneWidget);
     final shuffleButton = tester.widget<IconButton>(
       find.widgetWithIcon(IconButton, Icons.shuffle_rounded),

@@ -194,6 +194,7 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     required int initialIndex,
     Duration? initialPosition,
     required bool resumePlaying,
+    required bool preserveActiveTrack,
   }) async {
     // A tail fading out of the old list, and a standby deck loaded from
     // it, are both stale the moment the list changes.
@@ -264,7 +265,9 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
     _sources = List.unmodifiable(sources);
     queue.add([for (final source in sources) _toMediaItem(source)]);
 
-    final activeIndex = activeKey == null ? -1 : desiredKeys.indexOf(activeKey);
+    final activeIndex = preserveActiveTrack && activeKey != null
+        ? desiredKeys.indexOf(activeKey)
+        : -1;
     final targetIndex = activeIndex >= 0
         ? activeIndex
         : initialIndex.clamp(0, sources.length - 1);
@@ -341,13 +344,17 @@ class JustAudioPlaybackEngine extends audio_service.BaseAudioHandler
 
   @override
   Future<void> play({bool allowRemoteRoute = true}) {
-    if (allowRemoteRoute && _routeToRemote) return _activeTransportRoute!.play();
+    if (allowRemoteRoute && _routeToRemote) {
+      return _activeTransportRoute!.play();
+    }
     return _player.play();
   }
 
   @override
   Future<void> pause({bool allowRemoteRoute = true}) async {
-    if (allowRemoteRoute && _routeToRemote) return _activeTransportRoute!.pause();
+    if (allowRemoteRoute && _routeToRemote) {
+      return _activeTransportRoute!.pause();
+    }
     // Pausing during an overlap leaves a tail playing on the other deck
     // otherwise.
     await _abandonCrossfade();

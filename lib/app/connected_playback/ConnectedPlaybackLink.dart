@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/logging/Logger.dart';
+import '../platform/RemotePlaybackBackgroundService.dart';
 import '../../domain/connected_playback/ConnectedPlaybackScope.dart';
 import '../../infrastructure/jellyfin/connected/JellyfinSessionTransport.dart';
 import '../platform/television_display_monitor.dart';
@@ -52,6 +53,7 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   StreamSubscription<bool>? _televisionDisplayUpdates;
   ConnectedPlaybackScope? _scope;
   bool _started = false;
+  bool _backgrounded = false;
 
   /// Mirrors `AppLifecycleState`, not `_transport`'s own suspended flag:
   /// this device may stay backgrounded and playing (Android's foreground
@@ -112,6 +114,8 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     _televisionDisplayUpdates = null;
     final scope = _scope;
     _scope = null;
+    _backgrounded = false;
+    _reconcileBackgroundService();
     if (scope != null) await _transport.clear(scope);
   }
 
@@ -119,6 +123,9 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        _backgrounded = false;
+        _transport.setBackgrounded(false);
+        _reconcileBackgroundService();
         // Returning to the foreground always re-establishes rather than
         // assuming the socket survived: the app may have been away for a
         // day, and a socket that is open but dead looks exactly like one
@@ -131,6 +138,9 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
         if (!_televisionAsleep) unawaited(_transport.resume());
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
+        _backgrounded = true;
+        _transport.setBackgrounded(true);
+        _reconcileBackgroundService();
         _reconcileBackgroundConnection();
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
@@ -166,8 +176,10 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void _onTelevisionDisplayChanged(bool screenOn) {
     _televisionAsleep = !screenOn;
     if (_televisionAsleep) {
+      _reconcileBackgroundService();
       unawaited(_transport.suspend());
     } else {
+      _reconcileBackgroundService();
       unawaited(_transport.resume());
     }
   }
@@ -185,13 +197,25 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void _onPlaybackChanged(PlaybackUiState state) =>
       _reconcileBackgroundConnection();
 
+  void _reconcileBackgroundService() {
+    unawaited(
+      RemotePlaybackBackgroundService.setEnabled(
+        _backgrounded && !_televisionAsleep && _scope != null,
+      ),
+    );
+  }
+
   Future<void> _apply(ConnectedPlaybackScope? scope) async {
     if (scope == _scope) return;
     final previous = _scope;
     _scope = scope;
     if (previous != null) await _transport.clear(previous);
-    if (scope == null) return;
+    if (scope == null) {
+      _reconcileBackgroundService();
+      return;
+    }
 
+    _reconcileBackgroundService();
     final result = await _transport.advertise(scope);
     if (result.isErr) {
       // Not surfaced here: a picker that nobody has opened has nowhere to

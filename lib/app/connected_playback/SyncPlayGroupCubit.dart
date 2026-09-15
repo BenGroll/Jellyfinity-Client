@@ -39,8 +39,12 @@ import 'SyncPlayGroupState.dart';
 /// not by a runtime guard that could be bypassed by a future edit.
 @lazySingleton
 class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
-  SyncPlayGroupCubit(this._syncPlay, this._playback, this._library, this._session)
-    : super(const SyncPlayGroupState()) {
+  SyncPlayGroupCubit(
+    this._syncPlay,
+    this._playback,
+    this._library,
+    this._session,
+  ) : super(const SyncPlayGroupState()) {
     _sessionSub = _session.stream.listen(_onSession);
     _onSession(_session.state);
   }
@@ -73,7 +77,8 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
   /// "play on all devices" when this device is not already in one.
   /// Success arrives asynchronously as a [SyncPlayGroupJoined] on
   /// [groupUpdates]; this call only starts that request.
-  Future<void> createGroup() => _requestJoin((scope) => _syncPlay.createGroup(scope));
+  Future<void> createGroup() =>
+      _requestJoin((scope) => _syncPlay.createGroup(scope));
 
   /// Joins a group this device already knows the id of — used both from
   /// a picker listing an existing group and to rejoin one this device
@@ -133,7 +138,8 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
     if (state.status != SyncPlayGroupStatus.joined) {
       await createGroup();
     }
-    await _syncPlay.setQueue(
+    final wasPlaying = _playback.state.isPlaying;
+    final result = await _syncPlay.setQueue(
       scope,
       entries: entries,
       startIndex: currentIndex,
@@ -141,6 +147,7 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
       repeatMode: queue.repeatMode,
       startPosition: _playback.state.position,
     );
+    if (result.isOk && wasPlaying) await _syncPlay.play(scope);
   }
 
   void _onUpdate(SyncPlayGroupUpdate update) {
@@ -161,11 +168,7 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
         );
         if (queue.isNotEmpty) {
           unawaited(
-            _adoptQueue(
-              queue,
-              startIndex: queuePosition,
-              startPlaying: true,
-            ),
+            _adoptQueue(queue, startIndex: queuePosition, startPlaying: true),
           );
         }
       case SyncPlayGroupLeft():
@@ -219,7 +222,10 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
   /// Reconciles this device's own transport with the group's — play,
   /// pause, or a seek beyond a small tolerance. Never volume: see this
   /// class's own doc.
-  Future<void> _reconcileTransport(bool groupIsPlaying, Duration position) async {
+  Future<void> _reconcileTransport(
+    bool groupIsPlaying,
+    Duration position,
+  ) async {
     if (state.status != SyncPlayGroupStatus.joined) return;
     final local = _playback.state;
     const tolerance = Duration(seconds: 2);
