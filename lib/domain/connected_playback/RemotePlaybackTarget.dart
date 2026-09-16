@@ -81,16 +81,28 @@ class RemotePlaybackTarget {
   /// the listener pressed pause on this device, a track ended, the queue
   /// was edited here.
   ///
-  /// Bumps the revision, which is what makes a controller's in-flight
-  /// structural command stale. That is correct and deliberate: the
-  /// listener standing at the player wins, and the controller is told to
-  /// look again rather than having its edit applied to a queue that moved
-  /// underneath it.
+  /// The revision moves only when the *queue* moved
+  /// ([RemotePlaybackSnapshot.hasSameQueueStructureAs]), which is what
+  /// makes a controller's in-flight queue edit stale. That is correct and
+  /// deliberate: the listener standing at the player wins, and the
+  /// controller is told to look again rather than having its edit applied
+  /// to a queue that moved underneath it.
+  ///
+  /// It deliberately does *not* move for a new position, status or
+  /// volume. This method is called on every playback tick, so bumping
+  /// unconditionally made a playing device invalidate every edit a
+  /// controller composed against it — no song could be chosen, no queue
+  /// row moved or removed, for as long as the target was making sound.
   RemotePlaybackSnapshot publishLocalChange(
     RemotePlaybackSnapshot Function(RemotePlaybackSnapshot current) change,
   ) {
     final changed = change(_snapshot);
-    _snapshot = changed.copyWith(revision: _snapshot.revision.next);
+    _snapshot = changed.copyWith(
+      revision: changed.hasSameQueueStructureAs(_snapshot)
+          ? _snapshot.revision
+          : _snapshot.revision.next,
+      sequence: _snapshot.sequence + 1,
+    );
     return _snapshot;
   }
 
@@ -139,7 +151,7 @@ class RemotePlaybackTarget {
       return _record(_refuse(command, CommandOutcome.unsupported));
     }
 
-    if (command.kind.isStructural) {
+    if (command.kind.dependsOnCurrentQueue) {
       final expected = command.expectedRevision;
       if (expected == null || expected != _snapshot.revision) {
         return _record(_refuse(command, CommandOutcome.stale));
@@ -151,7 +163,12 @@ class RemotePlaybackTarget {
       return _record(_refuse(command, CommandOutcome.rejected));
     }
     if (applied != _snapshot) {
-      _snapshot = applied.copyWith(revision: _snapshot.revision.next);
+      _snapshot = applied.copyWith(
+        revision: applied.hasSameQueueStructureAs(_snapshot)
+            ? _snapshot.revision
+            : _snapshot.revision.next,
+        sequence: _snapshot.sequence + 1,
+      );
     }
     return _record(
       CommandAcknowledgement.applied(

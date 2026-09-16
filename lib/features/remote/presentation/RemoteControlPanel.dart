@@ -349,11 +349,15 @@ class _RemoteDeviceList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    // Only devices that are actually there and can actually be driven.
+    // A row nothing can be done with is worse than no row: a device that
+    // the server has listed but that has never answered Jellyfinity's own
+    // presence exchange cannot be controlled, and showing it as though it
+    // could is how this screen came to be full of devices that did
+    // nothing when tapped.
     final visible = [
       for (final device in devices)
-        if (!device.isThisDevice &&
-            (device.reachability == DeviceReachability.ready ||
-                device.reachability == DeviceReachability.presenceOnly))
+        if (!device.isThisDevice && device.reachability.canReceiveCommands)
           device,
     ];
     if (visible.isEmpty) {

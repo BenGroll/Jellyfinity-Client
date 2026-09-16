@@ -56,7 +56,28 @@ abstract final class ConnectedPlaybackLimits {
   /// idle device that is perfectly fine is never accused of having gone
   /// away; short enough that a device that actually left stops being
   /// offered within a listener's attention span.
-  static const Duration presenceStaleAfter = Duration(seconds: 90);
+  static const Duration presenceStaleAfter = Duration(seconds: 45);
+
+  /// How long the local link may be re-establishing itself before peers
+  /// are presented as unreachable.
+  ///
+  /// A socket that drops and comes back is the ordinary condition of a
+  /// phone on wifi, and it takes a second or two. Demoting every peer the
+  /// instant it happens made the whole device list empty and refill on a
+  /// momentary stutter; the arc's rule that a half-connected peer is not
+  /// a ready target still holds, just not before this has passed.
+  static const Duration linkDegradedGrace = Duration(seconds: 6);
+
+  /// How far a controller's own clock may drift from the target's
+  /// reported position before it is corrected.
+  ///
+  /// The controller runs its own once-a-second ticker so the timeline
+  /// moves smoothly between snapshots. Snapping to every arriving
+  /// position instead makes the thumb jitter with the network, because
+  /// each snapshot was sampled before it was sent. Only a difference too
+  /// large to be latency — a seek or a track change at the other end —
+  /// is worth correcting.
+  static const Duration positionDriftTolerance = Duration(seconds: 3);
 
   /// How long a stale peer stays in the read model before it is dropped.
   ///

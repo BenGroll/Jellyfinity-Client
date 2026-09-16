@@ -86,6 +86,19 @@ enum RemoteCommandKind {
     _ => false,
   };
 
+  /// Whether this command's meaning depends on the queue it was composed
+  /// against, and so must be refused when that queue has moved.
+  ///
+  /// Every structural command except [setQueue]. An index only means
+  /// something relative to a particular queue, so "remove row 3" composed
+  /// against a queue that has since changed is a different edit than the
+  /// listener asked for. [setQueue] replaces the whole queue and names no
+  /// existing row, so there is nothing for it to be wrong about: picking
+  /// a song to play on another device must work whatever that device is
+  /// doing, including while it is playing something else.
+  bool get dependsOnCurrentQueue =>
+      isStructural && this != RemoteCommandKind.setQueue;
+
   /// Whether applying this command twice differs from applying it once.
   ///
   /// [seek] to 30s is the same state whichever way it arrives; [next]

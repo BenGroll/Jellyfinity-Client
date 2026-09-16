@@ -28,6 +28,7 @@ class RemotePlaybackSnapshot extends Equatable {
     required this.sessionId,
     required this.revision,
     required this.status,
+    this.sequence = 0,
     this.queue = const [],
     this.currentIndex,
     this.position = Duration.zero,
@@ -59,7 +60,22 @@ class RemotePlaybackSnapshot extends Equatable {
   /// are per-session and mean nothing across one.
   final String sessionId;
 
+  /// How many times this queue has *changed* — what an index-based edit
+  /// is arbitrated against ([hasSameQueueStructureAs]). It deliberately
+  /// stands still while a device merely plays.
   final StateRevision revision;
+
+  /// How many times this session has published anything at all.
+  ///
+  /// Ordering and staleness are two different questions, and one counter
+  /// cannot answer both. A playing device republishes its position about
+  /// once a second without its queue changing, so those snapshots share a
+  /// revision; without a separate counter a controller could not tell a
+  /// newer position from a duplicate, and would either drop every update
+  /// or accept a reordered stale one. This only ever increases, and only
+  /// means something within one [sessionId].
+  final int sequence;
+
   final PlaybackStatus status;
 
   /// The target's queue in its own order, already shuffled if shuffle is
@@ -117,8 +133,34 @@ class RemotePlaybackSnapshot extends Equatable {
   bool supersededBy(RemotePlaybackSnapshot other) =>
       other.sessionId == sessionId && other.revision > revision;
 
+  /// Whether [other] describes the same queue, in the same order, sitting
+  /// on the same track.
+  ///
+  /// This is what a revision is *for*. A controller composes an index-
+  /// based edit against the queue it can see, and the revision is how the
+  /// target detects that the queue moved underneath that edit. Position,
+  /// status and volume are excluded deliberately: a playing device
+  /// reports a new position roughly once a second, and treating that as a
+  /// structural change would invalidate every in-flight edit a controller
+  /// ever composed — which is a remote that cannot change a song.
+  bool hasSameQueueStructureAs(RemotePlaybackSnapshot other) =>
+      currentIndex == other.currentIndex &&
+      shuffleEnabled == other.shuffleEnabled &&
+      repeatMode == other.repeatMode &&
+      _sameQueue(queue, other.queue);
+
+  static bool _sameQueue(List<RemoteQueueEntry> a, List<RemoteQueueEntry> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   RemotePlaybackSnapshot copyWith({
     StateRevision? revision,
+    int? sequence,
     PlaybackStatus? status,
     List<RemoteQueueEntry>? queue,
     int? currentIndex,
@@ -136,6 +178,7 @@ class RemotePlaybackSnapshot extends Equatable {
       scope: scope,
       sessionId: sessionId,
       revision: revision ?? this.revision,
+      sequence: sequence ?? this.sequence,
       status: status ?? this.status,
       queue: queue ?? this.queue,
       currentIndex: clearCurrentIndex
@@ -159,6 +202,7 @@ class RemotePlaybackSnapshot extends Equatable {
   Map<String, Object?> toPayload() => {
     'session': sessionId,
     'revision': revision.value,
+    'sequence': sequence,
     'status': status.name,
     'queue': [for (final entry in queue) entry.toJson()],
     if (currentIndex != null) 'currentIndex': currentIndex,
@@ -208,10 +252,14 @@ class RemotePlaybackSnapshot extends Equatable {
     final volume = payload['volume'];
     final originName = payload['originName'];
     final syncGroupId = payload['syncGroupId'];
+    final sequence = payload['sequence'];
     return RemotePlaybackSnapshot(
       scope: scope,
       sessionId: sessionId,
       revision: revision,
+      // A peer too old to send one publishes every snapshot at 0, which
+      // orders them by arrival — the behaviour that build already had.
+      sequence: sequence is int && sequence >= 0 ? sequence : 0,
       status: status,
       queue: queue,
       currentIndex:
@@ -240,6 +288,7 @@ class RemotePlaybackSnapshot extends Equatable {
     scope,
     sessionId,
     revision,
+    sequence,
     status,
     queue,
     currentIndex,
