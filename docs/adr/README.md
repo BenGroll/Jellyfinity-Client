@@ -51,6 +51,7 @@ Read an ADR only when the assigned version or affected code touches its topic.
 | [0044](ADR-0044-auto-detected-remote-playback.md) | Auto-detected remote playback |
 | [0045](ADR-0045-syncplay-group-playback.md) | SyncPlay-based group playback |
 | [0046](ADR-0046-android-background-connected-playback.md) | Android background connected playback |
+| [0047](ADR-0047-remote-selection-routing.md) | Remote selection routing |
 
 New ADRs use `ADR-NNNN-short-title.md` and briefly state context, considered
 options, the decision, and consequences.

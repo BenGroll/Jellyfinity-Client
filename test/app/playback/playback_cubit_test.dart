@@ -20,7 +20,6 @@ import 'package:jellyfinity/infrastructure/persistence/database/AppDatabase.dart
 import 'package:jellyfinity/infrastructure/persistence/key_value_store.dart';
 import 'package:jellyfinity/infrastructure/persistence/playback/DriftQueueRepository.dart';
 
-import '../../support/connected_playback/connected_playback_fixtures.dart';
 import '../../support/playback_fakes.dart';
 import '../../support/settings_fakes.dart';
 import '../../support/test_database.dart';
@@ -1192,13 +1191,13 @@ void main() {
     });
   });
 
-  group('direct local takeover (v0.6.0)', () {
+  group('remote selection redirect (v0.6.0)', () {
     late FakeRemotePlaybackOwnership ownership;
-    late PlaybackCubit takeoverCubit;
+    late PlaybackCubit routedCubit;
 
     setUp(() {
       ownership = FakeRemotePlaybackOwnership();
-      takeoverCubit = PlaybackCubit(
+      routedCubit = PlaybackCubit(
         engine,
         queueRepository,
         resolver,
@@ -1209,61 +1208,53 @@ void main() {
       );
     });
 
-    tearDown(() => takeoverCubit.close());
+    tearDown(() => routedCubit.close());
 
-    test('starting local playback with nothing controlled proceeds '
-        'immediately, exactly as before', () async {
-      await takeoverCubit.playNow([_track('a')], startIndex: 0);
+    test('an unconsumed selection still starts local playback', () async {
+      await routedCubit.playNow([_track('a')], startIndex: 0);
       await _pump();
 
-      expect(takeoverCubit.state.hasQueue, isTrue);
+      expect(ownership.redirectCalls, 1);
+      expect(routedCubit.state.hasQueue, isTrue);
     });
 
-    test('playing something new while controlling another device releases '
-        'control before starting a local stream', () async {
-      ownership.controlledDevice = device(name: 'Living Room TV');
+    test('a consumed selection never starts a second local stream', () async {
+      ownership.redirectResult = true;
+      final tracks = [_track('a'), _track('b')];
 
-      await takeoverCubit.playNow([_track('a')], startIndex: 0);
+      await routedCubit.playNow(tracks, startIndex: 1);
+      await _pump();
 
-      expect(ownership.releaseCalls, 1);
-      expect(takeoverCubit.state.hasQueue, isTrue);
+      expect(ownership.redirectCalls, 1);
+      expect(ownership.redirectedTracks, same(tracks));
+      expect(ownership.redirectedStartIndex, 1);
+      expect(ownership.redirectedShuffle, isFalse);
+      expect(routedCubit.state.hasQueue, isFalse);
     });
 
     test(
-      'local takeover releases the other device and starts the local play',
+      'shuffle selections are redirected with their shuffle intent',
       () async {
-        ownership.controlledDevice = device(name: 'Living Room TV');
-        await takeoverCubit.playNow([_track('a')], startIndex: 0);
+        ownership.redirectResult = true;
+        final tracks = [_track('a'), _track('b'), _track('c')];
 
-        await _pump();
+        await routedCubit.playShuffled(tracks);
 
-        expect(ownership.releaseCalls, 1);
-        expect(takeoverCubit.state.hasQueue, isTrue);
+        expect(ownership.redirectCalls, 1);
+        expect(ownership.redirectedTracks, same(tracks));
+        expect(ownership.redirectedStartIndex, inInclusiveRange(0, 2));
+        expect(ownership.redirectedShuffle, isTrue);
+        expect(routedCubit.state.hasQueue, isFalse);
       },
     );
 
-    test(
-      'local playback starts directly and leaves no takeover pending',
-      () async {
-        ownership.controlledDevice = device(name: 'Living Room TV');
-        await takeoverCubit.playNow([_track('a')], startIndex: 0);
+    test('resume remains a local engine action for the local queue', () async {
+      await routedCubit.playNow([_track('a')], startIndex: 0);
+      await routedCubit.pause();
+      await routedCubit.resume();
 
-        await _pump();
-
-        expect(ownership.releaseCalls, 1);
-        expect(takeoverCubit.state.hasQueue, isTrue);
-      },
-    );
-
-    test('resume releases remote control before playing locally', () async {
-      await takeoverCubit.playNow([_track('a'), _track('b')], startIndex: 0);
-      await takeoverCubit.pause();
-      ownership.controlledDevice = device(name: 'Living Room TV');
-
-      await takeoverCubit.resume();
-
-      expect(ownership.releaseCalls, 1);
-      expect(takeoverCubit.state.isPlaying, isTrue);
+      expect(routedCubit.state.isPlaying, isTrue);
+      expect(ownership.redirectCalls, 1);
     });
   });
 

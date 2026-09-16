@@ -36,6 +36,8 @@ class DeviceAdvertisement extends Equatable {
     required this.capabilities,
     this.platform,
     this.isPlaying = false,
+    this.nowPlayingTitle,
+    this.nowPlayingArtist,
   });
 
   /// The peer's stable install identity — see `ConnectedDevice.deviceId`.
@@ -56,6 +58,12 @@ class DeviceAdvertisement extends Equatable {
   /// Whether the peer is producing audio for this profile right now.
   final bool isPlaying;
 
+  /// The current track's display metadata. These are intentionally plain
+  /// strings: presence must not carry media tokens, URLs or server-local
+  /// identifiers.
+  final String? nowPlayingTitle;
+  final String? nowPlayingArtist;
+
   Map<String, Object?> toPayload() => {
     'deviceId': deviceId,
     'name': name,
@@ -68,6 +76,10 @@ class DeviceAdvertisement extends Equatable {
     'maxQueueEntries': capabilities.maxQueueEntries,
     if (platform != null) 'platform': platform,
     'playing': isPlaying,
+    if (nowPlayingTitle != null && nowPlayingTitle!.isNotEmpty)
+      'nowPlayingTitle': nowPlayingTitle,
+    if (nowPlayingArtist != null && nowPlayingArtist!.isNotEmpty)
+      'nowPlayingArtist': nowPlayingArtist,
   };
 
   /// Reverses [toPayload]. Returns `null` only when the two fields that
@@ -107,6 +119,8 @@ class DeviceAdvertisement extends Equatable {
       name: name,
       platform: platform is String && platform.isNotEmpty ? platform : null,
       isPlaying: payload['playing'] == true,
+      nowPlayingTitle: _optionalText(payload['nowPlayingTitle']),
+      nowPlayingArtist: _optionalText(payload['nowPlayingArtist']),
       capabilities: DeviceCapabilities(
         canPlay: payload['canPlay'] == true,
         canControl: payload['canControl'] == true,
@@ -125,6 +139,11 @@ class DeviceAdvertisement extends Equatable {
     );
   }
 
+  static String? _optionalText(Object? value) {
+    if (value is! String || value.trim().isEmpty) return null;
+    return value;
+  }
+
   @override
   List<Object?> get props => [
     deviceId,
@@ -132,5 +151,7 @@ class DeviceAdvertisement extends Equatable {
     capabilities,
     platform,
     isPlaying,
+    nowPlayingTitle,
+    nowPlayingArtist,
   ];
 }

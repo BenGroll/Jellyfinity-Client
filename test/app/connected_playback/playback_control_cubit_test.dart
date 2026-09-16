@@ -155,6 +155,30 @@ void main() {
           ),
         ),
       );
+      expect(
+        control.state.availableCommands,
+        contains(RemoteCommandKind.setQueue),
+      );
+    });
+
+    test('a selected queue replaces the target and keeps control attached', () async {
+      await control.control(tv());
+      await settle();
+
+      final result = control.playTracks(
+        [track('b'), track('c')],
+        startIndex: 1,
+      );
+      expect(control.state.pendingCommand, RemoteCommandKind.setQueue);
+      expect(control.state.currentEntry?.id.itemId, 'c');
+
+      await result;
+      await settle();
+
+      expect(targetPlayback.state.queue.currentEntry?.id.itemId, 'c');
+      expect(control.state.currentEntry?.id.itemId, 'c');
+      expect(control.state.isControlling, isTrue);
+      expect(control.state.pendingCommand, isNull);
     });
 
     test('never touches this device\'s own local playback', () async {

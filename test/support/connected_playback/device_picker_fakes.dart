@@ -76,6 +76,7 @@ void registerDevicePickerCubit({
       playback,
       handoff,
       getIt<PlaybackControlCubit>(),
+      getIt<SyncPlayGroupCubit>(),
     ),
   );
   addTearDown(() async {

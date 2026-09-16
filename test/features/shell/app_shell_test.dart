@@ -8,7 +8,6 @@ import 'package:jellyfinity/features/music/presentation/search/InlineMusicSearch
 import 'package:jellyfinity/features/shell/presentation/app_shell.dart';
 import 'package:jellyfinity/features/shell/presentation/ShellDestination.dart';
 
-import '../../support/connected_playback/connected_playback_fixtures.dart';
 import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
 import '../../support/pump_app.dart';
@@ -65,7 +64,7 @@ void main() {
     }
   });
 
-  group('direct local takeover (v0.6.0)', () {
+  group('remote selection redirect (v0.6.0)', () {
     Track track(String id) => Track(
       id: MediaId(serverId: 's1', itemId: id),
       name: 'Track $id',
@@ -73,11 +72,9 @@ void main() {
     );
 
     testWidgets(
-      'starting local playback while controlling another device releases '
-      'control and starts immediately',
+      'selecting a song while controlling another device stays remote',
       (tester) async {
-        final ownership = FakeRemotePlaybackOwnership()
-          ..controlledDevice = device(name: 'Living Room TV');
+        final ownership = FakeRemotePlaybackOwnership()..redirectResult = true;
         final playback = fakePlaybackCubit(remoteOwnership: ownership);
         addTearDown(playback.close);
         final scope = await pumpApp(tester, playback: playback);
@@ -87,36 +84,29 @@ void main() {
         await playback.playNow([track('a')], startIndex: 0);
         await tester.pumpAndSettle();
 
-        expect(ownership.releaseCalls, 1);
-        expect(playback.state.hasQueue, isTrue);
-
-        // Cleanup only — FakePlaybackEngine's periodic position-save timer
-        // (started by _onStatus while playing) has nothing to stop it in
-        // this harness the way a real audio completion would; unrelated
-        // to what this test is verifying.
-        await playback.pause();
-        await tester.pump();
+        expect(ownership.redirectCalls, 1);
+        expect(playback.state.hasQueue, isFalse);
       },
     );
 
-    testWidgets('local playback never leaves a takeover confirmation behind', (
-      tester,
-    ) async {
-      final ownership = FakeRemotePlaybackOwnership()
-        ..controlledDevice = device(name: 'Living Room TV');
-      final playback = fakePlaybackCubit(remoteOwnership: ownership);
-      addTearDown(playback.close);
-      final scope = await pumpApp(tester, playback: playback);
-      await scope.signIn();
-      await tester.pumpAndSettle();
+    testWidgets(
+      'redirected playback never leaves a takeover confirmation behind',
+      (tester) async {
+        final ownership = FakeRemotePlaybackOwnership()..redirectResult = true;
+        final playback = fakePlaybackCubit(remoteOwnership: ownership);
+        addTearDown(playback.close);
+        final scope = await pumpApp(tester, playback: playback);
+        await scope.signIn();
+        await tester.pumpAndSettle();
 
-      await playback.playNow([track('a')], startIndex: 0);
-      await tester.pumpAndSettle();
+        await playback.playNow([track('a')], startIndex: 0);
+        await tester.pumpAndSettle();
 
-      expect(ownership.releaseCalls, 1);
-      expect(playback.state.hasQueue, isTrue);
-      await playback.pause();
-      expect(find.text('Play here instead?'), findsNothing);
-    });
+        expect(ownership.redirectCalls, 1);
+        expect(playback.state.hasQueue, isFalse);
+        await playback.pause();
+        expect(find.text('Play here instead?'), findsNothing);
+      },
+    );
   });
 }

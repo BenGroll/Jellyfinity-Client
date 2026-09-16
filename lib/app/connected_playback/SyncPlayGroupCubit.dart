@@ -13,6 +13,9 @@ import '../../domain/connected_playback/SyncPlayTransport.dart';
 import '../../domain/connected_playback/sync_play_group_status.dart';
 import '../../domain/media/MusicLibraryRepository.dart';
 import '../../domain/media/Track.dart';
+import '../../domain/playback/PlaybackQueue.dart';
+import '../../domain/playback/QueueEntry.dart';
+import '../../domain/playback/QueueOrigin.dart';
 import '../../domain/playback/repeat_mode.dart';
 import '../playback/PlaybackCubit.dart';
 import '../session/SessionCubit.dart';
@@ -148,6 +151,49 @@ class SyncPlayGroupCubit extends Cubit<SyncPlayGroupState> {
       startPosition: _playback.state.position,
     );
     if (result.isOk && wasPlaying) await _syncPlay.play(scope);
+  }
+
+  /// Sends a newly selected queue to every member of the joined group.
+  /// The resulting queue update comes back through the ordinary SyncPlay
+  /// update stream, including for this device, so this method never writes
+  /// local playback state directly.
+  Future<void> playSelection(
+    List<Track> tracks, {
+    required int startIndex,
+    bool shuffle = false,
+    QueueOrigin? origin,
+  }) async {
+    final scope = _scope;
+    if (
+      scope == null ||
+      state.status != SyncPlayGroupStatus.joined ||
+      tracks.isEmpty ||
+      startIndex < 0 ||
+      startIndex >= tracks.length
+    ) {
+      return;
+    }
+
+    final queueEntries = [
+      for (final track in tracks) QueueEntry.fromTrack(track),
+    ];
+    final queue = PlaybackQueue.empty
+        .withShuffle(shuffle)
+        .withRepeatMode(_playback.state.queue.repeatMode)
+        .withEntries(queueEntries, startIndex: startIndex, origin: origin);
+    final entries = [
+      for (final index in queue.playOrder)
+        RemoteQueueEntry.fromQueueEntry(queue.entries[index]),
+    ];
+    final result = await _syncPlay.setQueue(
+      scope,
+      entries: entries,
+      startIndex: queue.currentPlayPosition,
+      shuffleEnabled: shuffle,
+      repeatMode: queue.repeatMode,
+      startPosition: Duration.zero,
+    );
+    if (result.isOk) await _syncPlay.play(scope);
   }
 
   void _onUpdate(SyncPlayGroupUpdate update) {

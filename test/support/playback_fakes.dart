@@ -12,7 +12,7 @@ import 'package:jellyfinity/domain/media/ListeningHistoryEntry.dart';
 import 'package:jellyfinity/domain/media/ListeningHistoryRepository.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
 import 'package:jellyfinity/domain/media/MediaMetadataRepository.dart';
-import 'package:jellyfinity/domain/connected_playback/ConnectedDevice.dart';
+import 'package:jellyfinity/domain/media/Track.dart';
 import 'package:jellyfinity/domain/connected_playback/RemotePlaybackOwnership.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgress.dart';
 import 'package:jellyfinity/domain/media/PlaybackProgressRepository.dart';
@@ -26,6 +26,7 @@ import 'package:jellyfinity/domain/playback/PlaybackFailure.dart';
 import 'package:jellyfinity/domain/playback/PlaybackQueue.dart';
 import 'package:jellyfinity/domain/playback/PlaybackSource.dart';
 import 'package:jellyfinity/domain/playback/playback_status.dart';
+import 'package:jellyfinity/domain/playback/QueueOrigin.dart';
 import 'package:jellyfinity/domain/playback/QueueRepository.dart';
 import 'package:jellyfinity/domain/playback/stream_quality.dart';
 import 'package:jellyfinity/domain/playback/TrackSourceInfo.dart';
@@ -58,19 +59,29 @@ PlaybackCubit fakePlaybackCubit({
 );
 
 /// A [RemotePlaybackOwnership] a test can steer directly — set
-/// [controlledDevice] to simulate this device currently remote-controlling
-/// one, and read [releaseCalls] to assert an explicit takeover actually
-/// released it (v0.6.0).
+/// [redirectResult] to consume a selection remotely and inspect the captured
+/// arguments to verify that local playback was not started.
 class FakeRemotePlaybackOwnership implements RemotePlaybackOwnership {
-  @override
-  ConnectedDevice? controlledDevice;
+  bool redirectResult = false;
+  int redirectCalls = 0;
+  List<Track>? redirectedTracks;
+  int? redirectedStartIndex;
+  bool redirectedShuffle = false;
+  QueueOrigin? redirectedOrigin;
 
-  int releaseCalls = 0;
-
   @override
-  Future<void> releaseForTakeover() async {
-    releaseCalls++;
-    controlledDevice = null;
+  Future<bool> redirect(
+    List<Track> tracks, {
+    required int startIndex,
+    bool shuffle = false,
+    QueueOrigin? origin,
+  }) async {
+    redirectCalls++;
+    redirectedTracks = tracks;
+    redirectedStartIndex = startIndex;
+    redirectedShuffle = shuffle;
+    redirectedOrigin = origin;
+    return redirectResult;
   }
 }
 

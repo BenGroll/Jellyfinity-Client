@@ -1338,22 +1338,32 @@ class _RemoteConnectionNote extends StatelessWidget {
   }
 }
 
-class _RemoteSeekBar extends StatelessWidget {
+class _RemoteSeekBar extends StatefulWidget {
   const _RemoteSeekBar({required this.control});
 
   final PlaybackControlState control;
 
   @override
+  State<_RemoteSeekBar> createState() => _RemoteSeekBarState();
+}
+
+class _RemoteSeekBarState extends State<_RemoteSeekBar> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final control = widget.control;
     final duration = control.duration;
     final hasDuration = duration != null && duration > Duration.zero;
     final max = hasDuration ? duration.inMilliseconds.toDouble() : 1.0;
-    final value = hasDuration
+    final streamValue = hasDuration
         ? control.position.inMilliseconds.toDouble().clamp(0.0, max)
         : 0.0;
+    final value = (_dragValue ?? streamValue).clamp(0.0, max);
     final canSeek =
         hasDuration && control.commandAvailable(RemoteCommandKind.seek);
+    final shownPosition = Duration(milliseconds: value.round());
 
     return Column(
       children: [
@@ -1369,10 +1379,17 @@ class _RemoteSeekBar extends StatelessWidget {
           child: Slider(
             value: value,
             max: max,
-            onChanged: canSeek
-                ? (v) => getIt<PlaybackControlCubit>().seek(
-                    Duration(milliseconds: v.round()),
-                  )
+            onChangeStart: canSeek
+                ? (v) => setState(() => _dragValue = v)
+                : null,
+            onChanged: canSeek ? (v) => setState(() => _dragValue = v) : null,
+            onChangeEnd: canSeek
+                ? (v) {
+                    setState(() => _dragValue = null);
+                    getIt<PlaybackControlCubit>().seek(
+                      Duration(milliseconds: v.round()),
+                    );
+                  }
                 : null,
           ),
         ),
@@ -1380,7 +1397,7 @@ class _RemoteSeekBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              formatDuration(control.position),
+              formatDuration(shownPosition),
               style: t.typography.caption.copyWith(
                 fontSize: 14,
                 color: Colors.white,
@@ -1400,15 +1417,23 @@ class _RemoteSeekBar extends StatelessWidget {
   }
 }
 
-class _RemoteVolumeBar extends StatelessWidget {
+class _RemoteVolumeBar extends StatefulWidget {
   const _RemoteVolumeBar({required this.control});
 
   final PlaybackControlState control;
 
   @override
+  State<_RemoteVolumeBar> createState() => _RemoteVolumeBarState();
+}
+
+class _RemoteVolumeBarState extends State<_RemoteVolumeBar> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final volume = control.volume!;
+    final streamVolume = widget.control.volume!;
+    final volume = (_dragValue ?? streamVolume).clamp(0.0, 1.0);
     return Semantics(
       label: 'Remote volume',
       value: '${(volume * 100).round()}%',
@@ -1424,7 +1449,12 @@ class _RemoteVolumeBar extends StatelessWidget {
         ),
         child: Slider(
           value: volume,
-          onChanged: (value) => getIt<PlaybackControlCubit>().setVolume(value),
+          onChangeStart: (value) => setState(() => _dragValue = value),
+          onChanged: (value) => setState(() => _dragValue = value),
+          onChangeEnd: (value) {
+            setState(() => _dragValue = null);
+            getIt<PlaybackControlCubit>().setVolume(value);
+          },
         ),
       ),
     );

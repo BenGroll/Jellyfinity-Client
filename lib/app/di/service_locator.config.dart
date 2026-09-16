@@ -689,6 +689,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i267.JellyfinSessionTransport>(),
         gh<_i809.SessionCubit>(),
         gh<_i126.PlaybackCubit>(),
+        gh<_i846.PlaybackControlCubit>(),
         gh<_i612.Logger>(),
       ),
     );
@@ -708,6 +709,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i126.PlaybackCubit>(),
         gh<_i217.ConnectedPlaybackTargetLink>(),
         gh<_i846.PlaybackControlCubit>(),
+        gh<_i849.SyncPlayGroupCubit>(),
       ),
     );
     gh.lazySingleton<_i602.ActiveRemotePlaybackWatcher>(

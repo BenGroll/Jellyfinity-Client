@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart';
+import 'package:jellyfinity/app/di/service_locator.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackScopeOf.dart';
 import 'package:jellyfinity/domain/connected_playback/SyncPlayGroupUpdate.dart';
+import 'package:jellyfinity/domain/connected_playback/device_reachability.dart';
 import 'package:jellyfinity/domain/media/media.dart';
 
 import '../../support/connected_playback/FakeDevicePresenceSource.dart';
@@ -28,24 +31,23 @@ Future<void> _openRemote(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets(
-    'Remote is reachable from the shell and lists this device',
-    (tester) async {
-      final playback = fakePlaybackCubit();
-      addTearDown(playback.close);
-      final scope = await pumpApp(tester, playback: playback);
-      await scope.signIn();
-      await tester.pumpAndSettle();
+  testWidgets('Remote is reachable from the shell and lists this device', (
+    tester,
+  ) async {
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(tester, playback: playback);
+    await scope.signIn();
+    await tester.pumpAndSettle();
 
-      await _openRemote(tester);
+    await _openRemote(tester);
 
-      expect(find.text('This device'), findsOneWidget);
-      expect(
-        find.text('No other Jellyfinity devices found on this server yet.'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('This device'), findsOneWidget);
+    expect(
+      find.text('No other Jellyfinity devices found on this server yet.'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'shows a reachable peer and offers to bring paused local playback back',
@@ -71,6 +73,8 @@ void main() {
           scope: playbackScope,
           sessionId: 'session-tv',
           name: 'Living Room TV',
+          nowPlayingTitle: 'So What',
+          nowPlayingArtist: 'Miles Davis',
         ),
       ]);
       await tester.pumpAndSettle();
@@ -78,9 +82,77 @@ void main() {
       await _openRemote(tester);
 
       expect(find.text('Living Room TV'), findsOneWidget);
+      expect(find.text('Miles Davis • So What'), findsOneWidget);
       expect(find.text('Paused here — tap to bring it back'), findsOneWidget);
     },
   );
+
+  testWidgets('bringing local playback back detaches active remote control', (
+    tester,
+  ) async {
+    final presence = FakeDevicePresenceSource();
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(
+      tester,
+      playback: playback,
+      devicePresence: presence,
+    );
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
+    await playback.pause();
+    final playbackScope = connectedPlaybackScopeOf(scope.cubit.state)!;
+    presence.emitDevices(playbackScope, [
+      device(scope: playbackScope, sessionId: 'session-tv'),
+    ]);
+    final control = getIt<PlaybackControlCubit>();
+    control.emit(
+      PlaybackControlState(
+        device: device(scope: playbackScope, sessionId: 'session-tv'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openRemote(tester);
+    await tester.tap(find.text('This device'));
+    await tester.pumpAndSettle();
+
+    expect(control.state.device, isNull);
+    expect(playback.state.isPlaying, isTrue);
+    await playback.pause();
+  });
+
+  testWidgets('the Remote list omits stale peers', (tester) async {
+    final presence = FakeDevicePresenceSource();
+    final playback = fakePlaybackCubit();
+    addTearDown(playback.close);
+    final scope = await pumpApp(
+      tester,
+      playback: playback,
+      devicePresence: presence,
+    );
+    await scope.signIn();
+    await tester.pumpAndSettle();
+
+    final playbackScope = connectedPlaybackScopeOf(scope.cubit.state)!;
+    presence.emitDevices(playbackScope, [
+      device(
+        scope: playbackScope,
+        sessionId: 'session-stale',
+        name: 'Old Laptop',
+        reachability: DeviceReachability.stale,
+      ),
+    ]);
+    await _openRemote(tester);
+
+    expect(find.text('Old Laptop'), findsNothing);
+    expect(
+      find.text('No other Jellyfinity devices found on this server yet.'),
+      findsOneWidget,
+    );
+  });
 
   group('play on all devices (v0.6.0, ADR-0045)', () {
     testWidgets(
@@ -99,10 +171,7 @@ void main() {
         await tester.pumpAndSettle();
         await _openRemote(tester);
 
-        final button = find.widgetWithText(
-          TextButton,
-          'Play on all devices',
-        );
+        final button = find.widgetWithText(TextButton, 'Play on all devices');
         expect(tester.widget<TextButton>(button).onPressed, isNull);
 
         await playback.playNow([_track('a', name: 'So What')], startIndex: 0);
@@ -158,10 +227,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('SyncPlay is disabled on this server.'),
-        findsOneWidget,
-      );
+      expect(find.text('SyncPlay is disabled on this server.'), findsOneWidget);
 
       await playback.pause();
     });

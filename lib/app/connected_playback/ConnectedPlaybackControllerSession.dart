@@ -11,6 +11,7 @@ import '../../domain/connected_playback/ConnectedPlaybackTransport.dart';
 import '../../domain/connected_playback/RemoteCommand.dart';
 import '../../domain/connected_playback/RemotePlaybackController.dart';
 import '../../domain/connected_playback/RemotePlaybackSnapshot.dart';
+import '../../domain/connected_playback/RemoteQueueEntry.dart';
 import '../../domain/playback/repeat_mode.dart';
 import '../../domain/connected_playback/envelope_kind.dart';
 
@@ -103,6 +104,26 @@ class ConnectedPlaybackControllerSession {
 
   Future<Result<void>> jumpToQueueEntry(int index) =>
       _send(controller.jumpToQueueEntry(index));
+
+  Future<Result<void>> setQueue({
+    required List<RemoteQueueEntry> entries,
+    required int startIndex,
+    required bool shuffleEnabled,
+    required RepeatMode repeatMode,
+    String? originName,
+    Duration startPosition = Duration.zero,
+    bool startPlaying = true,
+  }) => _send(
+    controller.setQueue(
+      entries: entries,
+      startIndex: startIndex,
+      shuffleEnabled: shuffleEnabled,
+      repeatMode: repeatMode,
+      originName: originName,
+      startPosition: startPosition,
+      startPlaying: startPlaying,
+    ),
+  );
 
   Future<Result<void>> requestSnapshot() => _send(controller.requestSnapshot());
 

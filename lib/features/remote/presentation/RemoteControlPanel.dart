@@ -349,7 +349,10 @@ class _RemoteDeviceList extends StatelessWidget {
     final t = context.tokens;
     final visible = [
       for (final device in devices)
-        if (!device.isThisDevice) device,
+        if (!device.isThisDevice &&
+            (device.reachability == DeviceReachability.ready ||
+                device.reachability == DeviceReachability.presenceOnly))
+          device,
     ];
     if (visible.isEmpty) {
       return Center(
@@ -386,11 +389,7 @@ class _RemoteDeviceList extends StatelessWidget {
                         : Icons.speaker_rounded,
                   ),
                   title: Text(device.displayName),
-                  subtitle: Text(
-                    controlling
-                        ? 'Playing on this device'
-                        : _statusLabel(device),
-                  ),
+                  subtitle: _subtitle(device, controlling),
                   trailing: Icon(
                     device.isPlaying
                         ? Icons.play_arrow_rounded
@@ -438,6 +437,30 @@ class _RemoteDeviceList extends StatelessWidget {
         );
       },
     );
+  }
+
+  static Widget _subtitle(ConnectedDevice device, bool controlling) {
+    final track = _nowPlayingLabel(device);
+    final status = controlling
+        ? 'Playing on this device'
+        : _statusLabel(device);
+    if (track == null) return Text(status);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(track, maxLines: 1, overflow: TextOverflow.ellipsis),
+        Text(status),
+      ],
+    );
+  }
+
+  static String? _nowPlayingLabel(ConnectedDevice device) {
+    final title = device.nowPlayingTitle;
+    final artist = device.nowPlayingArtist;
+    if (title == null || title.isEmpty) return null;
+    if (artist == null || artist.isEmpty) return title;
+    return '$artist • $title';
   }
 
   static String _statusLabel(ConnectedDevice device) {

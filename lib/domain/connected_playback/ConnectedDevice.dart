@@ -43,6 +43,8 @@ class ConnectedDevice extends Equatable {
     this.nameHint,
     this.isThisDevice = false,
     this.isPlaying = false,
+    this.nowPlayingTitle,
+    this.nowPlayingArtist,
   });
 
   final ConnectedPlaybackScope scope;
@@ -88,6 +90,10 @@ class ConnectedDevice extends Equatable {
   /// handoff is supposed to make visible rather than hide.
   final bool isPlaying;
 
+  /// Display metadata the peer included in its latest presence message.
+  final String? nowPlayingTitle;
+  final String? nowPlayingArtist;
+
   /// The label a picker shows.
   String get displayName => nameHint == null ? name : '$name ($nameHint)';
 
@@ -115,6 +121,8 @@ class ConnectedDevice extends Equatable {
     Duration? lastSeen,
     bool? isThisDevice,
     bool? isPlaying,
+    String? nowPlayingTitle,
+    String? nowPlayingArtist,
   }) {
     return ConnectedDevice(
       scope: scope,
@@ -128,6 +136,8 @@ class ConnectedDevice extends Equatable {
       lastSeen: lastSeen ?? this.lastSeen,
       isThisDevice: isThisDevice ?? this.isThisDevice,
       isPlaying: isPlaying ?? this.isPlaying,
+      nowPlayingTitle: nowPlayingTitle ?? this.nowPlayingTitle,
+      nowPlayingArtist: nowPlayingArtist ?? this.nowPlayingArtist,
     );
   }
 
@@ -144,5 +154,7 @@ class ConnectedDevice extends Equatable {
     lastSeen,
     isThisDevice,
     isPlaying,
+    nowPlayingTitle,
+    nowPlayingArtist,
   ];
 }

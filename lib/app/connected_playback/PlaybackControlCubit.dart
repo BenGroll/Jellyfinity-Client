@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../core/result/failure.dart';
 import '../../core/result/result.dart';
 import '../../domain/connected_playback/ConnectedDevice.dart';
 import '../../domain/connected_playback/ConnectedPlaybackFailures.dart';
@@ -11,10 +12,13 @@ import '../../domain/connected_playback/ConnectedPlaybackScope.dart';
 import '../../domain/connected_playback/ConnectedPlaybackTransport.dart';
 import '../../domain/connected_playback/DevicePresenceSource.dart';
 import '../../domain/connected_playback/RemotePlaybackSnapshot.dart';
+import '../../domain/connected_playback/RemoteQueueEntry.dart';
 import '../../domain/connected_playback/device_reachability.dart';
 import '../../domain/connected_playback/remote_command_kind.dart';
+import '../../domain/media/Track.dart';
 import '../../domain/playback/PlaybackQueue.dart';
 import '../../domain/playback/QueueEntry.dart';
+import '../../domain/playback/QueueOrigin.dart';
 import '../../domain/playback/playback_status.dart';
 import '../../domain/playback/repeat_mode.dart';
 import '../session/SessionCubit.dart';
@@ -163,6 +167,7 @@ class PlaybackControlState extends Equatable {
         ? null
         : (commandError ?? this.commandError),
     originName: clearOrigin ? null : (originName ?? this.originName),
+    syncGroupId: clearSyncGroupId ? null : (syncGroupId ?? this.syncGroupId),
   );
 
   @override
@@ -199,6 +204,7 @@ const Set<RemoteCommandKind> _desiredRemoteCommands = {
   RemoteCommandKind.setShuffle,
   RemoteCommandKind.setRepeat,
   RemoteCommandKind.jumpToQueueEntry,
+  RemoteCommandKind.setQueue,
   RemoteCommandKind.setVolume,
   RemoteCommandKind.removeQueueEntry,
   RemoteCommandKind.moveQueueEntry,
@@ -447,40 +453,151 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
 
   // ---- Transport (v0.5.6) ----
 
-  Future<Result<void>> play() =>
-      _send(RemoteCommandKind.play, (session) => session.play());
-
-  Future<Result<void>> pause() =>
-      _send(RemoteCommandKind.pause, (session) => session.pause());
-
-  Future<Result<void>> togglePlayPause() =>
-      _send(RemoteCommandKind.playPause, (session) => session.playPause());
-
-  Future<Result<void>> previous() =>
-      _send(RemoteCommandKind.previous, (session) => session.previous());
-
-  Future<Result<void>> next() =>
-      _send(RemoteCommandKind.next, (session) => session.next());
-
-  Future<Result<void>> toggleShuffle() {
-    final enabled = !state.queue.shuffleEnabled;
+  /// Replaces the controlled device's queue as if the selection happened
+  /// on that device. The queue is built into its actual play order first,
+  /// so shuffled selections preserve the same starting song and order on
+  /// the target as they do locally.
+  Future<Result<void>> playTracks(
+    List<Track> tracks, {
+    required int startIndex,
+    bool shuffle = false,
+    QueueOrigin? origin,
+  }) {
+    if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
+      return Future.value(
+        const Result.err(
+          UnavailableFailure('There is no playable selection to send.'),
+        ),
+      );
+    }
+    final sourceEntries = [
+      for (final track in tracks) QueueEntry.fromTrack(track),
+    ];
+    final sourceQueue = PlaybackQueue.empty
+        .withShuffle(shuffle)
+        .withRepeatMode(state.queue.repeatMode)
+        .withEntries(sourceEntries, startIndex: startIndex, origin: origin);
+    final entries = [
+      for (final index in sourceQueue.playOrder)
+        RemoteQueueEntry.fromQueueEntry(sourceQueue.entries[index]),
+    ];
+    final remoteStartIndex = sourceQueue.currentPlayPosition;
+    final previousBasePosition = _basePosition;
+    final previousBaseAt = _baseAt;
+    _basePosition = Duration.zero;
+    _baseAt = DateTime.now();
+    var optimisticQueue = PlaybackQueue.empty
+        .withShuffle(shuffle)
+        .withRepeatMode(sourceQueue.repeatMode)
+        .withEntries(
+          [for (final entry in entries) entry.toQueueEntry()],
+          startIndex: remoteStartIndex,
+          origin: origin,
+        );
+    if (shuffle) {
+      optimisticQueue = optimisticQueue.withRestoredShuffleOrder([
+        for (var i = 0; i < entries.length; i++) i,
+      ]);
+    }
     return _send(
-      RemoteCommandKind.setShuffle,
-      (session) => session.setShuffle(enabled),
-    );
+      RemoteCommandKind.setQueue,
+      (session) => session.setQueue(
+        entries: entries,
+        startIndex: remoteStartIndex,
+        shuffleEnabled: shuffle,
+        repeatMode: sourceQueue.repeatMode,
+        originName: origin?.name,
+        startPlaying: true,
+      ),
+      optimistic: (current) => current.copyWith(
+        queue: optimisticQueue,
+        status: PlaybackStatus.playing,
+        position: Duration.zero,
+        originName: origin?.name,
+        clearOrigin: origin == null,
+      ),
+    ).then((result) {
+      if (result.isErr && _controlSession != null) {
+        _basePosition = previousBasePosition;
+        _baseAt = previousBaseAt;
+      }
+      return result;
+    });
   }
 
-  Future<Result<void>> setRepeatMode(RepeatMode mode) =>
-      _send(RemoteCommandKind.setRepeat, (session) => session.setRepeat(mode));
-
-  /// Jumps to [entriesIndex] of [PlaybackControlState.queue]'s own entries
-  /// — a tap on a remote queue row. Names the same window index the target
-  /// published it at (`RemoteQueueProjection`'s own doc), which is exactly
-  /// what this projection's entries are built from, in order.
-  Future<Result<void>> jumpToQueueEntry(int entriesIndex) => _send(
-    RemoteCommandKind.jumpToQueueEntry,
-    (session) => session.jumpToQueueEntry(entriesIndex),
+  Future<Result<void>> play() => _send(
+    RemoteCommandKind.play,
+    (session) => session.play(),
+    optimistic: (current) => current.copyWith(status: PlaybackStatus.playing),
   );
+
+  Future<Result<void>> pause() => _send(
+    RemoteCommandKind.pause,
+    (session) => session.pause(),
+    optimistic: (current) => current.copyWith(status: PlaybackStatus.paused),
+  );
+
+  Future<Result<void>> togglePlayPause() => _send(
+    RemoteCommandKind.playPause,
+    (session) => session.playPause(),
+    optimistic: (current) => current.copyWith(
+      status: current.isPlaying
+          ? PlaybackStatus.paused
+          : PlaybackStatus.playing,
+    ),
+  );
+
+  Future<Result<void>> previous() => _send(
+    RemoteCommandKind.previous,
+    (session) => session.previous(),
+    optimistic: (current) =>
+        _optimisticQueueIndex(current, current.queue.previousIndex()),
+  );
+
+  Future<Result<void>> next() => _send(
+    RemoteCommandKind.next,
+    (session) => session.next(),
+    optimistic: (current) =>
+        _optimisticQueueIndex(current, current.queue.manualNextIndex()),
+  );
+
+  Future<Result<void>> toggleShuffle() => _send(
+    RemoteCommandKind.setShuffle,
+    (session) => session.setShuffle(!state.queue.shuffleEnabled),
+    optimistic: (current) => current.copyWith(
+      queue: current.queue.withShuffle(!current.queue.shuffleEnabled),
+    ),
+  );
+
+  Future<Result<void>> setRepeatMode(RepeatMode mode) => _send(
+    RemoteCommandKind.setRepeat,
+    (session) => session.setRepeat(mode),
+    optimistic: (current) =>
+        current.copyWith(queue: current.queue.withRepeatMode(mode)),
+  );
+
+  Future<Result<void>> jumpToQueueEntry(int entriesIndex) {
+    final previousBasePosition = _basePosition;
+    final previousBaseAt = _baseAt;
+    _basePosition = Duration.zero;
+    _baseAt = DateTime.now();
+    return _send(
+      RemoteCommandKind.jumpToQueueEntry,
+      (session) => session.jumpToQueueEntry(entriesIndex),
+      optimistic: (current) => _optimisticQueueIndex(
+        current,
+        entriesIndex >= 0 && entriesIndex < current.queue.entries.length
+            ? entriesIndex
+            : null,
+      ),
+    ).then((result) {
+      if (result.isErr && _controlSession != null) {
+        _basePosition = previousBasePosition;
+        _baseAt = previousBaseAt;
+      }
+      return result;
+    });
+  }
 
   Future<Result<void>> removeQueueEntry(int entriesIndex) => _send(
     RemoteCommandKind.removeQueueEntry,
@@ -494,22 +611,42 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
 
   Future<Result<void>> setVolume(double volume) {
     final normalized = volume.clamp(0.0, 1.0);
-    emit(state.copyWith(volume: normalized));
     return _send(
       RemoteCommandKind.setVolume,
       (session) => session.setVolume(normalized),
+      optimistic: (current) => current.copyWith(volume: normalized),
     );
   }
 
-  /// Seeks the target, optimistically moving the displayed position first
-  /// — "acknowledged target state corrects optimistic motion, especially
-  /// seek position" from the roadmap. The next snapshot (or an outright
-  /// failure) is what actually corrects it if this guess was wrong.
   Future<Result<void>> seek(Duration position) {
+    final previousBasePosition = _basePosition;
+    final previousBaseAt = _baseAt;
     _basePosition = position;
     _baseAt = DateTime.now();
-    emit(state.copyWith(position: position));
-    return _send(RemoteCommandKind.seek, (session) => session.seek(position));
+    return _send(
+      RemoteCommandKind.seek,
+      (session) => session.seek(position),
+      optimistic: (current) => current.copyWith(position: position),
+    ).then((result) {
+      if (result.isErr && _controlSession != null) {
+        _basePosition = previousBasePosition;
+        _baseAt = previousBaseAt;
+      }
+      return result;
+    });
+  }
+
+  PlaybackControlState _optimisticQueueIndex(
+    PlaybackControlState current,
+    int? index,
+  ) {
+    if (index == null || index < 0 || index >= current.queue.entries.length) {
+      return current;
+    }
+    return current.copyWith(
+      queue: current.queue.withCurrentIndex(index),
+      position: Duration.zero,
+    );
   }
 
   /// Requests the controlled peer join [groupId]. SyncPlay owns the shared
@@ -522,13 +659,19 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   Future<Result<void>> _send(
     RemoteCommandKind kind,
     Future<Result<void>> Function(ConnectedPlaybackControllerSession session)
-    run,
-  ) async {
+    run, {
+    PlaybackControlState Function(PlaybackControlState)? optimistic,
+  }) async {
     final session = _controlSession;
     if (session == null) {
       return Result.err(ConnectedPlaybackFailures.notReachable());
     }
     final generation = _generation;
+    final rollback = state;
+    if (optimistic != null) {
+      emit(optimistic(rollback));
+      _updateTicker();
+    }
     emit(
       state.copyWith(
         pendingCommand: kind,
@@ -551,8 +694,9 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
           ),
         );
       case Err(:final failure):
+        final base = optimistic == null ? state : rollback;
         emit(
-          state.copyWith(
+          base.copyWith(
             clearPendingCommand: true,
             commandStatus:
                 failure.message == ConnectedPlaybackFailures.timedOut().message
@@ -564,6 +708,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
             ),
           ),
         );
+        _updateTicker();
     }
     if (session.controller.needsResync) {
       emit(

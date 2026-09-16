@@ -23,12 +23,14 @@ All notable changes to Jellyfinity are documented here.
   playback, and offering to take over or send playback there — reachable
   any time, not only from the mini-player's device picker.
 
-## Unreleased — Explicit playback takeover
+## Unreleased — Remote selection routing
 
-- Starting something new on this device while another of your devices owns
-  playback releases that remote control and immediately plays the selected
-  song, album, playlist, or Continue Listening item here. There is no
-  competing second stream or stale takeover dialog state.
+- Selecting a song, album, artist, playlist, or Continue Listening item while
+  controlling another device now replaces that device's queue and keeps
+  Remote Play attached; there is no takeover dialog or competing local stream.
+- A selection made by any member of a SyncPlay group replaces the shared queue
+  and starts it for every synced device. Explicit End Remote Play or leaving
+  the group remains the only way to detach.
 
 ## Unreleased — Remote volume control
 

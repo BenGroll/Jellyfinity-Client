@@ -219,9 +219,17 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
     List<Track> tracks, {
     required int startIndex,
     QueueOrigin? origin,
-  }) => _startLocally(
-    () => _playNow(tracks, startIndex: startIndex, origin: origin),
-  );
+  }) async {
+    final redirected =
+        await _remoteOwnership?.redirect(
+          tracks,
+          startIndex: startIndex,
+          origin: origin,
+        ) ??
+        false;
+    if (redirected) return;
+    await _playNow(tracks, startIndex: startIndex, origin: origin);
+  }
 
   /// Replaces the queue with [tracks], shuffled, starting from a random
   /// entry (v0.1.6's Album/Playlist shuffle button).
@@ -238,23 +246,21 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   Future<void> playShuffled(List<Track> tracks, {QueueOrigin? origin}) async {
     if (tracks.isEmpty) return;
     final startIndex = tracks.length == 1 ? 0 : Random().nextInt(tracks.length);
-    await _startLocally(
-      () => _playNow(
-        tracks,
-        startIndex: startIndex,
-        shuffle: true,
-        origin: origin,
-      ),
+    final redirected =
+        await _remoteOwnership?.redirect(
+          tracks,
+          startIndex: startIndex,
+          shuffle: true,
+          origin: origin,
+        ) ??
+        false;
+    if (redirected) return;
+    await _playNow(
+      tracks,
+      startIndex: startIndex,
+      shuffle: true,
+      origin: origin,
     );
-  }
-
-  /// Starts local playback, releasing any remote ownership first so a song
-  /// tapped during Remote Play takes effect immediately.
-  Future<void> _startLocally(Future<void> Function() start) async {
-    if (_remoteOwnership?.controlledDevice != null) {
-      await _remoteOwnership?.releaseForTakeover();
-    }
-    await start();
   }
 
   /// Queues every one of [tracks] to play after the current one, in their
@@ -416,7 +422,7 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// call from a card that may be tapped twice.
   Future<void> resume() async {
     if (state.queue.isEmpty || state.isPlaying) return;
-    await _startLocally(() => _engine.play(allowRemoteRoute: false));
+    await _engine.play(allowRemoteRoute: false);
   }
 
   Future<void> seek(Duration position) =>

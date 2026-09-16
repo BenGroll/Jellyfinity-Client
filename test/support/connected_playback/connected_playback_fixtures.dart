@@ -53,6 +53,8 @@ ConnectedDevice device({
   ProtocolVersion? protocolVersion,
   bool isThisDevice = false,
   bool isPlaying = false,
+  String? nowPlayingTitle,
+  String? nowPlayingArtist,
 }) => ConnectedDevice(
   scope: scope,
   deviceId: deviceId,
@@ -65,4 +67,6 @@ ConnectedDevice device({
   lastSeen: Duration.zero,
   isThisDevice: isThisDevice,
   isPlaying: isPlaying,
+  nowPlayingTitle: nowPlayingTitle,
+  nowPlayingArtist: nowPlayingArtist,
 );

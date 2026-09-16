@@ -154,6 +154,33 @@ void main() {
       expect(advertisement.capabilities.canPlay, isTrue);
     });
 
+    test('re-advertises local now-playing metadata when it changes', () async {
+      await transport.advertise(testScope);
+      server.delivered.clear();
+
+      transport.updateLocalPlayback(
+        isPlaying: true,
+        nowPlayingTitle: 'So What',
+        nowPlayingArtist: 'Miles Davis',
+      );
+      await waitUntil(
+        () => server.delivered.any(
+          (sent) => sent.envelope.kind == EnvelopeKind.presence,
+        ),
+        reason: 'the updated presence advertisement',
+      );
+
+      final advertisement = DeviceAdvertisement.tryDecode(
+        server.delivered
+            .lastWhere((sent) => sent.envelope.kind == EnvelopeKind.presence)
+            .envelope
+            .payload,
+      );
+      expect(advertisement?.isPlaying, isTrue);
+      expect(advertisement?.nowPlayingTitle, 'So What');
+      expect(advertisement?.nowPlayingArtist, 'Miles Davis');
+    });
+
     test(
       'announces itself when the socket later reveals its local session',
       () async {

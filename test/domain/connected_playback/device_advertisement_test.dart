@@ -11,6 +11,8 @@ void main() {
       name: 'Living Room',
       platform: 'Fire TV',
       isPlaying: true,
+      nowPlayingTitle: 'So What',
+      nowPlayingArtist: 'Miles Davis',
       capabilities: DeviceCapabilities.fullPlayer(),
     );
 

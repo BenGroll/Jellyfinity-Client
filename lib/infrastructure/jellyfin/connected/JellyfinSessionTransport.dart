@@ -71,6 +71,11 @@ class JellyfinSessionTransport
   final JellyfinClientIdentity _identity;
   final Logger _logger;
 
+  bool _localPlaybackInitialized = false;
+  bool _localIsPlaying = false;
+  String? _localNowPlayingTitle;
+  String? _localNowPlayingArtist;
+
   static const ConnectedSessionFailureMapper _failures =
       ConnectedSessionFailureMapper();
 
@@ -126,6 +131,32 @@ class JellyfinSessionTransport
   /// What this build tells its peers it will accept. Narrowed by a
   /// composition that knows this install is less than a full player.
   DeviceCapabilities capabilities = DeviceCapabilities.fullPlayer();
+
+  /// Updates the local playback fields included in presence. The app layer
+  /// supplies display data so this infrastructure class does not depend on
+  /// PlaybackCubit; a fresh presence is sent only when the advertised data
+  /// actually changes.
+  void updateLocalPlayback({
+    required bool isPlaying,
+    String? nowPlayingTitle,
+    String? nowPlayingArtist,
+  }) {
+    final title = nowPlayingTitle?.trim();
+    final artist = nowPlayingArtist?.trim();
+    final nextTitle = title == null || title.isEmpty ? null : title;
+    final nextArtist = artist == null || artist.isEmpty ? null : artist;
+    if (_localPlaybackInitialized &&
+        _localIsPlaying == isPlaying &&
+        _localNowPlayingTitle == nextTitle &&
+        _localNowPlayingArtist == nextArtist) {
+      return;
+    }
+    _localPlaybackInitialized = true;
+    _localIsPlaying = isPlaying;
+    _localNowPlayingTitle = nextTitle;
+    _localNowPlayingArtist = nextArtist;
+    unawaited(_announcePresence(replyRequested: false));
+  }
 
   final StreamController<_ScopedDevices> _deviceUpdates =
       StreamController<_ScopedDevices>.broadcast();
@@ -832,6 +863,8 @@ class JellyfinSessionTransport
     capabilities: capabilities,
     platform: platformName,
     isPlaying: _isPlayingLocally,
+    nowPlayingTitle: _localNowPlayingTitle,
+    nowPlayingArtist: _localNowPlayingArtist,
   );
 
   /// Whether this device is the one making noise, as the server sees it.
@@ -840,6 +873,7 @@ class JellyfinSessionTransport
   /// version does not touch playback, and the server's own record of the
   /// session is already the value every peer is being shown.
   bool get _isPlayingLocally {
+    if (_localPlaybackInitialized) return _localIsPlaying;
     for (final device in _registry?.devices ?? const <ConnectedDevice>[]) {
       if (device.isThisDevice) return device.isPlaying;
     }

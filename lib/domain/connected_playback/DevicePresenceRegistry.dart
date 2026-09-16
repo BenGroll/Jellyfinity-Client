@@ -246,6 +246,8 @@ class DevicePresenceRegistry {
       lastSeen: entry.lastSeen,
       isThisDevice: entry.isThisDevice,
       isPlaying: entry.isPlaying,
+      nowPlayingTitle: advertisement?.nowPlayingTitle,
+      nowPlayingArtist: advertisement?.nowPlayingArtist,
     );
   }
 
@@ -344,6 +346,8 @@ class DevicePresenceRegistry {
     entry.protocolVersion,
     entry.advertisement?.platform,
     entry.advertisement?.capabilities,
+    entry.advertisement?.nowPlayingTitle,
+    entry.advertisement?.nowPlayingArtist,
   ].join('|');
 }
 
