@@ -4,9 +4,13 @@ import 'package:flutter/widgets.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/logging/Logger.dart';
+import '../platform/RemotePlaybackBackgroundService.dart';
+import '../../domain/connected_playback/ConnectedDevice.dart';
 import '../../domain/connected_playback/ConnectedPlaybackScope.dart';
+import '../../domain/connected_playback/device_reachability.dart';
 import '../../infrastructure/jellyfin/connected/JellyfinSessionTransport.dart';
 import '../platform/television_display_monitor.dart';
+import 'PlaybackControlCubit.dart';
 import '../platform/television_mode.dart';
 import '../playback/PlaybackCubit.dart';
 import '../playback/PlaybackUiState.dart';
@@ -39,19 +43,25 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     this._transport,
     this._session,
     this._playback,
+    this._control,
     this._logger,
   );
 
   final JellyfinSessionTransport _transport;
   final SessionCubit _session;
   final PlaybackCubit _playback;
+  final PlaybackControlCubit _control;
   final Logger _logger;
 
   StreamSubscription<SessionState>? _sessionUpdates;
   StreamSubscription<PlaybackUiState>? _playbackUpdates;
+  StreamSubscription<PlaybackControlState>? _controlUpdates;
+  StreamSubscription<List<ConnectedDevice>>? _deviceUpdates;
   StreamSubscription<bool>? _televisionDisplayUpdates;
   ConnectedPlaybackScope? _scope;
   bool _started = false;
+  bool _backgrounded = false;
+  bool _hasControllablePeers = false;
 
   /// Mirrors `AppLifecycleState`, not `_transport`'s own suspended flag:
   /// this device may stay backgrounded and playing (Android's foreground
@@ -96,6 +106,9 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _sessionUpdates = _session.stream.listen(_onSession);
     _playbackUpdates = _playback.stream.listen(_onPlaybackChanged);
+    _controlUpdates = _control.stream.listen(_onControlChanged);
+    _onPlaybackChanged(_playback.state);
+    _onControlChanged(_control.state);
     await _apply(connectedPlaybackScopeOf(_session.state));
   }
 
@@ -108,10 +121,17 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     _sessionUpdates = null;
     await _playbackUpdates?.cancel();
     _playbackUpdates = null;
+    await _controlUpdates?.cancel();
+    _controlUpdates = null;
+    await _deviceUpdates?.cancel();
+    _deviceUpdates = null;
+    _hasControllablePeers = false;
     await _televisionDisplayUpdates?.cancel();
     _televisionDisplayUpdates = null;
     final scope = _scope;
     _scope = null;
+    _backgrounded = false;
+    _reconcileBackgroundService();
     if (scope != null) await _transport.clear(scope);
   }
 
@@ -119,6 +139,9 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        _backgrounded = false;
+        _transport.setBackgrounded(false);
+        _reconcileBackgroundService();
         // Returning to the foreground always re-establishes rather than
         // assuming the socket survived: the app may have been away for a
         // day, and a socket that is open but dead looks exactly like one
@@ -131,6 +154,9 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
         if (!_televisionAsleep) unawaited(_transport.resume());
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
+        _backgrounded = true;
+        _transport.setBackgrounded(true);
+        _reconcileBackgroundService();
         _reconcileBackgroundConnection();
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
@@ -166,8 +192,10 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
   void _onTelevisionDisplayChanged(bool screenOn) {
     _televisionAsleep = !screenOn;
     if (_televisionAsleep) {
+      _reconcileBackgroundService();
       unawaited(_transport.suspend());
     } else {
+      _reconcileBackgroundService();
       unawaited(_transport.resume());
     }
   }
@@ -182,16 +210,55 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     if (_televisionAsleep) unawaited(_transport.suspend());
   }
 
-  void _onPlaybackChanged(PlaybackUiState state) =>
-      _reconcileBackgroundConnection();
+  void _onPlaybackChanged(PlaybackUiState state) {
+    _transport.updateLocalPlayback(
+      isPlaying: state.isPlaying,
+      nowPlayingTitle: state.currentEntry?.title,
+      nowPlayingArtist: state.currentEntry?.artist,
+      nowPlayingImage: state.currentEntry?.image,
+    );
+    _reconcileBackgroundConnection();
+  }
+
+  void _onControlChanged(PlaybackControlState state) =>
+      _reconcileBackgroundService();
+
+  void _onDevices(List<ConnectedDevice> devices) {
+    _hasControllablePeers = devices.any(
+      (device) =>
+          !device.isThisDevice &&
+          device.reachability == DeviceReachability.ready &&
+          device.capabilities.canControl,
+    );
+    _reconcileBackgroundService();
+  }
+
+  void _reconcileBackgroundService() {
+    unawaited(
+      RemotePlaybackBackgroundService.setEnabled(
+        _backgrounded &&
+            !_televisionAsleep &&
+            _scope != null &&
+            (_control.state.isControlling || _hasControllablePeers),
+      ),
+    );
+  }
 
   Future<void> _apply(ConnectedPlaybackScope? scope) async {
     if (scope == _scope) return;
     final previous = _scope;
     _scope = scope;
+    await _deviceUpdates?.cancel();
+    _deviceUpdates = null;
+    _hasControllablePeers = false;
     if (previous != null) await _transport.clear(previous);
-    if (scope == null) return;
+    if (scope == null) {
+      _reconcileBackgroundService();
+      return;
+    }
 
+    _deviceUpdates = _transport.devices(scope).listen(_onDevices);
+    _reconcileBackgroundService();
     final result = await _transport.advertise(scope);
     if (result.isErr) {
       // Not surfaced here: a picker that nobody has opened has nowhere to

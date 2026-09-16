@@ -1151,13 +1151,23 @@ class _RemoteNowPlayingContentState extends State<_RemoteNowPlayingContent> {
                         _RemoteConnectionNote(control: control),
                         SizedBox(height: t.spacing.lg),
                         _RemoteSeekBar(control: control),
+                        Padding(
+                          padding: EdgeInsets.only(top: t.spacing.xs),
+                          child: Text(
+                            'Playing on ${control.device!.displayName}…',
+                            textAlign: TextAlign.center,
+                            style: t.typography.caption.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: t.spacing.sm),
+                        _RemoteTransportRow(control: control),
                         if (control.volume != null &&
                             control.commandAvailable(
                               RemoteCommandKind.setVolume,
                             ))
                           _RemoteVolumeBar(control: control),
-                        SizedBox(height: t.spacing.sm),
-                        _RemoteTransportRow(control: control),
                         SizedBox(height: t.spacing.xl),
                       ],
                     ),
@@ -1210,15 +1220,7 @@ class _RemotePlayerTopBar extends StatelessWidget {
               tooltip: 'Minimize player',
               onPressed: () => context.pop(),
             ),
-            Expanded(
-              child: Text(
-                'Playing on ${control.device!.displayName}',
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-            ),
+            const Spacer(),
             BlocBuilder<NowPlayingDetailsCubit, NowPlayingDetailsState>(
               builder: (context, details) {
                 final track = details.track;
@@ -1336,22 +1338,32 @@ class _RemoteConnectionNote extends StatelessWidget {
   }
 }
 
-class _RemoteSeekBar extends StatelessWidget {
+class _RemoteSeekBar extends StatefulWidget {
   const _RemoteSeekBar({required this.control});
 
   final PlaybackControlState control;
 
   @override
+  State<_RemoteSeekBar> createState() => _RemoteSeekBarState();
+}
+
+class _RemoteSeekBarState extends State<_RemoteSeekBar> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final control = widget.control;
     final duration = control.duration;
     final hasDuration = duration != null && duration > Duration.zero;
     final max = hasDuration ? duration.inMilliseconds.toDouble() : 1.0;
-    final value = hasDuration
+    final streamValue = hasDuration
         ? control.position.inMilliseconds.toDouble().clamp(0.0, max)
         : 0.0;
+    final value = (_dragValue ?? streamValue).clamp(0.0, max);
     final canSeek =
         hasDuration && control.commandAvailable(RemoteCommandKind.seek);
+    final shownPosition = Duration(milliseconds: value.round());
 
     return Column(
       children: [
@@ -1367,10 +1379,17 @@ class _RemoteSeekBar extends StatelessWidget {
           child: Slider(
             value: value,
             max: max,
-            onChanged: canSeek
-                ? (v) => getIt<PlaybackControlCubit>().seek(
-                    Duration(milliseconds: v.round()),
-                  )
+            onChangeStart: canSeek
+                ? (v) => setState(() => _dragValue = v)
+                : null,
+            onChanged: canSeek ? (v) => setState(() => _dragValue = v) : null,
+            onChangeEnd: canSeek
+                ? (v) {
+                    setState(() => _dragValue = null);
+                    getIt<PlaybackControlCubit>().seek(
+                      Duration(milliseconds: v.round()),
+                    );
+                  }
                 : null,
           ),
         ),
@@ -1378,7 +1397,7 @@ class _RemoteSeekBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              formatDuration(control.position),
+              formatDuration(shownPosition),
               style: t.typography.caption.copyWith(
                 fontSize: 14,
                 color: Colors.white,
@@ -1398,20 +1417,102 @@ class _RemoteSeekBar extends StatelessWidget {
   }
 }
 
-class _RemoteVolumeBar extends StatelessWidget {
+class _RemoteVolumeBar extends StatefulWidget {
   const _RemoteVolumeBar({required this.control});
 
   final PlaybackControlState control;
 
+  @override
+  State<_RemoteVolumeBar> createState() => _RemoteVolumeBarState();
+}
+
+class _RemoteVolumeBarState extends State<_RemoteVolumeBar> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final streamVolume = widget.control.volume!;
+    final volume = (_dragValue ?? streamVolume).clamp(0.0, 1.0);
     return Semantics(
       label: 'Remote volume',
-      child: Slider(
-        value: control.volume!,
-        onChanged: (value) => getIt<PlaybackControlCubit>().setVolume(value),
-        activeColor: t.colors.accent,
+      value: '${(volume * 100).round()}%',
+      child: SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 3,
+          trackShape: const RectangularSliderTrackShape(),
+          thumbShape: _RemoteVolumeThumbShape(volume: volume),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+          activeTrackColor: t.colors.accent,
+          inactiveTrackColor: t.colors.border,
+          thumbColor: t.colors.accent,
+        ),
+        child: Slider(
+          value: volume,
+          onChangeStart: (value) => setState(() => _dragValue = value),
+          onChanged: (value) => setState(() => _dragValue = value),
+          onChangeEnd: (value) {
+            setState(() => _dragValue = null);
+            getIt<PlaybackControlCubit>().setVolume(value);
+          },
+        ),
       ),
+    );
+  }
+}
+
+class _RemoteVolumeThumbShape extends SliderComponentShape {
+  const _RemoteVolumeThumbShape({required this.volume});
+
+  final double volume;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) {
+    final size = 12 + volume.clamp(0.0, 1.0) * 14;
+    return Size.square(size);
+  }
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final level = volume.clamp(0.0, 1.0);
+    final icon = level <= 0.01
+        ? Icons.volume_off_rounded
+        : level < 0.5
+        ? Icons.volume_down_rounded
+        : Icons.volume_up_rounded;
+    final size = (12 + level * 14) * textScaleFactor;
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          color: Color.lerp(
+            sliderTheme.disabledThumbColor,
+            sliderTheme.thumbColor,
+            enableAnimation.value,
+          ),
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: size,
+        ),
+      ),
+      textDirection: textDirection,
+    )..layout();
+    painter.paint(
+      context.canvas,
+      center - Offset(painter.width / 2, painter.height / 2),
     );
   }
 }

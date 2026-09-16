@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../app/connected_playback/ConnectedPlaybackScopeOf.dart';
 import '../../../app/connected_playback/ConnectedPlaybackTargetLink.dart';
+import '../../../app/connected_playback/SyncPlayGroupCubit.dart';
 import '../../../app/connected_playback/PlaybackControlCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/playback/PlaybackUiState.dart';
@@ -141,15 +142,12 @@ class DevicePickerState extends Equatable {
 /// - It never asks a remote device to transfer to this one.
 ///   [PlaybackHandoffCoordinator] has no such message: only the device
 ///   producing audio may decide to let go of it. [bringBackToThisDevice]
-///   is therefore an ordinary local resume, not a handoff — this device's
-///   own queue survives a handoff away exactly as it was, paused
-///   (`ConnectedPlaybackTargetLink._applyDecision`'s `stopLocalPlayback`
-///   never clears it), so there is always something to resume once
-///   nothing else is using it. `ConnectedDevice.isPlaying`'s own doc
-///   accepts that this can transiently show two devices "playing" at
-///   once — the moment a listener notices and finishes the move
-///   themselves, exactly the symptom a handoff exists to make visible
-///   rather than hide.
+///   releases remote control and SyncPlay membership before resuming this
+///   device's own paused queue, so the local route and its presentation agree.
+///   The local queue survives a handoff away exactly as it was, paused
+///   and the handoff target never clears it, so there is always something to
+///   resume once nothing else is using it.
+///
 @injectable
 class DevicePickerCubit extends Cubit<DevicePickerState> {
   DevicePickerCubit(
@@ -158,6 +156,7 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
     this._playback,
     this._handoff,
     this._control,
+    this._groupCubit,
   ) : super(
         DevicePickerState(
           localHasQueue: _playback.state.hasQueue,
@@ -181,6 +180,7 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
   /// a device and mirrors which one, for the picker's own "Controlling"
   /// row state.
   final PlaybackControlCubit _control;
+  final SyncPlayGroupCubit _groupCubit;
 
   StreamSubscription<SessionState>? _sessionSub;
   StreamSubscription<PlaybackUiState>? _playbackSub;
@@ -267,10 +267,15 @@ class DevicePickerCubit extends Cubit<DevicePickerState> {
   }
 
   /// Resumes this device's own queue — the picker's "bring it back to
-  /// this device" action. A no-op unless there is a paused local queue
-  /// to resume; see the class doc for why this is a plain local resume
-  /// rather than a handoff.
-  Future<void> bringBackToThisDevice() => _playback.play();
+  /// this device" action. Detaches any remote presentation and leaves a
+  /// SyncPlay group before returning to local playback, so the UI and the
+  /// audio route change together.
+  Future<void> bringBackToThisDevice() async {
+    if (_control.state.isControlling) await _control.stop();
+    final leaving = _groupCubit.leave();
+    await _playback.play();
+    await leaving;
+  }
 
   /// Starts controlling [device]'s active playback (v0.5.6) — binding the
   /// mini-player, Now Playing and the queue to its projection until

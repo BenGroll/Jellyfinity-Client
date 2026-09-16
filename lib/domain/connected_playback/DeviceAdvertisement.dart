@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../media/MediaId.dart';
+import '../media/MediaImage.dart';
 import 'ConnectedPlaybackLimits.dart';
 import 'DeviceCapabilities.dart';
 import 'remote_command_kind.dart';
@@ -36,6 +38,9 @@ class DeviceAdvertisement extends Equatable {
     required this.capabilities,
     this.platform,
     this.isPlaying = false,
+    this.nowPlayingTitle,
+    this.nowPlayingArtist,
+    this.nowPlayingImage,
   });
 
   /// The peer's stable install identity — see `ConnectedDevice.deviceId`.
@@ -56,6 +61,18 @@ class DeviceAdvertisement extends Equatable {
   /// Whether the peer is producing audio for this profile right now.
   final bool isPlaying;
 
+  /// The current track's display metadata. These are intentionally plain
+  /// strings: presence must not carry media tokens, URLs or server-local
+  /// identifiers.
+  final String? nowPlayingTitle;
+  final String? nowPlayingArtist;
+
+  /// An artwork *pointer* for the current track — owning item id, role and
+  /// content tag, the same safe shape `RemoteQueueEntry.image` already
+  /// uses. Never a URL: the receiver resolves it against its own session,
+  /// after rebinding the item id to its local server (`DevicePresenceRegistry`).
+  final MediaImage? nowPlayingImage;
+
   Map<String, Object?> toPayload() => {
     'deviceId': deviceId,
     'name': name,
@@ -68,6 +85,18 @@ class DeviceAdvertisement extends Equatable {
     'maxQueueEntries': capabilities.maxQueueEntries,
     if (platform != null) 'platform': platform,
     'playing': isPlaying,
+    if (nowPlayingTitle != null && nowPlayingTitle!.isNotEmpty)
+      'nowPlayingTitle': nowPlayingTitle,
+    if (nowPlayingArtist != null && nowPlayingArtist!.isNotEmpty)
+      'nowPlayingArtist': nowPlayingArtist,
+    if (nowPlayingImage != null)
+      'nowPlayingImage': {
+        'itemId': nowPlayingImage!.itemId.key,
+        'kind': nowPlayingImage!.kind.name,
+        'tag': nowPlayingImage!.tag,
+        if (nowPlayingImage!.aspectRatio != null)
+          'aspectRatio': nowPlayingImage!.aspectRatio,
+      },
   };
 
   /// Reverses [toPayload]. Returns `null` only when the two fields that
@@ -107,6 +136,9 @@ class DeviceAdvertisement extends Equatable {
       name: name,
       platform: platform is String && platform.isNotEmpty ? platform : null,
       isPlaying: payload['playing'] == true,
+      nowPlayingTitle: _optionalText(payload['nowPlayingTitle']),
+      nowPlayingArtist: _optionalText(payload['nowPlayingArtist']),
+      nowPlayingImage: _decodeImage(payload['nowPlayingImage']),
       capabilities: DeviceCapabilities(
         canPlay: payload['canPlay'] == true,
         canControl: payload['canControl'] == true,
@@ -125,6 +157,32 @@ class DeviceAdvertisement extends Equatable {
     );
   }
 
+  static String? _optionalText(Object? value) {
+    if (value is! String || value.trim().isEmpty) return null;
+    return value;
+  }
+
+  static MediaImage? _decodeImage(Object? value) {
+    if (value is! Map) return null;
+    final itemIdKey = value['itemId'];
+    final itemId = itemIdKey is String ? MediaId.tryParse(itemIdKey) : null;
+    final tag = _optionalText(value['tag']);
+    final kindName = _optionalText(value['kind']);
+    if (itemId == null || tag == null || kindName == null) return null;
+    MediaImageKind? kind;
+    for (final candidate in MediaImageKind.values) {
+      if (candidate.name == kindName) kind = candidate;
+    }
+    if (kind == null) return null;
+    final aspectRatio = value['aspectRatio'];
+    return MediaImage(
+      itemId: itemId,
+      kind: kind,
+      tag: tag,
+      aspectRatio: aspectRatio is num ? aspectRatio.toDouble() : null,
+    );
+  }
+
   @override
   List<Object?> get props => [
     deviceId,
@@ -132,5 +190,8 @@ class DeviceAdvertisement extends Equatable {
     capabilities,
     platform,
     isPlaying,
+    nowPlayingTitle,
+    nowPlayingArtist,
+    nowPlayingImage,
   ];
 }

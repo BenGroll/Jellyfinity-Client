@@ -299,6 +299,31 @@ class RemotePlaybackController {
     ),
   );
 
+  Result<RemoteCommand> setQueue({
+    required List<RemoteQueueEntry> entries,
+    required int startIndex,
+    required bool shuffleEnabled,
+    required RepeatMode repeatMode,
+    String? originName,
+    Duration startPosition = Duration.zero,
+    bool startPlaying = true,
+  }) => _compose(
+    RemoteCommandKind.setQueue,
+    (id, revision) => SetQueueCommand(
+      id: id,
+      scope: _target.scope,
+      targetSessionId: _target.sessionId,
+      entries: entries,
+      startIndex: startIndex,
+      startPosition: startPosition,
+      shuffleEnabled: shuffleEnabled,
+      repeatMode: repeatMode,
+      originName: originName,
+      startPlaying: startPlaying,
+      expectedRevision: revision,
+    ),
+  );
+
   Result<RemoteCommand> appendToQueue(List<RemoteQueueEntry> entries) =>
       _compose(
         RemoteCommandKind.appendToQueue,

@@ -177,6 +177,47 @@ void main() {
 
     expect(transport.calls, contains('createGroup'));
     expect(transport.calls.any((c) => c.startsWith('setQueue(2')), isTrue);
+    expect(transport.calls, contains('play'));
+  });
+
+  test('a selection is sent to the joined group and is not applied locally '
+      'until the group update arrives', () async {
+    transport.emit(
+      const SyncPlayGroupJoined(
+        groupId: 'group-1',
+        groupName: 'Living Room',
+        members: [],
+      ),
+    );
+    await settle();
+
+    await cubit.playSelection(
+      [track('a'), track('b')],
+      startIndex: 1,
+    );
+
+    expect(transport.calls, contains('setQueue(2, startIndex: 1)'));
+    expect(transport.calls, contains('play'));
+    expect(playback.state.hasQueue, isFalse);
+
+    transport.emit(
+      SyncPlayQueueUpdated(
+        entries: [
+          RemoteQueueEntry(
+            id: MediaId(serverId: testScope.serverId, itemId: 'a'),
+            title: 'a',
+          ),
+          RemoteQueueEntry(
+            id: MediaId(serverId: testScope.serverId, itemId: 'b'),
+            title: 'b',
+          ),
+        ],
+        startIndex: 1,
+      ),
+    );
+    await settle();
+
+    expect(playback.state.queue.currentEntry?.id.itemId, 'b');
   });
 
   test('a queue update from the group loads the real local queue — the '

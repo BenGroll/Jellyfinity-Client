@@ -3,6 +3,8 @@ import 'package:jellyfinity/domain/connected_playback/ConnectedPlaybackLimits.da
 import 'package:jellyfinity/domain/connected_playback/DeviceAdvertisement.dart';
 import 'package:jellyfinity/domain/connected_playback/DeviceCapabilities.dart';
 import 'package:jellyfinity/domain/connected_playback/remote_command_kind.dart';
+import 'package:jellyfinity/domain/media/MediaId.dart';
+import 'package:jellyfinity/domain/media/MediaImage.dart';
 
 void main() {
   test('round-trips everything a peer needs to know', () {
@@ -11,6 +13,14 @@ void main() {
       name: 'Living Room',
       platform: 'Fire TV',
       isPlaying: true,
+      nowPlayingTitle: 'So What',
+      nowPlayingArtist: 'Miles Davis',
+      nowPlayingImage: MediaImage(
+        itemId: MediaId(serverId: 'server-a', itemId: 'track-1'),
+        kind: MediaImageKind.primary,
+        tag: 'tag-1',
+        aspectRatio: 1.0,
+      ),
       capabilities: DeviceCapabilities.fullPlayer(),
     );
 
@@ -18,6 +28,21 @@ void main() {
 
     expect(decoded, advertisement);
   });
+
+  test(
+    'drops an unreadable now-playing image rather than the whole message',
+    () {
+      final decoded = DeviceAdvertisement.tryDecode({
+        'deviceId': 'device-tv',
+        'name': 'Living Room',
+        'nowPlayingTitle': 'So What',
+        'nowPlayingImage': {'itemId': 'server-a:track-1'},
+      });
+
+      expect(decoded!.nowPlayingTitle, 'So What');
+      expect(decoded.nowPlayingImage, isNull);
+    },
+  );
 
   test('keeps a newer peer\'s capabilities it has never heard of', () {
     final decoded = DeviceAdvertisement.tryDecode({

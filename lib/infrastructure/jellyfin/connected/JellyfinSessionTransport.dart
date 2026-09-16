@@ -26,6 +26,7 @@ import '../../../domain/connected_playback/RemotePlaybackSnapshot.dart';
 import '../../../domain/connected_playback/connection_state.dart';
 import '../../../domain/connected_playback/envelope_ignore_reason.dart';
 import '../../../domain/connected_playback/envelope_kind.dart';
+import '../../../domain/media/MediaImage.dart';
 import '../identity/JellyfinClientIdentity.dart';
 import 'ConnectedSessionFailureMapper.dart';
 import 'JellyfinSessionApi.dart';
@@ -71,6 +72,12 @@ class JellyfinSessionTransport
   final JellyfinClientIdentity _identity;
   final Logger _logger;
 
+  bool _localPlaybackInitialized = false;
+  bool _localIsPlaying = false;
+  String? _localNowPlayingTitle;
+  String? _localNowPlayingArtist;
+  MediaImage? _localNowPlayingImage;
+
   static const ConnectedSessionFailureMapper _failures =
       ConnectedSessionFailureMapper();
 
@@ -98,6 +105,23 @@ class JellyfinSessionTransport
   @visibleForTesting
   Duration presencePollInterval = ConnectedPlaybackLimits.presencePollInterval;
 
+  Duration backgroundPresencePollInterval =
+      ConnectedPlaybackLimits.backgroundPresencePollInterval;
+
+  bool _backgrounded = false;
+
+  /// Adjusts presence cadence and expiry while the app is backgrounded.
+  void setBackgrounded(bool backgrounded) {
+    _backgrounded = backgrounded;
+    final registry = _registry;
+    if (registry != null) {
+      registry.staleAfter = backgrounded
+          ? ConnectedPlaybackLimits.backgroundPresenceStaleAfter
+          : ConnectedPlaybackLimits.presenceStaleAfter;
+    }
+    if (_socket == null && _scope != null && !_suspended) _startPolling();
+  }
+
   /// The short platform word shown beside a duplicate device name.
   ///
   /// Defaulted from the host and overridden at composition, because the
@@ -109,6 +133,35 @@ class JellyfinSessionTransport
   /// What this build tells its peers it will accept. Narrowed by a
   /// composition that knows this install is less than a full player.
   DeviceCapabilities capabilities = DeviceCapabilities.fullPlayer();
+
+  /// Updates the local playback fields included in presence. The app layer
+  /// supplies display data so this infrastructure class does not depend on
+  /// PlaybackCubit; a fresh presence is sent only when the advertised data
+  /// actually changes.
+  void updateLocalPlayback({
+    required bool isPlaying,
+    String? nowPlayingTitle,
+    String? nowPlayingArtist,
+    MediaImage? nowPlayingImage,
+  }) {
+    final title = nowPlayingTitle?.trim();
+    final artist = nowPlayingArtist?.trim();
+    final nextTitle = title == null || title.isEmpty ? null : title;
+    final nextArtist = artist == null || artist.isEmpty ? null : artist;
+    if (_localPlaybackInitialized &&
+        _localIsPlaying == isPlaying &&
+        _localNowPlayingTitle == nextTitle &&
+        _localNowPlayingArtist == nextArtist &&
+        _localNowPlayingImage == nowPlayingImage) {
+      return;
+    }
+    _localPlaybackInitialized = true;
+    _localIsPlaying = isPlaying;
+    _localNowPlayingTitle = nextTitle;
+    _localNowPlayingArtist = nextArtist;
+    _localNowPlayingImage = nowPlayingImage;
+    unawaited(_announcePresence(replyRequested: false));
+  }
 
   final StreamController<_ScopedDevices> _deviceUpdates =
       StreamController<_ScopedDevices>.broadcast();
@@ -182,7 +235,13 @@ class JellyfinSessionTransport
       await clear(previous);
     }
     _scope = scope;
-    _registry ??= DevicePresenceRegistry(scope: scope, clock: clock);
+    _registry ??= DevicePresenceRegistry(
+      scope: scope,
+      clock: clock,
+      staleAfter: _backgrounded
+          ? ConnectedPlaybackLimits.backgroundPresenceStaleAfter
+          : ConnectedPlaybackLimits.presenceStaleAfter,
+    );
     _suspended = false;
     return _connect();
   }
@@ -753,10 +812,13 @@ class JellyfinSessionTransport
   /// slower than the socket it stands in for.
   void _startPolling() {
     _poll?.cancel();
-    _poll = Timer.periodic(presencePollInterval, (_) {
-      if (_scope == null || _socket != null) return;
-      unawaited(_readSessions(rescheduleOnFailure: false));
-    });
+    _poll = Timer.periodic(
+      _backgrounded ? backgroundPresencePollInterval : presencePollInterval,
+      (_) {
+        if (_scope == null || _socket != null) return;
+        unawaited(_readSessions(rescheduleOnFailure: false));
+      },
+    );
   }
 
   // --- presence -----------------------------------------------------
@@ -806,6 +868,9 @@ class JellyfinSessionTransport
     capabilities: capabilities,
     platform: platformName,
     isPlaying: _isPlayingLocally,
+    nowPlayingTitle: _localNowPlayingTitle,
+    nowPlayingArtist: _localNowPlayingArtist,
+    nowPlayingImage: _localNowPlayingImage,
   );
 
   /// Whether this device is the one making noise, as the server sees it.
@@ -814,6 +879,7 @@ class JellyfinSessionTransport
   /// version does not touch playback, and the server's own record of the
   /// session is already the value every peer is being shown.
   bool get _isPlayingLocally {
+    if (_localPlaybackInitialized) return _localIsPlaying;
     for (final device in _registry?.devices ?? const <ConnectedDevice>[]) {
       if (device.isThisDevice) return device.isPlaying;
     }

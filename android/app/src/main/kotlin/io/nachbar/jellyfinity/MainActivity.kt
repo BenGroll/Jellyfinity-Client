@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.content.res.Configuration
 import android.media.AudioManager
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -53,6 +54,16 @@ class MainActivity : AudioServiceActivity() {
                         setSystemVolume(level)
                         result.success(null)
                     }
+                }
+                "setRemotePlaybackService" -> {
+                    val enabled = call.arguments as? Boolean ?: false
+                    val service = Intent(this, RemotePlaybackService::class.java)
+                    if (enabled) {
+                        ContextCompat.startForegroundService(this, service)
+                    } else {
+                        stopService(service)
+                    }
+                    result.success(null)
                 }
                 else -> result.notImplemented()
             }

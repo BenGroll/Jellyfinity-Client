@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackLink.dart';
+import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/app/session/SessionCubit.dart';
 import 'package:jellyfinity/app/session/SessionState.dart';
@@ -40,6 +41,7 @@ void main() {
   late SessionCubit session;
   late FakePlaybackEngine engine;
   late PlaybackCubit playback;
+  late PlaybackControlCubit control;
   late ConnectedPlaybackLink link;
   late List<FakeJellyfinSocket> sockets;
 
@@ -61,7 +63,14 @@ void main() {
     session = fakeSessionCubit();
     engine = FakePlaybackEngine();
     playback = fakePlaybackCubit(engine: engine);
-    link = ConnectedPlaybackLink(transport, session, playback, TestLogger());
+    control = PlaybackControlCubit(transport, transport, session);
+    link = ConnectedPlaybackLink(
+      transport,
+      session,
+      playback,
+      control,
+      TestLogger(),
+    );
   });
 
   tearDown(() async {
@@ -69,6 +78,7 @@ void main() {
     await transport.dispose();
     await session.close();
     await playback.close();
+    await control.close();
   });
 
   /// A signed-in state for [userId] on the saved server the fake context
@@ -174,24 +184,21 @@ void main() {
     },
   );
 
-  test(
-    'a backgrounded device that is still playing stays reachable',
-    () async {
-      session.emit(signedInAs('user-1'));
-      await link.start();
-      engine.emitStatus(PlaybackStatus.playing);
-      await waitUntil(
-        () => playback.state.isPlaying,
-        reason: 'the cubit to report playing before backgrounding',
-      );
+  test('a backgrounded device that is still playing stays reachable', () async {
+    session.emit(signedInAs('user-1'));
+    await link.start();
+    engine.emitStatus(PlaybackStatus.playing);
+    await waitUntil(
+      () => playback.state.isPlaying,
+      reason: 'the cubit to report playing before backgrounding',
+    );
 
-      link.didChangeAppLifecycleState(AppLifecycleState.paused);
-      await settle();
+    link.didChangeAppLifecycleState(AppLifecycleState.paused);
+    await settle();
 
-      expect(sockets.single.closed, isFalse);
-      expect(transport.connectionState, ConnectedPlaybackConnection.connected);
-    },
-  );
+    expect(sockets.single.closed, isFalse);
+    expect(transport.connectionState, ConnectedPlaybackConnection.connected);
+  });
 
   test(
     'playback ending while backgrounded keeps the remote target available',
@@ -271,36 +278,33 @@ void main() {
     setUp(() => television = FakeTelevisionPlatform());
     tearDown(() => television.dispose());
 
-    test(
-      'falling asleep expires the target even while still playing, and '
-      'waking restores it',
-      () async {
-        session.emit(signedInAs('user-1'));
-        await link.start();
-        engine.emitStatus(PlaybackStatus.playing);
-        await waitUntil(
-          () => playback.state.isPlaying,
-          reason: 'the cubit to report playing before the screen sleeps',
-        );
+    test('falling asleep expires the target even while still playing, and '
+        'waking restores it', () async {
+      session.emit(signedInAs('user-1'));
+      await link.start();
+      engine.emitStatus(PlaybackStatus.playing);
+      await waitUntil(
+        () => playback.state.isPlaying,
+        reason: 'the cubit to report playing before the screen sleeps',
+      );
 
-        television.screenOff();
-        await waitUntil(
-          () => sockets.single.closed,
-          reason: 'an asleep television to expire promptly even while playing',
-        );
-        expect(
-          transport.connectionState,
-          ConnectedPlaybackConnection.reconnecting,
-        );
+      television.screenOff();
+      await waitUntil(
+        () => sockets.single.closed,
+        reason: 'an asleep television to expire promptly even while playing',
+      );
+      expect(
+        transport.connectionState,
+        ConnectedPlaybackConnection.reconnecting,
+      );
 
-        television.screenOn();
-        await waitUntil(
-          () => sockets.length == 2,
-          reason: 'waking to restore the target',
-        );
-        expect(transport.connectionState, ConnectedPlaybackConnection.connected);
-      },
-    );
+      television.screenOn();
+      await waitUntil(
+        () => sockets.length == 2,
+        reason: 'waking to restore the target',
+      );
+      expect(transport.connectionState, ConnectedPlaybackConnection.connected);
+    });
 
     test(
       'an asleep backgrounded device reconnects when its display wakes',
@@ -323,7 +327,10 @@ void main() {
           () => sockets.length == 2,
           reason: 'the waking television to restore its remote target',
         );
-        expect(transport.connectionState, ConnectedPlaybackConnection.connected);
+        expect(
+          transport.connectionState,
+          ConnectedPlaybackConnection.connected,
+        );
       },
     );
 

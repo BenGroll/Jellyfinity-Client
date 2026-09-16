@@ -19,6 +19,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <application
         android:label="Jellyfinity"
         android:name="${applicationName}"
@@ -54,6 +55,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <service
+            android:name=".RemotePlaybackService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
 
         <!-- audio_service's own service and media-button receiver
              (ADR-0013). Neither is auto-merged by the plugin, so they are

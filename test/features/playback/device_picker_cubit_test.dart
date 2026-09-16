@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfinity/app/connected_playback/ConnectedPlaybackTargetLink.dart';
 import 'package:jellyfinity/app/connected_playback/PlaybackControlCubit.dart';
+import 'package:jellyfinity/app/connected_playback/SyncPlayGroupCubit.dart';
 import 'package:jellyfinity/app/connected_playback/SupportedRemoteCommands.dart';
 import 'package:jellyfinity/app/playback/PlaybackCubit.dart';
 import 'package:jellyfinity/domain/connected_playback/connection_state.dart';
@@ -13,6 +14,7 @@ import '../../support/TestLogger.dart';
 import '../../support/connected_playback/FakeConnectedPlaybackNetwork.dart';
 import '../../support/connected_playback/FakeConnectedPlaybackTransport.dart';
 import '../../support/connected_playback/FakeDevicePresenceSource.dart';
+import '../../support/connected_playback/FakeSyncPlayTransport.dart';
 import '../../support/connected_playback/connected_playback_fixtures.dart';
 import '../../support/music_fakes.dart';
 import '../../support/playback_fakes.dart';
@@ -44,6 +46,7 @@ void main() {
   late ConnectedPlaybackTargetLink handoff;
   late FakeDevicePresenceSource presence;
   late PlaybackControlCubit control;
+  late SyncPlayGroupCubit groupCubit;
   late DevicePickerCubit cubit;
 
   setUp(() async {
@@ -71,23 +74,28 @@ void main() {
     );
     await handoff.start();
     presence = FakeDevicePresenceSource.empty();
-    control = PlaybackControlCubit(
-      transport,
-      presence,
-      fakeSessionCubit(signedIn: fakeAuthSession()),
+    final session = fakeSessionCubit(signedIn: fakeAuthSession());
+    control = PlaybackControlCubit(transport, presence, session);
+    groupCubit = SyncPlayGroupCubit(
+      FakeSyncPlayTransport(),
+      playback,
+      FakeMusicLibraryRepository(),
+      session,
     );
     cubit = DevicePickerCubit(
       presence,
-      fakeSessionCubit(signedIn: fakeAuthSession()),
+      session,
       playback,
       handoff,
       control,
+      groupCubit,
     );
   });
 
   tearDown(() async {
     await cubit.close();
     await control.close();
+    await groupCubit.close();
     await handoff.stop();
     await playback.close();
     await presence.dispose();
@@ -153,6 +161,7 @@ void main() {
         playback,
         handoff,
         signedOutControl,
+        groupCubit,
       );
       await settle();
 
@@ -179,6 +188,7 @@ void main() {
         playback,
         handoff,
         freshControl,
+        groupCubit,
       );
 
       expect(fresh.state.localHasQueue, isTrue);

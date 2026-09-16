@@ -90,6 +90,13 @@ abstract final class ConnectedPlaybackLimits {
   /// for the socket, so it is slow on purpose.
   static const Duration presencePollInterval = Duration(seconds: 20);
 
+  /// Background polling is quieter while the Android connectivity service
+  /// keeps the process alive with the app locked.
+  static const Duration backgroundPresencePollInterval = Duration(seconds: 60);
+
+  /// Allows the slower cadence without declaring a healthy target stale.
+  static const Duration backgroundPresenceStaleAfter = Duration(minutes: 4);
+
   /// The first delay after a socket interruption, doubling up to
   /// [reconnectMaxDelay].
   ///

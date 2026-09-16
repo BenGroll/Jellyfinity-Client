@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/platform/television_focus_traversal.dart';
 import '../../../app/platform/television_mode.dart';
 import '../../../app/playback/PlaybackCubit.dart';
-import '../../../app/playback/PlaybackUiState.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../design/design.dart';
 import '../../music/presentation/search/InlineMusicSearch.dart';
@@ -125,138 +122,96 @@ class _AppShellState extends State<AppShell> {
       ],
     );
 
-    return BlocListener<PlaybackCubit, PlaybackUiState>(
-      listenWhen: (previous, current) =>
-          previous.pendingTakeoverDeviceName !=
-          current.pendingTakeoverDeviceName,
-      listener: (context, state) {
-        final deviceName = state.pendingTakeoverDeviceName;
-        if (deviceName != null) unawaited(_confirmTakeover(deviceName));
+    return PopScope(
+      canPop: !_searching,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _searching) _stopSearch();
       },
-      child: PopScope(
-        canPop: !_searching,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _searching) _stopSearch();
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+              _startSearch,
+          if (_searching)
+            const SingleActivator(LogicalKeyboardKey.escape): _stopSearch,
+          if (television)
+            const SingleActivator(LogicalKeyboardKey.contextMenu): _openMenu,
+          if (television)
+            if (_searching)
+              const SingleActivator(LogicalKeyboardKey.browserBack):
+                  _stopSearch,
+          if (_searching)
+            const SingleActivator(LogicalKeyboardKey.goBack): _stopSearch,
+          const SingleActivator(LogicalKeyboardKey.mediaTopMenu): _openMenu,
+          if (television)
+            const SingleActivator(LogicalKeyboardKey.gameButtonStart):
+                _openMenu,
         },
-        child: CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyF, control: true):
-                _startSearch,
-            if (_searching)
-              const SingleActivator(LogicalKeyboardKey.escape): _stopSearch,
-            if (television)
-              const SingleActivator(LogicalKeyboardKey.contextMenu): _openMenu,
-            if (television)
-              if (_searching)
-                const SingleActivator(LogicalKeyboardKey.browserBack):
-                    _stopSearch,
-            if (_searching)
-              const SingleActivator(LogicalKeyboardKey.goBack): _stopSearch,
-            const SingleActivator(LogicalKeyboardKey.mediaTopMenu): _openMenu,
-            if (television)
-              const SingleActivator(LogicalKeyboardKey.gameButtonStart):
-                  _openMenu,
-          },
-          child: FocusScope(
-            autofocus: true,
-            child: AppScaffold(
-              scaffoldKey: _scaffoldKey,
-              padded: false,
-              drawer: const AppSidebar(),
-              body: SafeArea(
-                bottom: false,
-                child: television
-                    ? Row(
-                        key: const Key('television-navigation'),
-                        children: [
-                          TelevisionNavigationRail(
-                            currentIndex: widget.navigationShell.currentIndex,
-                            onSelected: _goToBranch,
-                            onMenu: _openMenu,
-                            onSearch: _startSearch,
-                            onNowPlaying: _openNowPlaying,
-                            currentDestinationFocusNode:
-                                _televisionRailFocusNode,
-                            hasNowPlaying: hasNowPlaying,
-                          ),
-                          VerticalDivider(
-                            width: 1,
-                            color: context.tokens.colors.border,
-                          ),
-                          Expanded(
-                            child: FocusTraversalGroup(
-                              policy: _TelevisionShellFocusTraversalPolicy(
-                                onTopEdge: _startSearch,
-                                onLeftEdge: _focusTelevisionNavigation,
-                                isAtEdge: _isAtTelevisionContentEdge,
-                              ),
-                              child: _TelevisionBranchTransition(
-                                key: _televisionContentKey,
-                                transition: _branchTransition,
-                                direction: _branchDirection,
-                                child: Column(
-                                  children: [
-                                    Expanded(child: mainContent),
-                                    const MiniPlayer(),
-                                  ],
-                                ),
+        child: FocusScope(
+          autofocus: true,
+          child: AppScaffold(
+            scaffoldKey: _scaffoldKey,
+            padded: false,
+            drawer: const AppSidebar(),
+            body: SafeArea(
+              bottom: false,
+              child: television
+                  ? Row(
+                      key: const Key('television-navigation'),
+                      children: [
+                        TelevisionNavigationRail(
+                          currentIndex: widget.navigationShell.currentIndex,
+                          onSelected: _goToBranch,
+                          onMenu: _openMenu,
+                          onSearch: _startSearch,
+                          onNowPlaying: _openNowPlaying,
+                          currentDestinationFocusNode: _televisionRailFocusNode,
+                          hasNowPlaying: hasNowPlaying,
+                        ),
+                        VerticalDivider(
+                          width: 1,
+                          color: context.tokens.colors.border,
+                        ),
+                        Expanded(
+                          child: FocusTraversalGroup(
+                            policy: _TelevisionShellFocusTraversalPolicy(
+                              onTopEdge: _startSearch,
+                              onLeftEdge: _focusTelevisionNavigation,
+                              isAtEdge: _isAtTelevisionContentEdge,
+                            ),
+                            child: _TelevisionBranchTransition(
+                              key: _televisionContentKey,
+                              transition: _branchTransition,
+                              direction: _branchDirection,
+                              child: Column(
+                                children: [
+                                  Expanded(child: mainContent),
+                                  const MiniPlayer(),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      )
-                    : mainContent,
-              ),
-              bottomBar: television
-                  ? null
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const MiniPlayer(),
-                        if (showBar)
-                          _ShellNavigationBar(
-                            onSelected: _goToBranch,
-                            currentIndex: widget.navigationShell.currentIndex,
-                          ),
+                        ),
                       ],
-                    ),
+                    )
+                  : mainContent,
             ),
+            bottomBar: television
+                ? null
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const MiniPlayer(),
+                      if (showBar)
+                        _ShellNavigationBar(
+                          onSelected: _goToBranch,
+                          currentIndex: widget.navigationShell.currentIndex,
+                        ),
+                    ],
+                  ),
           ),
         ),
       ),
     );
-  }
-
-  /// Asks whether to take over from [deviceName], then tells
-  /// `PlaybackCubit` what the listener decided — the one place this
-  /// happens no matter which screen "play this" was pressed from
-  /// (v0.6.0), since [AppShell] wraps every authenticated screen.
-  Future<void> _confirmTakeover(String deviceName) async {
-    final playback = context.read<PlaybackCubit>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Play here instead?'),
-        content: Text('Playing here will stop playback on $deviceName.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Play here'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (confirmed ?? false) {
-      await playback.confirmTakeover();
-    } else {
-      playback.cancelTakeover();
-    }
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../media/MediaImage.dart';
 import 'ConnectedPlaybackScope.dart';
 import 'DeviceCapabilities.dart';
 import 'ProtocolVersion.dart';
@@ -43,6 +44,9 @@ class ConnectedDevice extends Equatable {
     this.nameHint,
     this.isThisDevice = false,
     this.isPlaying = false,
+    this.nowPlayingTitle,
+    this.nowPlayingArtist,
+    this.nowPlayingImage,
   });
 
   final ConnectedPlaybackScope scope;
@@ -88,6 +92,15 @@ class ConnectedDevice extends Equatable {
   /// handoff is supposed to make visible rather than hide.
   final bool isPlaying;
 
+  /// Display metadata the peer included in its latest presence message.
+  final String? nowPlayingTitle;
+  final String? nowPlayingArtist;
+
+  /// An artwork pointer for [nowPlayingTitle], already rebound to this
+  /// installation's local server id ([DevicePresenceRegistry] does the
+  /// rebinding, the same rule every other cross-device media id follows).
+  final MediaImage? nowPlayingImage;
+
   /// The label a picker shows.
   String get displayName => nameHint == null ? name : '$name ($nameHint)';
 
@@ -115,6 +128,9 @@ class ConnectedDevice extends Equatable {
     Duration? lastSeen,
     bool? isThisDevice,
     bool? isPlaying,
+    String? nowPlayingTitle,
+    String? nowPlayingArtist,
+    MediaImage? nowPlayingImage,
   }) {
     return ConnectedDevice(
       scope: scope,
@@ -128,6 +144,9 @@ class ConnectedDevice extends Equatable {
       lastSeen: lastSeen ?? this.lastSeen,
       isThisDevice: isThisDevice ?? this.isThisDevice,
       isPlaying: isPlaying ?? this.isPlaying,
+      nowPlayingTitle: nowPlayingTitle ?? this.nowPlayingTitle,
+      nowPlayingArtist: nowPlayingArtist ?? this.nowPlayingArtist,
+      nowPlayingImage: nowPlayingImage ?? this.nowPlayingImage,
     );
   }
 
@@ -144,5 +163,8 @@ class ConnectedDevice extends Equatable {
     lastSeen,
     isThisDevice,
     isPlaying,
+    nowPlayingTitle,
+    nowPlayingArtist,
+    nowPlayingImage,
   ];
 }

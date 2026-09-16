@@ -7,6 +7,8 @@ import 'package:jellyfinity/domain/connected_playback/DevicePresenceRegistry.dar
 import 'package:jellyfinity/domain/connected_playback/ProtocolVersion.dart';
 import 'package:jellyfinity/domain/connected_playback/connection_state.dart';
 import 'package:jellyfinity/domain/connected_playback/device_reachability.dart';
+import 'package:jellyfinity/domain/media/MediaId.dart';
+import 'package:jellyfinity/domain/media/MediaImage.dart';
 
 import '../../support/connected_playback/FakeElapsedClock.dart';
 import '../../support/connected_playback/connected_playback_fixtures.dart';
@@ -101,6 +103,39 @@ void main() {
       expect(tv.canReceiveTransfer, isTrue);
       expect(tv.canBeControlled, isTrue);
     });
+
+    test(
+      'rebinds a peer\'s now-playing artwork to this install\'s local server id',
+      () {
+        registry.replaceAll([seen('tv')]);
+
+        registry.applyAdvertisement(
+          'session-tv',
+          ProtocolVersion.current,
+          DeviceAdvertisement(
+            deviceId: 'tv',
+            name: 'Living Room',
+            isPlaying: true,
+            nowPlayingImage: MediaImage(
+              itemId: MediaId(
+                serverId: 'senders-own-local-id',
+                itemId: 'track-1',
+              ),
+              kind: MediaImageKind.primary,
+              tag: 'tag-1',
+            ),
+            capabilities: DeviceCapabilities.fullPlayer(),
+          ),
+        );
+
+        final image = registry.devices.single.nowPlayingImage;
+        expect(image, isNotNull);
+        expect(
+          image!.itemId,
+          MediaId(serverId: testScope.serverId, itemId: 'track-1'),
+        );
+      },
+    );
 
     test(
       'an advertisement from a session the server never listed is ignored',

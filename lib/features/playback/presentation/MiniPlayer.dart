@@ -213,7 +213,7 @@ class _RemoteMiniPlayer extends StatelessWidget {
         : 0.0;
     final subtitle =
         _connectionSubtitle(control) ??
-        'Playing on ${control.device!.displayName}';
+        'Playing on ${control.device!.displayName}…';
     final canTogglePlay = control.commandAvailable(RemoteCommandKind.playPause);
 
     return _MiniPlayerBar(
@@ -237,10 +237,10 @@ class _RemoteMiniPlayer extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(width: t.spacing.sm),
-                  Icon(
-                    Icons.cast_connected_rounded,
+                  MediaArtwork(
+                    image: entry?.image,
+                    kind: MediaKind.track,
                     size: 40,
-                    color: t.colors.textSecondary,
                   ),
                   SizedBox(width: t.spacing.sm),
                   Expanded(
@@ -249,7 +249,11 @@ class _RemoteMiniPlayer extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          entry?.title ?? 'Nothing playing',
+                          (entry == null
+                              ? 'Nothing playing'
+                              : entry.artist == null
+                              ? entry.title
+                              : '${entry.artist} • ${entry.title}'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.typography.bodyMedium.copyWith(
@@ -266,6 +270,10 @@ class _RemoteMiniPlayer extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  DeviceActionButton(
+                    iconSize: 20,
+                    color: t.colors.textSecondary,
                   ),
                   IconButton(
                     icon: Icon(

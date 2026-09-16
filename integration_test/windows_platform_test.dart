@@ -125,6 +125,7 @@ void main() {
         initialIndex: 1,
         initialPosition: const Duration(seconds: 2),
         resumePlaying: true,
+        preserveActiveTrack: true,
       );
       await _until(() => index == 1 && status == PlaybackStatus.playing);
       await engine.skipToIndex(2);
