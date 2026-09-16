@@ -63,7 +63,16 @@ enum RemoteCommandKind {
   requestSnapshot,
 
   /// Asks a peer to join a particular Jellyfin SyncPlay group.
-  joinSyncGroup;
+  joinSyncGroup,
+
+  /// Asks the receiving device to become the *controller* of the sender.
+  ///
+  /// The one command that changes which end of the link is which. It is
+  /// what makes "play on this device" a handover rather than a theft: the
+  /// device that gives up playback asks the device that took it to become
+  /// its remote, so the listener who was holding a controller is still
+  /// holding a controller afterwards.
+  takeControl;
 
   /// Whether this command names a specific row or arrangement of the
   /// queue, and therefore must match the revision it was composed

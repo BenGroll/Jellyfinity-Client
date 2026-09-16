@@ -205,6 +205,34 @@ final class JoinSyncGroupCommand extends RemoteCommand {
   Map<String, Object?> get payload => {'groupId': groupId};
 }
 
+/// Asks the receiver to start controlling the session named here — the
+/// sender's own, in every use this build has.
+///
+/// The session is carried explicitly rather than read from the envelope's
+/// sender so the instruction is complete on its own: a device is told
+/// which session to drive, not left to infer it from how the message
+/// happened to arrive.
+final class TakeControlCommand extends RemoteCommand {
+  const TakeControlCommand({
+    required super.id,
+    required super.scope,
+    required super.targetSessionId,
+    required this.controllerOfSessionId,
+    super.lifetime,
+  });
+
+  /// The session the receiver should begin controlling.
+  final String controllerOfSessionId;
+
+  @override
+  RemoteCommandKind get kind => RemoteCommandKind.takeControl;
+
+  @override
+  Map<String, Object?> get payload => {
+    'controlSessionId': controllerOfSessionId,
+  };
+}
+
 /// Replace the target's whole queue and start at [startIndex].
 ///
 /// The one structural command that is naturally idempotent: sending the
@@ -525,6 +553,22 @@ RemoteCommandDecoding decodeRemoteCommand(
           scope: scope,
           targetSessionId: target,
           groupId: groupId,
+          lifetime: lifetime,
+        ),
+      );
+    case RemoteCommandKind.takeControl:
+      final controlSessionId = _string(payload['controlSessionId']);
+      if (controlSessionId == null) {
+        return const UnreadableRemoteCommand(
+          'takeControl without a session to control',
+        );
+      }
+      return DecodedRemoteCommand(
+        TakeControlCommand(
+          id: commandId,
+          scope: scope,
+          targetSessionId: target,
+          controllerOfSessionId: controlSessionId,
           lifetime: lifetime,
         ),
       );

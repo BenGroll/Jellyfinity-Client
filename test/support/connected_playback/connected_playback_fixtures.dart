@@ -57,6 +57,7 @@ ConnectedDevice device({
   String? nowPlayingTitle,
   String? nowPlayingArtist,
   MediaImage? nowPlayingImage,
+  String? controllingSessionId,
 }) => ConnectedDevice(
   scope: scope,
   deviceId: deviceId,
@@ -72,4 +73,5 @@ ConnectedDevice device({
   nowPlayingTitle: nowPlayingTitle,
   nowPlayingArtist: nowPlayingArtist,
   nowPlayingImage: nowPlayingImage,
+  controllingSessionId: controllingSessionId,
 );

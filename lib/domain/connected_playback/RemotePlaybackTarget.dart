@@ -193,6 +193,9 @@ class RemotePlaybackTarget {
     final state = _snapshot;
     switch (command) {
       case JoinSyncGroupCommand():
+      case TakeControlCommand():
+        // Neither says anything about what this device is playing; the
+        // link answers both itself.
         return state;
 
       case SeekCommand(:final position):
@@ -263,6 +266,9 @@ class RemotePlaybackTarget {
   ) {
     switch (kind) {
       case RemoteCommandKind.joinSyncGroup:
+      case RemoteCommandKind.takeControl:
+        // Neither describes anything about this device's own playback;
+        // the link answers them itself.
         return null;
       case RemoteCommandKind.requestSnapshot:
         // No state change, and deliberately no revision bump: the answer

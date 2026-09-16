@@ -335,6 +335,20 @@ class RemotePlaybackController {
     needsProjection: false,
   );
 
+  /// Asks the target to become this device's controller — see
+  /// [TakeControlCommand]. Needs no projection: it is about the link, not
+  /// about anything the target is playing.
+  Result<RemoteCommand> takeControl(String controlSessionId) => _compose(
+    RemoteCommandKind.takeControl,
+    (id, revision) => TakeControlCommand(
+      id: id,
+      scope: _target.scope,
+      targetSessionId: _target.sessionId,
+      controllerOfSessionId: controlSessionId,
+    ),
+    needsProjection: false,
+  );
+
   Result<RemoteCommand> appendToQueue(List<RemoteQueueEntry> entries) =>
       _compose(
         RemoteCommandKind.appendToQueue,

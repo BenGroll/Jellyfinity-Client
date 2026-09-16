@@ -10,6 +10,7 @@ import '../../../app/di/service_locator.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../design/design.dart';
 import '../../../domain/connected_playback/ConnectedDevice.dart';
+import '../../../domain/connected_playback/ConnectedPlaybackTransport.dart';
 import '../../../domain/connected_playback/sync_play_group_status.dart';
 import '../../../app/platform/television_mode.dart';
 import '../../../domain/connected_playback/device_reachability.dart';
@@ -113,12 +114,16 @@ class _RemoteControlPanelState extends State<RemoteControlPanel> {
                 children: [
                   SizedBox(
                     height: 220,
-                    child: _LocalAndSyncSummary(
-                      state: devices,
-                      groupCubit: _groupCubit,
-                      onPlayAll: _groupCubit.playOnAllDevices,
-                      onBringBack: _cubit.bringBackToThisDevice,
-                    ),
+                    child:
+                        BlocBuilder<PlaybackControlCubit, PlaybackControlState>(
+                          builder: (context, control) => _LocalAndSyncSummary(
+                            state: devices,
+                            groupCubit: _groupCubit,
+                            onPlayAll: _groupCubit.playOnAllDevices,
+                            onBringBack: _cubit.bringBackToThisDevice,
+                            controlledBy: control.controlledBy,
+                          ),
+                        ),
                   ),
                   Expanded(
                     child:
@@ -130,7 +135,6 @@ class _RemoteControlPanelState extends State<RemoteControlPanel> {
                             onSync: _syncDevice,
                             onTransfer: _transferToThisDevice,
                             onEnd: _endRemotePlay,
-                            diagnostic: control.commandError,
                           ),
                         ),
                   ),
@@ -192,10 +196,18 @@ class _RemoteControlPanelState extends State<RemoteControlPanel> {
       startPlaying: projection.isPlaying,
     );
     if (projection.isPlaying && !local.state.isPlaying) return;
-    final paused = await _control.pause();
-    if (paused.isErr) return;
+
+    // Playback is here now, so the roles swap: the device that was
+    // playing becomes the remote for this one. Asking it to take control
+    // before letting go of it means the listener is never briefly holding
+    // two devices that are each doing nothing, which is what "End Remote
+    // Play with nothing being controlled" looked like.
+    await _control.pause();
+    final localSessionId = getIt<ConnectedPlaybackTransport>().localSessionId;
+    if (localSessionId != null) {
+      await _control.handControlBack(localSessionId);
+    }
     await _control.stop();
-    await _control.control(device);
   }
 
   Future<PlaybackControlState?> _readRemoteQueue(ConnectedDevice device) async {
@@ -249,12 +261,17 @@ class _LocalAndSyncSummary extends StatelessWidget {
     required this.groupCubit,
     required this.onPlayAll,
     required this.onBringBack,
+    this.controlledBy,
   });
 
   final DevicePickerState state;
   final SyncPlayGroupCubit groupCubit;
   final Future<void> Function() onPlayAll;
   final Future<void> Function() onBringBack;
+
+  /// The device driving this one, when one is — the other half of the
+  /// relationship, which this screen previously never showed.
+  final ConnectedDevice? controlledBy;
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +314,9 @@ class _LocalAndSyncSummary extends StatelessWidget {
                 ),
                 title: const Text('This device'),
                 subtitle: Text(
-                  state.localIsPlaying
+                  controlledBy != null
+                      ? '${controlledBy!.displayName} is controlling this device'
+                      : state.localIsPlaying
                       ? 'Playing here'
                       : state.localHasQueue
                       ? 'Paused here — tap to bring it back'
@@ -335,7 +354,6 @@ class _RemoteDeviceList extends StatelessWidget {
     required this.onSync,
     required this.onTransfer,
     required this.onEnd,
-    this.diagnostic,
   });
 
   final List<ConnectedDevice> devices;
@@ -344,7 +362,6 @@ class _RemoteDeviceList extends StatelessWidget {
   final Future<void> Function(ConnectedDevice) onSync;
   final Future<void> Function(ConnectedDevice) onTransfer;
   final Future<void> Function() onEnd;
-  final String? diagnostic;
 
   @override
   Widget build(BuildContext context) {
@@ -401,16 +418,6 @@ class _RemoteDeviceList extends StatelessWidget {
                         : Icons.pause_rounded,
                   ),
                 ),
-                if (diagnostic != null)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: t.spacing.xs),
-                    child: SelectableText(
-                      'Remote diagnostic: $diagnostic',
-                      style: t.typography.caption.copyWith(
-                        color: t.colors.danger,
-                      ),
-                    ),
-                  ),
                 Wrap(
                   spacing: t.spacing.xs,
                   runSpacing: t.spacing.xs,

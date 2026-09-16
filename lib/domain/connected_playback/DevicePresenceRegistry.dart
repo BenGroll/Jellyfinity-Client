@@ -260,6 +260,7 @@ class DevicePresenceRegistry {
       nowPlayingTitle: advertisement?.nowPlayingTitle,
       nowPlayingArtist: advertisement?.nowPlayingArtist,
       nowPlayingImage: _forLocalServer(advertisement?.nowPlayingImage),
+      controllingSessionId: advertisement?.controllingSessionId,
     );
   }
 
@@ -387,6 +388,7 @@ class DevicePresenceRegistry {
     entry.advertisement?.nowPlayingTitle,
     entry.advertisement?.nowPlayingArtist,
     entry.advertisement?.nowPlayingImage?.tag,
+    entry.advertisement?.controllingSessionId,
   ].join('|');
 }
 

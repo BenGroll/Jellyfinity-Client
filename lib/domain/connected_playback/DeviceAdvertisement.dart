@@ -41,6 +41,7 @@ class DeviceAdvertisement extends Equatable {
     this.nowPlayingTitle,
     this.nowPlayingArtist,
     this.nowPlayingImage,
+    this.controllingSessionId,
   });
 
   /// The peer's stable install identity — see `ConnectedDevice.deviceId`.
@@ -73,6 +74,18 @@ class DeviceAdvertisement extends Equatable {
   /// after rebinding the item id to its local server (`DevicePresenceRegistry`).
   final MediaImage? nowPlayingImage;
 
+  /// The session this device is currently driving, when it is driving
+  /// one.
+  ///
+  /// Control is a relationship between two devices, and until this
+  /// existed only the controller knew about it: a device had no way to
+  /// discover it was being driven, so two devices could each believe they
+  /// were controlling the other. Advertising it makes the relationship a
+  /// fact both ends — and every onlooker — can read, which is what lets a
+  /// device show that it is being controlled and lets a controller stand
+  /// down when its target takes control of something itself.
+  final String? controllingSessionId;
+
   Map<String, Object?> toPayload() => {
     'deviceId': deviceId,
     'name': name,
@@ -89,6 +102,8 @@ class DeviceAdvertisement extends Equatable {
       'nowPlayingTitle': nowPlayingTitle,
     if (nowPlayingArtist != null && nowPlayingArtist!.isNotEmpty)
       'nowPlayingArtist': nowPlayingArtist,
+    if (controllingSessionId != null)
+      'controllingSessionId': controllingSessionId,
     if (nowPlayingImage != null)
       'nowPlayingImage': {
         'itemId': nowPlayingImage!.itemId.key,
@@ -139,6 +154,7 @@ class DeviceAdvertisement extends Equatable {
       nowPlayingTitle: _optionalText(payload['nowPlayingTitle']),
       nowPlayingArtist: _optionalText(payload['nowPlayingArtist']),
       nowPlayingImage: _decodeImage(payload['nowPlayingImage']),
+      controllingSessionId: _optionalText(payload['controllingSessionId']),
       capabilities: DeviceCapabilities(
         canPlay: payload['canPlay'] == true,
         canControl: payload['canControl'] == true,
@@ -193,5 +209,6 @@ class DeviceAdvertisement extends Equatable {
     nowPlayingTitle,
     nowPlayingArtist,
     nowPlayingImage,
+    controllingSessionId,
   ];
 }
