@@ -1,3 +1,5 @@
+import '../media/MediaId.dart';
+import '../media/MediaImage.dart';
 import 'ConnectedDevice.dart';
 import 'ConnectedPlaybackLimits.dart';
 import 'ConnectedPlaybackScope.dart';
@@ -248,6 +250,21 @@ class DevicePresenceRegistry {
       isPlaying: entry.isPlaying,
       nowPlayingTitle: advertisement?.nowPlayingTitle,
       nowPlayingArtist: advertisement?.nowPlayingArtist,
+      nowPlayingImage: _forLocalServer(advertisement?.nowPlayingImage),
+    );
+  }
+
+  /// Rebinds a peer's artwork pointer to this installation's local server
+  /// id — the same rule `RemoteQueueEntry.forLocalServer` applies to a
+  /// transferred queue, required because [MediaId.serverId] is a local
+  /// database key that differs on every install.
+  MediaImage? _forLocalServer(MediaImage? image) {
+    if (image == null) return null;
+    return MediaImage(
+      itemId: MediaId(serverId: scope.serverId, itemId: image.itemId.itemId),
+      kind: image.kind,
+      tag: image.tag,
+      aspectRatio: image.aspectRatio,
     );
   }
 
@@ -348,6 +365,7 @@ class DevicePresenceRegistry {
     entry.advertisement?.capabilities,
     entry.advertisement?.nowPlayingTitle,
     entry.advertisement?.nowPlayingArtist,
+    entry.advertisement?.nowPlayingImage?.tag,
   ].join('|');
 }
 

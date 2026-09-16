@@ -22,6 +22,17 @@ All notable changes to Jellyfinity are documented here.
   Library, listing every device on your profile, who currently owns
   playback, and offering to take over or send playback there — reachable
   any time, not only from the mini-player's device picker.
+- The list now shows only devices that are actually reachable, under the
+  device's own name (its real model or computer name, not a generic
+  platform label every install used to share) rather than every device this
+  profile has ever seen.
+- Each device's box shows its own album art and the track it is actually
+  playing, not just a status word — a peer's presence carries a safe
+  artwork pointer (item id and image tag, never a URL), which this build
+  resolves the same way it resolves its own artwork.
+- "This device — paused here" now actually brings playback back: it stops
+  controlling any other device and leaves an active Sync group first, so
+  the screen reflects local playback the same frame audio resumes.
 
 ## Unreleased — Remote selection routing
 
@@ -87,6 +98,13 @@ All notable changes to Jellyfinity are documented here.
   listener their place in their own queue.
 - Stop controlling at any time without affecting the other device's
   playback, and return straight to the device picker to choose another.
+- Every remote command — shuffle, repeat, play/pause, seek, volume, and
+  jumping to a queued track — updates the control instantly and reverts
+  only if the target rejects or times out, instead of waiting on the round
+  trip to show anything happened.
+- Seek and volume no longer jump around while dragging: the slider trusts
+  your finger, not the live position tick or the in-flight command, until
+  you let go.
 
 ## Unreleased — Device picker and ownership UI
 

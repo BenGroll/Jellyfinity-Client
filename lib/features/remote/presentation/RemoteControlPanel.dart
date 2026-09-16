@@ -13,6 +13,8 @@ import '../../../domain/connected_playback/ConnectedDevice.dart';
 import '../../../domain/connected_playback/sync_play_group_status.dart';
 import '../../../app/platform/television_mode.dart';
 import '../../../domain/connected_playback/device_reachability.dart';
+import '../../../domain/media/media.dart';
+import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../playback/presentation/device_picker_cubit.dart';
 
 /// The device roster and all actions that change remote-play ownership.
@@ -383,10 +385,9 @@ class _RemoteDeviceList extends StatelessWidget {
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    controlling
-                        ? Icons.cast_connected_rounded
-                        : Icons.speaker_rounded,
+                  leading: _DeviceArtwork(
+                    device: device,
+                    controlling: controlling,
                   ),
                   title: Text(device.displayName),
                   subtitle: _subtitle(device, controlling),
@@ -476,5 +477,54 @@ class _RemoteDeviceList extends StatelessWidget {
       DeviceReachability.notPermitted => 'Permission denied',
       DeviceReachability.offline => 'Unavailable',
     };
+  }
+}
+
+/// The device row's leading visual: real album art for whatever the peer
+/// is currently playing, with a small cast badge over it while this
+/// device is the one controlling it. Falls back to `MediaArtwork`'s own
+/// quiet placeholder when nothing is playing or an older peer has not
+/// sent an artwork pointer yet.
+class _DeviceArtwork extends StatelessWidget {
+  const _DeviceArtwork({required this.device, required this.controlling});
+
+  final ConnectedDevice device;
+  final bool controlling;
+
+  static const double _size = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return SizedBox.square(
+      dimension: _size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          MediaArtwork(
+            image: device.nowPlayingImage,
+            kind: MediaKind.track,
+            size: _size,
+          ),
+          if (controlling)
+            Positioned(
+              right: -4,
+              bottom: -4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: t.colors.surface,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.cast_connected_rounded,
+                  size: 14,
+                  color: t.colors.accent,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

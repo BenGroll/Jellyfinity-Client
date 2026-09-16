@@ -215,6 +215,7 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
       isPlaying: state.isPlaying,
       nowPlayingTitle: state.currentEntry?.title,
       nowPlayingArtist: state.currentEntry?.artist,
+      nowPlayingImage: state.currentEntry?.image,
     );
     _reconcileBackgroundConnection();
   }

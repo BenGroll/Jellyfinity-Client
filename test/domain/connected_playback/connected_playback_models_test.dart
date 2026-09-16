@@ -312,6 +312,12 @@ void main() {
           entries: entries(1),
           expectedRevision: const StateRevision(3),
         ),
+        RemoteCommandKind.joinSyncGroup: const JoinSyncGroupCommand(
+          id: 'c-join-sync',
+          scope: testScope,
+          targetSessionId: 'session-tv',
+          groupId: 'group-1',
+        ),
         RemoteCommandKind.removeQueueEntry: const RemoveQueueEntryCommand(
           id: 'c-remove',
           scope: testScope,

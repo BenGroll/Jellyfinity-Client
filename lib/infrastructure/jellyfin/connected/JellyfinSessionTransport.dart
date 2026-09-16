@@ -26,6 +26,7 @@ import '../../../domain/connected_playback/RemotePlaybackSnapshot.dart';
 import '../../../domain/connected_playback/connection_state.dart';
 import '../../../domain/connected_playback/envelope_ignore_reason.dart';
 import '../../../domain/connected_playback/envelope_kind.dart';
+import '../../../domain/media/MediaImage.dart';
 import '../identity/JellyfinClientIdentity.dart';
 import 'ConnectedSessionFailureMapper.dart';
 import 'JellyfinSessionApi.dart';
@@ -75,6 +76,7 @@ class JellyfinSessionTransport
   bool _localIsPlaying = false;
   String? _localNowPlayingTitle;
   String? _localNowPlayingArtist;
+  MediaImage? _localNowPlayingImage;
 
   static const ConnectedSessionFailureMapper _failures =
       ConnectedSessionFailureMapper();
@@ -140,6 +142,7 @@ class JellyfinSessionTransport
     required bool isPlaying,
     String? nowPlayingTitle,
     String? nowPlayingArtist,
+    MediaImage? nowPlayingImage,
   }) {
     final title = nowPlayingTitle?.trim();
     final artist = nowPlayingArtist?.trim();
@@ -148,13 +151,15 @@ class JellyfinSessionTransport
     if (_localPlaybackInitialized &&
         _localIsPlaying == isPlaying &&
         _localNowPlayingTitle == nextTitle &&
-        _localNowPlayingArtist == nextArtist) {
+        _localNowPlayingArtist == nextArtist &&
+        _localNowPlayingImage == nowPlayingImage) {
       return;
     }
     _localPlaybackInitialized = true;
     _localIsPlaying = isPlaying;
     _localNowPlayingTitle = nextTitle;
     _localNowPlayingArtist = nextArtist;
+    _localNowPlayingImage = nowPlayingImage;
     unawaited(_announcePresence(replyRequested: false));
   }
 
@@ -865,6 +870,7 @@ class JellyfinSessionTransport
     isPlaying: _isPlayingLocally,
     nowPlayingTitle: _localNowPlayingTitle,
     nowPlayingArtist: _localNowPlayingArtist,
+    nowPlayingImage: _localNowPlayingImage,
   );
 
   /// Whether this device is the one making noise, as the server sees it.

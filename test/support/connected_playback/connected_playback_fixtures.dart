@@ -5,6 +5,7 @@ import 'package:jellyfinity/domain/connected_playback/ProtocolVersion.dart';
 import 'package:jellyfinity/domain/connected_playback/RemoteQueueEntry.dart';
 import 'package:jellyfinity/domain/connected_playback/device_reachability.dart';
 import 'package:jellyfinity/domain/media/MediaId.dart';
+import 'package:jellyfinity/domain/media/MediaImage.dart';
 
 /// The profile every test shares unless it is testing isolation.
 const ConnectedPlaybackScope testScope = ConnectedPlaybackScope(
@@ -55,6 +56,7 @@ ConnectedDevice device({
   bool isPlaying = false,
   String? nowPlayingTitle,
   String? nowPlayingArtist,
+  MediaImage? nowPlayingImage,
 }) => ConnectedDevice(
   scope: scope,
   deviceId: deviceId,
@@ -69,4 +71,5 @@ ConnectedDevice device({
   isPlaying: isPlaying,
   nowPlayingTitle: nowPlayingTitle,
   nowPlayingArtist: nowPlayingArtist,
+  nowPlayingImage: nowPlayingImage,
 );
