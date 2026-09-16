@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -265,6 +266,16 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   /// whether this device is controlling anything — see [_onPresence].
   StreamSubscription<List<ConnectedDevice>>? _presenceSub;
   List<ConnectedDevice> _knownDevices = const [];
+
+  /// When this device last started controlling something — see the grace
+  /// in [_onPresence].
+  DateTime? _controlStartedAt;
+
+  /// How long a freshly chosen target is given to report its own current
+  /// control state before this device acts on it. Settable so a test does
+  /// not have to wait it out in real time.
+  @visibleForTesting
+  Duration controlSettleGrace = ConnectedPlaybackLimits.linkDegradedGrace;
   Timer? _ticker;
 
   ConnectedPlaybackScope? _scope;
@@ -312,7 +323,15 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
     // "control that device" on either end a complete instruction rather
     // than half of a state both ends have to agree on.
     final target = state.device;
-    if (target != null) {
+    final startedAt = _controlStartedAt;
+    // A peer's advertisement can be a moment out of date, and letting go
+    // of a device the instant after choosing it — because of something it
+    // had already stopped doing — would be worse than the state this rule
+    // exists to prevent. Give the roster time to say what is true now.
+    final settled =
+        startedAt != null &&
+        DateTime.now().difference(startedAt) > controlSettleGrace;
+    if (target != null && settled) {
       for (final device in devices) {
         if (device.deviceId == target.deviceId &&
             device.controllingSessionId != null) {
@@ -390,6 +409,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
       localSessionId: localSessionId,
     );
     _controlSession = controlSession;
+    _controlStartedAt = DateTime.now();
     _basePosition = Duration.zero;
     _baseAt = DateTime.now();
     emit(
@@ -427,6 +447,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
 
   Future<void> _teardown() async {
     _generation++;
+    _controlStartedAt = null;
     _ticker?.cancel();
     _ticker = null;
     await _snapshotSub?.cancel();

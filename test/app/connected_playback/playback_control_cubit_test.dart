@@ -285,6 +285,7 @@ void main() {
     });
 
     test('lets go of a target that has become a controller itself', () async {
+      control.controlSettleGrace = Duration.zero;
       await control.control(tv());
       await settle();
       expect(control.state.isControlling, isTrue);
