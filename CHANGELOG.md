@@ -115,6 +115,15 @@ All notable changes to Jellyfinity are documented here.
   jumping to a queued track — updates the control instantly and reverts
   only if the target rejects or times out, instead of waiting on the round
   trip to show anything happened.
+- "Add to queue" and "Play next" reach the device that is playing while
+  you are controlling it, instead of quietly editing the dormant queue on
+  the device in your hand.
+- The Remote screen offers only what the device in each row can actually
+  do: no "play here" beside a device that is playing nothing, and none
+  beside the device that is already this one's remote.
+- A level or position you just set is held until the device confirms it,
+  rather than snapping back to the old value for a second while the
+  device's own updates — sent before it applied yours — arrive.
 - Choosing a song, and editing the controlled device's queue, now work
   while that device is playing. They were refused every time as composed
   against stale state, because a playing device moved that state on once a

@@ -79,7 +79,7 @@ void main() {
       targetTransport,
       fakeSessionCubit(signedIn: fakeAuthSession()),
       FakeMusicLibraryRepository()
-        ..trackList = [track('a'), track('b'), track('c')],
+        ..trackList = [track('a'), track('b'), track('c'), track('d')],
       TestLogger(),
     );
     await targetLink.start();
@@ -141,23 +141,18 @@ void main() {
           RemoteCommandKind.jumpToQueueEntry,
         }),
       );
-      // Never desired in the first place — no version's required
-      // deliverables include incremental remote queue editing or a
-      // settable volume (`SupportedRemoteCommands`'s own doc).
       expect(
         control.state.availableCommands,
-        isNot(
-          contains(
-            anyOf([
-              RemoteCommandKind.appendToQueue,
-              RemoteCommandKind.setVolume,
-            ]),
-          ),
-        ),
+        isNot(contains(RemoteCommandKind.setVolume)),
       );
+      // Queue editing is negotiated now: "add to queue" while controlling
+      // means the queue that is actually playing.
       expect(
         control.state.availableCommands,
-        contains(RemoteCommandKind.setQueue),
+        containsAll(<RemoteCommandKind>{
+          RemoteCommandKind.setQueue,
+          RemoteCommandKind.appendToQueue,
+        }),
       );
     });
 
@@ -262,6 +257,72 @@ void main() {
       unawaited(control.seek(const Duration(seconds: 30)));
       expect(control.state.position, const Duration(seconds: 30));
       await settle();
+    });
+  });
+
+  group('queue edits reach the device that is playing', () {
+    test('add to queue lands at the end of the real queue', () async {
+      await control.control(tv());
+      await settle();
+
+      await control.appendTracks([track('d')]);
+      await settle();
+
+      expect(targetPlayback.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'b',
+        'c',
+        'd',
+      ]);
+      expect(control.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'b',
+        'c',
+        'd',
+      ]);
+    });
+
+    test('play next lands straight after what is playing', () async {
+      await control.control(tv());
+      await settle();
+
+      await control.appendTracks([track('d')], playNext: true);
+      await settle();
+
+      expect(targetPlayback.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'd',
+        'b',
+        'c',
+      ]);
+    });
+  });
+
+  group('a value the listener just set', () {
+    test('is never undone, even for a moment, by a snapshot the target '
+        'sent before it applied', () async {
+      await control.control(tv());
+      await settle();
+
+      // The bounce this exists for is a transient: the value lands, goes
+      // back to where it started for the better part of a second, then
+      // lands again. Only watching every emission can see it, which is
+      // also how the listener sees it.
+      final seen = <Duration>[];
+      final sub = control.stream.listen((s) => seen.add(s.position));
+      addTearDown(sub.cancel);
+
+      final pending = control.seek(const Duration(minutes: 2));
+      engine.emitPosition(const Duration(seconds: 12));
+      await settle();
+      await pending;
+      await settle();
+
+      expect(
+        seen.where((p) => p < const Duration(minutes: 1)),
+        isEmpty,
+        reason: 'the thumb went back to the old position at least once',
+      );
     });
   });
 

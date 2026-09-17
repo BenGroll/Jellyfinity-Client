@@ -270,9 +270,12 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// With nothing playing this is the same as [addAllToQueue]; with
   /// shuffle on the tracks take the play-order slots straight after the
   /// current entry, exactly as a single [playNext] does.
-  Future<void> playNextAll(List<Track> tracks) {
-    if (tracks.isEmpty) return Future<void>.value();
-    return _mutate((queue) {
+  Future<void> playNextAll(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (await _remoteOwnership?.enqueue(tracks, playNext: true) ?? false) {
+      return;
+    }
+    await _mutate((queue) {
       var updated = queue;
       // With something playing, each insertion goes directly after the
       // current entry and pushes the previous one along, so inserting the
@@ -462,20 +465,17 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   // ---- Queue editing ----
 
-  Future<void> addToQueue(Track track) =>
-      _mutate((queue) => queue.withEntryAdded(QueueEntry.fromTrack(track)));
+  Future<void> addToQueue(Track track) => addAllToQueue([track]);
 
-  Future<void> playNext(Track track) => _mutate(
-    (queue) =>
-        queue.withEntryAdded(QueueEntry.fromTrack(track), playNext: true),
-  );
+  Future<void> playNext(Track track) => playNextAll([track]);
 
   /// Appends every one of [tracks] to the end of the queue in one mutation
   /// (v0.1.6's Album/Playlist "Add to queue") — one engine sync for the
   /// whole album rather than one per track.
-  Future<void> addAllToQueue(List<Track> tracks) {
-    if (tracks.isEmpty) return Future<void>.value();
-    return _mutate((queue) {
+  Future<void> addAllToQueue(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (await _remoteOwnership?.enqueue(tracks) ?? false) return;
+    await _mutate((queue) {
       var updated = queue;
       for (final track in tracks) {
         updated = updated.withEntryAdded(QueueEntry.fromTrack(track));

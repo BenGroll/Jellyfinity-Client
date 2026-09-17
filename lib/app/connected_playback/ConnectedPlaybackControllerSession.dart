@@ -125,6 +125,11 @@ class ConnectedPlaybackControllerSession {
     ),
   );
 
+  Future<Result<void>> appendToQueue(
+    List<RemoteQueueEntry> entries, {
+    bool playNext = false,
+  }) => _send(controller.appendToQueue(entries, playNext: playNext));
+
   Future<Result<void>> requestSnapshot() => _send(controller.requestSnapshot());
 
   Future<Result<void>> takeControl(String controlSessionId) =>

@@ -235,11 +235,20 @@ class RemotePlaybackTarget {
           status: startPlaying ? PlaybackStatus.playing : PlaybackStatus.paused,
         );
 
-      case AppendToQueueCommand(:final entries):
+      case AppendToQueueCommand(:final entries, :final playNext):
         if (entries.isEmpty) return null;
-        final appended = [...state.queue, ...entries];
-        if (appended.length > _capabilities.maxQueueEntries) return null;
-        return state.copyWith(queue: appended);
+        if (state.queue.length + entries.length >
+            _capabilities.maxQueueEntries) {
+          return null;
+        }
+        final current = state.currentIndex;
+        if (!playNext || current == null) {
+          return state.copyWith(queue: [...state.queue, ...entries]);
+        }
+        final at = current + 1;
+        return state.copyWith(
+          queue: [...state.queue.take(at), ...entries, ...state.queue.skip(at)],
+        );
 
       case RemoveQueueEntryCommand(:final index):
         return _removeAt(state, index);

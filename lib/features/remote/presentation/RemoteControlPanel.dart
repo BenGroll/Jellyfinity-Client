@@ -131,6 +131,8 @@ class _RemoteControlPanelState extends State<RemoteControlPanel> {
                           builder: (context, control) => _RemoteDeviceList(
                             devices: devices.devices,
                             controllingSessionId: control.device?.sessionId,
+                            controlledBySessionId:
+                                control.controlledBy?.sessionId,
                             onControl: _controlDevice,
                             onSync: _syncDevice,
                             onTransfer: _transferToThisDevice,
@@ -350,6 +352,7 @@ class _RemoteDeviceList extends StatelessWidget {
   const _RemoteDeviceList({
     required this.devices,
     required this.controllingSessionId,
+    required this.controlledBySessionId,
     required this.onControl,
     required this.onSync,
     required this.onTransfer,
@@ -358,6 +361,10 @@ class _RemoteDeviceList extends StatelessWidget {
 
   final List<ConnectedDevice> devices;
   final String? controllingSessionId;
+
+  /// The session driving this device, when one is — so a row can stop
+  /// offering to bring playback here that is already here.
+  final String? controlledBySessionId;
   final Future<void> Function(ConnectedDevice) onControl;
   final Future<void> Function(ConnectedDevice) onSync;
   final Future<void> Function(ConnectedDevice) onTransfer;
@@ -398,6 +405,7 @@ class _RemoteDeviceList extends StatelessWidget {
       itemBuilder: (context, index) {
         final device = visible[index];
         final controlling = device.sessionId == controllingSessionId;
+        final controlsThisDevice = device.sessionId == controlledBySessionId;
         return Card(
           child: Padding(
             padding: EdgeInsets.all(t.spacing.sm),
@@ -411,7 +419,7 @@ class _RemoteDeviceList extends StatelessWidget {
                     controlling: controlling,
                   ),
                   title: Text(device.displayName),
-                  subtitle: _subtitle(device, controlling),
+                  subtitle: _subtitle(device, controlling, controlsThisDevice),
                   trailing: Icon(
                     device.isPlaying
                         ? Icons.play_arrow_rounded
@@ -422,25 +430,43 @@ class _RemoteDeviceList extends StatelessWidget {
                   spacing: t.spacing.xs,
                   runSpacing: t.spacing.xs,
                   children: [
-                    if (!controlling)
-                      OutlinedButton(
-                        onPressed: () => onControl(device),
-                        child: const Text('Control'),
+                    // Only what makes sense for the relationship this row
+                    // is actually in. "Play on this device" beside a
+                    // device that is playing nothing — or that is this
+                    // device's own remote — is an instruction with no
+                    // meaning, and offering it is how the screen came to
+                    // need explaining.
+                    if (controlling) ...[
+                      FilledButton(
+                        onPressed: () => onTransfer(device),
+                        child: const Text('Play here instead'),
                       ),
-                    OutlinedButton(
-                      onPressed: () => onSync(device),
-                      child: const Text('Sync'),
-                    ),
-                    FilledButton(
-                      onPressed: () => onTransfer(device),
-                      child: const Text('Play on this device'),
-                    ),
-                    if (controlling)
                       OutlinedButton.icon(
                         onPressed: onEnd,
                         icon: const Icon(Icons.link_off_rounded),
-                        label: const Text('End Remote Play'),
+                        label: const Text('Stop controlling'),
                       ),
+                    ] else if (controlsThisDevice) ...[
+                      OutlinedButton(
+                        onPressed: () => onControl(device),
+                        child: const Text('Control it instead'),
+                      ),
+                    ] else ...[
+                      FilledButton(
+                        onPressed: () => onControl(device),
+                        child: const Text('Control'),
+                      ),
+                      if (device.isPlaying) ...[
+                        OutlinedButton(
+                          onPressed: () => onTransfer(device),
+                          child: const Text('Play here'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => onSync(device),
+                          child: const Text('Play on both'),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ],
@@ -451,10 +477,16 @@ class _RemoteDeviceList extends StatelessWidget {
     );
   }
 
-  static Widget _subtitle(ConnectedDevice device, bool controlling) {
+  static Widget _subtitle(
+    ConnectedDevice device,
+    bool controlling,
+    bool controlsThisDevice,
+  ) {
     final track = _nowPlayingLabel(device);
     final status = controlling
-        ? 'Playing on this device'
+        ? 'You are controlling it'
+        : controlsThisDevice
+        ? 'It is controlling this device'
         : _statusLabel(device);
     if (track == null) return Text(status);
     return Column(

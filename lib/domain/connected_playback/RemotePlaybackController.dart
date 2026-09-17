@@ -349,17 +349,20 @@ class RemotePlaybackController {
     needsProjection: false,
   );
 
-  Result<RemoteCommand> appendToQueue(List<RemoteQueueEntry> entries) =>
-      _compose(
-        RemoteCommandKind.appendToQueue,
-        (id, revision) => AppendToQueueCommand(
-          id: id,
-          scope: _target.scope,
-          targetSessionId: _target.sessionId,
-          entries: entries,
-          expectedRevision: revision,
-        ),
-      );
+  Result<RemoteCommand> appendToQueue(
+    List<RemoteQueueEntry> entries, {
+    bool playNext = false,
+  }) => _compose(
+    RemoteCommandKind.appendToQueue,
+    (id, revision) => AppendToQueueCommand(
+      id: id,
+      scope: _target.scope,
+      targetSessionId: _target.sessionId,
+      entries: entries,
+      expectedRevision: revision,
+      playNext: playNext,
+    ),
+  );
 
   Result<RemoteCommand> _simple(
     RemoteCommandKind kind, {

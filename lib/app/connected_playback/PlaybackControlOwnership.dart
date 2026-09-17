@@ -68,4 +68,17 @@ class PlaybackControlOwnership implements RemotePlaybackOwnership {
     }
     return false;
   }
+
+  @override
+  Future<bool> enqueue(List<Track> tracks, {bool playNext = false}) async {
+    if (tracks.isEmpty) return false;
+    // A SyncPlay group owns its queue through the server, and this build
+    // has no append for it; the group's own queue update path still
+    // applies the change here, so local is the honest destination.
+    if (_control.state.isControlling) {
+      await _control.appendTracks(tracks, playNext: playNext);
+      return true;
+    }
+    return false;
+  }
 }

@@ -294,10 +294,16 @@ final class AppendToQueueCommand extends RemoteCommand {
     required super.targetSessionId,
     required this.entries,
     required super.expectedRevision,
+    this.playNext = false,
     super.lifetime,
   });
 
   final List<RemoteQueueEntry> entries;
+
+  /// Whether these belong immediately after whatever is playing rather
+  /// than at the end — "play next" and "add to queue" are the same edit
+  /// to the same queue, differing only in where it lands.
+  final bool playNext;
 
   @override
   RemoteCommandKind get kind => RemoteCommandKind.appendToQueue;
@@ -305,6 +311,7 @@ final class AppendToQueueCommand extends RemoteCommand {
   @override
   Map<String, Object?> get payload => {
     'entries': [for (final entry in entries) entry.toJson()],
+    if (playNext) 'playNext': true,
   };
 }
 
@@ -611,6 +618,7 @@ RemoteCommandDecoding decodeRemoteCommand(
           targetSessionId: target,
           entries: entries,
           expectedRevision: expected,
+          playNext: payload['playNext'] == true,
           lifetime: lifetime,
         ),
       );

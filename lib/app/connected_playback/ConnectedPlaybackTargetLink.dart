@@ -398,8 +398,9 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
       case RemoteCommandKind.takeControl:
         // Both are answered before they reach here.
         return;
-      case RemoteCommandKind.stop:
       case RemoteCommandKind.appendToQueue:
+        await _executeAppend(command as AppendToQueueCommand);
+      case RemoteCommandKind.stop:
         return;
     }
   }
@@ -434,6 +435,28 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
       startPosition: command.startPosition,
       startPlaying: command.startPlaying,
     );
+  }
+
+  /// Adds an accepted [AppendToQueueCommand] to the queue that is really
+  /// playing, at the end or straight after the current track.
+  ///
+  /// Resolved against this device's own library for the same reason a
+  /// whole queue is: the sender's metadata is there so a controller can
+  /// draw the row, never so this device can play from it.
+  Future<void> _executeAppend(AppendToQueueCommand command) async {
+    final tracks = await _resolveAll(command.entries);
+    if (tracks == null) {
+      _logger.info(
+        'Accepted ${command.entries.length} songs for the queue but could '
+        'not resolve all of them; leaving the queue unchanged.',
+      );
+      return;
+    }
+    if (command.playNext) {
+      await _playback.playNextAll(tracks);
+    } else {
+      await _playback.addAllToQueue(tracks);
+    }
   }
 
   /// Resolves every one of [entries] against [_library], fresh — never the
