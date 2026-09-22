@@ -350,6 +350,91 @@ void main() {
   });
 
   test(
+    'a target that is itself controlling another device applies an '
+    'incoming append to its own queue instead of forwarding it onward',
+    () async {
+      final ownership = FakeRemotePlaybackOwnership()..enqueueResult = true;
+      final controllingPlayback = PlaybackCubit(
+        FakePlaybackEngine(),
+        FakeQueueRepository(),
+        FakeAudioSourceResolver(),
+        RecordingPlaybackProgressRepository(),
+        RecordingListeningHistoryRepository(),
+        fakeSettingsCubit(),
+        remoteOwnership: ownership,
+      );
+
+      final controllingNetwork = FakeConnectedPlaybackNetwork();
+      final controllingTargetTransport = FakeConnectedPlaybackTransport(
+        network: controllingNetwork,
+        sessionId: 'session-desktop',
+        scope: testScope,
+        watchers: const ['session-phone-2'],
+        acknowledgementTimeout: _testAckTimeout,
+      );
+      final controllingTargetLink = ConnectedPlaybackTargetLink(
+        controllingPlayback,
+        controllingTargetTransport,
+        fakeSessionCubit(signedIn: fakeAuthSession()),
+        library,
+        TestLogger(),
+      );
+      await controllingTargetLink.start();
+
+      final secondControllerTransport = FakeConnectedPlaybackTransport(
+        network: controllingNetwork,
+        sessionId: 'session-phone-2',
+        scope: testScope,
+        acknowledgementTimeout: _testAckTimeout,
+      );
+      final secondControllerSession = ConnectedPlaybackControllerSession(
+        transport: secondControllerTransport,
+        target: device(
+          sessionId: 'session-desktop',
+          capabilities: supportedRemoteCommands,
+        ),
+        localSessionId: 'session-phone-2',
+      );
+
+      // Published only once both links are wired, exactly as the shared
+      // setUp above does — a change published before a watcher exists has
+      // no one to reach.
+      await controllingPlayback.playNow([track('a')], startIndex: 0);
+      await settle();
+
+      final command = AppendToQueueCommand(
+        id: 'append-1',
+        scope: testScope,
+        targetSessionId: 'session-desktop',
+        entries: [
+          RemoteQueueEntry(
+            id: MediaId(serverId: testScope.serverId, itemId: 'b'),
+            title: 'b',
+          ),
+        ],
+        expectedRevision: secondControllerSession.projection!.revision,
+      );
+
+      final acknowledged = await secondControllerTransport.sendCommand(command);
+      await settle();
+
+      expect(acknowledged.isOk, isTrue);
+      expect(acknowledged.valueOrNull!.isAccepted, isTrue);
+      // The command must be applied locally, never re-routed through
+      // ownership as if it were a fresh local selection.
+      expect(ownership.enqueueCalls, 0);
+      expect(controllingPlayback.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'b',
+      ]);
+
+      await controllingTargetLink.stop();
+      await secondControllerSession.dispose();
+      await controllingPlayback.close();
+    },
+  );
+
+  test(
     'two controllers racing the same edit: the second is told to resync',
     () async {
       // The target only broadcasts snapshots to watchers it knows about

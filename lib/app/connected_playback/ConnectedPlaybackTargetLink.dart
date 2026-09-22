@@ -452,11 +452,7 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
       );
       return;
     }
-    if (command.playNext) {
-      await _playback.playNextAll(tracks);
-    } else {
-      await _playback.addAllToQueue(tracks);
-    }
+    await _playback.applyReceivedAppend(tracks, playNext: command.playNext);
   }
 
   /// Resolves every one of [entries] against [_library], fresh — never the
