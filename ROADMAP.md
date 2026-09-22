@@ -55,5 +55,43 @@ published Git tag.
 | v0.5.9 | Android TV and Fire TV connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v059---android-tv-and-fire-tv-connected-playback), [ADR](docs/adr/ADR-0043-android-tv-and-fire-tv-connected-playback.md) |
 | v0.6.0 | True cross-device playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback), [ADR](docs/adr/ADR-0047-remote-selection-routing.md) |
 | v0.6.1 | Settings as places | Planned | [spec](Roadmap%20to%20v0.7.md#v061---settings-as-places) |
+| v0.6.0 | True cross-device playback | Planned (respecced: adds group playback, volume, and a Remote destination) | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback) |
+| v0.6.1 | Settings as places | Planned | [spec](Roadmap%20to%20v0.6.1.md#v061---settings-as-places) |
+| v0.7.0 | Bulk music selection and playlist actions | Planned | [spec](Roadmap%20to%20v0.7.md#v070---bulk-music-selection-and-playlist-actions) |
+| v0.7.1 | Playlist artwork management | Planned | [spec](Roadmap%20to%20v0.7.md#v071---playlist-artwork-management) |
+| v0.7.2 | Smart playlist rules and preview | Planned | [spec](Roadmap%20to%20v0.7.md#v072---smart-playlist-rules-and-preview) |
+| v0.7.3 | Smart playlist publication and refresh | Planned | [spec](Roadmap%20to%20v0.7.md#v073---smart-playlist-publication-and-refresh) |
+| v0.7.4 | Playlist-system hardening | Planned | [spec](Roadmap%20to%20v0.7.md#v074---playlist-system-hardening) |
+| v0.8.0 | Durable background download execution | Planned | [spec](Roadmap%20to%20v0.8.md#v080---durable-background-download-execution) |
+| v0.8.1 | Automatic playlist download synchronization | Planned | [spec](Roadmap%20to%20v0.8.md#v081---automatic-playlist-download-synchronization) |
+| v0.8.2 | Collection smart synchronization | Planned | [spec](Roadmap%20to%20v0.8.md#v082---collection-smart-synchronization) |
+| v0.8.3 | Storage budgets and reservations | Planned | [spec](Roadmap%20to%20v0.8.md#v083---storage-budgets-and-reservations) |
+| v0.8.4 | Retention and automatic cleanup | Planned | [spec](Roadmap%20to%20v0.8.md#v084---retention-and-automatic-cleanup) |
+| v0.8.5 | Offline automation hardening | Planned | [spec](Roadmap%20to%20v0.8.md#v085---offline-automation-hardening) |
+| v0.9.0 | Rich music metadata contracts | Planned | [spec](Roadmap%20to%20v0.9.md#v090---rich-music-metadata-contracts) |
+| v0.9.1 | Album presentation | Planned | [spec](Roadmap%20to%20v0.9.md#v091---album-presentation) |
+| v0.9.2 | Artist presentation | Planned | [spec](Roadmap%20to%20v0.9.md#v092---artist-presentation) |
+| v0.9.3 | Artwork pipeline and presentation | Planned | [spec](Roadmap%20to%20v0.9.md#v093---artwork-pipeline-and-presentation) |
+| v0.9.4 | Sorting, filtering, and fast navigation | Planned | [spec](Roadmap%20to%20v0.9.md#v094---sorting-filtering-and-fast-navigation) |
+| v0.9.5 | Contextual music search | Planned | [spec](Roadmap%20to%20v0.9.md#v095---contextual-music-search) |
+| v0.10.0 | Home completion | Planned (carries v0.4.0 requirements) | [spec](Roadmap%20to%20v0.10.md#v0100---home-completion) |
+| v0.10.1 | Listening history as a destination | Planned | [spec](Roadmap%20to%20v0.10.md#v0101---listening-history-as-a-destination) |
+| v0.10.2 | Private recommendation candidates and ranking | Planned (carries v0.5.0 requirements) | [spec](Roadmap%20to%20v0.10.md#v0102---private-recommendation-candidates-and-ranking) |
+| v0.10.3 | Discovery surfaces and explanations | Planned | [spec](Roadmap%20to%20v0.10.md#v0103---discovery-surfaces-and-explanations) |
+| v0.10.4 | Music Home section control | Planned | [spec](Roadmap%20to%20v0.10.md#v0104---music-home-section-control) |
+| v0.10.5 | Personalization hardening | Planned | [spec](Roadmap%20to%20v0.10.md#v0105---personalization-hardening) |
+| v0.11.0 | Adaptive music shell and input contracts | Planned | [spec](Roadmap%20to%20v0.11.md#v0110---adaptive-music-shell-and-input-contracts) |
+| v0.11.1 | Windows music workspace | Planned | [spec](Roadmap%20to%20v0.11.md#v0111---windows-music-workspace) |
+| v0.11.2 | Android phone and tablet completion | Planned | [spec](Roadmap%20to%20v0.11.md#v0112---android-phone-and-tablet-completion) |
+| v0.11.3 | Android TV and Fire TV completion | Planned | [spec](Roadmap%20to%20v0.11.md#v0113---android-tv-and-fire-tv-completion) |
+| v0.11.4 | iOS music compatibility completion | Planned | [spec](Roadmap%20to%20v0.11.md#v0114---ios-music-compatibility-completion) |
+| v0.11.5 | Accessibility and input acceptance | Planned | [spec](Roadmap%20to%20v0.11.md#v0115---accessibility-and-input-acceptance) |
+| v0.12.0 | Onboarding and account readiness | Planned | [spec](Roadmap%20to%20v0.12.md#v0120---onboarding-and-account-readiness) |
+| v0.12.1 | Privacy and security qualification | Planned | [spec](Roadmap%20to%20v0.12.md#v0121---privacy-and-security-qualification) |
+| v0.12.2 | Performance and stability qualification | Planned | [spec](Roadmap%20to%20v0.12.md#v0122---performance-and-stability-qualification) |
+| v0.12.3 | Upgrade and compatibility qualification | Planned | [spec](Roadmap%20to%20v0.12.md#v0123---upgrade-and-compatibility-qualification) |
+| v0.12.4 | Reproducible builds and distribution | Planned | [spec](Roadmap%20to%20v0.12.md#v0124---reproducible-builds-and-distribution) |
+| v0.12.5 | Release candidate acceptance | Planned | [spec](Roadmap%20to%20v0.12.md#v0125---release-candidate-acceptance) |
+| v1.0.0 | Jellyfinity Music - first official release | Planned | [spec](Roadmap%20to%20v1.0.md#v100---first-official-release) |
 
 Historical implementation notes live in CHANGELOG.md and the linked ADRs. Future ideas in OUTLOOK.md are out of scope unless promoted into this index.

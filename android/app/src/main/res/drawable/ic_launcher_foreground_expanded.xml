@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Android adaptive icons intentionally reserve a large safe zone. The source
-  foreground also carried that safe zone, making the Jellyfinity mark tiny in
-  Fire TV's launcher. Expanding the drawable bounds keeps the same bitmap and
-  colours while giving the mark the visual weight of a launcher icon.
+  foreground already contains its own safe zone. Keeping its native bounds
+  prevents the mark being enlarged past the launcher mask and clipped at the
+  edges.
 -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:insetLeft="-28dp"
-    android:insetTop="-28dp"
-    android:insetRight="-28dp"
-    android:insetBottom="-28dp">
+    android:insetLeft="0dp"
+    android:insetTop="0dp"
+    android:insetRight="0dp"
+    android:insetBottom="0dp">
     <bitmap
         android:gravity="fill"
         android:src="@mipmap/ic_launcher_foreground" />
