@@ -6,6 +6,7 @@ import '../../../../app/connectivity/OfflineCubit.dart';
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../app/settings/SettingsCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/connectivity/OfflineLibraryScope.dart';
@@ -18,6 +19,9 @@ import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/playlist_actions.dart';
 import '../widgets/paged_collection_view.dart';
+import '../selection/SelectionExitGuard.dart';
+import '../selection/TrackSelectionBar.dart';
+import '../selection/TrackSelectionCubit.dart';
 import 'ExploreTab.dart';
 import 'library_facets_cubit.dart';
 import 'music_collection_cubits.dart';
@@ -67,6 +71,10 @@ class LibraryPage extends StatelessWidget {
         ),
         BlocProvider<LibraryFacetsCubit>(
           create: (_) => facets ?? getIt<LibraryFacetsCubit>(),
+        ),
+        BlocProvider<TrackSelectionCubit>(
+          create: (context) =>
+              TrackSelectionCubit(context.read<SessionCubit>()),
         ),
       ],
       child: const _LibraryView(),
@@ -305,45 +313,67 @@ class _SongsTabState extends State<SongsTab>
       builder: (context, state) {
         final cubit = context.read<SongsCubit>();
         final catalog = context.watch<DownloadsCubit>().state;
-        return PagedCollectionView<Track>(
-          key: const PageStorageKey('music.songs'),
-          state: state,
-          skeleton: const MusicListSkeleton(),
-          emptyTitle: 'No songs yet',
-          emptyIcon: Icons.music_note_outlined,
-          onLoadMore: cubit.loadMore,
-          onRefresh: cubit.refresh,
-          onRetry: cubit.reload,
-          onRetryLoadMore: cubit.retryLoadMore,
-          unavailableBuilder: (context, item) => UnavailableRow(item: item),
-          itemBuilder: (context, track, index) {
-            // A track the server does not list still plays if its file is
-            // on the device (v0.2.3) — the download button turned the row
-            // "unavailable" but the audio is right here.
-            final playable =
-                track.availability != MediaAvailability.remoteUnavailable ||
-                catalog.isDownloaded(track.id);
-            return TrackRow(
-              track: track,
-              playable: playable,
-              onTap: playable
-                  ? () => context.read<PlaybackCubit>().playNow(
-                      state.items,
-                      startIndex: index,
-                    )
-                  : null,
-              onPlayNext: playable
-                  ? () => context.read<PlaybackCubit>().playNext(track)
-                  : null,
-              onAddToQueue: playable
-                  ? () => context.read<PlaybackCubit>().addToQueue(track)
-                  : null,
-              downloadAction:
-                  track.availability == MediaAvailability.remoteUnavailable
-                  ? null
-                  : TrackDownloadButton(track: track),
-            );
-          },
+        final selection = context.watch<TrackSelectionCubit>().state;
+        final selectableTracks = [
+          for (final track in state.items)
+            if (track.availability != MediaAvailability.remoteUnavailable ||
+                catalog.isDownloaded(track.id))
+              track,
+        ];
+        return SelectionExitGuard(
+          active: selection.active,
+          onExit: context.read<TrackSelectionCubit>().exit,
+          child: PagedCollectionView<Track>(
+            key: const PageStorageKey('music.songs'),
+            state: state,
+            headerSlivers: [
+              if (state.items.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: TrackSelectionBar(selectableTracks: selectableTracks),
+                ),
+            ],
+            skeleton: const MusicListSkeleton(),
+            emptyTitle: 'No songs yet',
+            emptyIcon: Icons.music_note_outlined,
+            onLoadMore: cubit.loadMore,
+            onRefresh: cubit.refresh,
+            onRetry: cubit.reload,
+            onRetryLoadMore: cubit.retryLoadMore,
+            unavailableBuilder: (context, item) => UnavailableRow(item: item),
+            itemBuilder: (context, track, index) {
+              // A track the server does not list still plays if its file is
+              // on the device (v0.2.3) — the download button turned the row
+              // "unavailable" but the audio is right here.
+              final playable =
+                  track.availability != MediaAvailability.remoteUnavailable ||
+                  catalog.isDownloaded(track.id);
+              return TrackRow(
+                track: track,
+                playable: playable,
+                onTap: playable
+                    ? () => context.read<PlaybackCubit>().playNow(
+                        state.items,
+                        startIndex: index,
+                      )
+                    : null,
+                onPlayNext: playable
+                    ? () => context.read<PlaybackCubit>().playNext(track)
+                    : null,
+                onAddToQueue: playable
+                    ? () => context.read<PlaybackCubit>().addToQueue(track)
+                    : null,
+                downloadAction:
+                    track.availability == MediaAvailability.remoteUnavailable
+                    ? null
+                    : TrackDownloadButton(track: track),
+                selectionActive: selection.active,
+                selected: selection.selected.contains(track.id),
+                onSelectToggle: playable
+                    ? () => context.read<TrackSelectionCubit>().toggle(track.id)
+                    : null,
+              );
+            },
+          ),
         );
       },
     );

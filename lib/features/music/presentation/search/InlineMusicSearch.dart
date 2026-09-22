@@ -7,6 +7,7 @@ import '../../../../app/di/service_locator.dart';
 import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../app/settings/SettingsCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/connectivity/OfflineLibraryScope.dart';
@@ -14,6 +15,9 @@ import '../../../../domain/media/media.dart';
 import '../widgets/download_controls.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
+import '../selection/SelectionExitGuard.dart';
+import '../selection/TrackSelectionBar.dart';
+import '../selection/TrackSelectionCubit.dart';
 import 'music_search_cubit.dart';
 
 /// Music-scoped search, rendered inline in [HomeLibraryHeader]'s content
@@ -32,8 +36,16 @@ class InlineMusicSearch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<MusicSearchCubit>(
-      create: (_) => cubit ?? getIt<MusicSearchCubit>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<MusicSearchCubit>(
+          create: (_) => cubit ?? getIt<MusicSearchCubit>(),
+        ),
+        BlocProvider<TrackSelectionCubit>(
+          create: (context) =>
+              TrackSelectionCubit(context.read<SessionCubit>()),
+        ),
+      ],
       child: _InlineSearchView(onClose: onClose),
     );
   }
@@ -248,6 +260,7 @@ class _SearchResults extends StatelessWidget {
     final t = context.tokens;
 
     final catalog = context.watch<DownloadsCubit>().state;
+    final selection = context.watch<TrackSelectionCubit>().state;
 
     return BlocBuilder<MusicSearchCubit, MusicSearchState>(
       builder: (context, state) {
@@ -295,101 +308,123 @@ class _SearchResults extends StatelessWidget {
           );
         }
 
-        return ListView(
-          padding: EdgeInsets.fromLTRB(
-            t.spacing.md,
-            0,
-            t.spacing.md,
-            t.spacing.xxl,
+        final selectableSongs = [
+          for (final track in state.songs.items)
+            if (track.availability != MediaAvailability.remoteUnavailable ||
+                catalog.isDownloaded(track.id))
+              track,
+        ];
+
+        return SelectionExitGuard(
+          active: selection.active,
+          onExit: context.read<TrackSelectionCubit>().exit,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              t.spacing.md,
+              0,
+              t.spacing.md,
+              t.spacing.xxl,
+            ),
+            children: [
+              _Section<Artist>(
+                category: SearchCategory.artists,
+                query: state.query,
+                section: state.artists,
+                onNavigate: onNavigate,
+                rowBuilder: (context, artist) => ArtistRow(
+                  artist: artist,
+                  onTap: () {
+                    onNavigate?.call();
+                    context.pushNamed(
+                      RouteNames.libraryArtist,
+                      pathParameters: {'id': artist.id.key},
+                    );
+                  },
+                ),
+              ),
+              _Section<Album>(
+                category: SearchCategory.albums,
+                query: state.query,
+                section: state.albums,
+                onNavigate: onNavigate,
+                rowBuilder: (context, album) => AlbumRow(
+                  album: album,
+                  onTap: () {
+                    onNavigate?.call();
+                    context.pushNamed(
+                      RouteNames.libraryAlbum,
+                      pathParameters: {'id': album.id.key},
+                    );
+                  },
+                ),
+              ),
+              if (state.songs.items.isNotEmpty)
+                TrackSelectionBar(selectableTracks: selectableSongs),
+              _Section<Track>(
+                category: SearchCategory.songs,
+                query: state.query,
+                section: state.songs,
+                onNavigate: onNavigate,
+                rowBuilder: (context, track) {
+                  // Playing a track starts the mini-player but does not
+                  // navigate away, so search stays open — no onNavigate. A
+                  // download the server dropped still plays from its file
+                  // (v0.2.3).
+                  final playable =
+                      track.availability !=
+                          MediaAvailability.remoteUnavailable ||
+                      catalog.isDownloaded(track.id);
+                  return TrackRow(
+                    track: track,
+                    playable: playable,
+                    onTap: playable
+                        ? () => context.read<PlaybackCubit>().playNow(
+                            state.songs.items,
+                            startIndex: state.songs.items.indexOf(track),
+                          )
+                        : null,
+                    onPlayNext: playable
+                        ? () => context.read<PlaybackCubit>().playNext(track)
+                        : null,
+                    onAddToQueue: playable
+                        ? () => context.read<PlaybackCubit>().addToQueue(track)
+                        : null,
+                    // A search result can be kept for offline right from
+                    // here (v0.3.6) — a track the server could not describe
+                    // has nothing to fetch, so it gets no control.
+                    downloadAction:
+                        track.availability ==
+                            MediaAvailability.remoteUnavailable
+                        ? null
+                        : TrackDownloadButton(track: track),
+                    selectionActive: selection.active,
+                    selected: selection.selected.contains(track.id),
+                    onSelectToggle: playable
+                        ? () => context.read<TrackSelectionCubit>().toggle(
+                            track.id,
+                          )
+                        : null,
+                  );
+                },
+              ),
+              _Section<Playlist>(
+                category: SearchCategory.playlists,
+                query: state.query,
+                section: state.playlists,
+                onNavigate: onNavigate,
+                rowBuilder: (context, playlist) => PlaylistRow(
+                  playlist: playlist,
+                  onTap: () {
+                    onNavigate?.call();
+                    context.pushNamed(
+                      RouteNames.libraryPlaylist,
+                      pathParameters: {'id': playlist.id.key},
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-          children: [
-            _Section<Artist>(
-              category: SearchCategory.artists,
-              query: state.query,
-              section: state.artists,
-              onNavigate: onNavigate,
-              rowBuilder: (context, artist) => ArtistRow(
-                artist: artist,
-                onTap: () {
-                  onNavigate?.call();
-                  context.pushNamed(
-                    RouteNames.libraryArtist,
-                    pathParameters: {'id': artist.id.key},
-                  );
-                },
-              ),
-            ),
-            _Section<Album>(
-              category: SearchCategory.albums,
-              query: state.query,
-              section: state.albums,
-              onNavigate: onNavigate,
-              rowBuilder: (context, album) => AlbumRow(
-                album: album,
-                onTap: () {
-                  onNavigate?.call();
-                  context.pushNamed(
-                    RouteNames.libraryAlbum,
-                    pathParameters: {'id': album.id.key},
-                  );
-                },
-              ),
-            ),
-            _Section<Track>(
-              category: SearchCategory.songs,
-              query: state.query,
-              section: state.songs,
-              onNavigate: onNavigate,
-              rowBuilder: (context, track) {
-                // Playing a track starts the mini-player but does not
-                // navigate away, so search stays open — no onNavigate. A
-                // download the server dropped still plays from its file
-                // (v0.2.3).
-                final playable =
-                    track.availability != MediaAvailability.remoteUnavailable ||
-                    catalog.isDownloaded(track.id);
-                return TrackRow(
-                  track: track,
-                  playable: playable,
-                  onTap: playable
-                      ? () => context.read<PlaybackCubit>().playNow(
-                          state.songs.items,
-                          startIndex: state.songs.items.indexOf(track),
-                        )
-                      : null,
-                  onPlayNext: playable
-                      ? () => context.read<PlaybackCubit>().playNext(track)
-                      : null,
-                  onAddToQueue: playable
-                      ? () => context.read<PlaybackCubit>().addToQueue(track)
-                      : null,
-                  // A search result can be kept for offline right from
-                  // here (v0.3.6) — a track the server could not describe
-                  // has nothing to fetch, so it gets no control.
-                  downloadAction:
-                      track.availability == MediaAvailability.remoteUnavailable
-                      ? null
-                      : TrackDownloadButton(track: track),
-                );
-              },
-            ),
-            _Section<Playlist>(
-              category: SearchCategory.playlists,
-              query: state.query,
-              section: state.playlists,
-              onNavigate: onNavigate,
-              rowBuilder: (context, playlist) => PlaylistRow(
-                playlist: playlist,
-                onTap: () {
-                  onNavigate?.call();
-                  context.pushNamed(
-                    RouteNames.libraryPlaylist,
-                    pathParameters: {'id': playlist.id.key},
-                  );
-                },
-              ),
-            ),
-          ],
         );
       },
     );

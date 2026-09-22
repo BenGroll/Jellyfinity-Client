@@ -6,6 +6,7 @@ import '../../../../app/di/service_locator.dart';
 import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/media/media.dart';
 import '../library/music_collection_cubits.dart';
@@ -15,6 +16,9 @@ import '../widgets/download_controls.dart';
 import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
+import '../selection/SelectionExitGuard.dart';
+import '../selection/TrackSelectionBar.dart';
+import '../selection/TrackSelectionCubit.dart';
 import 'music_search_cubit.dart';
 
 /// Every match in one search category, paged.
@@ -44,6 +48,35 @@ class SearchCategoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (category == SearchCategory.songs) {
+      // Provided above the AppScaffold rather than just around the body,
+      // so the app bar's "Select" action can reach it too (v0.7.0).
+      return BlocProvider<TrackSelectionCubit>(
+        create: (context) => TrackSelectionCubit(context.read<SessionCubit>()),
+        child: Builder(
+          builder: (context) => AppScaffold(
+            padded: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => context.pop(),
+            ),
+            title: '${category.label} · "$query"',
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.checklist_rounded),
+                tooltip: 'Select songs',
+                onPressed: context.read<TrackSelectionCubit>().enter,
+              ),
+            ],
+            body: BlocProvider<SongsCubit>(
+              create: (_) => (songs ?? getIt<SongsCubit>())..searchFor(query),
+              child: const _SongResults(),
+            ),
+          ),
+        ),
+      );
+    }
+
     return AppScaffold(
       padded: false,
       leading: IconButton(
@@ -60,10 +93,7 @@ class SearchCategoryPage extends StatelessWidget {
           create: (_) => (albums ?? getIt<AlbumsCubit>())..searchFor(query),
           child: const _AlbumResults(),
         ),
-        SearchCategory.songs => BlocProvider<SongsCubit>(
-          create: (_) => (songs ?? getIt<SongsCubit>())..searchFor(query),
-          child: const _SongResults(),
-        ),
+        SearchCategory.songs => throw StateError('handled above'),
         SearchCategory.playlists => BlocProvider<PlaylistsCubit>(
           create: (_) =>
               (playlists ?? getIt<PlaylistsCubit>())..searchFor(query),
@@ -146,41 +176,66 @@ class _SongResults extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<SongsCubit>();
         final catalog = context.watch<DownloadsCubit>().state;
-        return PagedCollectionView<Track>(
-          state: state,
-          skeleton: const MusicListSkeleton(),
-          emptyTitle: _noMatches,
-          emptyIcon: Icons.search_off_rounded,
-          onLoadMore: cubit.loadMore,
-          onRefresh: cubit.refresh,
-          onRetry: cubit.reload,
-          onRetryLoadMore: cubit.retryLoadMore,
-          unavailableBuilder: (context, item) => UnavailableRow(item: item),
-          itemBuilder: (context, track, index) {
-            final playable =
-                track.availability != MediaAvailability.remoteUnavailable ||
-                catalog.isDownloaded(track.id);
-            return TrackRow(
-              track: track,
-              playable: playable,
-              onTap: playable
-                  ? () => context.read<PlaybackCubit>().playNow(
-                      state.items,
-                      startIndex: index,
-                    )
-                  : null,
-              onPlayNext: playable
-                  ? () => context.read<PlaybackCubit>().playNext(track)
-                  : null,
-              onAddToQueue: playable
-                  ? () => context.read<PlaybackCubit>().addToQueue(track)
-                  : null,
-              downloadAction:
-                  track.availability == MediaAvailability.remoteUnavailable
-                  ? null
-                  : TrackDownloadButton(track: track),
-            );
-          },
+        final selection = context.watch<TrackSelectionCubit>().state;
+        final selectableTracks = [
+          for (final track in state.items)
+            if (track.availability != MediaAvailability.remoteUnavailable ||
+                catalog.isDownloaded(track.id))
+              track,
+        ];
+        return SelectionExitGuard(
+          active: selection.active,
+          onExit: context.read<TrackSelectionCubit>().exit,
+          child: PagedCollectionView<Track>(
+            state: state,
+            headerSlivers: [
+              if (state.items.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: TrackSelectionBar(
+                    selectableTracks: selectableTracks,
+                    showEntryButton: false,
+                  ),
+                ),
+            ],
+            skeleton: const MusicListSkeleton(),
+            emptyTitle: _noMatches,
+            emptyIcon: Icons.search_off_rounded,
+            onLoadMore: cubit.loadMore,
+            onRefresh: cubit.refresh,
+            onRetry: cubit.reload,
+            onRetryLoadMore: cubit.retryLoadMore,
+            unavailableBuilder: (context, item) => UnavailableRow(item: item),
+            itemBuilder: (context, track, index) {
+              final playable =
+                  track.availability != MediaAvailability.remoteUnavailable ||
+                  catalog.isDownloaded(track.id);
+              return TrackRow(
+                track: track,
+                playable: playable,
+                onTap: playable
+                    ? () => context.read<PlaybackCubit>().playNow(
+                        state.items,
+                        startIndex: index,
+                      )
+                    : null,
+                onPlayNext: playable
+                    ? () => context.read<PlaybackCubit>().playNext(track)
+                    : null,
+                onAddToQueue: playable
+                    ? () => context.read<PlaybackCubit>().addToQueue(track)
+                    : null,
+                downloadAction:
+                    track.availability == MediaAvailability.remoteUnavailable
+                    ? null
+                    : TrackDownloadButton(track: track),
+                selectionActive: selection.active,
+                selected: selection.selected.contains(track.id),
+                onSelectToggle: playable
+                    ? () => context.read<TrackSelectionCubit>().toggle(track.id)
+                    : null,
+              );
+            },
+          ),
         );
       },
     );

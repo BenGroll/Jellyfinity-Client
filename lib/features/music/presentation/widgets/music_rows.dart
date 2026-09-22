@@ -120,6 +120,9 @@ class TrackRow extends StatelessWidget {
     this.onMoveDown,
     this.dragHandle,
     this.downloadAction,
+    this.selectionActive = false,
+    this.selected = false,
+    this.onSelectToggle,
   });
 
   final Track track;
@@ -176,16 +179,38 @@ class TrackRow extends StatelessWidget {
   /// shown without download context simply does not offer the action.
   final Widget? downloadAction;
 
+  /// Whether the screen this row is on is in bulk-selection mode (v0.7.0).
+  /// While true, a tap toggles the check mark instead of playing, and the
+  /// overflow menu / drag handle / download control are hidden in favour
+  /// of the check mark itself — selection is a focused mode, not one more
+  /// thing squeezed into the row alongside everything else.
+  final bool selectionActive;
+
+  /// Whether this row is currently checked. Ignored while
+  /// [selectionActive] is false.
+  final bool selected;
+
+  /// Toggles this row's check mark. `null` means this row cannot be
+  /// selected here — the same "conditionally offered" convention as
+  /// [onPlayNext]; screens pass `null` for a row that is not [playable],
+  /// exactly as they already do for [onTap].
+  ///
+  /// A long press starts selection mode from this row when it is off; once
+  /// [selectionActive] is true, an ordinary tap does the same toggling.
+  final VoidCallback? onSelectToggle;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final duration = track.duration;
+    final canSelect = onSelectToggle != null;
     final showMenu =
-        onPlayNext != null ||
-        onAddToQueue != null ||
-        onRemoveFromPlaylist != null ||
-        onMoveUp != null ||
-        onMoveDown != null;
+        !selectionActive &&
+        (onPlayNext != null ||
+            onAddToQueue != null ||
+            onRemoveFromPlaylist != null ||
+            onMoveUp != null ||
+            onMoveDown != null);
 
     return UnavailableContent(
       // Greyed out and non-interactive when it cannot play — the offline
@@ -194,9 +219,12 @@ class TrackRow extends StatelessWidget {
       isUnavailable: !playable,
       reason: 'Not playable right now',
       child: _MusicRow(
-        onTap: onTap,
+        onTap: selectionActive && canSelect ? onSelectToggle : onTap,
+        onLongPress: canSelect && !selectionActive ? onSelectToggle : null,
         availability: track.availability,
-        leading: _leading(t),
+        leading: selectionActive
+            ? _selectionLeading(t, canSelect)
+            : _leading(t),
         title: track.name,
         subtitle: joinDetails([
           formatArtists(track.artists),
@@ -207,7 +235,9 @@ class TrackRow extends StatelessWidget {
           if (track.availability == MediaAvailability.localOnly)
             'Only on this device',
         ]),
-        trailing: (duration == null && !showMenu && downloadAction == null)
+        trailing:
+            selectionActive ||
+                (duration == null && !showMenu && downloadAction == null)
             ? null
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -266,6 +296,21 @@ extension on TrackRow {
         SizedBox(width: t.spacing.xxs),
         art,
       ],
+    );
+  }
+
+  /// The check mark shown in place of artwork/position while selection
+  /// mode is on. A row that cannot be selected ([canSelect] false, e.g.
+  /// unplayable) keeps the space blank rather than showing a check mark it
+  /// would never respond to, so every row in the list still lines up.
+  Widget _selectionLeading(AppTokens t, bool canSelect) {
+    if (!canSelect) return SizedBox(width: rowArtworkSize);
+    return SizedBox(
+      width: rowArtworkSize,
+      child: Icon(
+        selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+        color: selected ? t.colors.accent : t.colors.textSecondary,
+      ),
     );
   }
 }
@@ -597,6 +642,7 @@ class _MusicRow extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.onLongPress,
   });
 
   final Widget leading;
@@ -606,6 +652,7 @@ class _MusicRow extends StatelessWidget {
   final MediaAvailability availability;
 
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -622,6 +669,7 @@ class _MusicRow extends StatelessWidget {
       height: musicRowHeight,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: t.radii.smBorder,
         child: Row(
           children: [

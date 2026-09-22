@@ -76,4 +76,117 @@ void main() {
 
     expect(find.textContaining('Only on this device'), findsOneWidget);
   });
+
+  group('bulk selection (v0.7.0)', () {
+    testWidgets(
+      'tapping a row in selection mode toggles it instead of playing',
+      (tester) async {
+        var tapped = false;
+        var toggled = false;
+        await pumpThemed(
+          tester,
+          TrackRow(
+            track: testTrack('t1', name: 'So What'),
+            onTap: () => tapped = true,
+            selectionActive: true,
+            onSelectToggle: () => toggled = true,
+          ),
+        );
+
+        await tester.tap(find.text('So What'));
+        await tester.pump();
+
+        expect(toggled, isTrue);
+        expect(tapped, isFalse);
+      },
+    );
+
+    testWidgets('an unselected row shows the unchecked indicator', (
+      tester,
+    ) async {
+      await pumpThemed(
+        tester,
+        TrackRow(
+          track: testTrack('t1', name: 'So What'),
+          selectionActive: true,
+          selected: false,
+          onSelectToggle: () {},
+        ),
+      );
+
+      expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+    });
+
+    testWidgets('a selected row shows the checked indicator', (tester) async {
+      await pumpThemed(
+        tester,
+        TrackRow(
+          track: testTrack('t1', name: 'So What'),
+          selectionActive: true,
+          selected: true,
+          onSelectToggle: () {},
+        ),
+      );
+
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
+    });
+
+    testWidgets(
+      'a row that cannot be selected shows no indicator in selection mode',
+      (tester) async {
+        // Mirrors an unplayable row: callers pass `onSelectToggle: null`
+        // the same way they already pass `onTap: null`.
+        await pumpThemed(
+          tester,
+          TrackRow(
+            track: testTrack('t1', name: 'So What'),
+            selectionActive: true,
+          ),
+        );
+
+        expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
+        expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a long press on a selectable row starts selection rather than playing',
+      (tester) async {
+        var tapped = false;
+        var toggled = false;
+        await pumpThemed(
+          tester,
+          TrackRow(
+            track: testTrack('t1', name: 'So What'),
+            onTap: () => tapped = true,
+            onSelectToggle: () => toggled = true,
+          ),
+        );
+
+        await tester.longPress(find.text('So What'));
+        await tester.pump();
+
+        expect(toggled, isTrue);
+        expect(tapped, isFalse);
+      },
+    );
+
+    testWidgets('selection mode hides the overflow menu', (tester) async {
+      await pumpThemed(
+        tester,
+        TrackRow(
+          track: testTrack('t1', name: 'So What'),
+          selectionActive: true,
+          selected: false,
+          onSelectToggle: () {},
+          onPlayNext: () {},
+          onAddToQueue: () {},
+        ),
+      );
+
+      expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
+    });
+  });
 }

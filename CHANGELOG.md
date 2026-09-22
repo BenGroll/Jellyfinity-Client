@@ -2,6 +2,19 @@
 
 All notable changes to Jellyfinity are documented here.
 
+## Unreleased — Bulk music selection and playlist actions
+
+- Added multi-select to every song list — search results, album tracks,
+  artist songs (a new "Songs" section on the artist page), Favorites,
+  Downloads, playlist rows, and the Library Songs tab — for adding more
+  than one song to a playlist at once, in the order they are shown.
+- A song no longer available by the time you add is skipped and the result
+  says so; a failed add keeps your selection so you can just try again.
+- Selecting works the same by touch (long-press a row), pointer or keyboard
+  (a "Select songs" button), and D-pad — Escape, a TV remote's back button,
+  or Android's back button all leave selection mode safely instead of
+  navigating away.
+
 ## Unreleased — Play on all devices
 
 - Added group playback, built on Jellyfin's own SyncPlay: "Play on all
