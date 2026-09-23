@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../design/design.dart';
+import '../selection/TrackSelectionCubit.dart';
 import 'LibraryPage.dart';
 import 'music_collection_cubits.dart';
 
@@ -74,6 +76,10 @@ class LibraryFacetPage extends StatelessWidget {
                 ? (cubit..forGenre(genreName))
                 : (cubit..forDecade(decadeStart!));
           },
+        ),
+        BlocProvider<TrackSelectionCubit>(
+          create: (context) =>
+              TrackSelectionCubit(context.read<SessionCubit>()),
         ),
       ],
       child: _FacetView(title: title, tabs: tabs),

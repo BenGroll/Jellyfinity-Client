@@ -54,10 +54,8 @@ published Git tag.
 | v0.5.8 | Android connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v058---android-connected-playback), [ADR](docs/adr/ADR-0042-android-connected-playback.md) |
 | v0.5.9 | Android TV and Fire TV connected playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v059---android-tv-and-fire-tv-connected-playback), [ADR](docs/adr/ADR-0043-android-tv-and-fire-tv-connected-playback.md) |
 | v0.6.0 | True cross-device playback | Implemented (device acceptance pending) | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback), [ADR](docs/adr/ADR-0047-remote-selection-routing.md) |
-| v0.6.1 | Settings as places | Planned | [spec](Roadmap%20to%20v0.7.md#v061---settings-as-places) |
-| v0.6.0 | True cross-device playback | Planned (respecced: adds group playback, volume, and a Remote destination) | [spec](Roadmap%20to%20v0.6.md#v060---true-cross-device-playback) |
 | v0.6.1 | Settings as places | Planned | [spec](Roadmap%20to%20v0.6.1.md#v061---settings-as-places) |
-| v0.7.0 | Bulk music selection and playlist actions | Planned | [spec](Roadmap%20to%20v0.7.md#v070---bulk-music-selection-and-playlist-actions) |
+| v0.7.0 | Bulk music selection and playlist actions | Implemented | [spec](Roadmap%20to%20v0.7.md#v070---bulk-music-selection-and-playlist-actions), [ADR](docs/adr/ADR-0048-bulk-music-selection-and-playlist-actions.md) |
 | v0.7.1 | Playlist artwork management | Planned | [spec](Roadmap%20to%20v0.7.md#v071---playlist-artwork-management) |
 | v0.7.2 | Smart playlist rules and preview | Planned | [spec](Roadmap%20to%20v0.7.md#v072---smart-playlist-rules-and-preview) |
 | v0.7.3 | Smart playlist publication and refresh | Planned | [spec](Roadmap%20to%20v0.7.md#v073---smart-playlist-publication-and-refresh) |

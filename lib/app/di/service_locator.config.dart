@@ -685,13 +685,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
       ),
     );
-    gh.lazySingleton<_i777.RemotePlaybackOwnership>(
-      () => _i467.PlaybackControlOwnership(gh<_i846.PlaybackControlCubit>()),
-    );
     gh.factory<_i213.PlaylistDetailCubit>(
       () => _i213.PlaylistDetailCubit(
         gh<_i747.MediaMetadataRepository>(),
         gh<_i797.OfflineMode>(),
+      ),
+    );
+    gh.lazySingleton<_i777.RemotePlaybackOwnership>(
+      () => _i467.PlaybackControlOwnership(
+        gh<_i846.PlaybackControlCubit>(),
+        gh<_i849.SyncPlayGroupCubit>(),
       ),
     );
     gh.lazySingleton<_i419.ConnectedPlaybackLink>(
@@ -709,6 +712,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
         gh<_i126.PlaybackCubit>(),
         gh<_i846.PlaybackControlCubit>(),
+      ),
+    );
+    gh.factory<_i861.DevicePickerCubit>(
+      () => _i861.DevicePickerCubit(
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i217.ConnectedPlaybackTargetLink>(),
+        gh<_i846.PlaybackControlCubit>(),
+        gh<_i849.SyncPlayGroupCubit>(),
       ),
     );
     gh.factory<_i861.DevicePickerCubit>(

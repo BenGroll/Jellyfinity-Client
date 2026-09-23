@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/downloads/DownloadsCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../app/session/SessionCubit.dart';
 import '../../../design/design.dart';
 import '../../../domain/downloads/downloads.dart';
 import '../../../domain/media/media_kind.dart';
@@ -12,6 +13,9 @@ import '../../music/presentation/widgets/download_controls.dart';
 import '../../music/presentation/widgets/MediaArtwork.dart';
 import '../../music/presentation/widgets/music_rows.dart';
 import '../../music/presentation/widgets/music_skeletons.dart';
+import '../../music/presentation/selection/SelectionExitGuard.dart';
+import '../../music/presentation/selection/TrackSelectionBar.dart';
+import '../../music/presentation/selection/TrackSelectionCubit.dart';
 
 /// Everything the user has downloaded, in one place (v0.2.2).
 ///
@@ -31,96 +35,138 @@ class DownloadsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'Downloads',
-      padded: false,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded),
-        onPressed: () => context.pop(),
-      ),
-      actions: const [_DownloadsMenu()],
-      body: BlocBuilder<DownloadsCubit, DownloadCatalog>(
-        builder: (context, catalog) {
-          if (!catalog.isLoaded) {
-            return const MusicListSkeleton(itemCount: 6);
-          }
-
-          final nothing =
-              catalog.downloads.isEmpty && catalog.playlistSnapshots.isEmpty;
-          if (nothing) {
-            return const EmptyStateView(
-              icon: Icons.download_done_rounded,
-              title: 'Nothing downloaded yet',
-              message:
-                  'Download a song, album, artist or playlist and it plays '
-                  'here without a connection. You will see its progress and '
-                  'storage use on this screen.',
-            );
-          }
-
-          final t = context.tokens;
-          final unsettled = _unsettled(catalog);
-          final collections = catalog.collectionOwners;
-          final standalone =
-              [
-                for (final record in catalog.standaloneTrackDownloads)
-                  if (record.state == DownloadState.completed) record,
-              ]..sort(
-                (a, b) =>
-                    a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-              );
-
-          return ListView(
-            padding: EdgeInsets.only(bottom: t.spacing.xl),
-            children: [
-              _StorageHeader(catalog: catalog),
-              if (unsettled.isNotEmpty) ...[
-                _SectionHeader(
-                  label: _unsettledLabel(unsettled),
-                  icon: Icons.sync_rounded,
+    return BlocProvider<TrackSelectionCubit>(
+      create: (context) => TrackSelectionCubit(context.read<SessionCubit>()),
+      child: Builder(
+        builder: (context) {
+          final selection = context.watch<TrackSelectionCubit>().state;
+          return SelectionExitGuard(
+            active: selection.active,
+            onExit: context.read<TrackSelectionCubit>().exit,
+            child: AppScaffold(
+              title: 'Downloads',
+              padded: false,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => context.pop(),
+              ),
+              actions: [
+                const _DownloadsMenu(),
+                IconButton(
+                  icon: const Icon(Icons.checklist_rounded),
+                  tooltip: 'Select songs',
+                  onPressed: context.read<TrackSelectionCubit>().enter,
                 ),
-                for (final record in unsettled)
-                  TrackRow(
-                    track: record.toTrack(),
-                    downloadAction: TrackDownloadButton(
-                      track: record.toTrack(),
-                    ),
-                  ),
               ],
-              if (collections.isNotEmpty) ...[
-                const _SectionHeader(
-                  label: 'Collections',
-                  icon: Icons.library_music_outlined,
-                ),
-                for (final owner in collections)
-                  _CollectionTile(owner: owner, catalog: catalog),
-              ],
-              if (standalone.isNotEmpty) ...[
-                const _SectionHeader(
-                  label: 'Individual songs',
-                  icon: Icons.music_note_outlined,
-                ),
-                for (var i = 0; i < standalone.length; i++)
-                  TrackRow(
-                    track: standalone[i].toTrack(),
-                    // Tapping a downloaded song plays it, in the order the
-                    // section shows (v0.2.3) — it should not take a trip
-                    // through the album to hear one track.
-                    onTap: () => context.read<PlaybackCubit>().playNow([
-                      for (final record in standalone) record.toTrack(),
-                    ], startIndex: i),
-                    onPlayNext: () => context.read<PlaybackCubit>().playNext(
-                      standalone[i].toTrack(),
-                    ),
-                    onAddToQueue: () => context
-                        .read<PlaybackCubit>()
-                        .addToQueue(standalone[i].toTrack()),
-                    downloadAction: TrackDownloadButton(
-                      track: standalone[i].toTrack(),
-                    ),
-                  ),
-              ],
-            ],
+              body: BlocBuilder<DownloadsCubit, DownloadCatalog>(
+                builder: (context, catalog) {
+                  if (!catalog.isLoaded) {
+                    return const MusicListSkeleton(itemCount: 6);
+                  }
+
+                  final nothing =
+                      catalog.downloads.isEmpty &&
+                      catalog.playlistSnapshots.isEmpty;
+                  if (nothing) {
+                    return const EmptyStateView(
+                      icon: Icons.download_done_rounded,
+                      title: 'Nothing downloaded yet',
+                      message:
+                          'Download a song, album, artist or playlist and it '
+                          'plays here without a connection. You will see its '
+                          'progress and storage use on this screen.',
+                    );
+                  }
+
+                  final t = context.tokens;
+                  final unsettled = _unsettled(catalog);
+                  final collections = catalog.collectionOwners;
+                  final standalone =
+                      [
+                        for (final record in catalog.standaloneTrackDownloads)
+                          if (record.state == DownloadState.completed) record,
+                      ]..sort(
+                        (a, b) => a.title.toLowerCase().compareTo(
+                          b.title.toLowerCase(),
+                        ),
+                      );
+                  final standaloneTracks = [
+                    for (final record in standalone) record.toTrack(),
+                  ];
+
+                  return ListView(
+                    padding: EdgeInsets.only(bottom: t.spacing.xl),
+                    children: [
+                      _StorageHeader(catalog: catalog),
+                      if (unsettled.isNotEmpty) ...[
+                        _SectionHeader(
+                          label: _unsettledLabel(unsettled),
+                          icon: Icons.sync_rounded,
+                        ),
+                        for (final record in unsettled)
+                          TrackRow(
+                            track: record.toTrack(),
+                            downloadAction: TrackDownloadButton(
+                              track: record.toTrack(),
+                            ),
+                          ),
+                      ],
+                      if (collections.isNotEmpty) ...[
+                        const _SectionHeader(
+                          label: 'Collections',
+                          icon: Icons.library_music_outlined,
+                        ),
+                        for (final owner in collections)
+                          _CollectionTile(owner: owner, catalog: catalog),
+                      ],
+                      if (standalone.isNotEmpty) ...[
+                        const _SectionHeader(
+                          label: 'Individual songs',
+                          icon: Icons.music_note_outlined,
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: t.spacing.md,
+                          ),
+                          child: TrackSelectionBar(
+                            selectableTracks: standaloneTracks,
+                            showEntryButton: false,
+                          ),
+                        ),
+                        for (var i = 0; i < standalone.length; i++)
+                          TrackRow(
+                            track: standaloneTracks[i],
+                            // Tapping a downloaded song plays it, in the
+                            // order the section shows (v0.2.3) — it should
+                            // not take a trip through the album to hear one
+                            // track.
+                            onTap: () => context.read<PlaybackCubit>().playNow(
+                              standaloneTracks,
+                              startIndex: i,
+                            ),
+                            onPlayNext: () => context
+                                .read<PlaybackCubit>()
+                                .playNext(standaloneTracks[i]),
+                            onAddToQueue: () => context
+                                .read<PlaybackCubit>()
+                                .addToQueue(standaloneTracks[i]),
+                            downloadAction: TrackDownloadButton(
+                              track: standaloneTracks[i],
+                            ),
+                            selectionActive: selection.active,
+                            selected: selection.selected.contains(
+                              standaloneTracks[i].id,
+                            ),
+                            onSelectToggle: () => context
+                                .read<TrackSelectionCubit>()
+                                .toggle(standaloneTracks[i].id),
+                          ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
           );
         },
       ),

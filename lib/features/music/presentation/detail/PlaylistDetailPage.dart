@@ -6,6 +6,7 @@ import '../../../../app/di/service_locator.dart';
 import '../../../../app/downloads/DownloadsCubit.dart';
 import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
@@ -20,6 +21,9 @@ import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/playlist_actions.dart';
 import '../widgets/paged_collection_view.dart';
+import '../selection/SelectionExitGuard.dart';
+import '../selection/TrackSelectionBar.dart';
+import '../selection/TrackSelectionCubit.dart';
 import 'media_detail_cubit.dart';
 
 /// One playlist, in the order the user arranged it — and, online, the
@@ -54,6 +58,10 @@ class PlaylistDetailPage extends StatelessWidget {
         BlocProvider<PlaylistTracksCubit>(
           create: (_) =>
               (tracks ?? getIt<PlaylistTracksCubit>())..forPlaylist(playlistId),
+        ),
+        BlocProvider<TrackSelectionCubit>(
+          create: (context) =>
+              TrackSelectionCubit(context.read<SessionCubit>()),
         ),
       ],
       child: const _PlaylistDetailView(),
@@ -185,145 +193,187 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
     return BlocConsumer<PlaylistDetailCubit, MediaDetailState<Playlist>>(
       listener: (context, header) => _maybeReconcile(),
       builder: (context, header) {
-        return AppScaffold(
-          padded: false,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
-          ),
-          title: header.item?.name,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Refresh',
-              onPressed: () async {
-                await context.read<PlaylistDetailCubit>().retry();
-                if (context.mounted) {
-                  await context.read<PlaylistTracksCubit>().refresh();
-                }
-              },
+        final selection = context.watch<TrackSelectionCubit>().state;
+        return SelectionExitGuard(
+          active: selection.active,
+          onExit: context.read<TrackSelectionCubit>().exit,
+          child: AppScaffold(
+            padded: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => context.pop(),
             ),
-            if (header.item case final Playlist playlist)
+            title: header.item?.name,
+            actions: [
               IconButton(
-                icon: const Icon(Icons.more_vert_rounded),
-                tooltip: 'Playlist options',
-                onPressed: () => _openPlaylistMenu(context, playlist),
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Refresh',
+                onPressed: () async {
+                  await context.read<PlaylistDetailCubit>().retry();
+                  if (context.mounted) {
+                    await context.read<PlaylistTracksCubit>().refresh();
+                  }
+                },
               ),
-          ],
-          body: BlocConsumer<PlaylistTracksCubit, PagedCollectionState<Track>>(
-            listener: (context, state) => _maybeReconcile(),
-            builder: (context, state) {
-              final cubit = context.read<PlaylistTracksCubit>();
-              final catalog = context.watch<DownloadsCubit>().state;
-              final playlist = header.item;
-              // Editing a playlist reaches the server or fails
-              // (ADR-0024), so a saved copy is a list to play, not one to
-              // rearrange. Every row of a server-read page carries the
-              // entry id a move names; a row that somehow does not simply
-              // goes without a grip.
-              final canReorder = !state.isCached && state.items.length > 1;
-              final origin = playlist == null
-                  ? null
-                  : QueueOrigin.playlist(
-                      playlistId: playlist.id,
-                      name: playlist.name,
-                      image: playlist.image,
-                    );
-              return PagedCollectionView<Track>(
-                state: state,
-                onReorder: canReorder ? _moveRow : null,
-                headerSlivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
-                      child: _PlaylistHeader(
-                        state: header,
-                        tracks: state.items,
+              if (header.item case final Playlist playlist)
+                IconButton(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  tooltip: 'Playlist options',
+                  onPressed: () => _openPlaylistMenu(context, playlist),
+                ),
+              IconButton(
+                icon: const Icon(Icons.checklist_rounded),
+                tooltip: 'Select songs',
+                onPressed: context.read<TrackSelectionCubit>().enter,
+              ),
+            ],
+            body: BlocConsumer<PlaylistTracksCubit, PagedCollectionState<Track>>(
+              listener: (context, state) => _maybeReconcile(),
+              builder: (context, state) {
+                final cubit = context.read<PlaylistTracksCubit>();
+                final catalog = context.watch<DownloadsCubit>().state;
+                final playlist = header.item;
+                // Editing a playlist reaches the server or fails
+                // (ADR-0024), so a saved copy is a list to play, not one to
+                // rearrange. Every row of a server-read page carries the
+                // entry id a move names; a row that somehow does not simply
+                // goes without a grip. Selection mode also suspends reorder
+                // — dragging and bulk-checking a list at once is not a
+                // combination worth supporting.
+                final canReorder =
+                    !state.isCached &&
+                    state.items.length > 1 &&
+                    !selection.active;
+                final origin = playlist == null
+                    ? null
+                    : QueueOrigin.playlist(
+                        playlistId: playlist.id,
+                        name: playlist.name,
+                        image: playlist.image,
+                      );
+                final selectableTracks = [
+                  for (final track in state.items)
+                    if (track.availability !=
+                            MediaAvailability.remoteUnavailable ||
+                        catalog.isDownloaded(track.id))
+                      track,
+                ];
+                return PagedCollectionView<Track>(
+                  state: state,
+                  onReorder: canReorder ? _moveRow : null,
+                  headerSlivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+                        child: _PlaylistHeader(
+                          state: header,
+                          tracks: state.items,
+                        ),
                       ),
                     ),
+                    if (state.items.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: t.spacing.md,
+                          ),
+                          child: TrackSelectionBar(
+                            selectableTracks: selectableTracks,
+                            showEntryButton: false,
+                          ),
+                        ),
+                      ),
+                  ],
+                  skeleton: const MusicListSkeleton(itemCount: 8),
+                  emptyTitle: 'This playlist is empty',
+                  emptyIcon: Icons.queue_music_outlined,
+                  onLoadMore: cubit.loadMore,
+                  onRefresh: () async {
+                    await context.read<PlaylistDetailCubit>().retry();
+                    await cubit.refresh();
+                  },
+                  onRetry: cubit.reload,
+                  onRetryLoadMore: cubit.retryLoadMore,
+                  offlineGapNoun: 'song',
+                  unavailableBuilder: (context, item) => UnavailableRow(
+                    item: item,
+                    // Numbered like every other row: an entry Jellyfinity
+                    // cannot read is still the playlist's fourth entry.
+                    position: item.position == null ? null : item.position! + 1,
                   ),
-                ],
-                skeleton: const MusicListSkeleton(itemCount: 8),
-                emptyTitle: 'This playlist is empty',
-                emptyIcon: Icons.queue_music_outlined,
-                onLoadMore: cubit.loadMore,
-                onRefresh: () async {
-                  await context.read<PlaylistDetailCubit>().retry();
-                  await cubit.refresh();
-                },
-                onRetry: cubit.reload,
-                onRetryLoadMore: cubit.retryLoadMore,
-                offlineGapNoun: 'song',
-                unavailableBuilder: (context, item) => UnavailableRow(
-                  item: item,
-                  // Numbered like every other row: an entry Jellyfinity
-                  // cannot read is still the playlist's fourth entry.
-                  position: item.position == null ? null : item.position! + 1,
-                ),
-                itemBuilder: (context, track, index) {
-                  final playable =
-                      track.availability !=
-                          MediaAvailability.remoteUnavailable ||
-                      catalog.isDownloaded(track.id);
-                  // Only a row that came from the server carries the entry
-                  // id a removal or a move names (v0.1.2's completion,
-                  // v0.4.2's reorder). One read from the saved copy or a
-                  // download snapshot does not, and editing needs the
-                  // server anyway.
-                  final entry = track is PlaylistTrack ? track : null;
-                  final editable = entry != null && entry.isEditable;
-                  final canDrag = canReorder && editable;
-                  return TrackRow(
-                    // Keyed by the entry, not by where the row sits: a
-                    // playlist may list the same song three times, and two
-                    // identical keys make a drag move the wrong one.
-                    key: ValueKey(
-                      entry?.entryId ?? 'row-$index-${track.id.itemId}',
-                    ),
-                    track: track,
-                    showArtwork: false,
-                    position: (entry?.position ?? index) + 1,
-                    playable: playable,
-                    dragHandle: canDrag
-                        ? ReorderableDragStartListener(
-                            index: index,
-                            child: Icon(
-                              Icons.drag_indicator_rounded,
-                              color: t.colors.textSecondary,
-                            ),
-                          )
-                        : null,
-                    onMoveUp: canDrag && index > 0
-                        ? () => _moveRow(index, index - 1)
-                        : null,
-                    onMoveDown: canDrag && index < state.items.length - 1
-                        ? () => _moveRow(index, index + 1)
-                        : null,
-                    onTap: playable
-                        ? () => context.read<PlaybackCubit>().playNow(
-                            state.items,
-                            startIndex: index,
-                            origin: origin,
-                          )
-                        : null,
-                    onPlayNext: playable
-                        ? () => context.read<PlaybackCubit>().playNext(track)
-                        : null,
-                    onAddToQueue: playable
-                        ? () => context.read<PlaybackCubit>().addToQueue(track)
-                        : null,
-                    onRemoveFromPlaylist: editable
-                        ? () => _removeRow(entry)
-                        : null,
-                    downloadAction:
-                        track.availability ==
-                            MediaAvailability.remoteUnavailable
-                        ? null
-                        : TrackDownloadButton(track: track),
-                  );
-                },
-              );
-            },
+                  itemBuilder: (context, track, index) {
+                    final playable =
+                        track.availability !=
+                            MediaAvailability.remoteUnavailable ||
+                        catalog.isDownloaded(track.id);
+                    // Only a row that came from the server carries the entry
+                    // id a removal or a move names (v0.1.2's completion,
+                    // v0.4.2's reorder). One read from the saved copy or a
+                    // download snapshot does not, and editing needs the
+                    // server anyway.
+                    final entry = track is PlaylistTrack ? track : null;
+                    final editable = entry != null && entry.isEditable;
+                    final canDrag = canReorder && editable;
+                    return TrackRow(
+                      // Keyed by the entry, not by where the row sits: a
+                      // playlist may list the same song three times, and two
+                      // identical keys make a drag move the wrong one.
+                      key: ValueKey(
+                        entry?.entryId ?? 'row-$index-${track.id.itemId}',
+                      ),
+                      track: track,
+                      showArtwork: false,
+                      position: (entry?.position ?? index) + 1,
+                      playable: playable,
+                      dragHandle: canDrag
+                          ? ReorderableDragStartListener(
+                              index: index,
+                              child: Icon(
+                                Icons.drag_indicator_rounded,
+                                color: t.colors.textSecondary,
+                              ),
+                            )
+                          : null,
+                      onMoveUp: canDrag && index > 0
+                          ? () => _moveRow(index, index - 1)
+                          : null,
+                      onMoveDown: canDrag && index < state.items.length - 1
+                          ? () => _moveRow(index, index + 1)
+                          : null,
+                      onTap: playable
+                          ? () => context.read<PlaybackCubit>().playNow(
+                              state.items,
+                              startIndex: index,
+                              origin: origin,
+                            )
+                          : null,
+                      onPlayNext: playable
+                          ? () => context.read<PlaybackCubit>().playNext(track)
+                          : null,
+                      onAddToQueue: playable
+                          ? () =>
+                                context.read<PlaybackCubit>().addToQueue(track)
+                          : null,
+                      onRemoveFromPlaylist: editable
+                          ? () => _removeRow(entry)
+                          : null,
+                      downloadAction:
+                          track.availability ==
+                              MediaAvailability.remoteUnavailable
+                          ? null
+                          : TrackDownloadButton(track: track),
+                      selectionActive: selection.active,
+                      selected: selection.selected.contains(track.id),
+                      onSelectToggle: playable
+                          ? () => context.read<TrackSelectionCubit>().toggle(
+                              track.id,
+                            )
+                          : null,
+                    );
+                  },
+                );
+              },
+            ),
           ),
         );
       },

@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/di/service_locator.dart';
 import '../../../../app/downloads/DownloadsCubit.dart';
+import '../../../../app/playback/PlaybackCubit.dart';
 import '../../../../app/router/route_paths.dart';
+import '../../../../app/session/SessionCubit.dart';
 import '../../../../design/design.dart';
 import '../../../../domain/downloads/downloads.dart';
 import '../../../../domain/media/media.dart';
@@ -22,6 +24,9 @@ import '../widgets/music_rows.dart';
 import '../widgets/music_skeletons.dart';
 import '../widgets/paged_collection_view.dart';
 import '../widgets/RelatedMediaStrip.dart';
+import '../selection/SelectionExitGuard.dart';
+import '../selection/TrackSelectionBar.dart';
+import '../selection/TrackSelectionCubit.dart';
 import 'artist_stats_cubit.dart';
 import 'media_detail_cubit.dart';
 import 'related_media_cubits.dart';
@@ -65,6 +70,10 @@ class ArtistDetailPage extends StatelessWidget {
         BlocProvider<RelatedArtistsCubit>(
           create: (_) =>
               (related ?? getIt<RelatedArtistsCubit>())..open(artistId),
+        ),
+        BlocProvider<TrackSelectionCubit>(
+          create: (context) =>
+              TrackSelectionCubit(context.read<SessionCubit>()),
         ),
       ],
       child: _ArtistPresenceReconciler(
@@ -124,74 +133,86 @@ class _ArtistDetailView extends StatelessWidget {
     return BlocBuilder<ArtistDetailCubit, MediaDetailState<Artist>>(
       builder: (context, header) {
         final artist = header.item;
-        return AppScaffold(
-          padded: false,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Refresh',
-              onPressed: () async {
-                await context.read<ArtistDetailCubit>().retry();
-                await context.read<AlbumsCubit>().refresh();
-                if (context.mounted) {
-                  await context.read<SongsCubit>().refresh();
-                }
-              },
+        final selection = context.watch<TrackSelectionCubit>().state;
+        return SelectionExitGuard(
+          active: selection.active,
+          onExit: context.read<TrackSelectionCubit>().exit,
+          child: AppScaffold(
+            padded: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => context.pop(),
             ),
-          ],
-          background: ArtworkBackground(
-            image: artist?.banner ?? artist?.image,
-            child: const SizedBox.expand(),
-          ),
-          body: BlocBuilder<AlbumsCubit, PagedCollectionState<Album>>(
-            builder: (context, state) {
-              final cubit = context.read<AlbumsCubit>();
-              return PagedCollectionView<Album>(
-                state: state,
-                gridDelegate: albumGridDelegate,
-                headerSlivers: [
-                  SliverToBoxAdapter(
-                    child: BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
-                      builder: (context, tracks) => _ArtistHeader(
-                        state: header,
-                        tracks: tracks.items,
-                      ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Refresh',
+                onPressed: () async {
+                  await context.read<ArtistDetailCubit>().retry();
+                  await context.read<AlbumsCubit>().refresh();
+                  if (context.mounted) {
+                    await context.read<SongsCubit>().refresh();
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.checklist_rounded),
+                tooltip: 'Select songs',
+                onPressed: context.read<TrackSelectionCubit>().enter,
+              ),
+            ],
+            background: ArtworkBackground(
+              image: artist?.banner ?? artist?.image,
+              child: const SizedBox.expand(),
+            ),
+            body: BlocBuilder<AlbumsCubit, PagedCollectionState<Album>>(
+              builder: (context, state) {
+                final cubit = context.read<AlbumsCubit>();
+                return PagedCollectionView<Album>(
+                  state: state,
+                  gridDelegate: albumGridDelegate,
+                  headerSlivers: [
+                    SliverToBoxAdapter(
+                      child:
+                          BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
+                            builder: (context, tracks) => _ArtistHeader(
+                              state: header,
+                              tracks: tracks.items,
+                            ),
+                          ),
+                    ),
+                  ],
+                  footerSlivers: const [
+                    _ArtistSongsSection(),
+                    SliverToBoxAdapter(child: _RelatedArtists()),
+                  ],
+                  skeleton: const AlbumGridSkeleton(
+                    gridDelegate: albumGridDelegate,
+                    itemCount: 6,
+                  ),
+                  emptyTitle: 'No albums for this artist',
+                  emptyMessage:
+                      'Your server lists the artist but no albums under '
+                      'them.',
+                  emptyIcon: Icons.album_outlined,
+                  onLoadMore: cubit.loadMore,
+                  onRefresh: () async {
+                    await context.read<ArtistDetailCubit>().retry();
+                    await cubit.refresh();
+                  },
+                  onRetry: cubit.reload,
+                  onRetryLoadMore: cubit.retryLoadMore,
+                  offlineGapNoun: 'album',
+                  itemBuilder: (context, album, _) => AlbumTile(
+                    album: album,
+                    onTap: () => context.pushNamed(
+                      RouteNames.libraryAlbum,
+                      pathParameters: {'id': album.id.key},
                     ),
                   ),
-                ],
-                footerSlivers: const [
-                  SliverToBoxAdapter(child: _RelatedArtists()),
-                ],
-                skeleton: const AlbumGridSkeleton(
-                  gridDelegate: albumGridDelegate,
-                  itemCount: 6,
-                ),
-                emptyTitle: 'No albums for this artist',
-                emptyMessage:
-                    'Your server lists the artist but no albums under '
-                    'them.',
-                emptyIcon: Icons.album_outlined,
-                onLoadMore: cubit.loadMore,
-                onRefresh: () async {
-                  await context.read<ArtistDetailCubit>().retry();
-                  await cubit.refresh();
-                },
-                onRetry: cubit.reload,
-                onRetryLoadMore: cubit.retryLoadMore,
-                offlineGapNoun: 'album',
-                itemBuilder: (context, album, _) => AlbumTile(
-                  album: album,
-                  onTap: () => context.pushNamed(
-                    RouteNames.libraryAlbum,
-                    pathParameters: {'id': album.id.key},
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         );
       },
@@ -418,6 +439,134 @@ class _RelatedArtists extends StatelessWidget {
               pathParameters: {'id': item.id.key},
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+/// The artist's songs, below their albums (v0.7.0) — the same flat track
+/// list `_ArtistHeader` already loads to back its Play/Shuffle buttons,
+/// now also rendered as rows so multi-select has a surface here, per the
+/// spec's "artist songs" requirement. A section of the one scroll rather
+/// than its own tab: an artist's albums stay the page's primary content,
+/// and "Show more songs" keeps a long discography from loading in just
+/// because the page opened.
+class _ArtistSongsSection extends StatelessWidget {
+  const _ArtistSongsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return BlocBuilder<SongsCubit, PagedCollectionState<Track>>(
+      builder: (context, state) {
+        if (!state.isReady || state.items.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        final cubit = context.read<SongsCubit>();
+        final catalog = context.watch<DownloadsCubit>().state;
+        final selection = context.watch<TrackSelectionCubit>().state;
+        final selectableTracks = [
+          for (final track in state.items)
+            if (track.availability != MediaAvailability.remoteUnavailable ||
+                catalog.isDownloaded(track.id))
+              track,
+        ];
+
+        return SliverMainAxisGroup(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(height: t.spacing.lg),
+                    Text(
+                      'Songs',
+                      style: t.typography.titleMedium.copyWith(
+                        color: t.colors.textPrimary,
+                      ),
+                    ),
+                    TrackSelectionBar(
+                      selectableTracks: selectableTracks,
+                      showEntryButton: false,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: t.spacing.md),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final track = state.items[index];
+                  final playable =
+                      track.availability !=
+                          MediaAvailability.remoteUnavailable ||
+                      catalog.isDownloaded(track.id);
+                  return TrackRow(
+                    track: track,
+                    playable: playable,
+                    onTap: playable
+                        ? () => context.read<PlaybackCubit>().playNow(
+                            state.items,
+                            startIndex: index,
+                          )
+                        : null,
+                    onPlayNext: playable
+                        ? () => context.read<PlaybackCubit>().playNext(track)
+                        : null,
+                    onAddToQueue: playable
+                        ? () => context.read<PlaybackCubit>().addToQueue(track)
+                        : null,
+                    downloadAction:
+                        track.availability ==
+                            MediaAvailability.remoteUnavailable
+                        ? null
+                        : TrackDownloadButton(track: track),
+                    selectionActive: selection.active,
+                    selected: selection.selected.contains(track.id),
+                    onSelectToggle: playable
+                        ? () => context.read<TrackSelectionCubit>().toggle(
+                            track.id,
+                          )
+                        : null,
+                  );
+                }, childCount: state.items.length),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.spacing.md,
+                  vertical: t.spacing.sm,
+                ),
+                child: switch (state) {
+                  _ when state.loadMoreFailure != null => Center(
+                    child: TextButton(
+                      onPressed: cubit.retryLoadMore,
+                      child: const Text('Retry loading more songs'),
+                    ),
+                  ),
+                  _ when state.isLoadingMore => const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  _ when state.hasMore => Center(
+                    child: TextButton(
+                      onPressed: cubit.loadMore,
+                      child: const Text('Show more songs'),
+                    ),
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
+              ),
+            ),
+          ],
         );
       },
     );

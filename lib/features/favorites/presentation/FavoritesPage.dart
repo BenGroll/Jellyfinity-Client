@@ -8,6 +8,7 @@ import '../../../app/favorites/FavoritesRevisionCubit.dart';
 import '../../../app/favorites/PendingFavoritesCubit.dart';
 import '../../../app/playback/PlaybackCubit.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../app/session/SessionCubit.dart';
 import '../../../design/design.dart';
 import '../../../domain/downloads/downloads.dart';
 import '../../../domain/media/media.dart';
@@ -19,6 +20,9 @@ import '../../music/presentation/widgets/MediaPlaybackActionsRow.dart';
 import '../../music/presentation/widgets/music_rows.dart';
 import '../../music/presentation/widgets/music_skeletons.dart';
 import '../../music/presentation/widgets/paged_collection_view.dart';
+import '../../music/presentation/selection/SelectionExitGuard.dart';
+import '../../music/presentation/selection/TrackSelectionBar.dart';
+import '../../music/presentation/selection/TrackSelectionCubit.dart';
 import 'favorites_cubits.dart';
 
 /// The Favorites destination (v0.3.4, ADR-0028): a bottom-nav section of
@@ -61,8 +65,7 @@ class FavoritesPage extends StatelessWidget {
           create: (_) => (songs ?? getIt<FavoriteTracksCubit>())..load(),
         ),
         BlocProvider<PendingFavoritesCubit>(
-          create: (_) =>
-              (pending ?? getIt<PendingFavoritesCubit>())..refresh(),
+          create: (_) => (pending ?? getIt<PendingFavoritesCubit>())..refresh(),
         ),
       ],
       child: const _FavoritesView(),
@@ -107,12 +110,16 @@ class _FavoritesView extends StatelessWidget {
                 Tab(text: 'Songs'),
               ],
             ),
-            const Expanded(
+            Expanded(
               child: TabBarView(
                 children: [
-                  _FavoriteArtistsTab(),
-                  _FavoriteAlbumsTab(),
-                  _FavoriteSongsTab(),
+                  const _FavoriteArtistsTab(),
+                  const _FavoriteAlbumsTab(),
+                  BlocProvider<TrackSelectionCubit>(
+                    create: (context) =>
+                        TrackSelectionCubit(context.read<SessionCubit>()),
+                    child: const _FavoriteSongsTab(),
+                  ),
                 ],
               ),
             ),
@@ -152,11 +159,7 @@ class _PendingFavoritesBanner extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.sync_rounded,
-                size: 16,
-                color: t.colors.textSecondary,
-              ),
+              Icon(Icons.sync_rounded, size: 16, color: t.colors.textSecondary),
               SizedBox(width: t.spacing.xs),
               Expanded(
                 child: Text(
@@ -314,52 +317,72 @@ class _FavoriteSongsTabState extends State<_FavoriteSongsTab>
       builder: (context, state) {
         final cubit = context.read<FavoriteTracksCubit>();
         final catalog = context.watch<DownloadsCubit>().state;
-        return PagedCollectionView<Track>(
-          key: const PageStorageKey('favorites.songs'),
-          state: state,
-          skeleton: const MusicListSkeleton(),
-          emptyTitle: 'No favorite songs yet',
-          emptyMessage:
-              'Tap the heart in the player, or on a song, and it joins '
-              'this list — playable straight through, like a playlist.',
-          emptyIcon: Icons.favorite_border_rounded,
-          // The whole favorite-songs list is one thing to play: Play and
-          // Shuffle sit above it, like a playlist header.
-          headerSlivers: [
-            if (state.isReady && state.items.isNotEmpty)
-              SliverToBoxAdapter(
-                child: MediaPlaybackActionsRow(tracks: state.items),
-              ),
-          ],
-          onLoadMore: cubit.loadMore,
-          onRefresh: cubit.refresh,
-          onRetry: cubit.reload,
-          onRetryLoadMore: cubit.retryLoadMore,
-          unavailableBuilder: (context, item) => UnavailableRow(item: item),
-          itemBuilder: (context, track, index) {
-            // A favorite the server no longer lists still plays if its
-            // file is on the device (v0.2.3) — the same rule the Library
-            // and search song lists follow.
-            final playable =
-                track.availability != MediaAvailability.remoteUnavailable ||
-                catalog.isDownloaded(track.id);
-            return TrackRow(
-              track: track,
-              playable: playable,
-              onTap: playable
-                  ? () => context.read<PlaybackCubit>().playNow(
-                      state.items,
-                      startIndex: index,
-                    )
-                  : null,
-              onPlayNext: playable
-                  ? () => context.read<PlaybackCubit>().playNext(track)
-                  : null,
-              onAddToQueue: playable
-                  ? () => context.read<PlaybackCubit>().addToQueue(track)
-                  : null,
-            );
-          },
+        final selection = context.watch<TrackSelectionCubit>().state;
+        final selectableTracks = [
+          for (final track in state.items)
+            if (track.availability != MediaAvailability.remoteUnavailable ||
+                catalog.isDownloaded(track.id))
+              track,
+        ];
+        return SelectionExitGuard(
+          active: selection.active,
+          onExit: context.read<TrackSelectionCubit>().exit,
+          child: PagedCollectionView<Track>(
+            key: const PageStorageKey('favorites.songs'),
+            state: state,
+            skeleton: const MusicListSkeleton(),
+            emptyTitle: 'No favorite songs yet',
+            emptyMessage:
+                'Tap the heart in the player, or on a song, and it joins '
+                'this list — playable straight through, like a playlist.',
+            emptyIcon: Icons.favorite_border_rounded,
+            // The whole favorite-songs list is one thing to play: Play and
+            // Shuffle sit above it, like a playlist header.
+            headerSlivers: [
+              if (state.isReady && state.items.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: MediaPlaybackActionsRow(tracks: state.items),
+                ),
+              if (state.items.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: TrackSelectionBar(selectableTracks: selectableTracks),
+                ),
+            ],
+            onLoadMore: cubit.loadMore,
+            onRefresh: cubit.refresh,
+            onRetry: cubit.reload,
+            onRetryLoadMore: cubit.retryLoadMore,
+            unavailableBuilder: (context, item) => UnavailableRow(item: item),
+            itemBuilder: (context, track, index) {
+              // A favorite the server no longer lists still plays if its
+              // file is on the device (v0.2.3) — the same rule the Library
+              // and search song lists follow.
+              final playable =
+                  track.availability != MediaAvailability.remoteUnavailable ||
+                  catalog.isDownloaded(track.id);
+              return TrackRow(
+                track: track,
+                playable: playable,
+                onTap: playable
+                    ? () => context.read<PlaybackCubit>().playNow(
+                        state.items,
+                        startIndex: index,
+                      )
+                    : null,
+                onPlayNext: playable
+                    ? () => context.read<PlaybackCubit>().playNext(track)
+                    : null,
+                onAddToQueue: playable
+                    ? () => context.read<PlaybackCubit>().addToQueue(track)
+                    : null,
+                selectionActive: selection.active,
+                selected: selection.selected.contains(track.id),
+                onSelectToggle: playable
+                    ? () => context.read<TrackSelectionCubit>().toggle(track.id)
+                    : null,
+              );
+            },
+          ),
         );
       },
     );
