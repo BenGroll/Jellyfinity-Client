@@ -1348,7 +1348,30 @@ class _RemoteSeekBar extends StatefulWidget {
 }
 
 class _RemoteSeekBarState extends State<_RemoteSeekBar> {
+  /// What the listener asked for, held from the moment they touch the
+  /// thumb until the target has actually taken it.
+  ///
+  /// Clearing this on release instead would render one frame of the old
+  /// position — the value the stream still carries, because the command
+  /// has not been sent yet — so the thumb visibly snapped back before
+  /// jumping forward again. The command's own optimistic update means
+  /// that by the time it returns, the stream already agrees and letting
+  /// go of this is invisible; if it failed, the stream carries the real
+  /// position and snapping back is the honest answer.
   double? _dragValue;
+
+  /// Distinguishes the gesture being committed from a later one, so a
+  /// slow command cannot clear a drag the listener has already started.
+  int _gesture = 0;
+
+  Future<void> _commit(double value) async {
+    final gesture = _gesture;
+    await getIt<PlaybackControlCubit>().seek(
+      Duration(milliseconds: value.round()),
+    );
+    if (!mounted || gesture != _gesture) return;
+    setState(() => _dragValue = null);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1380,17 +1403,13 @@ class _RemoteSeekBarState extends State<_RemoteSeekBar> {
             value: value,
             max: max,
             onChangeStart: canSeek
-                ? (v) => setState(() => _dragValue = v)
+                ? (v) => setState(() {
+                    _gesture++;
+                    _dragValue = v;
+                  })
                 : null,
             onChanged: canSeek ? (v) => setState(() => _dragValue = v) : null,
-            onChangeEnd: canSeek
-                ? (v) {
-                    setState(() => _dragValue = null);
-                    getIt<PlaybackControlCubit>().seek(
-                      Duration(milliseconds: v.round()),
-                    );
-                  }
-                : null,
+            onChangeEnd: canSeek ? _commit : null,
           ),
         ),
         Row(
@@ -1427,7 +1446,18 @@ class _RemoteVolumeBar extends StatefulWidget {
 }
 
 class _RemoteVolumeBarState extends State<_RemoteVolumeBar> {
+  /// The level the listener chose, held until the target confirms it —
+  /// see `_RemoteSeekBarState._dragValue` for why releasing it any
+  /// earlier makes the thumb jump back to the old level first.
   double? _dragValue;
+  int _gesture = 0;
+
+  Future<void> _commit(double value) async {
+    final gesture = _gesture;
+    await getIt<PlaybackControlCubit>().setVolume(value);
+    if (!mounted || gesture != _gesture) return;
+    setState(() => _dragValue = null);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1449,12 +1479,12 @@ class _RemoteVolumeBarState extends State<_RemoteVolumeBar> {
         ),
         child: Slider(
           value: volume,
-          onChangeStart: (value) => setState(() => _dragValue = value),
+          onChangeStart: (value) => setState(() {
+            _gesture++;
+            _dragValue = value;
+          }),
           onChanged: (value) => setState(() => _dragValue = value),
-          onChangeEnd: (value) {
-            setState(() => _dragValue = null);
-            getIt<PlaybackControlCubit>().setVolume(value);
-          },
+          onChangeEnd: _commit,
         ),
       ),
     );

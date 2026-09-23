@@ -270,25 +270,30 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
   /// With nothing playing this is the same as [addAllToQueue]; with
   /// shuffle on the tracks take the play-order slots straight after the
   /// current entry, exactly as a single [playNext] does.
-  Future<void> playNextAll(List<Track> tracks) {
-    if (tracks.isEmpty) return Future<void>.value();
-    return _mutate((queue) {
-      var updated = queue;
-      // With something playing, each insertion goes directly after the
-      // current entry and pushes the previous one along, so inserting the
-      // last track first is what leaves them in their own order. With an
-      // empty queue there is no current entry to insert after and they
-      // simply append, which the same loop already does forwards.
-      final ordered = queue.currentIndex == null ? tracks : tracks.reversed;
-      for (final track in ordered) {
-        updated = updated.withEntryAdded(
-          QueueEntry.fromTrack(track),
-          playNext: true,
-        );
-      }
-      return updated;
-    });
+  Future<void> playNextAll(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (await _remoteOwnership?.enqueue(tracks, playNext: true) ?? false) {
+      return;
+    }
+    await _appendPlayNext(tracks);
   }
+
+  Future<void> _appendPlayNext(List<Track> tracks) => _mutate((queue) {
+    var updated = queue;
+    // With something playing, each insertion goes directly after the
+    // current entry and pushes the previous one along, so inserting the
+    // last track first is what leaves them in their own order. With an
+    // empty queue there is no current entry to insert after and they
+    // simply append, which the same loop already does forwards.
+    final ordered = queue.currentIndex == null ? tracks : tracks.reversed;
+    for (final track in ordered) {
+      updated = updated.withEntryAdded(
+        QueueEntry.fromTrack(track),
+        playNext: true,
+      );
+    }
+    return updated;
+  });
 
   Future<void> _playNow(
     List<Track> tracks, {
@@ -462,26 +467,45 @@ class PlaybackCubit extends Cubit<PlaybackUiState> {
 
   // ---- Queue editing ----
 
-  Future<void> addToQueue(Track track) =>
-      _mutate((queue) => queue.withEntryAdded(QueueEntry.fromTrack(track)));
+  Future<void> addToQueue(Track track) => addAllToQueue([track]);
 
-  Future<void> playNext(Track track) => _mutate(
-    (queue) =>
-        queue.withEntryAdded(QueueEntry.fromTrack(track), playNext: true),
-  );
+  Future<void> playNext(Track track) => playNextAll([track]);
 
   /// Appends every one of [tracks] to the end of the queue in one mutation
   /// (v0.1.6's Album/Playlist "Add to queue") — one engine sync for the
   /// whole album rather than one per track.
-  Future<void> addAllToQueue(List<Track> tracks) {
-    if (tracks.isEmpty) return Future<void>.value();
-    return _mutate((queue) {
-      var updated = queue;
-      for (final track in tracks) {
-        updated = updated.withEntryAdded(QueueEntry.fromTrack(track));
-      }
-      return updated;
-    });
+  Future<void> addAllToQueue(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (await _remoteOwnership?.enqueue(tracks) ?? false) return;
+    await _appendToEnd(tracks);
+  }
+
+  Future<void> _appendToEnd(List<Track> tracks) => _mutate((queue) {
+    var updated = queue;
+    for (final track in tracks) {
+      updated = updated.withEntryAdded(QueueEntry.fromTrack(track));
+    }
+    return updated;
+  });
+
+  /// Adds [tracks] to this device's own queue, never consulting
+  /// [_remoteOwnership].
+  ///
+  /// A device carrying out a command it was asked to run is by definition
+  /// the target, so applying it must not re-enter the ownership seam —
+  /// that seam exists to route a *local* selection to whatever this
+  /// device is controlling, and reusing it here would forward an incoming
+  /// addition to a third device instead of this queue.
+  Future<void> applyReceivedAppend(
+    List<Track> tracks, {
+    bool playNext = false,
+  }) async {
+    if (tracks.isEmpty) return;
+    if (playNext) {
+      await _appendPlayNext(tracks);
+    } else {
+      await _appendToEnd(tracks);
+    }
   }
 
   /// Re-queues [entry] — the currently playing track, from Now Playing's

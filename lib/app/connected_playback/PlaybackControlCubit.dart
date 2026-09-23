@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -8,6 +9,7 @@ import '../../core/result/failure.dart';
 import '../../core/result/result.dart';
 import '../../domain/connected_playback/ConnectedDevice.dart';
 import '../../domain/connected_playback/ConnectedPlaybackFailures.dart';
+import '../../domain/connected_playback/ConnectedPlaybackLimits.dart';
 import '../../domain/connected_playback/ConnectedPlaybackScope.dart';
 import '../../domain/connected_playback/ConnectedPlaybackTransport.dart';
 import '../../domain/connected_playback/DevicePresenceSource.dart';
@@ -75,11 +77,25 @@ class PlaybackControlState extends Equatable {
     this.commandError,
     this.originName,
     this.syncGroupId,
+    this.controlledBy,
   });
 
   /// The device being controlled, or `null` when this device is not
   /// controlling anything.
   final ConnectedDevice? device;
+
+  /// The device currently driving *this* one, or `null` when nobody is.
+  ///
+  /// Read from presence rather than from any command that arrives: a
+  /// controller advertises what it is driving
+  /// (`DeviceAdvertisement.controllingSessionId`), so a target knows it is
+  /// being controlled even before the first command reaches it, and knows
+  /// the moment the controller lets go. A device is one or the other —
+  /// never both — which is the rule that stopped two devices each
+  /// believing they were controlling the other.
+  final ConnectedDevice? controlledBy;
+
+  bool get isBeingControlled => controlledBy != null;
 
   /// A read-only, display-shaped projection of the target's queue, built
   /// the same way `PlaybackCubit.adoptTransferredQueue` builds one from a
@@ -151,8 +167,13 @@ class PlaybackControlState extends Equatable {
     bool clearOrigin = false,
     String? syncGroupId,
     bool clearSyncGroupId = false,
+    ConnectedDevice? controlledBy,
+    bool clearControlledBy = false,
   }) => PlaybackControlState(
     device: device,
+    controlledBy: clearControlledBy
+        ? null
+        : (controlledBy ?? this.controlledBy),
     queue: queue ?? this.queue,
     status: status ?? this.status,
     position: position ?? this.position,
@@ -184,6 +205,7 @@ class PlaybackControlState extends Equatable {
     commandError,
     originName,
     syncGroupId,
+    controlledBy,
   ];
 }
 
@@ -206,8 +228,10 @@ const Set<RemoteCommandKind> _desiredRemoteCommands = {
   RemoteCommandKind.jumpToQueueEntry,
   RemoteCommandKind.setQueue,
   RemoteCommandKind.setVolume,
+  RemoteCommandKind.appendToQueue,
   RemoteCommandKind.removeQueueEntry,
   RemoteCommandKind.moveQueueEntry,
+  RemoteCommandKind.takeControl,
 };
 
 /// Chooses which device this app is controlling, and binds the mini-player,
@@ -238,6 +262,44 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   StreamSubscription<SessionState>? _sessionSub;
   StreamSubscription<RemotePlaybackSnapshot>? _snapshotSub;
   StreamSubscription<List<ConnectedDevice>>? _devicesSub;
+
+  /// Presence for as long as this profile is signed in, independently of
+  /// whether this device is controlling anything — see [_onPresence].
+  StreamSubscription<List<ConnectedDevice>>? _presenceSub;
+  List<ConnectedDevice> _knownDevices = const [];
+
+  /// A value this device has asked for and not yet seen confirmed.
+  ///
+  /// Waiting only for the command to be *answered* is not enough: the
+  /// target keeps publishing the old value until it applies the new one,
+  /// and snapshots already in flight when the answer arrives still carry
+  /// it. Those are not news, and taking them is what made the slider land,
+  /// jump back for the better part of a second, and land again.
+  ///
+  /// Held until a snapshot agrees with it, or until [_expectationTimeout]
+  /// has passed, so a confirmation that never comes cannot freeze the
+  /// control at a value the target never reached.
+  Duration? _expectedPosition;
+  double? _expectedVolume;
+  DateTime? _expectingSince;
+
+  static const Duration _expectationTimeout = Duration(seconds: 5);
+
+  bool get _expectationExpired {
+    final since = _expectingSince;
+    return since == null ||
+        DateTime.now().difference(since) > _expectationTimeout;
+  }
+
+  /// When this device last started controlling something — see the grace
+  /// in [_onPresence].
+  DateTime? _controlStartedAt;
+
+  /// How long a freshly chosen target is given to report its own current
+  /// control state before this device acts on it. Settable so a test does
+  /// not have to wait it out in real time.
+  @visibleForTesting
+  Duration controlSettleGrace = ConnectedPlaybackLimits.linkDegradedGrace;
   Timer? _ticker;
 
   ConnectedPlaybackScope? _scope;
@@ -264,6 +326,82 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
     // controlling — the same isolation rule presence and the target link
     // already apply to themselves.
     unawaited(stop());
+    unawaited(_presenceSub?.cancel());
+    _presenceSub = null;
+    _knownDevices = const [];
+    if (state.isBeingControlled) {
+      emit(state.copyWith(clearControlledBy: true));
+    }
+    if (scope == null) return;
+    // Watched for the whole signed-in session, not just while controlling
+    // something: being controlled is a state this device can enter without
+    // doing anything at all, and it has to be able to notice.
+    _presenceSub = _presence.devices(scope).listen(_onPresence);
+  }
+
+  void _onPresence(List<ConnectedDevice> devices) {
+    _knownDevices = devices;
+
+    // A device that has taken control of something is no longer a device
+    // this one may drive. Whoever acted most recently wins, which makes
+    // "control that device" on either end a complete instruction rather
+    // than half of a state both ends have to agree on.
+    final target = state.device;
+    final startedAt = _controlStartedAt;
+    // A peer's advertisement can be a moment out of date, and letting go
+    // of a device the instant after choosing it — because of something it
+    // had already stopped doing — would be worse than the state this rule
+    // exists to prevent. Give the roster time to say what is true now.
+    final settled =
+        startedAt != null &&
+        DateTime.now().difference(startedAt) > controlSettleGrace;
+    if (target != null && settled) {
+      for (final device in devices) {
+        if (device.deviceId == target.deviceId &&
+            device.controllingSessionId != null) {
+          unawaited(stop());
+          return;
+        }
+      }
+    }
+
+    final localSessionId = _transport.localSessionId;
+    ConnectedDevice? controller;
+    if (localSessionId != null) {
+      for (final device in devices) {
+        if (!device.isThisDevice &&
+            device.controllingSessionId == localSessionId) {
+          controller = device;
+          break;
+        }
+      }
+    }
+    final known = state.controlledBy;
+    if (controller?.deviceId == known?.deviceId &&
+        controller?.displayName == known?.displayName) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        controlledBy: controller,
+        clearControlledBy: controller == null,
+      ),
+    );
+  }
+
+  /// Starts controlling whichever known device answers to [sessionId].
+  ///
+  /// The entry point for `RemoteCommandKind.takeControl`: a device that
+  /// has just handed its playback over asks the device that took it to
+  /// become its remote, and names itself by the session id the command
+  /// arrived from.
+  Future<void> controlDeviceWithSession(String sessionId) async {
+    for (final device in _knownDevices) {
+      if (device.sessionId == sessionId && !device.isThisDevice) {
+        await control(device);
+        return;
+      }
+    }
   }
 
   /// Starts controlling [device] — constructing a fresh
@@ -295,6 +433,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
       localSessionId: localSessionId,
     );
     _controlSession = controlSession;
+    _controlStartedAt = DateTime.now();
     _basePosition = Duration.zero;
     _baseAt = DateTime.now();
     emit(
@@ -303,6 +442,9 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
         availableCommands: controlSession.controller.availableCommands(
           _desiredRemoteCommands,
         ),
+        // Acting wins: this device is now a controller, so it is not also
+        // something being controlled. The peer driving it reads the same
+        // conclusion from the advertisement this change publishes.
       ),
     );
     _snapshotSub = controlSession.snapshots.listen(
@@ -320,11 +462,19 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   /// local `PlaybackCubit` state once this completes.
   Future<void> stop() async {
     await _teardown();
-    if (state.isControlling) emit(const PlaybackControlState());
+    // Being controlled is not something this device chose and not
+    // something letting go of its own target ends.
+    if (state.isControlling) {
+      emit(PlaybackControlState(controlledBy: state.controlledBy));
+    }
   }
 
   Future<void> _teardown() async {
     _generation++;
+    _controlStartedAt = null;
+    _expectedPosition = null;
+    _expectedVolume = null;
+    _expectingSince = null;
     _ticker?.cancel();
     _ticker = null;
     await _snapshotSub?.cancel();
@@ -354,15 +504,55 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
     if (generation != _generation) return;
     final session = _controlSession;
     if (session == null) return;
-    _basePosition = snapshot.position;
-    _baseAt = DateTime.now();
+
+    // A snapshot was sampled before it was sent, so its position is
+    // always a little behind this device's own extrapolation. Snapping to
+    // every one of them is what made the timeline jitter with the
+    // network. Correct only what cannot be explained by latency: a real
+    // seek, a track change, or a target that stopped.
+    final projected = _projectedPosition();
+    final drift = (snapshot.position - projected).abs();
+    final changedTrack =
+        snapshot.currentIndex != state.queue.currentPlayPosition ||
+        snapshot.status != state.status;
+    // A command in flight has already moved this device's idea of the
+    // value it is changing, and the target has not applied it yet — every
+    // snapshot until it does still carries the old one. Taking those
+    // would undo the listener's own action in front of them and then redo
+    // it a second later, which is exactly what made the volume and seek
+    // controls look like they were fighting back.
+    if (_expectationExpired) {
+      _expectedPosition = null;
+      _expectedVolume = null;
+      _expectingSince = null;
+    }
+    // Agreement is reached the moment the target reports something close
+    // to what was asked for; until then its reports are about the state
+    // before the request.
+    final tolerance = ConnectedPlaybackLimits.positionDriftTolerance;
+    if (_expectedPosition != null && drift <= tolerance) {
+      _expectedPosition = null;
+    }
+    final expectedVolume = _expectedVolume;
+    if (expectedVolume != null &&
+        snapshot.volume != null &&
+        (snapshot.volume! - expectedVolume).abs() <= 0.01) {
+      _expectedVolume = null;
+    }
+    final seeking = _expectedPosition != null;
+    final settingVolume = _expectedVolume != null;
+    final correctPosition = !seeking && (changedTrack || drift > tolerance);
+    if (correctPosition) {
+      _basePosition = snapshot.position;
+      _baseAt = DateTime.now();
+    }
     emit(
       state.copyWith(
         queue: _projectQueue(snapshot),
         status: snapshot.status,
-        position: snapshot.position,
-        volume: snapshot.volume,
-        clearVolume: snapshot.volume == null,
+        position: correctPosition ? snapshot.position : projected,
+        volume: settingVolume ? state.volume : snapshot.volume,
+        clearVolume: !settingVolume && snapshot.volume == null,
         connection: session.controller.needsResync
             ? PlaybackControlConnection.resynchronizing
             : PlaybackControlConnection.synced,
@@ -445,10 +635,19 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
 
   void _tick() {
     if (!state.isControlling) return;
+    emit(state.copyWith(position: _projectedPosition()));
+  }
+
+  /// Where the target should be now, extrapolated from the last reading
+  /// this controller trusted — the value the timeline actually runs on
+  /// between snapshots.
+  Duration _projectedPosition() {
+    if (!state.isPlaying) return _basePosition;
     var position = _basePosition + DateTime.now().difference(_baseAt);
+    if (position < Duration.zero) position = Duration.zero;
     final duration = state.duration;
     if (duration != null && position > duration) position = duration;
-    emit(state.copyWith(position: position));
+    return position;
   }
 
   // ---- Transport (v0.5.6) ----
@@ -611,11 +810,18 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
 
   Future<Result<void>> setVolume(double volume) {
     final normalized = volume.clamp(0.0, 1.0);
+    _expectedVolume = normalized;
+    _expectingSince = DateTime.now();
     return _send(
       RemoteCommandKind.setVolume,
       (session) => session.setVolume(normalized),
       optimistic: (current) => current.copyWith(volume: normalized),
-    );
+    ).then((result) {
+      // A refusal is the one case where the listener should see the level
+      // go back: the device really is still where it was.
+      if (result.isErr) _expectedVolume = null;
+      return result;
+    });
   }
 
   Future<Result<void>> seek(Duration position) {
@@ -623,6 +829,8 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
     final previousBaseAt = _baseAt;
     _basePosition = position;
     _baseAt = DateTime.now();
+    _expectedPosition = position;
+    _expectingSince = DateTime.now();
     return _send(
       RemoteCommandKind.seek,
       (session) => session.seek(position),
@@ -631,6 +839,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
       if (result.isErr && _controlSession != null) {
         _basePosition = previousBasePosition;
         _baseAt = previousBaseAt;
+        _expectedPosition = null;
       }
       return result;
     });
@@ -654,6 +863,45 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   Future<Result<void>> joinSyncGroup(String groupId) => _send(
     RemoteCommandKind.joinSyncGroup,
     (session) => session.joinSyncGroup(groupId),
+  );
+
+  /// Adds [tracks] to the controlled device's queue, at the end or right
+  /// after whatever is playing there.
+  ///
+  /// The remote half of "add to queue" and "play next": while this device
+  /// is a controller, those edit the queue that is actually playing rather
+  /// than the dormant one this device is not listening to.
+  Future<Result<void>> appendTracks(
+    List<Track> tracks, {
+    bool playNext = false,
+  }) {
+    if (tracks.isEmpty) return Future.value(const Ok(null));
+    final entries = [
+      for (final track in tracks)
+        RemoteQueueEntry.fromQueueEntry(QueueEntry.fromTrack(track)),
+    ];
+    return _send(
+      RemoteCommandKind.appendToQueue,
+      (session) => session.appendToQueue(entries, playNext: playNext),
+      optimistic: (current) {
+        var queue = current.queue;
+        for (final entry in entries) {
+          queue = queue.withEntryAdded(
+            entry.toQueueEntry(),
+            playNext: playNext,
+          );
+        }
+        return current.copyWith(queue: queue);
+      },
+    );
+  }
+
+  /// Asks the controlled device to become this device's controller — the
+  /// role swap behind "play on this device" (see
+  /// `RemoteCommandKind.takeControl`).
+  Future<Result<void>> handControlBack(String localSessionId) => _send(
+    RemoteCommandKind.takeControl,
+    (session) => session.takeControl(localSessionId),
   );
 
   Future<Result<void>> _send(
@@ -695,6 +943,12 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
         );
       case Err(:final failure):
         final base = optimistic == null ? state : rollback;
+        // A recoverable failure means "compose that again once you have
+        // looked": the projection is refreshed below and nothing is
+        // broken. Telling the listener about it leaves a warning sitting
+        // on screen for something they neither caused nor can act on,
+        // which is most of what made this feature feel unreliable.
+        final transient = failure is RecoverableFailure;
         emit(
           base.copyWith(
             clearPendingCommand: true,
@@ -702,7 +956,8 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
                 failure.message == ConnectedPlaybackFailures.timedOut().message
                 ? PlaybackControlCommandStatus.timedOut
                 : PlaybackControlCommandStatus.rejected,
-            commandError: failure.message,
+            commandError: transient ? null : failure.message,
+            clearCommandError: transient,
             availableCommands: session.controller.availableCommands(
               _desiredRemoteCommands,
             ),
@@ -746,6 +1001,7 @@ class PlaybackControlCubit extends Cubit<PlaybackControlState> {
   @override
   Future<void> close() async {
     await _sessionSub?.cancel();
+    await _presenceSub?.cancel();
     await _teardown();
     return super.close();
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
@@ -17,13 +18,23 @@ import 'SyncPlayGroupCubit.dart';
 /// selection is actually made.
 @LazySingleton(as: RemotePlaybackOwnership)
 class PlaybackControlOwnership implements RemotePlaybackOwnership {
-  PlaybackControlOwnership(this._control, [this._syncPlay]);
+  PlaybackControlOwnership(this._control);
 
   final PlaybackControlCubit _control;
-  final SyncPlayGroupCubit? _syncPlay;
+
+  /// Stands in for the lazily-resolved group cubit in tests.
+  ///
+  /// Deliberately not a constructor parameter: injectable fills optional
+  /// positional parameters when it can, and doing so here would wire
+  /// `SyncPlayGroupCubit` in eagerly, closing the very cycle the lazy
+  /// lookup below exists to avoid — `PlaybackCubit` depends on this
+  /// class, and `SyncPlayGroupCubit` depends on `PlaybackCubit`.
+  @visibleForTesting
+  SyncPlayGroupCubit? debugSyncPlay;
 
   SyncPlayGroupCubit? get _group {
-    if (_syncPlay != null) return _syncPlay;
+    final override = debugSyncPlay;
+    if (override != null) return override;
     final locator = GetIt.instance;
     if (!locator.isRegistered<SyncPlayGroupCubit>()) return null;
     return locator<SyncPlayGroupCubit>();
@@ -53,6 +64,19 @@ class PlaybackControlOwnership implements RemotePlaybackOwnership {
         shuffle: shuffle,
         origin: origin,
       );
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Future<bool> enqueue(List<Track> tracks, {bool playNext = false}) async {
+    if (tracks.isEmpty) return false;
+    // A SyncPlay group owns its queue through the server, and this build
+    // has no append for it; the group's own queue update path still
+    // applies the change here, so local is the honest destination.
+    if (_control.state.isControlling) {
+      await _control.appendTracks(tracks, playNext: playNext);
       return true;
     }
     return false;

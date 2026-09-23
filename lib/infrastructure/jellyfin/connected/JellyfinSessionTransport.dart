@@ -77,6 +77,7 @@ class JellyfinSessionTransport
   String? _localNowPlayingTitle;
   String? _localNowPlayingArtist;
   MediaImage? _localNowPlayingImage;
+  String? _localControllingSessionId;
 
   static const ConnectedSessionFailureMapper _failures =
       ConnectedSessionFailureMapper();
@@ -160,6 +161,15 @@ class JellyfinSessionTransport
     _localNowPlayingTitle = nextTitle;
     _localNowPlayingArtist = nextArtist;
     _localNowPlayingImage = nowPlayingImage;
+    unawaited(_announcePresence(replyRequested: false));
+  }
+
+  /// Publishes which session this device is currently driving, so peers
+  /// can tell that they are being controlled and that this device is not
+  /// available to be controlled itself.
+  void updateLocalControl(String? controllingSessionId) {
+    if (_localControllingSessionId == controllingSessionId) return;
+    _localControllingSessionId = controllingSessionId;
     unawaited(_announcePresence(replyRequested: false));
   }
 
@@ -871,6 +881,7 @@ class JellyfinSessionTransport
     nowPlayingTitle: _localNowPlayingTitle,
     nowPlayingArtist: _localNowPlayingArtist,
     nowPlayingImage: _localNowPlayingImage,
+    controllingSessionId: _localControllingSessionId,
   );
 
   /// Whether this device is the one making noise, as the server sees it.

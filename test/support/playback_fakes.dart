@@ -83,6 +83,19 @@ class FakeRemotePlaybackOwnership implements RemotePlaybackOwnership {
     redirectedOrigin = origin;
     return redirectResult;
   }
+
+  bool enqueueResult = false;
+  int enqueueCalls = 0;
+  List<Track>? enqueuedTracks;
+  bool enqueuedPlayNext = false;
+
+  @override
+  Future<bool> enqueue(List<Track> tracks, {bool playNext = false}) async {
+    enqueueCalls++;
+    enqueuedTracks = tracks;
+    enqueuedPlayNext = playNext;
+    return enqueueResult;
+  }
 }
 
 /// A [PlaybackEngine] a test can both drive (call the transport methods

@@ -52,10 +52,12 @@ DeviceCapabilities get supportedRemoteCommands => DeviceCapabilities(
     RemoteCommandKind.setShuffle,
     RemoteCommandKind.setRepeat,
     RemoteCommandKind.setQueue,
+    RemoteCommandKind.appendToQueue,
     RemoteCommandKind.removeQueueEntry,
     RemoteCommandKind.moveQueueEntry,
     RemoteCommandKind.requestSnapshot,
     RemoteCommandKind.joinSyncGroup,
+    RemoteCommandKind.takeControl,
     if (debugSystemVolumeSupported) RemoteCommandKind.setVolume,
   },
 );

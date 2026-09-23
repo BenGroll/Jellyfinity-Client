@@ -36,6 +36,7 @@ import '../session/SessionCubit.dart';
 import '../session/SessionState.dart';
 import 'ConnectedPlaybackScopeOf.dart';
 import 'RemoteQueueProjection.dart';
+import 'PlaybackControlCubit.dart';
 import 'SyncPlayGroupCubit.dart';
 import 'SupportedRemoteCommands.dart';
 
@@ -86,7 +87,9 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
     this._library,
     this._logger, [
     SyncPlayGroupCubit? syncPlay,
-  ]) : _syncPlay = syncPlay;
+    PlaybackControlCubit? playbackControl,
+  ]) : _syncPlay = syncPlay,
+       _playbackControl = playbackControl;
 
   final PlaybackCubit _playback;
   final ConnectedPlaybackTransport _transport;
@@ -94,6 +97,10 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
   final MusicLibraryRepository _library;
   final Logger _logger;
   final SyncPlayGroupCubit? _syncPlay;
+
+  /// This device's own controller half, so a `takeControl` request can
+  /// turn this device into the other one's remote.
+  final PlaybackControlCubit? _playbackControl;
   @visibleForTesting
   ElapsedClock clock = StopwatchElapsedClock();
 
@@ -269,6 +276,29 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
           acknowledgement,
           to: envelope.senderSessionId,
         );
+      case DecodedRemoteCommand(:final TakeControlCommand command):
+        // Handled beside the playback commands rather than through them:
+        // this changes which end of the link is the remote, and nothing
+        // about what this device is playing, so there is no queue state
+        // for the arbiter to reason about.
+        final control = _playbackControl;
+        await _acknowledge(
+          target,
+          control == null
+              ? CommandAcknowledgement.refused(
+                  commandId: command.id,
+                  sessionId: target.snapshot.sessionId,
+                  outcome: CommandOutcome.unsupported,
+                  revision: target.snapshot.revision,
+                )
+              : CommandAcknowledgement.applied(
+                  commandId: command.id,
+                  sessionId: target.snapshot.sessionId,
+                  revision: target.snapshot.revision,
+                ),
+          to: envelope.senderSessionId,
+        );
+        await control?.controlDeviceWithSession(command.controllerOfSessionId);
       case DecodedRemoteCommand(:final command):
         _logger.info(
           'Connected playback: received remote ${command.kind.name} command.',
@@ -365,9 +395,12 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
         // RemotePlaybackSnapshot.volume's own doc comment.
         await _playback.setSystemVolume((command as SetVolumeCommand).volume);
       case RemoteCommandKind.joinSyncGroup:
+      case RemoteCommandKind.takeControl:
+        // Both are answered before they reach here.
         return;
-      case RemoteCommandKind.stop:
       case RemoteCommandKind.appendToQueue:
+        await _executeAppend(command as AppendToQueueCommand);
+      case RemoteCommandKind.stop:
         return;
     }
   }
@@ -402,6 +435,24 @@ class ConnectedPlaybackTargetLink implements PlaybackHandoffCoordinator {
       startPosition: command.startPosition,
       startPlaying: command.startPlaying,
     );
+  }
+
+  /// Adds an accepted [AppendToQueueCommand] to the queue that is really
+  /// playing, at the end or straight after the current track.
+  ///
+  /// Resolved against this device's own library for the same reason a
+  /// whole queue is: the sender's metadata is there so a controller can
+  /// draw the row, never so this device can play from it.
+  Future<void> _executeAppend(AppendToQueueCommand command) async {
+    final tracks = await _resolveAll(command.entries);
+    if (tracks == null) {
+      _logger.info(
+        'Accepted ${command.entries.length} songs for the queue but could '
+        'not resolve all of them; leaving the queue unchanged.',
+      );
+      return;
+    }
+    await _playback.applyReceivedAppend(tracks, playNext: command.playNext);
   }
 
   /// Resolves every one of [entries] against [_library], fresh — never the

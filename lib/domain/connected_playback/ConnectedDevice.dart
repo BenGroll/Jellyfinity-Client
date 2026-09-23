@@ -47,6 +47,7 @@ class ConnectedDevice extends Equatable {
     this.nowPlayingTitle,
     this.nowPlayingArtist,
     this.nowPlayingImage,
+    this.controllingSessionId,
   });
 
   final ConnectedPlaybackScope scope;
@@ -101,6 +102,11 @@ class ConnectedDevice extends Equatable {
   /// rebinding, the same rule every other cross-device media id follows).
   final MediaImage? nowPlayingImage;
 
+  /// The session this device is currently driving, when any — see
+  /// `DeviceAdvertisement.controllingSessionId`. A device that is
+  /// controlling something is not available to be controlled itself.
+  final String? controllingSessionId;
+
   /// The label a picker shows.
   String get displayName => nameHint == null ? name : '$name ($nameHint)';
 
@@ -131,6 +137,7 @@ class ConnectedDevice extends Equatable {
     String? nowPlayingTitle,
     String? nowPlayingArtist,
     MediaImage? nowPlayingImage,
+    String? controllingSessionId,
   }) {
     return ConnectedDevice(
       scope: scope,
@@ -147,6 +154,7 @@ class ConnectedDevice extends Equatable {
       nowPlayingTitle: nowPlayingTitle ?? this.nowPlayingTitle,
       nowPlayingArtist: nowPlayingArtist ?? this.nowPlayingArtist,
       nowPlayingImage: nowPlayingImage ?? this.nowPlayingImage,
+      controllingSessionId: controllingSessionId ?? this.controllingSessionId,
     );
   }
 
@@ -166,5 +174,6 @@ class ConnectedDevice extends Equatable {
     nowPlayingTitle,
     nowPlayingArtist,
     nowPlayingImage,
+    controllingSessionId,
   ];
 }

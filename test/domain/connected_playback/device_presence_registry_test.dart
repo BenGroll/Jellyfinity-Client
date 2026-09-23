@@ -169,13 +169,25 @@ void main() {
       },
     );
 
-    test('a full server read forgets the sessions it no longer contains', () {
+    test('a session missing from one read ages out rather than vanishing', () {
       registry.replaceAll([seen('tv'), seen('phone', name: 'Phone')]);
 
-      final changed = registry.replaceAll([seen('tv')]);
+      registry.replaceAll([seen('tv')]);
 
-      expect(changed, isTrue);
-      expect(registry.devices.map((device) => device.deviceId), ['tv']);
+      // Still there: one poll that omitted it is not proof it left, and a
+      // row that disappears under a listener's finger is worse than one
+      // that lingers a moment.
+      expect(registry.devices.map((device) => device.deviceId), [
+        'tv',
+        'phone',
+      ]);
+
+      clock.advance(ConnectedPlaybackLimits.presenceStaleAfter * 2);
+      registry.replaceAll([seen('tv')]);
+
+      final phone = registry.devices.singleWhere((d) => d.deviceId == 'phone');
+      expect(phone.reachability, DeviceReachability.stale);
+      expect(phone.canBeControlled, isFalse);
     });
 
     test('re-reading an unchanged roster reports no change', () {
@@ -372,7 +384,7 @@ void main() {
       );
     });
 
-    test('mid-reconnect every peer is present but not commandable', () {
+    test('a brief stutter does not take every peer away', () {
       registry
         ..replaceAll([seen('tv')])
         ..applyAdvertisement(
@@ -381,6 +393,24 @@ void main() {
           advertises('tv'),
         )
         ..setLink(ConnectedPlaybackConnection.reconnecting);
+
+      // A socket that drops and comes back is the ordinary condition of a
+      // phone on wifi. Emptying the device list for it is what made this
+      // feature feel broken on a good connection.
+      expect(registry.devices.single.reachability, DeviceReachability.ready);
+    });
+
+    test('a reconnect that does not come back stops offering its peers', () {
+      registry
+        ..replaceAll([seen('tv')])
+        ..applyAdvertisement(
+          'session-tv',
+          ProtocolVersion.current,
+          advertises('tv'),
+        )
+        ..setLink(ConnectedPlaybackConnection.reconnecting);
+
+      clock.advance(ConnectedPlaybackLimits.linkDegradedGrace * 2);
 
       expect(
         registry.devices.single.reachability,
@@ -392,6 +422,10 @@ void main() {
       registry
         ..replaceAll([seen('tv')])
         ..setLink(ConnectedPlaybackConnection.offline);
+
+      // Past the grace a failed poll stops being a stutter and starts
+      // being an outage; the row stays, and says so.
+      clock.advance(ConnectedPlaybackLimits.linkDegradedGrace * 2);
 
       expect(registry.devices.single.reachability, DeviceReachability.offline);
     });
