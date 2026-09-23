@@ -27,10 +27,14 @@ void main() {
     PlaybackStatus status = PlaybackStatus.playing,
     int queueLength = 3,
     String session = 'session-tv',
+    int? sequence,
   }) => RemotePlaybackSnapshot(
     scope: testScope,
     sessionId: session,
     revision: StateRevision(revision),
+    // A target that changed its queue also published it, so these move
+    // together unless a test is specifically about one of them.
+    sequence: sequence ?? revision,
     status: status,
     queue: entries(queueLength),
     currentIndex: 0,
@@ -46,7 +50,7 @@ void main() {
   });
 
   group('projection', () {
-    test('takes the highest revision, not the newest arrival', () {
+    test('takes the latest published state, not the newest arrival', () {
       controller.onSnapshot(snapshotAt(7));
       // A resync response overtaking a live socket update: the message
       // arrives later and describes an earlier state.
@@ -56,10 +60,27 @@ void main() {
       expect(controller.projection?.revision, const StateRevision(7));
     });
 
-    test('ignores a snapshot at the same revision', () {
+    test('ignores a snapshot it has already seen', () {
       controller.onSnapshot(snapshotAt(7));
 
       expect(controller.onSnapshot(snapshotAt(7)), isFalse);
+    });
+
+    test('takes a fresh position from a target whose queue has not moved', () {
+      // The common case by far: a playing device republishes about once a
+      // second at the same revision. Ordering these by revision would
+      // drop every one of them and freeze the controller's timeline.
+      controller.onSnapshot(snapshotAt(7, sequence: 20));
+
+      final changed = controller.onSnapshot(
+        snapshotAt(
+          7,
+          sequence: 21,
+        ).copyWith(position: const Duration(minutes: 1)),
+      );
+
+      expect(changed, isTrue);
+      expect(controller.projection?.position, const Duration(minutes: 1));
     });
 
     test('ignores a snapshot from a session it is not watching', () {

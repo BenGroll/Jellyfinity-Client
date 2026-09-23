@@ -118,8 +118,11 @@ void main() {
     test('answers a duplicate with the revision the first attempt made', () {
       final skip = simple(RemoteCommandKind.next, id: 'c-skip');
       final first = target.handle(skip);
-      // Something else moves the state on in between.
-      target.handle(simple(RemoteCommandKind.pause));
+      // Something else moves the queue on in between — a pause would not,
+      // because the revision only tracks the queue.
+      target.publishLocalChange(
+        (current) => current.copyWith(queue: entries(2)),
+      );
 
       final replayed = target.handle(skip);
 
@@ -285,9 +288,9 @@ void main() {
       expect(target.snapshot.revision, before);
     });
 
-    test('a local change bumps the revision and staleness follows', () {
+    test('a local queue change bumps the revision and staleness follows', () {
       target.publishLocalChange(
-        (current) => current.copyWith(status: PlaybackStatus.paused),
+        (current) => current.copyWith(queue: entries(2)),
       );
 
       final edit = RemoveQueueEntryCommand(
@@ -300,6 +303,58 @@ void main() {
 
       expect(target.snapshot.revision, const StateRevision(5));
       expect(target.handle(edit).outcome, CommandOutcome.stale);
+    });
+
+    test('playing on does not invalidate a controller\'s pending edit', () {
+      // A playing device republishes its state about once a second. If
+      // that moved the revision, a controller could never land an edit on
+      // a device that was actually playing — which is every device worth
+      // controlling.
+      for (var second = 1; second <= 5; second++) {
+        target.publishLocalChange(
+          (current) => current.copyWith(position: Duration(seconds: second)),
+        );
+      }
+
+      expect(target.snapshot.revision, const StateRevision(4));
+      expect(
+        target
+            .handle(
+              RemoveQueueEntryCommand(
+                id: 'c-edit',
+                scope: testScope,
+                targetSessionId: targetSession,
+                index: 0,
+                expectedRevision: const StateRevision(4),
+              ),
+            )
+            .outcome,
+        CommandOutcome.applied,
+      );
+    });
+
+    test('choosing a song lands whatever the target is playing', () {
+      // setQueue names no existing row, so it is not arbitrated against
+      // the revision at all: picking a song for another device has to
+      // work while that device is mid-track.
+      target.publishLocalChange(
+        (current) => current.copyWith(queue: entries(5)),
+      );
+
+      final chosen = target.handle(
+        SetQueueCommand(
+          id: 'c-chosen',
+          scope: testScope,
+          targetSessionId: targetSession,
+          entries: entries(2),
+          startIndex: 1,
+          expectedRevision: const StateRevision(1),
+        ),
+      );
+
+      expect(chosen.outcome, CommandOutcome.applied);
+      expect(target.snapshot.currentIndex, 1);
+      expect(target.snapshot.queue.length, 2);
     });
   });
 

@@ -261,9 +261,10 @@ void main() {
       final refreshed = await transport.refresh(testScope);
 
       expect(refreshed.isOk, isTrue);
-      expect(refreshed.valueOrNull!.map((device) => device.deviceId), [
-        'device-local',
-      ]);
+      expect(
+        refreshed.valueOrNull!.map((device) => device.deviceId),
+        contains('device-local'),
+      );
       expect(server.sessionReads, 2);
     });
 
@@ -637,27 +638,32 @@ void main() {
       );
     });
 
-    test('a peer stays listed, unoffered, across the interruption', () async {
-      await transport.advertise(testScope);
-      sockets.single.emitEnvelope(
-        presenceFrom(sessionId: 'session-tv', deviceId: 'device-tv'),
-      );
-      await settle();
+    test(
+      'a peer stays listed and usable across a brief interruption',
+      () async {
+        await transport.advertise(testScope);
+        sockets.single.emitEnvelope(
+          presenceFrom(sessionId: 'session-tv', deviceId: 'device-tv'),
+        );
+        await settle();
 
-      server.statusOverrides['/Sessions'] = 500;
-      await sockets.first.drop();
+        server.statusOverrides['/Sessions'] = 500;
+        await sockets.first.drop();
+        await settle();
 
-      final tv = deviceNamed(
-        await devicesWhen(
-          (devices) =>
-              deviceNamed(devices, 'device-tv').reachability ==
-              DeviceReachability.presenceOnly,
-        ),
-        'device-tv',
-      );
-      expect(tv.reachability, DeviceReachability.presenceOnly);
-      expect(tv.canReceiveTransfer, isFalse);
-    });
+        // The socket coming and going is normal on a phone. Within
+        // `linkDegradedGrace` the peer is still there and still offered;
+        // `device_presence_registry_test` covers it being withdrawn once the
+        // interruption stops looking brief.
+        final tv = deviceNamed(
+          await devicesWhen(
+            (devices) => devices.any((d) => d.deviceId == 'device-tv'),
+          ),
+          'device-tv',
+        );
+        expect(tv.reachability, DeviceReachability.ready);
+      },
+    );
   });
 
   group('lifecycle', () {

@@ -318,6 +318,12 @@ void main() {
           targetSessionId: 'session-tv',
           groupId: 'group-1',
         ),
+        RemoteCommandKind.takeControl: const TakeControlCommand(
+          id: 'c-take-control',
+          scope: testScope,
+          targetSessionId: 'session-tv',
+          controllerOfSessionId: 'session-phone',
+        ),
         RemoteCommandKind.removeQueueEntry: const RemoveQueueEntryCommand(
           id: 'c-remove',
           scope: testScope,

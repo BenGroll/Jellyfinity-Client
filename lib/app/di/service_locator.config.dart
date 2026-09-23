@@ -617,14 +617,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i29.NowPlayingDetailsCubit>(
       () => _i29.NowPlayingDetailsCubit(gh<_i747.MediaMetadataRepository>()),
     );
-    gh.factory<_i169.MusicSearchCubit>(
-      () => _i169.MusicSearchCubit(
-        gh<_i747.MusicLibraryRepository>(),
-        gh<_i747.PlaylistRepository>(),
-        gh<_i720.DownloadsLibrarySource>(),
-        gh<_i797.OfflineMode>(),
-      ),
-    );
     gh.lazySingleton<_i217.ConnectedPlaybackTargetLink>(
       () => _i217.ConnectedPlaybackTargetLink(
         gh<_i126.PlaybackCubit>(),
@@ -633,6 +625,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i260.MusicLibraryRepository>(),
         gh<_i612.Logger>(),
         gh<_i849.SyncPlayGroupCubit>(),
+        gh<_i846.PlaybackControlCubit>(),
+      ),
+    );
+    gh.factory<_i169.MusicSearchCubit>(
+      () => _i169.MusicSearchCubit(
+        gh<_i747.MusicLibraryRepository>(),
+        gh<_i747.PlaylistRepository>(),
+        gh<_i720.DownloadsLibrarySource>(),
+        gh<_i797.OfflineMode>(),
       ),
     );
     gh.lazySingleton<_i849.SyncPlayGroupCubit>(
@@ -711,6 +712,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.SessionCubit>(),
         gh<_i126.PlaybackCubit>(),
         gh<_i846.PlaybackControlCubit>(),
+      ),
+    );
+    gh.factory<_i861.DevicePickerCubit>(
+      () => _i861.DevicePickerCubit(
+        gh<_i40.DevicePresenceSource>(),
+        gh<_i809.SessionCubit>(),
+        gh<_i126.PlaybackCubit>(),
+        gh<_i217.ConnectedPlaybackTargetLink>(),
+        gh<_i846.PlaybackControlCubit>(),
+        gh<_i849.SyncPlayGroupCubit>(),
       ),
     );
     gh.factory<_i861.DevicePickerCubit>(

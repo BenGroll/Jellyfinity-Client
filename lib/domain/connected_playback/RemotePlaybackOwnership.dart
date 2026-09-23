@@ -14,4 +14,11 @@ abstract class RemotePlaybackOwnership {
     bool shuffle = false,
     QueueOrigin? origin,
   });
+
+  /// The same question for a queue addition rather than a selection.
+  ///
+  /// "Add to queue" while controlling another device means that device's
+  /// queue: the one the listener can hear. Editing this device's dormant
+  /// queue instead looks from the outside like the button does nothing.
+  Future<bool> enqueue(List<Track> tracks, {bool playNext = false});
 }

@@ -1210,6 +1210,34 @@ void main() {
 
     tearDown(() => routedCubit.close());
 
+    test('a consumed queue addition never touches the local queue', () async {
+      ownership.enqueueResult = true;
+      await routedCubit.playNow([_track('a')], startIndex: 0);
+      await _pump();
+      final before = routedCubit.state.queue.entries.length;
+
+      await routedCubit.addToQueue(_track('b'));
+      await routedCubit.playNext(_track('c'));
+      await _pump();
+
+      // While controlling another device, "add to queue" means that
+      // device's queue — the one the listener can actually hear.
+      expect(ownership.enqueueCalls, 2);
+      expect(ownership.enqueuedPlayNext, isTrue);
+      expect(routedCubit.state.queue.entries, hasLength(before));
+    });
+
+    test('an unconsumed queue addition still edits the local queue', () async {
+      await routedCubit.playNow([_track('a')], startIndex: 0);
+      await _pump();
+
+      await routedCubit.addToQueue(_track('b'));
+      await _pump();
+
+      expect(ownership.enqueueCalls, 1);
+      expect(routedCubit.state.queue.entries, hasLength(2));
+    });
+
     test('an unconsumed selection still starts local playback', () async {
       await routedCubit.playNow([_track('a')], startIndex: 0);
       await _pump();

@@ -46,6 +46,19 @@ All notable changes to Jellyfinity are documented here.
 - "This device — paused here" now actually brings playback back: it stops
   controlling any other device and leaves an active Sync group first, so
   the screen reflects local playback the same frame audio resumes.
+- A device now shows when another one is controlling *it*, and a device is
+  only ever one of the two: taking control of something releases whoever
+  was controlling you, so two devices can no longer each believe they are
+  driving the other.
+- "Play on this device" hands the roles over rather than half-ending the
+  session: playback moves here and the device it came from becomes this
+  device's remote.
+- Devices no longer drop out of the list, and the timeline no longer
+  jumps, because of a momentary network stutter. A dropped socket or one
+  failed poll is given a few seconds to right itself, the position is
+  corrected only when it drifts further than latency explains, and a
+  command that merely needs a refresh no longer leaves a warning on
+  screen.
 
 ## Unreleased — Remote selection routing
 
@@ -115,6 +128,19 @@ All notable changes to Jellyfinity are documented here.
   jumping to a queued track — updates the control instantly and reverts
   only if the target rejects or times out, instead of waiting on the round
   trip to show anything happened.
+- "Add to queue" and "Play next" reach the device that is playing while
+  you are controlling it, instead of quietly editing the dormant queue on
+  the device in your hand.
+- The Remote screen offers only what the device in each row can actually
+  do: no "play here" beside a device that is playing nothing, and none
+  beside the device that is already this one's remote.
+- A level or position you just set is held until the device confirms it,
+  rather than snapping back to the old value for a second while the
+  device's own updates — sent before it applied yours — arrive.
+- Choosing a song, and editing the controlled device's queue, now work
+  while that device is playing. They were refused every time as composed
+  against stale state, because a playing device moved that state on once a
+  second; only play/pause and skip were unaffected.
 - Seek and volume no longer jump around while dragging: the slider trusts
   your finger, not the live position tick or the in-flight command, until
   you let go.

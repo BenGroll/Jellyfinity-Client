@@ -205,6 +205,34 @@ final class JoinSyncGroupCommand extends RemoteCommand {
   Map<String, Object?> get payload => {'groupId': groupId};
 }
 
+/// Asks the receiver to start controlling the session named here — the
+/// sender's own, in every use this build has.
+///
+/// The session is carried explicitly rather than read from the envelope's
+/// sender so the instruction is complete on its own: a device is told
+/// which session to drive, not left to infer it from how the message
+/// happened to arrive.
+final class TakeControlCommand extends RemoteCommand {
+  const TakeControlCommand({
+    required super.id,
+    required super.scope,
+    required super.targetSessionId,
+    required this.controllerOfSessionId,
+    super.lifetime,
+  });
+
+  /// The session the receiver should begin controlling.
+  final String controllerOfSessionId;
+
+  @override
+  RemoteCommandKind get kind => RemoteCommandKind.takeControl;
+
+  @override
+  Map<String, Object?> get payload => {
+    'controlSessionId': controllerOfSessionId,
+  };
+}
+
 /// Replace the target's whole queue and start at [startIndex].
 ///
 /// The one structural command that is naturally idempotent: sending the
@@ -266,10 +294,16 @@ final class AppendToQueueCommand extends RemoteCommand {
     required super.targetSessionId,
     required this.entries,
     required super.expectedRevision,
+    this.playNext = false,
     super.lifetime,
   });
 
   final List<RemoteQueueEntry> entries;
+
+  /// Whether these belong immediately after whatever is playing rather
+  /// than at the end — "play next" and "add to queue" are the same edit
+  /// to the same queue, differing only in where it lands.
+  final bool playNext;
 
   @override
   RemoteCommandKind get kind => RemoteCommandKind.appendToQueue;
@@ -277,6 +311,7 @@ final class AppendToQueueCommand extends RemoteCommand {
   @override
   Map<String, Object?> get payload => {
     'entries': [for (final entry in entries) entry.toJson()],
+    if (playNext) 'playNext': true,
   };
 }
 
@@ -528,6 +563,22 @@ RemoteCommandDecoding decodeRemoteCommand(
           lifetime: lifetime,
         ),
       );
+    case RemoteCommandKind.takeControl:
+      final controlSessionId = _string(payload['controlSessionId']);
+      if (controlSessionId == null) {
+        return const UnreadableRemoteCommand(
+          'takeControl without a session to control',
+        );
+      }
+      return DecodedRemoteCommand(
+        TakeControlCommand(
+          id: commandId,
+          scope: scope,
+          targetSessionId: target,
+          controllerOfSessionId: controlSessionId,
+          lifetime: lifetime,
+        ),
+      );
     case RemoteCommandKind.setQueue:
       final entries = _entries(payload['entries'], scope.serverId);
       final startIndex = payload['startIndex'];
@@ -567,6 +618,7 @@ RemoteCommandDecoding decodeRemoteCommand(
           targetSessionId: target,
           entries: entries,
           expectedRevision: expected,
+          playNext: payload['playNext'] == true,
           lifetime: lifetime,
         ),
       );

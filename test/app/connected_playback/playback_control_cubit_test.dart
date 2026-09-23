@@ -79,7 +79,7 @@ void main() {
       targetTransport,
       fakeSessionCubit(signedIn: fakeAuthSession()),
       FakeMusicLibraryRepository()
-        ..trackList = [track('a'), track('b'), track('c')],
+        ..trackList = [track('a'), track('b'), track('c'), track('d')],
       TestLogger(),
     );
     await targetLink.start();
@@ -141,45 +141,43 @@ void main() {
           RemoteCommandKind.jumpToQueueEntry,
         }),
       );
-      // Never desired in the first place — no version's required
-      // deliverables include incremental remote queue editing or a
-      // settable volume (`SupportedRemoteCommands`'s own doc).
       expect(
         control.state.availableCommands,
-        isNot(
-          contains(
-            anyOf([
-              RemoteCommandKind.appendToQueue,
-              RemoteCommandKind.setVolume,
-            ]),
-          ),
-        ),
+        isNot(contains(RemoteCommandKind.setVolume)),
       );
+      // Queue editing is negotiated now: "add to queue" while controlling
+      // means the queue that is actually playing.
       expect(
         control.state.availableCommands,
-        contains(RemoteCommandKind.setQueue),
+        containsAll(<RemoteCommandKind>{
+          RemoteCommandKind.setQueue,
+          RemoteCommandKind.appendToQueue,
+        }),
       );
     });
 
-    test('a selected queue replaces the target and keeps control attached', () async {
-      await control.control(tv());
-      await settle();
+    test(
+      'a selected queue replaces the target and keeps control attached',
+      () async {
+        await control.control(tv());
+        await settle();
 
-      final result = control.playTracks(
-        [track('b'), track('c')],
-        startIndex: 1,
-      );
-      expect(control.state.pendingCommand, RemoteCommandKind.setQueue);
-      expect(control.state.currentEntry?.id.itemId, 'c');
+        final result = control.playTracks([
+          track('b'),
+          track('c'),
+        ], startIndex: 1);
+        expect(control.state.pendingCommand, RemoteCommandKind.setQueue);
+        expect(control.state.currentEntry?.id.itemId, 'c');
 
-      await result;
-      await settle();
+        await result;
+        await settle();
 
-      expect(targetPlayback.state.queue.currentEntry?.id.itemId, 'c');
-      expect(control.state.currentEntry?.id.itemId, 'c');
-      expect(control.state.isControlling, isTrue);
-      expect(control.state.pendingCommand, isNull);
-    });
+        expect(targetPlayback.state.queue.currentEntry?.id.itemId, 'c');
+        expect(control.state.currentEntry?.id.itemId, 'c');
+        expect(control.state.isControlling, isTrue);
+        expect(control.state.pendingCommand, isNull);
+      },
+    );
 
     test('never touches this device\'s own local playback', () async {
       final localEngine = FakePlaybackEngine();
@@ -259,6 +257,126 @@ void main() {
       unawaited(control.seek(const Duration(seconds: 30)));
       expect(control.state.position, const Duration(seconds: 30));
       await settle();
+    });
+  });
+
+  group('queue edits reach the device that is playing', () {
+    test('add to queue lands at the end of the real queue', () async {
+      await control.control(tv());
+      await settle();
+
+      await control.appendTracks([track('d')]);
+      await settle();
+
+      expect(targetPlayback.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'b',
+        'c',
+        'd',
+      ]);
+      expect(control.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'b',
+        'c',
+        'd',
+      ]);
+    });
+
+    test('play next lands straight after what is playing', () async {
+      await control.control(tv());
+      await settle();
+
+      await control.appendTracks([track('d')], playNext: true);
+      await settle();
+
+      expect(targetPlayback.state.queue.entries.map((e) => e.id.itemId), [
+        'a',
+        'd',
+        'b',
+        'c',
+      ]);
+    });
+  });
+
+  group('a value the listener just set', () {
+    test('is never undone, even for a moment, by a snapshot the target '
+        'sent before it applied', () async {
+      await control.control(tv());
+      await settle();
+
+      // The bounce this exists for is a transient: the value lands, goes
+      // back to where it started for the better part of a second, then
+      // lands again. Only watching every emission can see it, which is
+      // also how the listener sees it.
+      final seen = <Duration>[];
+      final sub = control.stream.listen((s) => seen.add(s.position));
+      addTearDown(sub.cancel);
+
+      final pending = control.seek(const Duration(minutes: 2));
+      engine.emitPosition(const Duration(seconds: 12));
+      await settle();
+      await pending;
+      await settle();
+
+      expect(
+        seen.where((p) => p < const Duration(minutes: 1)),
+        isEmpty,
+        reason: 'the thumb went back to the old position at least once',
+      );
+    });
+  });
+
+  group('one role at a time', () {
+    test('knows it is being controlled, from presence alone', () async {
+      // Nothing has been sent to this device yet. The controller says who
+      // it is driving, so the device being driven can say so too — the
+      // half of the relationship that used to be invisible.
+      presence.emitDevices(testScope, [
+        device(
+          deviceId: 'device-phone-2',
+          sessionId: 'session-phone-2',
+          name: 'Kitchen',
+          controllingSessionId: 'session-phone',
+        ),
+      ]);
+      await settle();
+
+      expect(control.state.isBeingControlled, isTrue);
+      expect(control.state.controlledBy?.displayName, 'Kitchen');
+    });
+
+    test('lets go of a target that has become a controller itself', () async {
+      control.controlSettleGrace = Duration.zero;
+      await control.control(tv());
+      await settle();
+      expect(control.state.isControlling, isTrue);
+
+      // The listener walked over to the TV and told it to control
+      // something. It cannot be both, and the most recent instruction is
+      // the one that stands.
+      presence.emitDevices(testScope, [
+        tv().copyWith(controllingSessionId: 'session-somewhere-else'),
+      ]);
+      await settle();
+
+      expect(control.state.isControlling, isFalse);
+      expect(control.state.device, isNull);
+    });
+
+    test('being controlled survives letting go of its own target', () async {
+      presence.emitDevices(testScope, [
+        device(
+          deviceId: 'device-phone-2',
+          sessionId: 'session-phone-2',
+          name: 'Kitchen',
+          controllingSessionId: 'session-phone',
+        ),
+      ]);
+      await settle();
+
+      await control.stop();
+
+      expect(control.state.isBeingControlled, isTrue);
     });
   });
 

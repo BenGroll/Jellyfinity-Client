@@ -63,7 +63,16 @@ enum RemoteCommandKind {
   requestSnapshot,
 
   /// Asks a peer to join a particular Jellyfin SyncPlay group.
-  joinSyncGroup;
+  joinSyncGroup,
+
+  /// Asks the receiving device to become the *controller* of the sender.
+  ///
+  /// The one command that changes which end of the link is which. It is
+  /// what makes "play on this device" a handover rather than a theft: the
+  /// device that gives up playback asks the device that took it to become
+  /// its remote, so the listener who was holding a controller is still
+  /// holding a controller afterwards.
+  takeControl;
 
   /// Whether this command names a specific row or arrangement of the
   /// queue, and therefore must match the revision it was composed
@@ -85,6 +94,19 @@ enum RemoteCommandKind {
     RemoteCommandKind.jumpToQueueEntry => true,
     _ => false,
   };
+
+  /// Whether this command's meaning depends on the queue it was composed
+  /// against, and so must be refused when that queue has moved.
+  ///
+  /// Every structural command except [setQueue]. An index only means
+  /// something relative to a particular queue, so "remove row 3" composed
+  /// against a queue that has since changed is a different edit than the
+  /// listener asked for. [setQueue] replaces the whole queue and names no
+  /// existing row, so there is nothing for it to be wrong about: picking
+  /// a song to play on another device must work whatever that device is
+  /// doing, including while it is playing something else.
+  bool get dependsOnCurrentQueue =>
+      isStructural && this != RemoteCommandKind.setQueue;
 
   /// Whether applying this command twice differs from applying it once.
   ///

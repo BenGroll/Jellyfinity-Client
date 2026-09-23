@@ -220,8 +220,13 @@ class ConnectedPlaybackLink with WidgetsBindingObserver {
     _reconcileBackgroundConnection();
   }
 
-  void _onControlChanged(PlaybackControlState state) =>
-      _reconcileBackgroundService();
+  void _onControlChanged(PlaybackControlState state) {
+    // Peers learn from presence that they are being driven, and that this
+    // device is busy driving something and so is not itself available to
+    // be driven.
+    _transport.updateLocalControl(state.device?.sessionId);
+    _reconcileBackgroundService();
+  }
 
   void _onDevices(List<ConnectedDevice> devices) {
     _hasControllablePeers = devices.any(

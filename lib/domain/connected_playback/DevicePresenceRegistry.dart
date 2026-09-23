@@ -57,11 +57,22 @@ class DevicePresenceRegistry {
   /// `offline` when the server cannot be reached at all.
   ConnectedPlaybackConnection get link => _link;
 
+  /// When this device's own link stopped carrying live presence, so a
+  /// stutter can be told from a real outage — see
+  /// [ConnectedPlaybackLimits.linkDegradedGrace].
+  Duration? _linkDegradedAt;
+
   /// Returns whether the state actually changed, so a caller can avoid
   /// re-emitting an identical device list.
   bool setLink(ConnectedPlaybackConnection link) {
     if (_link == link) return false;
+    final wasLive = _link.hasLivePresence;
     _link = link;
+    if (link.hasLivePresence) {
+      _linkDegradedAt = null;
+    } else if (wasLive) {
+      _linkDegradedAt = clock.elapsed;
+    }
     return true;
   }
 
@@ -69,24 +80,22 @@ class DevicePresenceRegistry {
 
   /// Replaces the roster with a complete server reading.
   ///
-  /// Sessions absent from [observations] are forgotten rather than left
-  /// to expire: a full `/Sessions` read is the server's authoritative
-  /// answer to "what exists", and a device that has signed out should
-  /// disappear now, not in five minutes. Their advertised capabilities
-  /// are kept for the ones that remain, because a REST resync says
-  /// nothing about protocol or capability and must not erase what the
-  /// peers themselves said.
+  /// A session absent from [observations] is left to age out rather than
+  /// deleted on the spot. One `/Sessions` read is the server's answer at
+  /// one moment, and a device missing from it has usually not signed out
+  /// — the server dropped it from a list it rebuilds constantly, or the
+  /// read raced its reconnect. Deleting immediately made a device vanish
+  /// mid-tap on a single unlucky poll; it now stops being offered after
+  /// [ConnectedPlaybackLimits.presenceStaleAfter] of genuine silence and
+  /// is forgotten entirely by [prune].
+  ///
+  /// Advertised capabilities are kept for the ones that remain, because a
+  /// REST resync says nothing about protocol or capability and must not
+  /// erase what the peers themselves said.
   bool replaceAll(Iterable<DeviceObservation> observations) {
-    final seen = <String>{};
     var changed = false;
     for (final observation in observations) {
-      seen.add(observation.deviceId);
       changed = observe(observation) || changed;
-    }
-    final removed = _entries.keys.where((id) => !seen.contains(id)).toList();
-    for (final deviceId in removed) {
-      _entries.remove(deviceId);
-      changed = true;
     }
     return changed;
   }
@@ -251,6 +260,7 @@ class DevicePresenceRegistry {
       nowPlayingTitle: advertisement?.nowPlayingTitle,
       nowPlayingArtist: advertisement?.nowPlayingArtist,
       nowPlayingImage: _forLocalServer(advertisement?.nowPlayingImage),
+      controllingSessionId: advertisement?.controllingSessionId,
     );
   }
 
@@ -274,7 +284,17 @@ class DevicePresenceRegistry {
   /// has not been heard from", and an incompatible install is worth
   /// saying even about a device that also went quiet.
   DeviceReachability _reachability(_PresenceEntry entry, Duration now) {
-    if (_link == ConnectedPlaybackConnection.offline) {
+    // A link that has only just stopped carrying presence is still
+    // settling: a dropped socket or one failed poll is the ordinary
+    // condition of a phone on wifi, and reporting every peer as gone the
+    // instant it happens is what made this list flicker. After
+    // [ConnectedPlaybackLimits.linkDegradedGrace] it is treated as real.
+    final degradedAt = _linkDegradedAt;
+    final settling =
+        degradedAt != null &&
+        now - degradedAt <= ConnectedPlaybackLimits.linkDegradedGrace;
+
+    if (_link == ConnectedPlaybackConnection.offline && !settling) {
       return DeviceReachability.offline;
     }
     final version = entry.protocolVersion;
@@ -294,8 +314,10 @@ class DevicePresenceRegistry {
     // A device this one is only half-connected to is present but not
     // commandable: mid-reconnect, neither end's idea of the state has
     // been verified, and the arc forbids presenting such a peer as a
-    // ready target.
-    if (!_link.hasLivePresence) return DeviceReachability.presenceOnly;
+    // ready target — once the interruption has outlasted the grace above.
+    if (!_link.hasLivePresence && !settling) {
+      return DeviceReachability.presenceOnly;
+    }
     return DeviceReachability.ready;
   }
 
@@ -366,6 +388,7 @@ class DevicePresenceRegistry {
     entry.advertisement?.nowPlayingTitle,
     entry.advertisement?.nowPlayingArtist,
     entry.advertisement?.nowPlayingImage?.tag,
+    entry.advertisement?.controllingSessionId,
   ].join('|');
 }
 

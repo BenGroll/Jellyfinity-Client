@@ -136,19 +136,25 @@ class RemotePlaybackController {
   /// each is a real thing a shared server channel does:
   ///
   /// - a snapshot from a session this controller is not watching;
-  /// - a snapshot at or below the revision already held — this is the
-  ///   reordering defence, and it is why the newest *arriving* message is
-  ///   never simply taken;
-  /// - nothing else. A snapshot from the current session at a higher
-  ///   revision is always authoritative, however surprising it looks: the
+  /// - a snapshot at or below the publication sequence already held —
+  ///   this is the reordering defence, and it is why the newest
+  ///   *arriving* message is never simply taken. It is deliberately not
+  ///   the revision: a playing target republishes its position without
+  ///   changing its queue, so those updates share a revision and would
+  ///   all be dropped as duplicates, freezing the controller's view;
+  /// - nothing else. A snapshot from the current session later in the
+  ///   sequence is always authoritative, however surprising it looks: the
   ///   target owns the truth.
   bool onSnapshot(RemotePlaybackSnapshot snapshot) {
     if (snapshot.sessionId != _target.sessionId) return false;
     if (snapshot.scope != _target.scope) return false;
     final current = _projection;
+    // A peer too old to publish a sequence reports 0 every time, which
+    // falls back to arrival order rather than dropping everything.
     if (current != null &&
         current.sessionId == snapshot.sessionId &&
-        snapshot.revision <= current.revision) {
+        snapshot.sequence != 0 &&
+        snapshot.sequence <= current.sequence) {
       return false;
     }
     _projection = snapshot;
@@ -322,19 +328,41 @@ class RemotePlaybackController {
       startPlaying: startPlaying,
       expectedRevision: revision,
     ),
+    // Replacing the whole queue names no existing row, so it needs
+    // neither a projection nor a matching revision: choosing a song for
+    // another device works before this controller has read that device's
+    // state, and while it is playing something else.
+    needsProjection: false,
   );
 
-  Result<RemoteCommand> appendToQueue(List<RemoteQueueEntry> entries) =>
-      _compose(
-        RemoteCommandKind.appendToQueue,
-        (id, revision) => AppendToQueueCommand(
-          id: id,
-          scope: _target.scope,
-          targetSessionId: _target.sessionId,
-          entries: entries,
-          expectedRevision: revision,
-        ),
-      );
+  /// Asks the target to become this device's controller — see
+  /// [TakeControlCommand]. Needs no projection: it is about the link, not
+  /// about anything the target is playing.
+  Result<RemoteCommand> takeControl(String controlSessionId) => _compose(
+    RemoteCommandKind.takeControl,
+    (id, revision) => TakeControlCommand(
+      id: id,
+      scope: _target.scope,
+      targetSessionId: _target.sessionId,
+      controllerOfSessionId: controlSessionId,
+    ),
+    needsProjection: false,
+  );
+
+  Result<RemoteCommand> appendToQueue(
+    List<RemoteQueueEntry> entries, {
+    bool playNext = false,
+  }) => _compose(
+    RemoteCommandKind.appendToQueue,
+    (id, revision) => AppendToQueueCommand(
+      id: id,
+      scope: _target.scope,
+      targetSessionId: _target.sessionId,
+      entries: entries,
+      expectedRevision: revision,
+      playNext: playNext,
+    ),
+  );
 
   Result<RemoteCommand> _simple(
     RemoteCommandKind kind, {
@@ -373,7 +401,7 @@ class RemotePlaybackController {
         const UnavailableFailure('Still reading what that device is playing.'),
       );
     }
-    if (kind.isStructural && (_needsResync || projection == null)) {
+    if (kind.dependsOnCurrentQueue && (_needsResync || projection == null)) {
       return Err(
         const RecoverableFailure(
           'That device has changed. Refreshing before editing its queue.',

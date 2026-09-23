@@ -76,9 +76,9 @@ void main() {
       await playback.pause();
     });
 
-    testWidgets('lists a remote device with its capability-limited '
-        'reason, and offers to bring paused local playback back once '
-        'the queue is not playing', (tester) async {
+    testWidgets('leaves out a device that is not really there, and offers '
+        'to bring paused local playback back once the queue is not '
+        'playing', (tester) async {
       final presence = FakeDevicePresenceSource();
       final playback = fakePlaybackCubit();
       addTearDown(playback.close);
@@ -108,8 +108,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.cast_rounded));
       await tester.pumpAndSettle();
 
-      expect(find.text('Living Room'), findsOneWidget);
-      expect(find.text('Not seen recently'), findsOneWidget);
+      // A device that has not been heard from cannot be driven, and a row
+      // that does nothing when tapped is worse than no row at all.
+      expect(find.text('Living Room'), findsNothing);
       expect(find.text('Paused here — tap to bring it back'), findsOneWidget);
 
       await tester.tap(find.text('This device'));

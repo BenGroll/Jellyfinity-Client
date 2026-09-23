@@ -80,17 +80,29 @@ It does not sign into Jellyfin or change saved accounts.
   from another Windows device, then from an Android one, in both directions.
 
 - v0.6.0: raise and lower this device's own volume from another device's
-  Now Playing/mini-player while this device is the controlled target —
-  the Windows system volume for this app should move and the on-screen
-  level should track it. Start playing something on another device, then
-  press play on a song/album/playlist here; confirm the takeover dialog
-  names the other device, that confirming actually stops it there, and
-  that cancelling leaves it untouched. Open the Remote destination and
-  confirm this device, and the other one, both list correctly. From the
-  Remote destination, tap "Play on all devices"; confirm a group starts,
-  the other device joins and plays the same queue, and that leaving the
-  group returns this device to independent playback without disturbing
-  the other one.
+  Now Playing/mini-player while this device is the controlled target — the
+  Windows system volume for this app should move, the on-screen level
+  should track it, and the slider must not bounce back to its old value
+  before settling. Start playing something on another device, then choose
+  a song, album or artist here while it is mid-track; it must change what
+  the other device plays immediately, with no warning banner or takeover
+  dialog, and this device must stay attached as the controller (ADR-0047
+  deleted the old takeover dialog). With A controlling B, confirm B shows
+  "It is controlling this device"; press Control on B and confirm A
+  detaches rather than both devices claiming to drive the other, and that
+  no row ever offers "Play here" for a device playing nothing or for the
+  device that is already this one's remote (ADR-0048). "Play here instead"
+  on a device this one is controlling must move audio to this device and
+  turn the old target into its remote. While controlling another device,
+  add to queue, play next, reorder, remove and tap a queue row from here;
+  each edit must land on the target, and an edit made at the target must
+  be reflected back here. Open the Remote screen and confirm this device,
+  and every other reachable one, list under their real machine names with
+  album art and the track actually playing; a device that is not reachable
+  must not appear at all. From the Remote screen, tap "Play on all
+  devices"; confirm a group starts, the other device joins and plays the
+  same queue, and that leaving the group returns this device to
+  independent playback without disturbing the other one.
 
 Playback uses the existing domain/application logic. Existing roadmap gaps
 (such as playlist track reorder) remain outside this platform port.
